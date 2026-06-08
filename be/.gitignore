@@ -1,0 +1,153 @@
+# ╔═══════════════════════════════════════════════════════════╗
+# ║              PREOONIC — .gitignore                        ║
+# ║         Áp dụng cho toàn bộ monorepo (be/ + fe/)         ║
+# ╚═══════════════════════════════════════════════════════════╝
+
+# ═══════════════════════════════════════════════════════════
+# ENVIRONMENT — TUYỆT ĐỐI KHÔNG commit
+# ═══════════════════════════════════════════════════════════
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Chỉ commit file mẫu này
+!.env.example
+
+# ═══════════════════════════════════════════════════════════
+# DEPENDENCIES
+# ═══════════════════════════════════════════════════════════
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# ═══════════════════════════════════════════════════════════
+# BUILD OUTPUT
+# ═══════════════════════════════════════════════════════════
+# Backend TypeScript build
+be/dist/
+be/build/
+
+# Frontend React build
+fe/build/
+fe/dist/
+
+# ═══════════════════════════════════════════════════════════
+# UPLOADS — file do người dùng upload (ảnh SP, chứng chỉ)
+# ═══════════════════════════════════════════════════════════
+be/uploads/*
+
+# Giữ lại thư mục nhưng bỏ qua nội dung
+!be/uploads/.gitkeep
+
+# ═══════════════════════════════════════════════════════════
+# LOGS
+# ═══════════════════════════════════════════════════════════
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ═══════════════════════════════════════════════════════════
+# RUNTIME / OS
+# ═══════════════════════════════════════════════════════════
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ═══════════════════════════════════════════════════════════
+# IDE / EDITOR
+# ═══════════════════════════════════════════════════════════
+# VSCode — chỉ commit settings chia sẻ nếu nhóm thống nhất
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# JetBrains (WebStorm, IntelliJ...)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim
+*.swp
+*.swo
+Session.vim
+
+# ═══════════════════════════════════════════════════════════
+# TYPESCRIPT
+# ═══════════════════════════════════════════════════════════
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ═══════════════════════════════════════════════════════════
+# TESTING
+# ═══════════════════════════════════════════════════════════
+coverage/
+.nyc_output/
+*.lcov
+
+# ═══════════════════════════════════════════════════════════
+# TYPEORM MIGRATIONS — chỉ bỏ qua file migration tạm
+# ═══════════════════════════════════════════════════════════
+# Không ignore migrations/ — cần commit để team đồng bộ schema
+# Chỉ bỏ file migration snapshot tạm
+be/src/migrations/*.tmp
+
+# ═══════════════════════════════════════════════════════════
+# MISCELLANEOUS
+# ═══════════════════════════════════════════════════════════
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+
+# npm / yarn lock — chọn 1 trong 2, không commit cả hai
+# Nếu dùng npm  : commit package-lock.json, ignore yarn.lock
+# Nếu dùng yarn : commit yarn.lock, ignore package-lock.json
+# yarn.lock
+# package-lock.json
+
+# Optional npm cache
+.npm
+.eslintcache
+.stylelintcache
+
+# Parcel cache
+.parcel-cache/
+
+# Next.js (nếu sau này đổi FE sang Next)
+.next/
+out/
+
+# ═══════════════════════════════════════════════════════════
+# SQL SERVER — không commit file backup hay export data
+# ═══════════════════════════════════════════════════════════
+*.bak
+*.mdf
+*.ldf
+*.ndf
