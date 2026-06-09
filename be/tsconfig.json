@@ -20,7 +20,7 @@
     "strictPropertyInitialization": false,
 
     // Path alias (tuỳ chọn — dùng tsconfig-paths khi chạy)
-    "baseUrl":                  ".",
+    "baseUrl":       ".",          
     "paths": {
       "@/*": ["src/*"],
       "@config/*":     ["src/config/*"],

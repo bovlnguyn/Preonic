@@ -4,7 +4,6 @@ import { createLogger } from '../utils/logger';
 
 const log = createLogger('DB');
 
-// ── Giữ nguyên constants từ file MongoDB gốc ──
 const MAX_RETRIES    = 5;
 const RETRY_DELAY_MS = 8_000;
 const CONNECT_TIMEOUT_MS = 10_000;
@@ -12,7 +11,7 @@ const REQUEST_TIMEOUT_MS = 45_000;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// ── Guard chống gọi chồng — giữ nguyên từ MongoDB ──
+// ── Guard chống gọi chồng
 let isConnecting     = false;
 let hasConnectedOnce = false;
 
@@ -34,40 +33,26 @@ function buildOptions(): DataSourceOptions {
     username: process.env.DB_USERNAME ?? 'sa',
     password: process.env.DB_PASSWORD ?? '',
     database: process.env.DB_DATABASE ?? 'preonic',
-
-    // Quét toàn bộ entity — điều chỉnh path nếu build ra /dist
+ 
     entities: [
-      process.env.NODE_ENV === 'production'
-        ? 'dist/models/**/*.entity.js'
-        : 'src/models/**/*.entity.ts',
-    ],
-
-    // false = không tự động tạo/sửa bảng (schema đã có sẵn từ file SQL)
-    // Đặt true chỉ khi thêm cột mới trong dev và muốn TypeORM tự ALTER TABLE
+  process.env.NODE_ENV === 'production'
+    ? 'dist/models/**/*.entity.js'
+    : 'src/models/**/*.entity.ts',
+],
+ 
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
-
-    // Migration files (dùng khi production)
-    migrations: [
+    migrations:  [
       process.env.NODE_ENV === 'production'
         ? 'dist/migrations/**/*.js'
         : 'src/migrations/**/*.ts',
     ],
-
-    // Bật log SQL query khi debug
     logging: process.env.DB_LOGGING === 'true',
-
+ 
     options: {
-      // false = dùng local SQL Server không cần SSL
-      encrypt: process.env.DB_ENCRYPT === 'true',
-
-      // true = bỏ qua lỗi certificate self-signed (môi trường dev)
+      encrypt:                process.env.DB_ENCRYPT === 'true',
       trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE !== 'false',
-
-      connectTimeout: CONNECT_TIMEOUT_MS,
-      requestTimeout: REQUEST_TIMEOUT_MS,
-
-      // Bắt buộc với SQL Server 2017+ để tránh lỗi arithmetic overflow
-      enableArithAbort: true,
+      enableArithAbort:       true,
+      instanceName:           process.env.DB_INSTANCE || undefined,
     },
   };
 }
@@ -76,7 +61,7 @@ function buildOptions(): DataSourceOptions {
 export let AppDataSource: DataSource;
 
 // ══════════════════════════════════════════════════════
-// connectDB — giữ nguyên signature từ file MongoDB gốc
+// connectDB
 //   connectDB(onConnected?)
 // ══════════════════════════════════════════════════════
 export async function connectDB(onConnected?: () => void): Promise<void> {
@@ -84,7 +69,7 @@ export async function connectDB(onConnected?: () => void): Promise<void> {
 
   AppDataSource = new DataSource(buildOptions());
 
-  // SIGINT — giữ nguyên từ MongoDB
+  
   process.on('SIGINT', async () => {
     if (AppDataSource?.isInitialized) {
       await AppDataSource.destroy();
@@ -96,7 +81,7 @@ export async function connectDB(onConnected?: () => void): Promise<void> {
   await attempt(0, onConnected);
 }
 
-// ── Các hàm tiện ích — giữ nguyên tên từ MongoDB để không phải đổi nơi gọi ──
+
 export function isDatabaseConnected(): boolean {
   return AppDataSource?.isInitialized ?? false;
 }
@@ -106,7 +91,7 @@ export function hasDatabaseConnectedOnce(): boolean {
 }
 
 // ══════════════════════════════════════════════════════
-// attempt — retry loop, giữ nguyên cấu trúc từ MongoDB
+
 // ══════════════════════════════════════════════════════
 async function attempt(start: number, onConnected?: () => void): Promise<void> {
   if (isConnecting) return;
@@ -120,8 +105,6 @@ async function attempt(start: number, onConnected?: () => void): Promise<void> {
 
     try {
       await AppDataSource.initialize();
-
-      // Log thông tin kết nối giống MongoDB gốc
       const opts = AppDataSource.options as any;
       log.info(`SQL Server Connected: ${opts.host}:${opts.port ?? 1433}`);
       log.info(`Database: ${opts.database}`);
@@ -131,7 +114,7 @@ async function attempt(start: number, onConnected?: () => void): Promise<void> {
 
       if (onConnected) onConnected();
 
-      // Bắt đầu monitor — thay thế event 'disconnected' của Mongoose
+    
       monitorConnection();
       return;
 
@@ -174,5 +157,6 @@ function monitorConnection(): void {
   // Không block process exit
   interval.unref();
 }
+
 
 export default connectDB;
