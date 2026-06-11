@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./PreOnicLogin.css";
+import { useNavigate } from "react-router-dom";
 
 // ── Icons ──────────────────────────────────────────────
 const ShieldIcon = () => (
@@ -82,6 +83,7 @@ const features = [
 ];
 
 export default function PreOnicLogin() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -202,12 +204,12 @@ export default function PreOnicLogin() {
 
             <button className="ln-google-btn">
               <GoogleIcon />
-              <span>Đăng nhập với Google (Nông dân)</span>
+              <span>Đăng nhập với Google</span>
             </button>
 
             <p className="ln-signup-row">
               Chưa có tài khoản?{" "}
-              <button className="ln-signup-link">Đăng ký ngay</button>
+              <button className="ln-signup-link" onClick={() => navigate("/register")}>Đăng ký ngay</button>
             </p>
           </div>
         </div>

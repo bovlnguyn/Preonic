@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "./Register.css";
 import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
+import { useNavigate } from "react-router-dom";
 
 const PROVINCE_OPTIONS = [
   { key: "Ha Noi",         label: "Hà Nội" },
@@ -116,6 +117,7 @@ const PreOnicLogo = () => (
 
 // ── Component ──────────────────────────────────────────
 export default function Register() {
+  const navigate = useNavigate();
   const [role, setRole] = useState("farmer"); // "farmer" | "business"
   const [showPw, setShowPw] = useState(false);
   const [showCpw, setShowCpw] = useState(false);
@@ -160,7 +162,7 @@ const hasWards        = wardOptions.length > 0;
           <li>Liên hệ</li>
         </ul>
         <div className="rg-nav-actions">
-          <button className="rg-btn-outline">Đăng nhập</button>
+          <button className="rg-btn-outline" onClick={() => navigate("/login")}>Đăng nhập</button>
           <button className="rg-btn-solid">Đăng ký</button>
         </div>
       </nav>
