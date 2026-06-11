@@ -1,5 +1,5 @@
 import React from 'react';
-import PreOnicLogin from './component/Auth/PreOnicLogin';
+import PreOnicLogin from './component/Login/PreOnicLogin';
 
 function App() {
   return <PreOnicLogin />;

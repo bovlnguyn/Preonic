@@ -1,5 +1,37 @@
 import { useState } from "react";
 import "./Register.css";
+import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
+
+const PROVINCE_OPTIONS = [
+  { key: "Ha Noi",         label: "Hà Nội" },
+  { key: "Ho Chi Minh",    label: "TP. Hồ Chí Minh" },
+  { key: "Da Nang",        label: "Đà Nẵng" },
+  { key: "Can Tho",        label: "Cần Thơ" },
+  { key: "Hai Phong",      label: "Hải Phòng" },
+  { key: "Binh Duong",     label: "Bình Dương" },
+  { key: "Dong Nai",       label: "Đồng Nai" },
+  { key: "Lam Dong",       label: "Lâm Đồng" },
+  { key: "Khanh Hoa",      label: "Khánh Hòa" },
+  { key: "Thua Thien Hue", label: "Thừa Thiên Huế" },
+  { key: "Nghe An",        label: "Nghệ An" },
+  { key: "Thanh Hoa",      label: "Thanh Hóa" },
+  { key: "Quang Nam",      label: "Quảng Nam" },
+  { key: "Binh Thuan",     label: "Bình Thuận" },
+  { key: "Long An",        label: "Long An" },
+  { key: "Tien Giang",     label: "Tiền Giang" },
+  { key: "An Giang",       label: "An Giang" },
+  { key: "Kien Giang",     label: "Kiên Giang" },
+  { key: "Dak Lak",        label: "Đắk Lắk" },
+  { key: "Gia Lai",        label: "Gia Lai" },
+  { key: "Kon Tum",        label: "Kon Tum" },
+  { key: "Son La",         label: "Sơn La" },
+  { key: "Lai Chau",       label: "Lai Châu" },
+  { key: "Ha Giang",       label: "Hà Giang" },
+  { key: "Phu Tho",        label: "Phú Thọ" },
+  { key: "Thai Nguyen",    label: "Thái Nguyên" },
+  { key: "Lang Son",       label: "Lạng Sơn" },
+  { key: "Quang Ninh",     label: "Quảng Ninh" },
+];
 
 // ── Icons ──────────────────────────────────────────────
 const UserIcon = () => (
@@ -96,7 +128,16 @@ export default function Register() {
     password: "", confirmPassword: "",
   });
 
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const set = (k) => (e) => {
+  const val = e.target.value;
+  if (k === "province") setForm({ ...form, province: val, district: "", ward: "" });
+  else if (k === "district") setForm({ ...form, district: val, ward: "" });
+  else setForm({ ...form, [k]: val });
+};
+
+const districtOptions = form.province ? (VN_DISTRICTS[form.province] || []) : [];
+const wardOptions     = form.district ? (VN_WARDS[form.district]     || []) : [];
+const hasWards        = wardOptions.length > 0;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -188,14 +229,20 @@ export default function Register() {
                 <label className="rg-label">Tỉnh / Thành phố</label>
                 <div className="rg-input-wrap">
                   <span className="rg-icon"><MapPinIcon /></span>
-                  <input className="rg-input" type="text" placeholder="VD: Hà Nội, Lâm Đồng..." value={form.province} onChange={set("province")} />
+                  <select className="rg-input rg-select" value={form.province} onChange={set("province")}>
+                    <option value="">Chọn tỉnh / thành phố</option>
+                    {PROVINCE_OPTIONS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="rg-field">
                 <label className="rg-label">Quận / Huyện</label>
                 <div className="rg-input-wrap">
                   <span className="rg-icon"><MapPinIcon /></span>
-                  <input className="rg-input" type="text" placeholder="Cầu Giấy, Đà Lạt..." value={form.district} onChange={set("district")} />
+                  <select className="rg-input rg-select" value={form.district} onChange={set("district")} disabled={!form.province}>
+                    <option value="">{form.province ? "Chọn quận / huyện" : "— chọn tỉnh trước —"}</option>
+                     {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -205,7 +252,14 @@ export default function Register() {
               <label className="rg-label">Xã / Phường / Thị trấn <span className="rg-optional">(tùy chọn)</span></label>
               <div className="rg-input-wrap">
                 <span className="rg-icon"><MapPinIcon /></span>
-                <input className="rg-input" type="text" placeholder="VD: Phường Dịch Vọng, Xã Xuân Thọ..." value={form.ward} onChange={set("ward")} />
+                {hasWards ? (
+                  <select className="rg-input rg-select" value={form.ward} onChange={set("ward")}>
+                    <option value="">Chọn xã / phường / thị trấn</option>
+                    {wardOptions.map(w => <option key={w} value={w}>{w}</option>)}
+                  </select>
+                ) : (
+                  <input className="rg-input" type="text" placeholder="VD: Phường Dịch Vọng, Xã Xuân Thọ..." value={form.ward} onChange={set("ward")} disabled={!form.district} />
+        )}
               </div>
             </div>
 
