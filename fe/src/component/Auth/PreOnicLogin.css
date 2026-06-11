@@ -367,3 +367,12 @@
   .ln-hero-title { font-size: 26px; }
   .ln-right { padding: 28px 20px; }
 }
+.ln-error {
+  color: #dc2626;
+  font-size: 13px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0;
+}
