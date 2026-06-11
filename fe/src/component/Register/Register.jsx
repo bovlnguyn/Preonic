@@ -301,7 +301,7 @@ const hasWards        = wardOptions.length > 0;
           </form>
 
           <p className="rg-login-row">
-            Đã có tài khoản? <button className="rg-login-link">Đăng nhập ngay</button>
+            Đã có tài khoản? <button className="rg-login-link" onClick={() => navigate("/")}>Đăng nhập ngay</button>
           </p>
         </div>
 

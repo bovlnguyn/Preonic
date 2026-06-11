@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./PreOnicLogin.css";
 import { useNavigate } from "react-router-dom";
+
 
 // ── Icons ──────────────────────────────────────────────
 const ShieldIcon = () => (
@@ -89,12 +90,46 @@ export default function PreOnicLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  // Bắt token sau khi Google callback về
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  if (token) {
+    localStorage.setItem("token", token);
+    navigate("/dashboard");
+  }
+}, []);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
-  };
+// Hàm Google login
+const handleGoogleLogin = () => {
+  window.location.href = "http://localhost:5000/auth/google";
+};
+
+  const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
+  try {
+    const res = await fetch("http://localhost:5000/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      navigate("/dashboard");
+    } else {
+      setError(data.message || "Email hoặc mật khẩu không đúng.");
+    }
+  } catch (err) {
+    console.error(err);
+    setError("Có lỗi xảy ra, vui lòng thử lại.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="ln-page">
@@ -190,7 +225,7 @@ export default function PreOnicLogin() {
                 </label>
                 <button type="button" className="ln-forgot-btn">Quên mật khẩu?</button>
               </div>
-
+              {error && <p className="ln-error">{error}</p>}
               <button type="submit" className="ln-submit-btn" disabled={loading}>
                 {loading ? <span className="ln-spinner" /> : <><span>Đăng nhập</span><ArrowRight /></>}
               </button>
@@ -202,7 +237,7 @@ export default function PreOnicLogin() {
               <div className="ln-divider-line" />
             </div>
 
-            <button className="ln-google-btn">
+            <button className="ln-google-btn" onClick={handleGoogleLogin}>
               <GoogleIcon />
               <span>Đăng nhập với Google</span>
             </button>
