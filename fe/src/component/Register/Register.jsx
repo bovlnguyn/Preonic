@@ -123,6 +123,7 @@ export default function Register() {
   const [showCpw, setShowCpw] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState(null); // null | "terms" | "privacy"
 
   const [form, setForm] = useState({
     fullName: "", email: "", phone: "",
@@ -146,6 +147,29 @@ const hasWards        = wardOptions.length > 0;
     setLoading(true);
     setTimeout(() => setLoading(false), 1500);
   };
+
+  const MODALS = {
+  terms: {
+    title: "Điều khoản Sử dụng PreOnic",
+    content: [
+      { heading: "1. Chấp nhận điều khoản", body: "Bằng việc đăng ký tài khoản trên PreOnic, bạn đồng ý tuân thủ toàn bộ các điều khoản sử dụng này." },
+      { heading: "2. Điều kiện sử dụng tài khoản", body: "Bạn phải từ 18 tuổi trở lên và có đủ năng lực pháp lý để sử dụng dịch vụ. Thông tin đăng ký phải trung thực và chính xác." },
+      { heading: "3. Hành vi bị cấm", body: "Nghiêm cấm: đăng tải thông tin sai lệch; sử dụng nền tảng để lừa đảo; phá hoại hệ thống; thu thập thông tin người dùng khác trái phép." },
+      { heading: "4. Trách nhiệm của người dùng", body: "Người dùng tự chịu trách nhiệm về tính chính xác của thông tin sản phẩm, hợp đồng và giao dịch." },
+      { heading: "5. Giới hạn trách nhiệm", body: "PreOnic không chịu trách nhiệm về thiệt hại gián tiếp phát sinh từ việc sử dụng dịch vụ." },
+    ]
+  },
+  privacy: {
+    title: "Chính sách Bảo mật PreOnic",
+    content: [
+      { heading: "1. Thông tin chúng tôi thu thập", body: "Họ tên, email, số điện thoại, địa chỉ + dữ liệu hoạt động trên nền tảng + dữ liệu kỹ thuật (IP, thiết bị)." },
+      { heading: "2. Mục đích sử dụng", body: "Xác minh tài khoản, xử lý giao dịch Escrow, gửi thông báo hợp đồng, cải thiện trải nghiệm, tuân thủ pháp luật." },
+      { heading: "3. Chia sẻ thông tin", body: "PreOnic không bán thông tin của bạn. Chỉ chia sẻ với đối tác giao dịch + đơn vị thanh toán + cơ quan nhà nước khi có yêu cầu hợp pháp." },
+      { heading: "4. Bảo mật", body: "Mã hóa SSL 256-bit, mật khẩu băm bcrypt, kiểm tra bảo mật định kỳ." },
+      { heading: "5. Liên hệ", body: "privacy@preonic.vn" },
+    ]
+  }
+};
 
   return (
     <div className="rg-page">
@@ -284,12 +308,40 @@ const hasWards        = wardOptions.length > 0;
                 </div>
               </div>
             </div>
+            
+            {/* Modal */}
+            {modal && (
+              <div className="rg-modal-overlay" onClick={() => setModal(null)}>
+               <div className="rg-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="rg-modal-header">
+              <h3 className="rg-modal-title">{MODALS[modal].title}</h3>
+              <button className="rg-modal-close" onClick={() => setModal(null)}>✕</button>
+              </div>
+            <div className="rg-modal-body">
+        {MODALS[modal].content.map((item, i) => (
+          <div key={i} className="rg-modal-section">
+            <strong>{item.heading}</strong>
+            <p>{item.body}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rg-modal-footer">
+        <button className="rg-modal-btn" onClick={() => setModal(null)}>Tôi đã hiểu</button>
+      </div>
+    </div>
+  </div>
+)}
 
             {/* Terms */}
             <label className="rg-terms">
-              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="rg-checkbox" />
-              <span>Tôi đồng ý với <a href="#!" className="rg-link">Điều khoản sử dụng</a> và <a href="#!" className="rg-link">Chính sách bảo mật</a> của PreOnic.</span>
-            </label>
+  <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="rg-checkbox" />
+  <span>Tôi đồng ý với{" "}
+    <a href="#!" className="rg-link" onClick={(e) => { e.preventDefault(); setModal("terms"); }}>Điều khoản sử dụng</a>
+    {" "}và{" "}
+    <a href="#!" className="rg-link" onClick={(e) => { e.preventDefault(); setModal("privacy"); }}>Chính sách bảo mật</a>
+    {" "}của PreOnic.
+  </span>
+</label>
 
             {/* Submit */}
             <button type="submit" className="rg-submit" disabled={loading || !agreed}>
