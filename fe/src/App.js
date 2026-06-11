@@ -1,8 +1,8 @@
 import React from 'react';
-import Register from './component/Register/Register';
+import PreOnicLogin from './component/Auth/PreOnicLogin';
 
 function App() {
-  return <Register />;
+  return <PreOnicLogin />;
 }
 
 export default App;
