@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import "./PreOnicLogin.css";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import authService from "../../services/auth.service";
 
 
 // ── Icons ──────────────────────────────────────────────
@@ -85,47 +87,60 @@ const features = [
 
 export default function PreOnicLogin() {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+const [error, setError]     = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  
   // Bắt token sau khi Google callback về
 useEffect(() => {
   const params = new URLSearchParams(window.location.search);
-  const token = params.get("token");
+  const token  = params.get("token");
+  const user   = params.get("user");
   if (token) {
-    localStorage.setItem("token", token);
-    navigate("/dashboard");
+    try {
+      const userData = user ? JSON.parse(decodeURIComponent(user)) : {};
+      login(token, userData);
+      window.history.replaceState({}, "", window.location.pathname);
+      //navigate("/dashboard");
+    } catch {
+      setError("Đăng nhập Google thất bại, vui lòng thử lại.");
+    }
   }
 }, []);
 
 // Hàm Google login
 const handleGoogleLogin = () => {
-  window.location.href = "http://localhost:5000/auth/google";
+  authService.loginWithGoogle();
 };
 
   const handleLogin = async (e) => {
   e.preventDefault();
-  setLoading(true);
   setError("");
+
+  if (!email.trim() || !password) {
+    setError("Vui lòng nhập đầy đủ email và mật khẩu.");
+    return;
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    setError("Email không hợp lệ.");
+    return;
+  }
+  if (password.length < 6) {
+    setError("Mật khẩu phải có ít nhất 6 ký tự.");
+    return;
+  }
+
+  setLoading(true);
   try {
-    const res = await fetch("http://localhost:5000/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (data.token) {
-      localStorage.setItem("token", data.token);
-      navigate("/dashboard");
-    } else {
-      setError(data.message || "Email hoặc mật khẩu không đúng.");
-    }
+    const data = await authService.login({ email, password });
+    login(data.accessToken, data.user);
+    navigate("/dashboard");
   } catch (err) {
-    console.error(err);
-    setError("Có lỗi xảy ra, vui lòng thử lại.");
+    setError(err.response?.data?.message || "Email hoặc mật khẩu không đúng.");
   } finally {
     setLoading(false);
   }

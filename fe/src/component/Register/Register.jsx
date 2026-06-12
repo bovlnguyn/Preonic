@@ -2,6 +2,8 @@ import { useState } from "react";
 import "./Register.css";
 import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import authService from "../../services/auth.service";
 
 const PROVINCE_OPTIONS = [
   { key: "Ha Noi",         label: "Hà Nội" },
@@ -118,15 +120,17 @@ const PreOnicLogo = () => (
 // ── Component ──────────────────────────────────────────
 export default function Register() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [role, setRole] = useState("farmer"); // "farmer" | "business"
   const [showPw, setShowPw] = useState(false);
   const [showCpw, setShowCpw] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // null | "terms" | "privacy"
 
   const [form, setForm] = useState({
-    fullName: "", email: "", phone: "",
+    firstName: "", lastName: "", email: "", phone: "",
     province: "", district: "", ward: "",
     password: "", confirmPassword: "",
   });
@@ -142,11 +146,76 @@ const districtOptions = form.province ? (VN_DISTRICTS[form.province] || []) : []
 const wardOptions     = form.district ? (VN_WARDS[form.district]     || []) : [];
 const hasWards        = wardOptions.length > 0;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
-  };
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+
+  if (!form.fullName.trim()) {
+    setError("Vui lòng nhập họ và tên.");
+    return;
+  }
+  if (!/^[\p{L}\s]{2,}$/u.test(form.fullName.trim())) {
+    setError("Họ và tên chỉ được chứa chữ cái.");
+    return;
+  }
+  if (!form.email.trim()) {
+    setError("Vui lòng nhập email.");
+    return;
+  }
+  if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+    setError("Email không hợp lệ.");
+    return;
+  }
+  if (!form.phone.trim()) {
+    setError("Vui lòng nhập số điện thoại.");
+    return;
+  }
+  if (!/^[0-9]{10,11}$/.test(form.phone.trim())) {
+    setError("Số điện thoại phải có 10-11 chữ số.");
+    return;
+  }
+  if (!form.province) {
+    setError("Vui lòng chọn tỉnh / thành phố.");
+    return;
+  }
+  if (!form.password) {
+    setError("Vui lòng nhập mật khẩu.");
+    return;
+  }
+  if (form.password.length < 6) {
+    setError("Mật khẩu phải có ít nhất 6 ký tự.");
+    return;
+  }
+  if (form.password !== form.confirmPassword) {
+    setError("Mật khẩu xác nhận không khớp.");
+    return;
+  }
+  if (!agreed) {
+    setError("Vui lòng đồng ý với điều khoản sử dụng.");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const data = await authService.register({
+      firstName: form.firstName,
+      lastName:  form.lastName,
+      email:    form.email,
+      phone:    form.phone,
+      province: form.province,
+      district: form.district,
+      ward:     form.ward,
+      password: form.password,
+      role,
+    });
+    login(data.accessToken, data.user);
+    navigate("/dashboard");
+  } catch (err) {
+    setError(err.response?.data?.message || "Đăng ký thất bại, vui lòng thử lại.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const MODALS = {
   terms: {
@@ -217,19 +286,24 @@ const hasWards        = wardOptions.length > 0;
 
           <form onSubmit={handleSubmit} className="rg-form">
             {/* Full name */}
-            <div className="rg-field rg-field--full">
-              <label className="rg-label">Họ và tên</label>
-              <div className="rg-input-wrap">
-                <span className="rg-icon"><UserIcon /></span>
-                <input
-                  className="rg-input"
-                  type="text"
-                  placeholder="Nhập họ và tên"
-                  value={form.fullName}
-                  onChange={set("fullName")}
-                />
-              </div>
-            </div>
+            <div className="rg-row">
+            <div className="rg-field">
+             <label className="rg-label">Họ</label>
+             <div className="rg-input-wrap">
+             <span className="rg-icon"><UserIcon /></span>
+              <input className="rg-input" type="text" placeholder="Nhập họ"
+             value={form.lastName} onChange={set("lastName")} />
+             </div>
+             </div>
+              <div className="rg-field">
+              <label className="rg-label">Tên</label>
+               <div className="rg-input-wrap">
+              <span className="rg-icon"><UserIcon /></span>
+              <input className="rg-input" type="text" placeholder="Nhập tên"
+                 value={form.firstName} onChange={set("firstName")} />
+               </div>
+               </div>
+               </div>
 
             {/* Email + Phone */}
             <div className="rg-row">
@@ -344,6 +418,7 @@ const hasWards        = wardOptions.length > 0;
 </label>
 
             {/* Submit */}
+            {error && <p className="rg-error">{error}</p>}
             <button type="submit" className="rg-submit" disabled={loading || !agreed}>
               {loading
                 ? <span className="rg-spinner" />
