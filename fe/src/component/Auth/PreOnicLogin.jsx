@@ -119,8 +119,22 @@ const handleGoogleLogin = () => {
 
   const handleLogin = async (e) => {
   e.preventDefault();
-  setLoading(true);
   setError("");
+
+  if (!email.trim() || !password) {
+    setError("Vui lòng nhập đầy đủ email và mật khẩu.");
+    return;
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    setError("Email không hợp lệ.");
+    return;
+  }
+  if (password.length < 6) {
+    setError("Mật khẩu phải có ít nhất 6 ký tự.");
+    return;
+  }
+
+  setLoading(true);
   try {
     const data = await authService.login({ email, password });
     login(data.accessToken, data.user);
