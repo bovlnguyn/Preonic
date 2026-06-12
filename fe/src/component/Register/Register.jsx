@@ -1,5 +1,38 @@
 import { useState } from "react";
 import "./Register.css";
+import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
+import { useNavigate } from "react-router-dom";
+
+const PROVINCE_OPTIONS = [
+  { key: "Ha Noi",         label: "Hà Nội" },
+  { key: "Ho Chi Minh",    label: "TP. Hồ Chí Minh" },
+  { key: "Da Nang",        label: "Đà Nẵng" },
+  { key: "Can Tho",        label: "Cần Thơ" },
+  { key: "Hai Phong",      label: "Hải Phòng" },
+  { key: "Binh Duong",     label: "Bình Dương" },
+  { key: "Dong Nai",       label: "Đồng Nai" },
+  { key: "Lam Dong",       label: "Lâm Đồng" },
+  { key: "Khanh Hoa",      label: "Khánh Hòa" },
+  { key: "Thua Thien Hue", label: "Thừa Thiên Huế" },
+  { key: "Nghe An",        label: "Nghệ An" },
+  { key: "Thanh Hoa",      label: "Thanh Hóa" },
+  { key: "Quang Nam",      label: "Quảng Nam" },
+  { key: "Binh Thuan",     label: "Bình Thuận" },
+  { key: "Long An",        label: "Long An" },
+  { key: "Tien Giang",     label: "Tiền Giang" },
+  { key: "An Giang",       label: "An Giang" },
+  { key: "Kien Giang",     label: "Kiên Giang" },
+  { key: "Dak Lak",        label: "Đắk Lắk" },
+  { key: "Gia Lai",        label: "Gia Lai" },
+  { key: "Kon Tum",        label: "Kon Tum" },
+  { key: "Son La",         label: "Sơn La" },
+  { key: "Lai Chau",       label: "Lai Châu" },
+  { key: "Ha Giang",       label: "Hà Giang" },
+  { key: "Phu Tho",        label: "Phú Thọ" },
+  { key: "Thai Nguyen",    label: "Thái Nguyên" },
+  { key: "Lang Son",       label: "Lạng Sơn" },
+  { key: "Quang Ninh",     label: "Quảng Ninh" },
+];
 
 // ── Icons ──────────────────────────────────────────────
 const UserIcon = () => (
@@ -84,11 +117,13 @@ const PreOnicLogo = () => (
 
 // ── Component ──────────────────────────────────────────
 export default function Register() {
+  const navigate = useNavigate();
   const [role, setRole] = useState("farmer"); // "farmer" | "business"
   const [showPw, setShowPw] = useState(false);
   const [showCpw, setShowCpw] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState(null); // null | "terms" | "privacy"
 
   const [form, setForm] = useState({
     fullName: "", email: "", phone: "",
@@ -96,13 +131,45 @@ export default function Register() {
     password: "", confirmPassword: "",
   });
 
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const set = (k) => (e) => {
+  const val = e.target.value;
+  if (k === "province") setForm({ ...form, province: val, district: "", ward: "" });
+  else if (k === "district") setForm({ ...form, district: val, ward: "" });
+  else setForm({ ...form, [k]: val });
+};
+
+const districtOptions = form.province ? (VN_DISTRICTS[form.province] || []) : [];
+const wardOptions     = form.district ? (VN_WARDS[form.district]     || []) : [];
+const hasWards        = wardOptions.length > 0;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
     setTimeout(() => setLoading(false), 1500);
   };
+
+  const MODALS = {
+  terms: {
+    title: "Điều khoản Sử dụng PreOnic",
+    content: [
+      { heading: "1. Chấp nhận điều khoản", body: "Bằng việc đăng ký tài khoản trên PreOnic, bạn đồng ý tuân thủ toàn bộ các điều khoản sử dụng này." },
+      { heading: "2. Điều kiện sử dụng tài khoản", body: "Bạn phải từ 18 tuổi trở lên và có đủ năng lực pháp lý để sử dụng dịch vụ. Thông tin đăng ký phải trung thực và chính xác." },
+      { heading: "3. Hành vi bị cấm", body: "Nghiêm cấm: đăng tải thông tin sai lệch; sử dụng nền tảng để lừa đảo; phá hoại hệ thống; thu thập thông tin người dùng khác trái phép." },
+      { heading: "4. Trách nhiệm của người dùng", body: "Người dùng tự chịu trách nhiệm về tính chính xác của thông tin sản phẩm, hợp đồng và giao dịch." },
+      { heading: "5. Giới hạn trách nhiệm", body: "PreOnic không chịu trách nhiệm về thiệt hại gián tiếp phát sinh từ việc sử dụng dịch vụ." },
+    ]
+  },
+  privacy: {
+    title: "Chính sách Bảo mật PreOnic",
+    content: [
+      { heading: "1. Thông tin chúng tôi thu thập", body: "Họ tên, email, số điện thoại, địa chỉ + dữ liệu hoạt động trên nền tảng + dữ liệu kỹ thuật (IP, thiết bị)." },
+      { heading: "2. Mục đích sử dụng", body: "Xác minh tài khoản, xử lý giao dịch Escrow, gửi thông báo hợp đồng, cải thiện trải nghiệm, tuân thủ pháp luật." },
+      { heading: "3. Chia sẻ thông tin", body: "PreOnic không bán thông tin của bạn. Chỉ chia sẻ với đối tác giao dịch + đơn vị thanh toán + cơ quan nhà nước khi có yêu cầu hợp pháp." },
+      { heading: "4. Bảo mật", body: "Mã hóa SSL 256-bit, mật khẩu băm bcrypt, kiểm tra bảo mật định kỳ." },
+      { heading: "5. Liên hệ", body: "privacy@preonic.vn" },
+    ]
+  }
+};
 
   return (
     <div className="rg-page">
@@ -119,7 +186,7 @@ export default function Register() {
           <li>Liên hệ</li>
         </ul>
         <div className="rg-nav-actions">
-          <button className="rg-btn-outline">Đăng nhập</button>
+          <button className="rg-btn-outline" onClick={() => navigate("/login")}>Đăng nhập</button>
           <button className="rg-btn-solid">Đăng ký</button>
         </div>
       </nav>
@@ -188,14 +255,20 @@ export default function Register() {
                 <label className="rg-label">Tỉnh / Thành phố</label>
                 <div className="rg-input-wrap">
                   <span className="rg-icon"><MapPinIcon /></span>
-                  <input className="rg-input" type="text" placeholder="VD: Hà Nội, Lâm Đồng..." value={form.province} onChange={set("province")} />
+                  <select className="rg-input rg-select" value={form.province} onChange={set("province")}>
+                    <option value="">Chọn tỉnh / thành phố</option>
+                    {PROVINCE_OPTIONS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="rg-field">
                 <label className="rg-label">Quận / Huyện</label>
                 <div className="rg-input-wrap">
                   <span className="rg-icon"><MapPinIcon /></span>
-                  <input className="rg-input" type="text" placeholder="Cầu Giấy, Đà Lạt..." value={form.district} onChange={set("district")} />
+                  <select className="rg-input rg-select" value={form.district} onChange={set("district")} disabled={!form.province}>
+                    <option value="">{form.province ? "Chọn quận / huyện" : "— chọn tỉnh trước —"}</option>
+                     {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -205,7 +278,14 @@ export default function Register() {
               <label className="rg-label">Xã / Phường / Thị trấn <span className="rg-optional">(tùy chọn)</span></label>
               <div className="rg-input-wrap">
                 <span className="rg-icon"><MapPinIcon /></span>
-                <input className="rg-input" type="text" placeholder="VD: Phường Dịch Vọng, Xã Xuân Thọ..." value={form.ward} onChange={set("ward")} />
+                {hasWards ? (
+                  <select className="rg-input rg-select" value={form.ward} onChange={set("ward")}>
+                    <option value="">Chọn xã / phường / thị trấn</option>
+                    {wardOptions.map(w => <option key={w} value={w}>{w}</option>)}
+                  </select>
+                ) : (
+                  <input className="rg-input" type="text" placeholder="VD: Phường Dịch Vọng, Xã Xuân Thọ..." value={form.ward} onChange={set("ward")} disabled={!form.district} />
+        )}
               </div>
             </div>
 
@@ -228,12 +308,40 @@ export default function Register() {
                 </div>
               </div>
             </div>
+            
+            {/* Modal */}
+            {modal && (
+              <div className="rg-modal-overlay" onClick={() => setModal(null)}>
+               <div className="rg-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="rg-modal-header">
+              <h3 className="rg-modal-title">{MODALS[modal].title}</h3>
+              <button className="rg-modal-close" onClick={() => setModal(null)}>✕</button>
+              </div>
+            <div className="rg-modal-body">
+        {MODALS[modal].content.map((item, i) => (
+          <div key={i} className="rg-modal-section">
+            <strong>{item.heading}</strong>
+            <p>{item.body}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rg-modal-footer">
+        <button className="rg-modal-btn" onClick={() => setModal(null)}>Tôi đã hiểu</button>
+      </div>
+    </div>
+  </div>
+)}
 
             {/* Terms */}
             <label className="rg-terms">
-              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="rg-checkbox" />
-              <span>Tôi đồng ý với <a href="#!" className="rg-link">Điều khoản sử dụng</a> và <a href="#!" className="rg-link">Chính sách bảo mật</a> của PreOnic.</span>
-            </label>
+  <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="rg-checkbox" />
+  <span>Tôi đồng ý với{" "}
+    <a href="#!" className="rg-link" onClick={(e) => { e.preventDefault(); setModal("terms"); }}>Điều khoản sử dụng</a>
+    {" "}và{" "}
+    <a href="#!" className="rg-link" onClick={(e) => { e.preventDefault(); setModal("privacy"); }}>Chính sách bảo mật</a>
+    {" "}của PreOnic.
+  </span>
+</label>
 
             {/* Submit */}
             <button type="submit" className="rg-submit" disabled={loading || !agreed}>
@@ -245,7 +353,7 @@ export default function Register() {
           </form>
 
           <p className="rg-login-row">
-            Đã có tài khoản? <button className="rg-login-link">Đăng nhập ngay</button>
+            Đã có tài khoản? <button className="rg-login-link" onClick={() => navigate("/")}>Đăng nhập ngay</button>
           </p>
         </div>
 
