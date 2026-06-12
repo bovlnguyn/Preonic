@@ -2,6 +2,8 @@ import { useState } from "react";
 import "./Register.css";
 import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import authService from "../../services/auth.service";
 
 const PROVINCE_OPTIONS = [
   { key: "Ha Noi",         label: "Hà Nội" },
@@ -118,11 +120,13 @@ const PreOnicLogo = () => (
 // ── Component ──────────────────────────────────────────
 export default function Register() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [role, setRole] = useState("farmer"); // "farmer" | "business"
   const [showPw, setShowPw] = useState(false);
   const [showCpw, setShowCpw] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // null | "terms" | "privacy"
 
   const [form, setForm] = useState({
@@ -142,11 +146,33 @@ const districtOptions = form.province ? (VN_DISTRICTS[form.province] || []) : []
 const wardOptions     = form.district ? (VN_WARDS[form.district]     || []) : [];
 const hasWards        = wardOptions.length > 0;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
-  };
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (form.password !== form.confirmPassword) {
+    setError("Mật khẩu xác nhận không khớp.");
+    return;
+  }
+  setLoading(true);
+  setError("");
+  try {
+    const data = await authService.register({
+      fullName: form.fullName,
+      email:    form.email,
+      phone:    form.phone,
+      province: form.province,
+      district: form.district,
+      ward:     form.ward,
+      password: form.password,
+      role,
+    });
+    login(data.accessToken, data.user);
+    navigate("/dashboard");
+  } catch (err) {
+    setError(err.response?.data?.message || "Đăng ký thất bại, vui lòng thử lại.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const MODALS = {
   terms: {
@@ -344,6 +370,7 @@ const hasWards        = wardOptions.length > 0;
 </label>
 
             {/* Submit */}
+            {error && <p className="rg-error">{error}</p>}
             <button type="submit" className="rg-submit" disabled={loading || !agreed}>
               {loading
                 ? <span className="rg-spinner" />
