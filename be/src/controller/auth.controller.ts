@@ -1,37 +1,196 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuthService } from '../services/auth.service';
+import { Request, Response } from 'express';
+import * as authService from '../services/auth.service';
+import { AuthRequest } from '../types';
 
-export class AuthController {
-  private static sendAuthResponse(res: Response, statusCode: number, message: string, data: any) {
-    res.status(statusCode).json({
+// ── Cookie options cho refresh token ──
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure:   process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  maxAge:   30 * 24 * 60 * 60 * 1000, // 30 ngày
+};
+
+// ══════════════════════════════════════════
+// ĐĂNG KÝ
+// ══════════════════════════════════════════
+export const register = async (req: Request, res: Response) => {
+  try {
+    const user = await authService.register(req.body);
+    res.status(201).json({
       success: true,
-      status: 'success',
-      message,
-      data,
+      message: 'Đăng ký thành công',
+      data: { user },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Đăng ký thất bại',
     });
   }
+};
 
-  static async register(req: Request, res: Response, next: NextFunction) {
-    try {
-      const result = await AuthService.register(req.body);
+// ══════════════════════════════════════════
+// ĐĂNG NHẬP
+// ══════════════════════════════════════════
+export const login = async (req: Request, res: Response) => {
+  try {
+    const { emailOrPhone, password } = req.body;
+    const { user, accessToken, refreshToken } = await authService.login(emailOrPhone, password);
 
-      if ('requiresVerification' in result) {
-        return res.status(201).json({
+    // Lưu refreshToken vào httpOnly cookie
+    res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
+
+    res.status(200).json({
+      success: true,
+      message: 'Đăng nhập thành công',
+      data: { user, accessToken },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Đăng nhập thất bại',
+    });
+  }
+};
+
+// ══════════════════════════════════════════
+// ĐĂNG XUẤT
+// ══════════════════════════════════════════
+export const logout = async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user?.id) {
+      await authService.logout(req.user.id);
+    }
+    res.clearCookie('refreshToken');
+    res.status(200).json({
+      success: true,
+      message: 'Đăng xuất thành công',
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Đăng xuất thất bại',
+    });
+  }
+};
+
+// ══════════════════════════════════════════
+// REFRESH TOKEN
+// ══════════════════════════════════════════
+export const refreshToken = async (req: Request, res: Response) => {
+  try {
+    // Lấy token từ cookie hoặc body
+    const token = req.cookies?.refreshToken || req.body?.refreshToken;
+    const { accessToken, refreshToken: newRefreshToken } =
+      await authService.refreshAccessToken(token);
+
+    // Cập nhật cookie với token mới
+    res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
+
+    res.status(200).json({
+      success: true,
+      data: { accessToken },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 401).json({
+      success: false,
+      message: err.message || 'Refresh token thất bại',
+    });
+  }
+};
+
+// ══════════════════════════════════════════
+// LẤY THÔNG TIN USER HIỆN TẠI
+// ══════════════════════════════════════════
+export const getMe = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await authService.getMe(req.user!.id);
+    res.status(200).json({
+      success: true,
+      data: { user },
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: 'Lấy thông tin thất bại',
+    });
+  }
+};
+
+// ══════════════════════════════════════════
+// QUÊN MẬT KHẨU
+// ══════════════════════════════════════════
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const result = await authService.forgotPassword(req.body.email);
+
+    // Luôn trả về success để không tiết lộ email tồn tại hay không
+    if (result) {
+      // TODO: gửi email qua nodemailer
+      // await sendResetEmail(result.user.email, result.rawToken);
+
+      // Dev: trả về token để test (bỏ khi production)
+      if (process.env.NODE_ENV === 'development') {
+        return res.status(200).json({
           success: true,
-          status: 'success',
-          requiresVerification: true,
-          message: 'Tài khoản doanh nghiệp đã được tạo. Vui lòng kiểm tra email để kích hoạt.',
-          data: { email: result.email },
+          message: 'Email đặt lại mật khẩu đã được gửi',
+          resetToken: result.rawToken, // chỉ dev
         });
       }
-
-      const { user, tokens } = result;
-      return AuthController.sendAuthResponse(res, 201, 'Đăng ký tài khoản thành công!', {
-        user,
-        accessToken: tokens.accessToken
-      });
-    } catch (error: any) {
-      next(error);
     }
+
+    res.status(200).json({
+      success: true,
+      message: 'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi',
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Gửi email thất bại',
+    });
   }
-}
+};
+
+// ══════════════════════════════════════════
+// ĐẶT LẠI MẬT KHẨU
+// ══════════════════════════════════════════
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body;
+    await authService.resetPassword(token, password);
+
+    res.status(200).json({
+      success: true,
+      message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.',
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Đặt lại mật khẩu thất bại',
+    });
+  }
+};
+
+// ══════════════════════════════════════════
+// CẬP NHẬT MẬT KHẨU (đã đăng nhập)
+// ══════════════════════════════════════════
+export const updatePassword = async (req: AuthRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const { accessToken, refreshToken: newRefreshToken } =
+      await authService.updatePassword(req.user!.id, currentPassword, newPassword);
+
+    res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật mật khẩu thành công',
+      data: { accessToken },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Cập nhật mật khẩu thất bại',
+    });
+  }
+};
