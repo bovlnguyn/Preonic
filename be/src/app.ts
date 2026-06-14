@@ -9,6 +9,7 @@ import path from 'path';
 // Import Routes
 import authRoutes from './routes/auth.routes';
 
+
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
 import { createLogger } from './utils/logger';
@@ -84,6 +85,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Gắn các route vào đây
 app.use(`${API_PREFIX}/auth`, authRoutes);
+
 // Các route khác bạn sẽ mở comment và thêm vào sau...
 
 // ══════════════════════════════════════════════════════
