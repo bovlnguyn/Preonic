@@ -1,44 +1,164 @@
+import { body, validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
 
-export const validateRegister = (req: Request, res: Response, next: NextFunction) => {
-  const { firstName, lastName, email, phone, password, confirmPassword, role, agreeTerms } = req.body;
-
-  // 1. Kiểm tra các trường bắt buộc
-  if (!email || !password || !confirmPassword || !role || !firstName || !lastName || !agreeTerms) {
-    return res.status(400).json({ success: false, message: 'Vui lòng điền đầy đủ các trường bắt buộc.' });
+/**
+ * Handle validation errors
+ */
+const handleValidationErrors = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const errorMessages = errors.array().map((err) => err.msg);
+    console.log('Validation errors:', errors.array());
+    console.log('Request body:', req.body);
+    res.status(400).json({
+      success: false,
+      status: 'error',
+      message: errorMessages[0] || 'Dữ liệu không hợp lệ',
+      errors: errorMessages,
+    });
+    return;
   }
-
-  // 2. Validate Email
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ success: false, message: 'Định dạng email không hợp lệ.' });
-  }
-
-  // 3. Validate Mật khẩu (Ít nhất 6 ký tự, có thể thêm regex để yêu cầu độ phức tạp)
-  if (password.length < 6) {
-    return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự.' });
-  }
-  if (password !== confirmPassword) {
-    return res.status(400).json({ success: false, message: 'Mật khẩu xác nhận không khớp.' });
-  }
-
-  // 4. Validate Số điện thoại (Nếu có nhập)
-  if (phone) {
-    const phoneRegex = /^[0-9]{10,11}$/;
-    if (!phoneRegex.test(phone)) {
-      return res.status(400).json({ success: false, message: 'Số điện thoại không hợp lệ (cần 10-11 chữ số).' });
-    }
-  }
-
-  // 5. Validate Role
-  if (!['farmer', 'enterprise'].includes(role)) {
-    return res.status(400).json({ success: false, message: 'Vai trò người dùng không hợp lệ.' });
-  }
-
-  // 6. Validate Điều khoản
-  if (agreeTerms !== true) {
-    return res.status(400).json({ success: false, message: 'Bạn cần đồng ý với các điều khoản sử dụng.' });
-  }
-  
   next();
 };
+
+/**
+ * Validate Register
+ * Matches FE Register.jsx: { fullName, email, phone, password, confirmPassword, role, agreeTerms }
+ */
+export const validateRegister = [
+
+body('firstName')
+  .trim()
+  .notEmpty()
+  .withMessage('Vui lòng nhập tên')
+  .isLength({ min: 1, max: 100 })
+  .withMessage('Tên phải từ 1-100 ký tự'),
+
+body('lastName')
+  .trim()
+  .notEmpty()
+  .withMessage('Vui lòng nhập họ')
+  .isLength({ min: 1, max: 100 })
+  .withMessage('Họ phải từ 1-100 ký tự'),
+
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập email')
+    .isEmail()
+    .withMessage('Email không hợp lệ')
+    .toLowerCase(),
+
+  body('phone')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập số điện thoại')
+    .matches(/^[0-9]{10,11}$/)
+    .withMessage('Số điện thoại phải có 10-11 chữ số'),
+
+  body('password')
+    .notEmpty()
+    .withMessage('Vui lòng nhập mật khẩu')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
+
+  body('confirmPassword')
+    .notEmpty()
+    .withMessage('Vui lòng xác nhận mật khẩu'),
+
+  body('role')
+    .notEmpty()
+    .withMessage('Vui lòng chọn vai trò')
+    .isIn(['farmer', 'enterprise'])
+    .withMessage('Vai trò phải là "farmer" hoặc "enterprise"'),
+
+  body('agreeTerms')
+    .optional() // Make it optional in validation
+    .custom((value) => {
+      // If exists, must be truthy
+      if (value === false || value === 'false') {
+        return false;
+      }
+      return true;
+    })
+    .withMessage('Vui lòng đồng ý với điều khoản sử dụng'),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validate Login
+ * Matches FE Auth.jsx: { emailOrPhone, password }
+ */
+export const validateLogin = [
+  body('emailOrPhone')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập email hoặc số điện thoại'),
+
+  body('password')
+    .notEmpty()
+    .withMessage('Vui lòng nhập mật khẩu'),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validate Forgot Password
+ */
+export const validateForgotPassword = [
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập email')
+    .isEmail()
+    .withMessage('Email không hợp lệ'),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validate Reset Password
+ */
+export const validateResetPassword = [
+  body('token')
+    .notEmpty()
+    .withMessage('Token đặt lại mật khẩu là bắt buộc'),
+
+  body('password')
+    .notEmpty()
+    .withMessage('Vui lòng nhập mật khẩu mới')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
+
+  body('confirmPassword')
+    .notEmpty()
+    .withMessage('Vui lòng xác nhận mật khẩu mới'),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validate Update Password
+ */
+export const validateUpdatePassword = [
+  body('currentPassword')
+    .notEmpty()
+    .withMessage('Vui lòng nhập mật khẩu hiện tại'),
+
+  body('newPassword')
+    .notEmpty()
+    .withMessage('Vui lòng nhập mật khẩu mới')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu mới phải có ít nhất 6 ký tự'),
+
+  body('confirmNewPassword')
+    .notEmpty()
+    .withMessage('Vui lòng xác nhận mật khẩu mới'),
+
+  handleValidationErrors,
+];
