@@ -54,11 +54,12 @@ body('lastName')
     .toLowerCase(),
 
   body('phone')
-    .trim()
-    .notEmpty()
-    .withMessage('Vui lòng nhập số điện thoại')
-    .matches(/^[0-9]{10,11}$/)
-    .withMessage('Số điện thoại phải có 10-11 chữ số'),
+  .trim()
+  .notEmpty()
+  .withMessage('Vui lòng nhập số điện thoại')
+  .matches(/^[0-9]{10,11}$/)
+  .withMessage('Số điện thoại phải có 10-11 chữ số'),
+
 
   body('password')
     .notEmpty()
@@ -105,8 +106,35 @@ export const validateLogin = [
     .withMessage('Vui lòng nhập mật khẩu'),
 
   handleValidationErrors,
-];
+]; 
 
+export const validateGoogleRegister = [
+  body('firstName')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập tên'),
+
+  body('lastName')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập họ'),
+
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập email')
+    .isEmail()
+    .withMessage('Email không hợp lệ')
+    .toLowerCase(),
+
+  body('role')
+    .notEmpty()
+    .withMessage('Vui lòng chọn vai trò')
+    .isIn(['farmer', 'enterprise'])
+    .withMessage('Vai trò phải là farmer hoặc enterprise'),
+
+  handleValidationErrors,
+];
 /**
  * Validate Forgot Password
  */
