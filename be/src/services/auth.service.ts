@@ -94,37 +94,65 @@ export const login = async (emailOrPhone: string, password: string) => {
 
   // Tìm bằng email hoặc SĐT
   const user = await r
-    .createQueryBuilder('user')
-    .addSelect([
-      'user.password',
-      'user.refreshToken',
-      'user.loginAttempts',
-      'user.lockUntil',
-    ])
-    .where('user.email = :email OR user.phone = :phone', {
-  email: emailOrPhone.trim(),
-  phone: emailOrPhone.trim(),
-})
-    .getOne();
+  .createQueryBuilder('user')
+  .addSelect([
+    'user.password',
+    'user.refreshToken',
+    //'user.loginAttempts',  // ← đã có chưa?
+    //'user.lockUntil',
+  ])
+  .where('user.email = :email OR user.phone = :phone', {
+    email: emailOrPhone.trim(),
+    phone: emailOrPhone.trim(),
+  })
+  .getOne();
+ 
 
   if (!user) throw makeError('Email/SĐT hoặc mật khẩu không đúng', 401);
 
-  // Kiểm tra tài khoản bị khóa
-  if (user.isLocked()) {
-    const minutes = Math.ceil((user.lockUntil!.getTime() - Date.now()) / 60000);
-    throw makeError(`Tài khoản bị khóa. Thử lại sau ${minutes} phút`, 423);
-  }
+// ── Fix lockUntil bị array do query OR ──
+const lockUntil = Array.isArray(user.lockUntil) ? user.lockUntil[0] : user.lockUntil;
+const isLocked = lockUntil && new Date(lockUntil).getTime() + 7 * 60 * 60 * 1000 > Date.now();
+
+if (isLocked) {
+  const lockUntilMs = new Date(lockUntil).getTime() + 7 * 60 * 60 * 1000;
+  const remaining = Math.ceil((lockUntilMs - Date.now()) / 60000);
+  const minutes = Math.min(remaining, 15); // tối đa 15 phút
+  throw makeError(`Tài khoản bị khóa. Thử lại sau ${minutes} phút`, 423);
+}
+console.log('lockUntil raw:', user.lockUntil);
+console.log('lockUntil parsed:', lockUntil);
+console.log('isLocked:', isLocked);
+console.log('now:', new Date());
+console.log('lockUntil > now:', lockUntil && new Date(lockUntil) > new Date());
 
   // Kiểm tra tài khoản active
   if (!user.isActive) throw makeError('Tài khoản đã bị vô hiệu hóa', 401);
 
   // So sánh password
   const isMatch = await user.comparePassword(password);
-  if (!isMatch) {
-    user.incrementLoginAttempts();
-    await r.save(user);
-    throw makeError('Email/SĐT hoặc mật khẩu không đúng', 401);
-  }
+ if (!isMatch) {
+  // Lấy loginAttempts hiện tại từ DB
+  const result = await AppDataSource.query(
+    `SELECT LoginAttempts FROM Users WHERE UserId = '${user.id}'`
+  );
+  const currentAttempts = parseInt(result[0]?.LoginAttempts || 0, 10);
+  const newAttempts = currentAttempts + 1;
+
+  await AppDataSource.query(
+    `UPDATE Users SET LoginAttempts = ${newAttempts} WHERE UserId = '${user.id}'`
+  );
+
+  if (newAttempts >= 5) {
+  await AppDataSource.query(
+    `UPDATE Users SET LockUntil = DATEADD(MINUTE, 15, GETDATE()) WHERE UserId = '${user.id}'`
+  );
+}
+
+  throw makeError('Email/SĐT hoặc mật khẩu không đúng', 401);
+
+}
+
 
   // Đăng nhập thành công
   user.resetLoginAttempts();

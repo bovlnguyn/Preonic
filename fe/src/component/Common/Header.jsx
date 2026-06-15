@@ -122,7 +122,7 @@ function Header() {
               <button
                 type="button"
                 className="preonic-header__login"
-                onClick={() => handleNavigate("/login")}
+                onClick={() => handleNavigate("/auth")}
               >
                 Đăng nhập
               </button>
@@ -182,7 +182,7 @@ function Header() {
                   </button>
                 ) : (
                   <>
-                    <button type="button" onClick={() => handleNavigate("/login")}>
+                    <button type="button" onClick={() => handleNavigate("/auth")}>
                       Đăng nhập
                     </button>
 
