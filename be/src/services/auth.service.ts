@@ -109,12 +109,22 @@ export const login = async (emailOrPhone: string, password: string) => {
  
 
   if (!user) throw makeError('Email/SĐT hoặc mật khẩu không đúng', 401);
-  
 
-if (user.isLocked()) {
-  const minutes = Math.ceil((user.lockUntil!.getTime() - Date.now()) / 60000);
+// ── Fix lockUntil bị array do query OR ──
+const lockUntil = Array.isArray(user.lockUntil) ? user.lockUntil[0] : user.lockUntil;
+const isLocked = lockUntil && new Date(lockUntil).getTime() + 7 * 60 * 60 * 1000 > Date.now();
+
+if (isLocked) {
+  const lockUntilMs = new Date(lockUntil).getTime() + 7 * 60 * 60 * 1000;
+  const remaining = Math.ceil((lockUntilMs - Date.now()) / 60000);
+  const minutes = Math.min(remaining, 15); // tối đa 15 phút
   throw makeError(`Tài khoản bị khóa. Thử lại sau ${minutes} phút`, 423);
 }
+console.log('lockUntil raw:', user.lockUntil);
+console.log('lockUntil parsed:', lockUntil);
+console.log('isLocked:', isLocked);
+console.log('now:', new Date());
+console.log('lockUntil > now:', lockUntil && new Date(lockUntil) > new Date());
 
   // Kiểm tra tài khoản active
   if (!user.isActive) throw makeError('Tài khoản đã bị vô hiệu hóa', 401);
@@ -134,10 +144,10 @@ if (user.isLocked()) {
   );
 
   if (newAttempts >= 5) {
-    await AppDataSource.query(
-      `UPDATE Users SET LockUntil = DATEADD(MINUTE, 15, GETUTCDATE()) WHERE UserId = '${user.id}'`
-    );
-  }
+  await AppDataSource.query(
+    `UPDATE Users SET LockUntil = DATEADD(MINUTE, 15, GETDATE()) WHERE UserId = '${user.id}'`
+  );
+}
 
   throw makeError('Email/SĐT hoặc mật khẩu không đúng', 401);
 
