@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import authService from '../../services/auth.service';
 import './Register.css';
 import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
+import bgImage from '../../assets/branding/background1.jpg';
 
 const INITIAL = {
   role: 'farmer', lastName: '', firstName: '',
@@ -64,6 +65,8 @@ const Register = () => {
   const [agree, setAgree]     = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
+  const [showTerms, setShowTerms]     = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   // ── Cập nhật field ──
   const handleChange = (e) => {
@@ -87,8 +90,11 @@ const Register = () => {
     if (!form.firstName.trim()) e.firstName = 'Tên là bắt buộc';
     if (!form.email)            e.email     = 'Email là bắt buộc';
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = 'Email không hợp lệ';
-    if (form.phone && !/^[0-9]{10,11}$/.test(form.phone))
-      e.phone = 'SĐT phải có 10-11 chữ số';
+    if (!form.phone)            e.phone = 'Số điện thoại là bắt buộc';
+        else if (!/^[0-9]{10,11}$/.test(form.phone))
+        e.phone = 'SĐT phải có 10-11 chữ số';
+if (!form.province)         e.province = 'Vui lòng chọn tỉnh / thành phố';
+if (!form.district)         e.district = 'Vui lòng chọn quận / huyện';
     if (!form.password)         e.password  = 'Mật khẩu là bắt buộc';
     else if (form.password.length < 6) e.password = 'Tối thiểu 6 ký tự';
     if (!form.confirmPassword)  e.confirmPassword = 'Vui lòng xác nhận mật khẩu';
@@ -136,8 +142,113 @@ const Register = () => {
   const districtOptions = VN_DISTRICTS?.[form.province] || [];
   const wardOptions     = VN_WARDS?.[form.district] || [];
 
+  const TermsModal = () => (
+  <div style={{
+    position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000,
+    display:'flex', alignItems:'center', justifyContent:'center'
+  }}>
+    <div style={{
+      background:'#fff', borderRadius:16,
+      maxWidth:660, width:'90%', maxHeight:'85vh',
+      display:'flex', flexDirection:'column',
+      boxShadow:'0 24px 64px rgba(0,0,0,0.18)', overflow:'hidden'
+    }}>
+      {/* Header */}
+      <div style={{ padding:'28px 32px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <h2 style={{ margin:0, fontSize:20, fontWeight:700, color:'#111' }}>Điều khoản Sử dụng PreOnic</h2>
+        <button onClick={() => setShowTerms(false)} style={{
+          background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#555', lineHeight:1, padding:4
+        }}>✕</button>
+      </div>
+      <hr style={{ margin:0, border:'none', borderTop:'1px solid #e5e7eb' }} />
+
+      {/* Body */}
+      <div style={{ padding:'16px 24px', overflowY:'auto', flex:1 }}>
+        {[
+          { title:'Chấp nhận điều khoản', content:'Bằng việc đăng ký tài khoản trên PreOnic, bạn đồng ý tuân thủ toàn bộ các điều khoản sử dụng này.' },
+          { title:'Điều kiện sử dụng tài khoản', content:'Bạn phải từ 18 tuổi trở lên và có đủ năng lực pháp lý để sử dụng dịch vụ. Thông tin đăng ký phải trung thực và chính xác.' },
+          { title:'Hành vi bị cấm', content:'Nghiêm cấm: đăng tải thông tin sai lệch; sử dụng nền tảng để lừa đảo; phá hoại hệ thống; thu thập thông tin người dùng khác trái phép.' },
+          { title:'Trách nhiệm của người dùng', content:'Người dùng tự chịu trách nhiệm về tính chính xác của thông tin sản phẩm, hợp đồng và giao dịch.' },
+          { title:'Giới hạn trách nhiệm', content:'PreOnic không chịu trách nhiệm về thiệt hại gián tiếp phát sinh từ việc sử dụng dịch vụ.' },
+        ].map((item, i) => (
+          <div key={i} style={{ marginBottom:16 }}>
+            <p style={{ margin:'0 0 6px', fontWeight:700, fontSize:15, color:'#111' }}>{i+1}. {item.title}</p>
+            <p style={{ margin:0, fontSize:14.5, color:'#374151', lineHeight:1.75 }}>{item.content}</p>
+          </div>
+        ))}
+      </div>
+
+      <hr style={{ margin:0, border:'none', borderTop:'1px solid #e5e7eb' }} />
+      {/* Footer */}
+      <div style={{ padding:'14px 24px', display:'flex', justifyContent:'flex-end' }}>
+        <button onClick={() => setShowTerms(false)} style={{
+          background:'#16a34a', color:'#fff', border:'none', borderRadius:10,
+          padding:'13px 36px', fontSize:15, fontWeight:700, cursor:'pointer'
+        }}>Tôi đã hiểu</button>
+      </div>
+    </div>
+  </div>
+);
+
+const PrivacyModal = () => (
+  <div style={{
+    position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000,
+    display:'flex', alignItems:'center', justifyContent:'center'
+  }}>
+    <div style={{
+      background:'#fff', borderRadius:16,
+      maxWidth:660, width:'90%', maxHeight:'85vh',
+      display:'flex', flexDirection:'column',
+      boxShadow:'0 24px 64px rgba(0,0,0,0.18)', overflow:'hidden'
+    }}>
+      {/* Header */}
+      <div style={{ padding:'28px 32px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <h2 style={{ margin:0, fontSize:20, fontWeight:700, color:'#111' }}>Chính sách Bảo mật PreOnic</h2>
+        <button onClick={() => setShowPrivacy(false)} style={{
+          background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#555', lineHeight:1, padding:4
+        }}>✕</button>
+      </div>
+      <hr style={{ margin:0, border:'none', borderTop:'1px solid #e5e7eb' }} />
+
+      {/* Body */}
+      <div style={{ padding:'24px 32px', overflowY:'auto', flex:1 }}>
+        {[
+          { title:'Thông tin chúng tôi thu thập', content:'Họ tên, email, số điện thoại, địa chỉ + dữ liệu hoạt động trên nền tảng + dữ liệu kỹ thuật (IP, thiết bị).' },
+          { title:'Mục đích sử dụng', content:'Xác minh tài khoản, xử lý giao dịch Escrow, gửi thông báo hợp đồng, cải thiện trải nghiệm, tuân thủ pháp luật.' },
+          { title:'Chia sẻ thông tin', bold:'không bán', content1:'PreOnic ', content2:' thông tin của bạn. Chỉ chia sẻ với đối tác giao dịch + đơn vị thanh toán + cơ quan nhà nước khi có yêu cầu hợp pháp.' },
+          { title:'Bảo mật', content:'Mã hóa SSL 256-bit, mật khẩu băm bcrypt, kiểm tra bảo mật định kỳ.' },
+          { title:'Liên hệ', content:'privacy@preonic.vn', boldAll: true },
+        ].map((item, i) => (
+          <div key={i} style={{ marginBottom:16 }}>
+            <p style={{ margin:'0 0 6px', fontWeight:700, fontSize:15, color:'#111' }}>{i+1}. {item.title}</p>
+            <p style={{ margin:0, fontSize:14.5, color:'#374151', lineHeight:1.75 }}>
+              {item.bold
+                ? <>{item.content1}<strong>{item.bold}</strong>{item.content2}</>
+                : item.boldAll
+                ? <strong>{item.content}</strong>
+                : item.content
+              }
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <hr style={{ margin:0, border:'none', borderTop:'1px solid #e5e7eb' }} />
+      {/* Footer */}
+      <div style={{ padding:'20px 32px', display:'flex', justifyContent:'flex-end' }}>
+        <button onClick={() => setShowPrivacy(false)} style={{
+          background:'#16a34a', color:'#fff', border:'none', borderRadius:10,
+          padding:'13px 36px', fontSize:15, fontWeight:700, cursor:'pointer'
+        }}>Tôi đã hiểu</button>
+      </div>
+    </div>
+  </div>
+);
+
   return (
     <div className="register-page">
+      {showTerms   && <TermsModal />}
+      {showPrivacy && <PrivacyModal />}
 
       {/* ───────── Navbar ───────── */}
       <header className="register-nav">
@@ -250,32 +361,34 @@ const Register = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Tỉnh / Thành phố</label>
-                  <div className="input-icon">
-                    <IconPin className="input-icon__icon" />
-                    <select name="province" value={form.province} onChange={handleChange}>
-                      <option value="">Chọn tỉnh / thành phố</option>
-                      {VN_PROVINCES.map(p => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <div className={`input-icon ${errors.province ? 'input-icon--invalid' : ''}`}>
+  <IconPin className="input-icon__icon" />
+  <select name="province" value={form.province} onChange={handleChange}>
+    <option value="">Chọn tỉnh / thành phố</option>
+    {VN_PROVINCES.map(p => (
+      <option key={p} value={p}>{p}</option>
+    ))}
+  </select>
+</div>
+{errors.province && <div className="field-error">{errors.province}</div>} 
                 </div>
                 <div className="form-group">
                   <label>Quận / Huyện</label>
-                  <div className="input-icon">
-                    <IconPin className="input-icon__icon" />
-                    <select
-                      name="district" value={form.district} onChange={handleChange}
-                      disabled={!form.province}
-                    >
-                      <option value="">
-                        {form.province ? 'Chọn quận / huyện' : '— chọn tỉnh trước —'}
-                      </option>
-                      {districtOptions.map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <div className={`input-icon ${errors.district ? 'input-icon--invalid' : ''}`}>
+  <IconPin className="input-icon__icon" />
+  <select
+    name="district" value={form.district} onChange={handleChange}
+    disabled={!form.province}
+  >
+    <option value="">
+      {form.province ? 'Chọn quận / huyện' : '— chọn tỉnh trước —'}
+    </option>
+    {districtOptions.map(d => (
+      <option key={d} value={d}>{d}</option>
+    ))}
+  </select>
+</div>
+{errors.district && <div className="field-error">{errors.district}</div>}
                 </div>
               </div>
 
@@ -364,9 +477,15 @@ const Register = () => {
                 />
                 <label htmlFor="agree">
                   Tôi đồng ý với{' '}
-                  <a href="/terms" target="_blank" rel="noreferrer">Điều khoản sử dụng</a>{' '}
-                  và{' '}
-                  <a href="/privacy" target="_blank" rel="noreferrer">Chính sách bảo mật</a>{' '}
+                  <button type="button" onClick={() => setShowTerms(true)}
+  style={{background:'none',border:'none',padding:0,color:'#16a34a',textDecoration:'underline',cursor:'pointer'}}>
+  Điều khoản sử dụng
+</button>{' '}
+và{' '}
+<button type="button" onClick={() => setShowPrivacy(true)}
+  style={{background:'none',border:'none',padding:0,color:'#16a34a',textDecoration:'underline',cursor:'pointer'}}>
+  Chính sách bảo mật
+</button>{' '}
                   của PreOnic.
                 </label>
               </div>
@@ -394,7 +513,11 @@ const Register = () => {
         </div>
 
         {/* ───────── Bên phải: Banner ───────── */}
-        <aside className="register-aside">
+        <aside className="register-aside" style={{
+  backgroundImage: `linear-gradient(180deg, rgba(5,46,22,.55) 0%, rgba(5,46,22,.85) 100%), url(${bgImage})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+}}>
           <div className="register-aside__overlay">
             <span className="register-aside__badge">🌱 Nông nghiệp 4.0</span>
 

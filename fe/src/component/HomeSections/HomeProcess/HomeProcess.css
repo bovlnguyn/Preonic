@@ -1,0 +1,83 @@
+.home-process-flow {
+background:
+  linear-gradient(135deg, rgba(5, 46, 22, 0.96), rgba(6, 78, 59, 0.92)),
+  url("../../../assets/home/BD.png");
+  background-size: cover;
+  background-position: center;
+  color: #ffffff;
+}
+
+.home-process-flow__grid {
+  display: grid;
+  grid-template-columns: 0.96fr 1.04fr;
+  gap: 58px;
+  align-items: center;
+}
+
+.home-process-flow .home-section__eyebrow {
+  color: #ecfccb;
+  background: rgba(236, 252, 203, 0.12);
+  border: 1px solid rgba(217, 249, 157, 0.24);
+}
+
+.home-process-flow h2 {
+  color: #ffffff;
+}
+
+.home-process-flow .home-desc {
+  color: rgba(240, 253, 244, 0.82);
+}
+
+.home-process-flow__steps {
+  display: grid;
+  gap: 16px;
+}
+
+.home-process-step {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(217, 249, 157, 0.16);
+  backdrop-filter: blur(10px);
+}
+
+.home-process-step span {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--home-gold-400), #f59e0b);
+  color: var(--home-green-950);
+  font-weight: 950;
+}
+
+.home-process-step h3 {
+  margin: 0 0 6px;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.home-process-step p {
+  margin: 0;
+  color: rgba(240, 253, 244, 0.82);
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+@media (max-width: 1080px) {
+  .home-process-flow__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .home-process-step {
+    grid-template-columns: 1fr;
+  }
+}
