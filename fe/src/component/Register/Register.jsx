@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import authService from '../../services/auth.service';
 import './Register.css';
 import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
+import bgImage from '../../assets/branding/background1.jpg';
 
 const INITIAL = {
   role: 'farmer', lastName: '', firstName: '',
@@ -394,7 +395,11 @@ const Register = () => {
         </div>
 
         {/* ───────── Bên phải: Banner ───────── */}
-        <aside className="register-aside">
+        <aside className="register-aside" style={{
+  backgroundImage: `linear-gradient(180deg, rgba(5,46,22,.55) 0%, rgba(5,46,22,.85) 100%), url(${bgImage})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+}}>
           <div className="register-aside__overlay">
             <span className="register-aside__badge">🌱 Nông nghiệp 4.0</span>
 
