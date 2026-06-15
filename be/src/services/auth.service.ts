@@ -112,12 +112,10 @@ export const login = async (emailOrPhone: string, password: string) => {
 
 // ── Fix lockUntil bị array do query OR ──
 const lockUntil = Array.isArray(user.lockUntil) ? user.lockUntil[0] : user.lockUntil;
-const isLocked = lockUntil && new Date(lockUntil).getTime() + 7 * 60 * 60 * 1000 > Date.now();
+const isLocked = lockUntil && new Date(lockUntil) > new Date();
 
 if (isLocked) {
-  const lockUntilMs = new Date(lockUntil).getTime() + 7 * 60 * 60 * 1000;
-  const remaining = Math.ceil((lockUntilMs - Date.now()) / 60000);
-  const minutes = Math.min(remaining, 15); // tối đa 15 phút
+  const minutes = Math.ceil((new Date(lockUntil).getTime() - Date.now()) / 60000);
   throw makeError(`Tài khoản bị khóa. Thử lại sau ${minutes} phút`, 423);
 }
 console.log('lockUntil raw:', user.lockUntil);
@@ -145,7 +143,7 @@ console.log('lockUntil > now:', lockUntil && new Date(lockUntil) > new Date());
 
   if (newAttempts >= 5) {
   await AppDataSource.query(
-    `UPDATE Users SET LockUntil = DATEADD(MINUTE, 15, GETDATE()) WHERE UserId = '${user.id}'`
+    `UPDATE Users SET LockUntil = DATEADD(MINUTE, 15, GETUTCDATE()) WHERE UserId = '${user.id}'`
   );
 }
 
@@ -163,6 +161,44 @@ console.log('lockUntil > now:', lockUntil && new Date(lockUntil) > new Date());
   // Trả về user sạch
   const safeUser = await r.findOne({ where: { id: user.id } });
   return { user: safeUser, accessToken, refreshToken };
+};
+
+  export const googleRegister = async (dto: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: 'farmer' | 'enterprise';
+  avatar?: string;
+}) => {
+  const r = repo();
+
+  // Kiểm tra email đã tồn tại chưa
+  const exists = await r.findOne({ where: { email: dto.email.toLowerCase().trim() } });
+  if (exists) throw makeError('Email đã được sử dụng', 400);
+
+  // Tạo user không cần password thật
+  const randomPassword = Math.random().toString(36).slice(-10) + 'Aa1!';
+  const user = r.create({
+    email:      dto.email.toLowerCase().trim(),
+    password:   randomPassword,
+    role:       dto.role,
+    firstName:  dto.firstName.trim(),
+    lastName:   dto.lastName.trim(),
+    avatar:     dto.avatar,
+    isVerified: true,
+    isActive:   true,
+  });
+
+  await user.hashPassword();
+  await r.save(user);
+
+  // Tạo token và trả về
+  const { accessToken, refreshToken } = signTokens(user.id, user.role);
+  user.refreshToken = refreshToken;
+  await r.save(user);
+
+  const safeUser = await r.findOne({ where: { id: user.id } });
+  return { user: safeUser, accessToken };
 };
 
 // ══════════════════════════════════════════

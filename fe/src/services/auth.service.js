@@ -246,6 +246,15 @@ const authService = {
   isLoggedIn: () => !!localStorage.getItem(ACCESS_TOKEN),
 
   getAccessToken: () => localStorage.getItem(ACCESS_TOKEN),
+  googleRegister: async (data) => {
+  try {
+    const response = await api.post('/auth/google-register', data);
+    return response.data;
+  } catch (error) {
+    throw extractErrorMessage(error, 'Tạo tài khoản thất bại');
+  }
+},
 };
+
 
 export default authService;

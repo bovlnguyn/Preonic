@@ -5,6 +5,8 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import path from 'path';
+import './config/passport';
+import passport from 'passport';
 
 // Import Routes
 import authRoutes from './routes/auth.routes';
@@ -48,6 +50,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(cookieParser());
+// Thêm sau dòng app.use(cookieParser());
+app.use(passport.initialize());
 app.use(compression());
 
 if (process.env.NODE_ENV === 'development') {

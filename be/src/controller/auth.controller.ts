@@ -53,6 +53,26 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
+export const googleRegister = async (req: Request, res: Response) => {
+  try {
+    const { email, firstName, lastName, role, avatar } = req.body;
+    const { user, accessToken } = await authService.googleRegister({
+      email, firstName, lastName, role, avatar,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo tài khoản thành công',
+      data: { user, accessToken },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Tạo tài khoản thất bại',
+    });
+  }
+};
+
 // ══════════════════════════════════════════
 // ĐĂNG XUẤT
 // ══════════════════════════════════════════

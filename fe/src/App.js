@@ -1,15 +1,52 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Home from './pages/Home';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import GoogleCallback from './component/Auth/GoogleCallBack';
+import GoogleSelectRole from './component/Auth/GoogleSelectRole';
 
 // ── Components đã có ──
 import Register from './component/Register/Register';
 // ── Components chưa có — tạo placeholder, thay bằng thật sau ──
 import Auth from './component/Auth/Auth';
-const FarmerHome = () => <div className="p-5 text-center"><h3>🌾 Dashboard Farmer</h3></div>;
-const EnterpriseHome = () => <div className="p-5 text-center"><h3>🏢 Dashboard Enterprise</h3></div>;
+const FarmerHome = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  return (
+    <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center">
+      <h3 className="mb-4">🌾 Dashboard Farmer</h3>
+      <div className="d-flex gap-3">
+        <button className="btn btn-outline-success rounded-3" onClick={() => navigate('/')}>
+          🏠 Về trang chủ
+        </button>
+        <button className="btn btn-outline-danger rounded-3"
+          onClick={async () => { await logout(); navigate('/'); }}>
+          Đăng xuất
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const EnterpriseHome = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  return (
+    <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center">
+      <h3 className="mb-4">🏢 Dashboard Enterprise</h3>
+      <div className="d-flex gap-3">
+        <button className="btn btn-outline-primary rounded-3" onClick={() => navigate('/')}>
+          🏠 Về trang chủ
+        </button>
+        <button className="btn btn-outline-danger rounded-3"
+          onClick={async () => { await logout(); navigate('/'); }}>
+          Đăng xuất
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // ── Protected Route ──
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -50,8 +87,9 @@ const AppRoutes = () => {
       <Route path="/"         element={<Home />} />
       <Route path="/register" element={<Register />} />
       <Route path="/auth"     element={<Auth />} />
-
-      {/* Protected — Farmer */}
+      <Route path="/auth/google/callback" element={<GoogleCallback />} />
+      <Route path="/auth/google/select-role" element={<GoogleSelectRole />} />
+{/* Protected — Farmer */}
       <Route path="/farmer-home" element={
         <ProtectedRoute allowedRoles={['farmer']}>
           <FarmerHome />
@@ -78,13 +116,13 @@ const AppRoutes = () => {
     </Routes>
   );
 };
-
 const App = () => (
   <AuthProvider>
     <BrowserRouter>
       <AppRoutes />
     </BrowserRouter>
   </AuthProvider>
-);
+);     
+      
 
 export default App;
