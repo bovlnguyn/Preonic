@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import GoogleCallback from './component/Auth/GoogleCallBack';
 import GoogleSelectRole from './component/Auth/GoogleSelectRole';
+import ResetPassword from './component/ResetPassword/ResetPassword';
 
 // ── Components đã có ──
 import Register from './component/Register/Register';
@@ -89,6 +90,7 @@ const AppRoutes = () => {
       <Route path="/auth"     element={<Auth />} />
       <Route path="/auth/google/callback" element={<GoogleCallback />} />
       <Route path="/auth/google/select-role" element={<GoogleSelectRole />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 {/* Protected — Farmer */}
       <Route path="/farmer-home" element={
         <ProtectedRoute allowedRoles={['farmer']}>

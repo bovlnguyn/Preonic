@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import { AuthRequest } from '../types';
-
+import { sendResetPasswordEmail } from '../services/email.service';
 // ── Cookie options cho refresh token ──
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -141,22 +141,18 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 // QUÊN MẬT KHẨU
 // ══════════════════════════════════════════
 export const forgotPassword = async (req: Request, res: Response) => {
+
   try {
     const result = await authService.forgotPassword(req.body.email);
 
-    // Luôn trả về success để không tiết lộ email tồn tại hay không
     if (result) {
-      // TODO: gửi email qua nodemailer
-      // await sendResetEmail(result.user.email, result.rawToken);
-
-      // Dev: trả về token để test (bỏ khi production)
-      if (process.env.NODE_ENV === 'development') {
-        return res.status(200).json({
-          success: true,
-          message: 'Email đặt lại mật khẩu đã được gửi',
-          resetToken: result.rawToken, // chỉ dev
-        });
-      }
+      
+      await sendResetPasswordEmail(
+        result.user.email,
+        result.rawToken,
+        `${result.user.firstName} ${result.user.lastName}`
+      );
+     
     }
 
     res.status(200).json({
@@ -164,6 +160,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
       message: 'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi',
     });
   } catch (err: any) {
+   
     res.status(err.statusCode || 500).json({
       success: false,
       message: err.message || 'Gửi email thất bại',
