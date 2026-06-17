@@ -4,6 +4,7 @@ import authService from '../../services/auth.service';
 import './Register.css';
 import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
 import bgImage from '../../assets/branding/background1.jpg';
+import Header from '../Common/Header';
 
 const INITIAL = {
   role: 'farmer', lastName: '', firstName: '',
@@ -251,21 +252,7 @@ const PrivacyModal = () => (
       {showPrivacy && <PrivacyModal />}
 
       {/* ───────── Navbar ───────── */}
-      <header className="register-nav">
-        <Link to="/" className="register-nav__logo">
-          <span className="register-nav__logo-icon">🌾</span> PreOnic
-        </Link>
-        <nav className="register-nav__links">
-          <Link to="/">Trang chủ</Link>
-          <Link to="/products">Sản phẩm</Link>
-          <Link to="/solutions">Giải pháp</Link>
-          <Link to="/contact">Liên hệ</Link>
-        </nav>
-        <div className="register-nav__actions">
-          <Link to="/auth" className="btn-nav btn-nav--outline">Đăng nhập</Link>
-          <Link to="/register" className="btn-nav btn-nav--solid">Đăng ký</Link>
-        </div>
-      </header>
+      <Header />
 
       <div className="register-layout">
 

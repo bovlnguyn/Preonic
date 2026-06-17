@@ -21,64 +21,6 @@
   color: var(--ink);
 }
 
-/* ── Navbar ── */
-.register-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 40px;
-  border-bottom: 1px solid var(--border);
-  background: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-.register-nav__logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--ink);
-  text-decoration: none;
-}
-.register-nav__logo-icon { font-size: 1.4rem; }
-.register-nav__links { display: flex; gap: 32px; }
-.register-nav__links a {
-  color: var(--ink);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-.register-nav__links a:hover { color: var(--green); }
-.register-nav__actions { display: flex; gap: 12px; }
-
-.btn-nav {
-  padding: 8px 22px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  text-decoration: none;
-  transition: all .15s ease;
-  border: 1.5px solid transparent;
-  cursor: pointer;
-}
-.btn-nav--outline {
-  color: var(--green);
-  border-color: var(--green);
-  background: transparent;
-}
-.btn-nav--outline:hover { background: var(--green-light); }
-.btn-nav--solid {
-  color: #fff;
-  background: var(--green);
-}
-.btn-nav--solid:hover { background: var(--green-dark); }
-
-@media (max-width: 992px) {
-  .register-nav__links { display: none; }
-}
-
 /* ── Layout ── */
 .register-layout {
   flex: 1;
