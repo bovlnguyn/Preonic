@@ -16,6 +16,7 @@ import Register from './component/Register/Register';
 import Auth from './component/Auth/Auth';
 import GoogleCallback from './component/Auth/GoogleCallBack';
 import GoogleSelectRole from './component/Auth/GoogleSelectRole';
+import ResetPassword from './component/ResetPassword/ResetPassword';
 
 // Farmer Dashboard Layout + Pages
 import FarmerLayout from './component/FarmerDashboard/FarmerLayout';
@@ -29,7 +30,7 @@ import FarmerRatings from './component/FarmerDashboard/pages/FarmerRatings';
 import FarmerWeatherInsurance from './component/FarmerDashboard/pages/FarmerWeatherInsurance';
 import FarmerCreateProduct from './component/FarmerDashboard/pages/FarmerCreateProduct';
 
-// Enterprise tạm thời giữ placeholder
+// Enterprise hiện tại vẫn để placeholder
 const EnterpriseHome = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -109,9 +110,25 @@ const AppRoutes = () => {
       <Route path="/" element={<Home />} />
       <Route path="/register" element={<Register />} />
       <Route path="/auth" element={<Auth />} />
+
+      {/* Google Auth */}
       <Route path="/auth/google/callback" element={<GoogleCallback />} />
       <Route path="/auth/google/select-role" element={<GoogleSelectRole />} />
 
+      {/* Password / Email */}
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+
+      {/* Route cũ sau login: giữ lại để không gãy luồng đăng nhập */}
+      <Route
+        path="/farmer-home"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <Navigate to="/farmer" replace />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Farmer Dashboard - Layout + Nested Pages */}
       <Route
