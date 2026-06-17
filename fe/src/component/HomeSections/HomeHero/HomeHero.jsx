@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import faDImage from "../../../assets/home/farmerDasB.jpg";
 import {
   FaArrowRight,
   FaChartLine,
@@ -98,7 +99,7 @@ function HomeHero() {
         >
           <div className="home-field-card">
             <div className="home-field-card__image">
-              <img src="/farmerDasB.jpg" alt="Nông dân trên đồng ruộng" />
+              <img src={faDImage} alt="Nông dân trên đồng ruộng" />
             </div>
 
             <motion.div
