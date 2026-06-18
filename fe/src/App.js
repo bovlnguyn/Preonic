@@ -6,6 +6,17 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import GoogleCallback from './component/Auth/GoogleCallBack';
 import GoogleSelectRole from './component/Auth/GoogleSelectRole';
 import ResetPassword from './component/ResetPassword/ResetPassword';
+import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
+import EnterpriseOverview         from './component/EnterpriseDashboard/pages/EnterpriseOverview';
+import EnterpriseContracts        from './component/EnterpriseDashboard/pages/EnterpriseContracts';
+import EnterpriseProducts         from './component/EnterpriseDashboard/pages/EnterpriseProducts';
+import EnterpriseOrders           from './component/EnterpriseDashboard/pages/EnterpriseOrders';
+import EnterpriseEscrow           from './component/EnterpriseDashboard/pages/EnterpriseEscrow';
+import EnterpriseWallet           from './component/EnterpriseDashboard/pages/EnterpriseWallet';
+import EnterpriseSuppliers        from './component/EnterpriseDashboard/pages/EnterpriseSuppliers';
+import EnterpriseTransactions     from './component/EnterpriseDashboard/pages/EnterpriseTransactions';
+import EnterpriseRatings          from './component/EnterpriseDashboard/pages/EnterpriseRatings';
+import EnterpriseWeatherInsurance from './component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance';
 
 // ── Components đã có ──
 import Register from './component/Register/Register';
@@ -30,24 +41,6 @@ const FarmerHome = () => {
   );
 };
 
-const EnterpriseHome = () => {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-  return (
-    <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center">
-      <h3 className="mb-4">🏢 Dashboard Enterprise</h3>
-      <div className="d-flex gap-3">
-        <button className="btn btn-outline-primary rounded-3" onClick={() => navigate('/')}>
-          🏠 Về trang chủ
-        </button>
-        <button className="btn btn-outline-danger rounded-3"
-          onClick={async () => { await logout(); navigate('/'); }}>
-          Đăng xuất
-        </button>
-      </div>
-    </div>
-  );
-};
 
 // ── Protected Route ──
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -64,7 +57,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (!user) return <Navigate to="/auth" replace />;
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to={user.role === 'farmer' ? '/farmer-home' : '/enterprise-home'} replace />;
+    return <Navigate to={user.role === 'farmer' ? '/farmer-home' : '/enterprise'} replace />;
   }
 
   return children;
@@ -99,11 +92,25 @@ const AppRoutes = () => {
       } />
 
       {/* Protected — Enterprise */}
-      <Route path="/enterprise-home" element={
-        <ProtectedRoute allowedRoles={['enterprise']}>
-          <EnterpriseHome />
-        </ProtectedRoute>
-      } />
+      <Route
+  path="/enterprise"
+  element={
+    <ProtectedRoute allowedRoles={['enterprise']}>
+      <EnterpriseLayout />
+    </ProtectedRoute>
+  }
+>
+  <Route index                  element={<EnterpriseOverview />} />
+  <Route path="contracts"       element={<EnterpriseContracts />} />
+  <Route path="products"        element={<EnterpriseProducts />} />
+  <Route path="orders"          element={<EnterpriseOrders />} />
+  <Route path="escrow"          element={<EnterpriseEscrow />} />
+  <Route path="wallet"          element={<EnterpriseWallet />} />
+  <Route path="suppliers"       element={<EnterpriseSuppliers />} />
+  <Route path="transactions"    element={<EnterpriseTransactions />} />
+  <Route path="ratings"         element={<EnterpriseRatings />} />
+  <Route path="weather"         element={<EnterpriseWeatherInsurance />} />
+</Route>
 
       {/* 404 */}
       <Route path="*" element={
