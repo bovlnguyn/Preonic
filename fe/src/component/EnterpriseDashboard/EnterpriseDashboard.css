@@ -1,8 +1,3 @@
-/* ============================================================
-   EnterpriseDashboard.css
-   Scoped dưới .ent-dashboard — không xung đột với farmer- hay Bootstrap.
-   Pattern y chang FarmerDashboard.css, đổi palette sang xanh dương doanh nghiệp.
-   ============================================================ */
 
 .ent-dashboard {
   /* Palette xanh dương doanh nghiệp */

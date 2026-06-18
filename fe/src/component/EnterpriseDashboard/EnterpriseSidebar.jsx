@@ -18,7 +18,7 @@ const navItems = [
   { to: '/enterprise/suppliers',    label: 'Nhà cung cấp',          icon: FiUsers },
   { to: '/enterprise/transactions', label: 'Lịch sử giao dịch',     icon: FiBriefcase },
   { to: '/enterprise/ratings',      label: 'Đánh giá đối tác',      icon: FiStar },
-  { to: '/enterprise/weather',      label: 'Thời tiết & Bảo hiểm',  icon: FiCloudRain },
+  { to: '/enterprise/weather-insurance',      label: 'Thời tiết & Bảo hiểm',  icon: FiCloudRain },
 ];
 
 function EnterpriseSidebar() {
