@@ -41,36 +41,6 @@ import FarmerRatings from './component/FarmerDashboard/pages/FarmerRatings';
 import FarmerWeatherInsurance from './component/FarmerDashboard/pages/FarmerWeatherInsurance';
 import FarmerCreateProduct from './component/FarmerDashboard/pages/FarmerCreateProduct';
 
-// Enterprise hiện tại vẫn để placeholder
-const EnterpriseHome = () => {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center">
-      <h3 className="mb-4">🏢 Dashboard Enterprise</h3>
-
-      <div className="d-flex gap-3">
-        <button
-          className="btn btn-outline-primary rounded-3"
-          onClick={() => navigate('/')}
-        >
-          🏠 Về trang chủ
-        </button>
-
-        <button
-          className="btn btn-outline-danger rounded-3"
-          onClick={async () => {
-            await logout();
-            navigate('/');
-          }}
-        >
-          Đăng xuất
-        </button>
-      </div>
-    </div>
-  );
-};
 
 // Protected Route
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -94,7 +64,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     }
 
     if (user.role === 'enterprise') {
-      return <Navigate to="/enterprise-home" replace />;
+      return <Navigate to="/enterprise" replace />;
     }
 
     return <Navigate to="/" replace />;
@@ -163,13 +133,35 @@ const AppRoutes = () => {
 
       {/* Enterprise */}
       <Route
-        path="/enterprise-home"
-        element={
-          <ProtectedRoute allowedRoles={['enterprise']}>
-            <EnterpriseHome />
-          </ProtectedRoute>
-        }
-      />
+  path="/enterprise-home"
+  element={
+    <ProtectedRoute allowedRoles={['enterprise']}>
+      <Navigate to="/enterprise" replace />
+    </ProtectedRoute>
+  }
+/>
+
+{/* Cấu hình các Dashboard thực tế của Enterprise */}
+<Route
+  path="/enterprise"
+  element={
+    <ProtectedRoute allowedRoles={['enterprise']}>
+      <EnterpriseLayout />
+    </ProtectedRoute>
+  }
+>
+  
+  <Route index element={<EnterpriseOverview />} />
+        <Route path="contracts" element={<EnterpriseContracts />} />
+        <Route path="products" element={<EnterpriseProducts />} />
+        <Route path="orders" element={<EnterpriseOrders />} />
+        <Route path="escrow" element={<EnterpriseEscrow />} />
+        <Route path="wallet" element={<EnterpriseWallet />} />
+        <Route path="suppliers" element={<EnterpriseSuppliers />} />
+        <Route path="transactions" element={<EnterpriseTransactions />} />
+        <Route path="ratings" element={<EnterpriseRatings />} />
+        <Route path="weather-insurance" element={<EnterpriseWeatherInsurance />} />
+</Route>
 
       {/* 404 */}
       <Route

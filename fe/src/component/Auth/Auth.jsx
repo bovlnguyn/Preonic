@@ -81,7 +81,7 @@ const Auth = () => {
         setTimeout(() => {
           if (user.role === "admin")           navigate(ROUTES.ADMIN ?? "/admin");
           else if (user.role === "farmer")     navigate(ROUTES.FARMER_HOME);
-          else if (user.role === "enterprise") navigate('/enterprise');
+          else if (user.role === "enterprise") navigate(ROUTES.ENTERPRISE ?? "/enterprise");
           else navigate(ROUTES.HOME);
         }, 600);
       }
