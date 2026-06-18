@@ -82,8 +82,14 @@ export const register = async (dto: RegisterDto) => {
   await user.hashPassword();
   await r.save(user);
 
-  // Trả về user không kèm password
-  return r.findOne({ where: { id: user.id } });
+  // ← Thêm tạo verify token
+  const rawToken = user.createEmailVerificationToken();
+  await r.save(user);
+
+  // Trả về user + token để gửi email
+  const savedUser = await r.findOne({ where: { id: user.id } });
+  console.log('=== SERVICE RETURN ===', { user: savedUser?.email, verifyToken: rawToken?.substring(0, 10) });
+  return { user: savedUser, verifyToken: rawToken };
 };
 
 // ══════════════════════════════════════════
@@ -284,6 +290,9 @@ export const resetPassword = async (token: string, newPassword: string) => {
     throw makeError('Token đã hết hạn. Vui lòng yêu cầu lại', 400);
   }
 
+  const isSamePassword = await user.comparePassword(newPassword);
+  if (isSamePassword) throw makeError('Mật khẩu mới không được trùng với mật khẩu cũ', 400);
+
   // Cập nhật mật khẩu mới
   user.password            = newPassword;
   user.passwordResetToken  = undefined!;
@@ -331,4 +340,39 @@ export const updatePassword = async (
   await repo().save(user);
 
   return { accessToken, refreshToken };
+};
+
+// ══════════════════════════════════════════
+// XÁC MINH EMAIL
+// ══════════════════════════════════════════
+export const verifyEmail = async (token: string) => {
+  // Hash token để so sánh với DB
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  // Tìm user có token còn hạn
+  const user = await repo()
+    .createQueryBuilder('user')
+    .addSelect([
+      'user.emailVerificationToken',
+      'user.emailVerificationExpires',
+    ])
+    .where('user.emailVerificationToken = :token', { token: hashedToken })
+    .getOne();
+
+  if (!user) throw makeError('Token không hợp lệ', 400);
+  if (!user.emailVerificationExpires || user.emailVerificationExpires < new Date()) {
+    throw makeError('Token đã hết hạn. Vui lòng đăng ký lại.', 400);
+  }
+
+  // Cập nhật isVerified
+  await repo().update({ id: user.id }, {
+    isVerified:               true,
+    emailVerificationToken:   undefined!,
+    emailVerificationExpires: undefined!,
+  });
+
+  return true;
 };
