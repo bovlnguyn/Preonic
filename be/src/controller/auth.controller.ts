@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import { AuthRequest } from '../types';
 import { sendResetPasswordEmail } from '../services/email.service';
+import * as emailService from '../services/email.service';
 // ── Cookie options cho refresh token ──
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -15,11 +16,28 @@ const COOKIE_OPTIONS = {
 // ══════════════════════════════════════════
 export const register = async (req: Request, res: Response) => {
   try {
-    const user = await authService.register(req.body);
+    const result = await authService.register(req.body);
+    console.log('register result:', result);
+console.log('has user:', !!result?.user);
+console.log('has verifyToken:', !!result?.verifyToken);
+
+    // Gửi email verify
+    if (result?.user && result?.verifyToken) {
+      try {
+        await emailService.sendVerifyEmail(
+          result.user.email,
+          result.verifyToken,
+          `${result.user.firstName} ${result.user.lastName}`
+        );
+      } catch (emailErr: any) {
+        console.error('Lỗi gửi email verify:', emailErr.message);
+      }
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Đăng ký thành công',
-      data: { user },
+      message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản.',
+      data: { user: result?.user },
     });
   } catch (err: any) {
     res.status(err.statusCode || 500).json({
@@ -209,5 +227,16 @@ export const updatePassword = async (req: AuthRequest, res: Response) => {
       success: false,
       message: err.message || 'Cập nhật mật khẩu thất bại',
     });
+  }
+};
+export const verifyEmail = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    await authService.verifyEmail(token);
+
+    // Redirect về FE trang verify thành công
+    res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=success`);
+  } catch (err: any) {
+    res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=error&message=${encodeURIComponent(err.message)}`);
   }
 };

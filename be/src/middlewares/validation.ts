@@ -165,9 +165,13 @@ export const validateResetPassword = [
 
   body('confirmPassword')
     .notEmpty()
-    .withMessage('Vui lòng xác nhận mật khẩu mới'),
-
-  handleValidationErrors,
+    .withMessage('Vui lòng xác nhận mật khẩu mới')
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error('Mật khẩu xác nhận không khớp');
+      }
+      return true;
+    }),
 ];
 
 /**

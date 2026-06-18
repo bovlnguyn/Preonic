@@ -5,6 +5,7 @@ import jwt, {Secret, SignOptions} from 'jsonwebtoken';
 import { RequestHandler } from 'express';
 import { validateGoogleRegister } from '../middlewares/validation';
 import { googleRegister } from '../controller/auth.controller';
+import { verifyEmail } from '../controller/auth.controller';
 
 
 import {
@@ -41,6 +42,8 @@ router.post('/refresh-token',   authLimiter,                                  re
 router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, forgotPassword);
 router.post('/reset-password',                        validateResetPassword,  resetPassword);
 router.post('/google-register', validateGoogleRegister, googleRegister as RequestHandler);
+// Verify email
+router.get('/verify-email/:token', verifyEmail as RequestHandler);
 
 // ── Protected routes ──
 router.get ('/me',     protect as RequestHandler, getMe as RequestHandler);
