@@ -17,6 +17,17 @@ import Auth from './component/Auth/Auth';
 import GoogleCallback from './component/Auth/GoogleCallBack';
 import GoogleSelectRole from './component/Auth/GoogleSelectRole';
 import ResetPassword from './component/ResetPassword/ResetPassword';
+import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
+import EnterpriseOverview         from './component/EnterpriseDashboard/pages/EnterpriseOverview';
+import EnterpriseContracts        from './component/EnterpriseDashboard/pages/EnterpriseContracts';
+import EnterpriseProducts         from './component/EnterpriseDashboard/pages/EnterpriseProducts';
+import EnterpriseOrders           from './component/EnterpriseDashboard/pages/EnterpriseOrders';
+import EnterpriseEscrow           from './component/EnterpriseDashboard/pages/EnterpriseEscrow';
+import EnterpriseWallet           from './component/EnterpriseDashboard/pages/EnterpriseWallet';
+import EnterpriseSuppliers        from './component/EnterpriseDashboard/pages/EnterpriseSuppliers';
+import EnterpriseTransactions     from './component/EnterpriseDashboard/pages/EnterpriseTransactions';
+import EnterpriseRatings          from './component/EnterpriseDashboard/pages/EnterpriseRatings';
+import EnterpriseWeatherInsurance from './component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance';
 
 // Farmer Dashboard Layout + Pages
 import FarmerLayout from './component/FarmerDashboard/FarmerLayout';
