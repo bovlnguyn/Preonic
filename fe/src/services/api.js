@@ -17,7 +17,7 @@ const api = axios.create({
 
 // Tách các bước nhỏ thành helper để interceptor dễ đọc và dễ bảo trì hơn.
 const attachAccessToken = (config) => {
-  const accessToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+  const accessToken = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
   if (accessToken) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${accessToken}`;
@@ -27,8 +27,8 @@ const attachAccessToken = (config) => {
 };
 
 const clearStoredAuth = () => {
-  localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-  localStorage.removeItem(STORAGE_KEYS.USER);
+  sessionStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+  sessionStorage.removeItem(STORAGE_KEYS.USER);
 };
 
 const redirectToLogin = () => {
