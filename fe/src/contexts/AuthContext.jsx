@@ -12,8 +12,8 @@ export const AuthProvider = ({ children }) => {
 
   // Khôi phục session khi reload trang
   useEffect(() => {
-    const stored = localStorage.getItem(USER);
-    const token  = localStorage.getItem(ACCESS_TOKEN);
+    const stored = sessionStorage.getItem(USER);
+    const token  = sessionStorage.getItem(ACCESS_TOKEN);
     if (stored && token) {
       try { setUser(JSON.parse(stored)); } catch {}
     }
@@ -21,16 +21,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (accessToken, userData) => {
-    localStorage.setItem(ACCESS_TOKEN, accessToken);
-    localStorage.setItem(USER, JSON.stringify(userData));
+    sessionStorage.setItem(ACCESS_TOKEN, accessToken);
+    sessionStorage.setItem(USER, JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = async () => {
     try { await authService.logout(); } catch {}
     // ← Đảm bảo xóa localStorage dù API có lỗi
-    localStorage.removeItem(ACCESS_TOKEN);
-    localStorage.removeItem(USER);
+    sessionStorage.removeItem(ACCESS_TOKEN);
+    sessionStorage.removeItem(USER);
     setUser(null);
   };
 

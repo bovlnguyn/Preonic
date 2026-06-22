@@ -1,1 +1,10 @@
 .env
+# Dữ liệu nhạy cảm — KHÔNG commit (chứa email/hash mật khẩu/refresh token)
+Account.txt
+
+# Ghi chú / template cá nhân
+Tối ưu hệ thống.txt
+
+# OS
+.DS_Store
+Thumbs.db
