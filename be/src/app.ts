@@ -10,7 +10,7 @@ import passport from 'passport';
 
 // Import Routes
 import authRoutes from './routes/auth.routes';
-
+import productRoutes from './routes/product.routes';
 
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
@@ -89,6 +89,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Gắn các route vào đây
 app.use(`${API_PREFIX}/auth`, authRoutes);
+app.use(`${API_PREFIX}/products`, productRoutes);
 
 // Các route khác bạn sẽ mở comment và thêm vào sau...
 
