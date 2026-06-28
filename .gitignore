@@ -1,4 +1,5 @@
 .env
+
 # Dữ liệu nhạy cảm — KHÔNG commit (chứa email/hash mật khẩu/refresh token)
 Account.txt
 
@@ -8,3 +9,21 @@ Tối ưu hệ thống.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# ── Thêm các dòng sau ──
+# Dependencies
+node_modules/
+be/node_modules/
+fe/node_modules/
+
+# Build output
+be/dist/
+fe/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
