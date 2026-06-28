@@ -1,0 +1,65 @@
+/* ============================================================
+   DASHBOARD RESPONSIVE — Shared sidebar drawer behavior
+   Dùng chung cho Admin / Farmer / Enterprise dashboard
+   ============================================================ */
+
+/* Overlay tối phía sau khi sidebar mở dạng drawer trên mobile */
+.dash-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 95;
+  animation: dash-fade-in 0.2s ease;
+}
+
+@keyframes dash-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Nút hamburger mở sidebar — chỉ hiện trên mobile/tablet */
+.dash-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.dash-hamburger:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* Sidebar dạng drawer — mặc định ẩn ngoài viewport trên mobile */
+@media (max-width: 991px) {
+  .dash-hamburger {
+    display: flex;
+  }
+
+  .dash-drawer {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 100;
+  }
+
+  .dash-drawer.open {
+    transform: translateX(0);
+  }
+}
+
+@media (min-width: 992px) {
+  .dash-overlay {
+    display: none;
+  }
+}
