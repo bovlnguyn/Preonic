@@ -4,11 +4,12 @@ import {
   Routes,
   Route,
   Navigate,
-  useNavigate,
+  
 } from 'react-router-dom';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
-
+import { ToastProvider } from './contexts/ToastContext';
+import AdminDashboard from './component/AdminDashboard/AdminDashboard';
 import Home from './pages/Home';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
@@ -65,6 +66,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
     if (user.role === 'enterprise') {
       return <Navigate to="/enterprise" replace />;
+    }
+    if (user.role === 'admin'){     
+      return <Navigate to="/admin" replace />;
     }
 
     return <Navigate to="/" replace />;
@@ -131,7 +135,8 @@ const AppRoutes = () => {
         <Route path="create-product" element={<FarmerCreateProduct />} />
       </Route>
 
-      {/* Enterprise */}
+     
+{/* Enterprise */}
       <Route
   path="/enterprise-home"
   element={
@@ -140,7 +145,6 @@ const AppRoutes = () => {
     </ProtectedRoute>
   }
 />
-
 {/* Cấu hình các Dashboard thực tế của Enterprise */}
 <Route
   path="/enterprise"
@@ -162,6 +166,15 @@ const AppRoutes = () => {
         <Route path="ratings" element={<EnterpriseRatings />} />
         <Route path="weather-insurance" element={<EnterpriseWeatherInsurance />} />
 </Route>
+{/* Admin Dashboard */}
+<Route
+  path="/admin"
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <AdminDashboard />
+    </ProtectedRoute>
+  }
+/>
 
       {/* 404 */}
       <Route
@@ -184,9 +197,11 @@ const AppRoutes = () => {
 
 const App = () => (
   <AuthProvider>
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </ToastProvider>
   </AuthProvider>
 );
 

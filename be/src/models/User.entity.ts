@@ -25,7 +25,7 @@ export class User {
   password: string;
 
   @Column({ name: 'Role', type: 'nvarchar', length: 20 })
-  role: 'farmer' | 'enterprise';
+  role: 'farmer' | 'enterprise' | 'admin';
 
   @Column({ name: 'FirstName', type: 'nvarchar', length: 100, nullable: true })
   firstName: string;
