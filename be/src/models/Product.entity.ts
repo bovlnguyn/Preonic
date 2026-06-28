@@ -31,6 +31,8 @@ export class Product {
 
   @Column({ name: 'PriceMin', type: 'decimal', precision: 18, scale: 2, nullable: true })
   priceMin: number;
+  @Column({ name: 'Images', type: 'nvarchar', length: 'max', nullable: true })
+  images: string; // JSON.stringify(['url1.jpg', 'url2.jpg', ...])
 
   @Column({ name: 'PriceMax', type: 'decimal', precision: 18, scale: 2, nullable: true })
   priceMax: number;

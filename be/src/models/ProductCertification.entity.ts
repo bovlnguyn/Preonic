@@ -11,6 +11,8 @@ export class ProductCertification {
 
   @Column({ name: 'Value', type: 'nvarchar', length: 200 })
   value: string;
+  @Column({ name: 'FileUrl', type: 'nvarchar', length: 500, nullable: true })
+  fileUrl: string; // đường dẫn file PDF/ảnh chứng chỉ đã upload
 
   @Column({ name: 'SortOrder', type: 'tinyint', default: 0 })
   sortOrder: number;
