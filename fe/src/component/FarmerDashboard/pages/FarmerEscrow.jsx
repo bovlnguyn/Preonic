@@ -3,7 +3,7 @@ import { FiShield } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
-import { farmerEscrows } from '../data/farmerMockData';
+import { farmerEscrows } from '../../../data/farmer';
 import { formatMoney } from '../utils';
 
 function FarmerEscrow() {

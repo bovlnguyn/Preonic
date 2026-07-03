@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiCloudRain, FiDroplet, FiShield, FiThermometer, FiWind } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
-import { insurancePlans, weatherCards } from '../data/farmerMockData';
+import { insurancePlans, weatherCards } from '../../../data/farmer';
 
 function FarmerWeatherInsurance() {
   return (

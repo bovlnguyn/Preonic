@@ -18,6 +18,8 @@ import Auth from './component/Auth/Auth';
 import GoogleCallback from './component/Auth/GoogleCallBack';
 import GoogleSelectRole from './component/Auth/GoogleSelectRole';
 import ResetPassword from './component/ResetPassword/ResetPassword';
+
+// Enterprise Dashboard
 import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
 import EnterpriseOverview         from './component/EnterpriseDashboard/pages/EnterpriseOverview';
 import EnterpriseContracts        from './component/EnterpriseDashboard/pages/EnterpriseContracts';
