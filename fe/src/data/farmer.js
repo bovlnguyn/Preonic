@@ -29,56 +29,7 @@ export const farmerStats = [
   },
 ];
 
-export const cropProducts = [
-  {
-    id: 'NS-2406-01',
-    name: 'Gạo hữu cơ ST25',
-    category: 'Lúa gạo',
-    location: 'Đồng Tháp',
-    quantity: '12 tấn',
-    price: 18500000,
-    standard: 'VietGAP',
-    harvestDate: '2026-07-18',
-    progress: 76,
-    status: 'Đang chào bán',
-  },
-  {
-    id: 'NS-2406-02',
-    name: 'Sầu riêng Ri6 loại 1',
-    category: 'Trái cây',
-    location: 'Đắk Lắk',
-    quantity: '8 tấn',
-    price: 68000000,
-    standard: 'Truy xuất QR',
-    harvestDate: '2026-07-02',
-    progress: 91,
-    status: 'Đang đàm phán',
-  },
-  {
-    id: 'NS-2406-03',
-    name: 'Rau cải xanh hữu cơ',
-    category: 'Rau củ',
-    location: 'Đà Nẵng',
-    quantity: '1.6 tấn',
-    price: 14500000,
-    standard: 'Organic',
-    harvestDate: '2026-06-28',
-    progress: 63,
-    status: 'Sẵn sàng thu hoạch',
-  },
-  {
-    id: 'NS-2406-04',
-    name: 'Cà phê Robusta sạch',
-    category: 'Cà phê',
-    location: 'Lâm Đồng',
-    quantity: '5 tấn',
-    price: 72000000,
-    standard: 'OCOP',
-    harvestDate: '2026-08-12',
-    progress: 48,
-    status: 'Đang chăm sóc',
-  },
-];
+
 
 export const farmerContracts = [
   {
@@ -271,6 +222,3 @@ export const insurancePlans = [
   },
 ];
 
-export const productCategories = ['Lúa gạo', 'Rau củ', 'Trái cây', 'Cà phê', 'Hồ tiêu', 'Thảo dược', 'Nông sản hữu cơ'];
-export const provinces = ['Đà Nẵng', 'Quảng Nam', 'Lâm Đồng', 'Đắk Lắk', 'Cần Thơ', 'Đồng Tháp', 'Nghệ An'];
-export const standards = ['VietGAP', 'GlobalGAP', 'Organic', 'OCOP', 'Truy xuất QR', 'Canh tác sạch'];

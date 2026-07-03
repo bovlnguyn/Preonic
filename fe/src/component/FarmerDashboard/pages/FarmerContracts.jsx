@@ -3,7 +3,7 @@ import { FiDownload, FiEye } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
-import { farmerContracts } from '../data/farmerMockData';
+import { farmerContracts } from '../../../data/farmer';
 import { formatDate, formatMoney } from '../utils';
 
 function FarmerContracts() {

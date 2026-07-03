@@ -18,6 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import logo from '../../assets/branding/preonic-logo-main.png';
 
 const navItems = [
+  { to: '/farmer/create-product', label: 'Đăng bán nông sản', icon: FiPlusCircle },
   { to: '/farmer', label: 'Tổng quan', icon: FiBarChart2, end: true },
   { to: '/farmer/crops', label: 'Mùa vụ của tôi', icon: FiPackage },
   { to: '/farmer/contracts', label: 'Hợp đồng', icon: FiFileText },
@@ -26,7 +27,7 @@ const navItems = [
   { to: '/farmer/wallet', label: 'Ví & Thanh toán', icon: FiCreditCard },
   { to: '/farmer/ratings', label: 'Đánh giá đối tác', icon: FiStar },
   { to: '/farmer/weather-insurance', label: 'Thời tiết & Bảo hiểm', icon: FiCloudRain },
-  { to: '/farmer/create-product', label: 'Đăng bán nông sản', icon: FiPlusCircle },
+
 ];
 
 function FarmerSidebar() {

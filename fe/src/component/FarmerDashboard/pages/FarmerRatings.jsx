@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiStar } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
-import { partnerRatings } from '../data/farmerMockData';
+import { partnerRatings } from '../../../data/farmer';
 
 function FarmerRatings() {
   return (

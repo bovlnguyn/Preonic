@@ -2,7 +2,7 @@ import React from 'react';
 import { FiArrowDownRight, FiArrowUpRight, FiCreditCard, FiDollarSign } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatCard from '../components/StatCard';
-import { walletSummary, walletTransactions } from '../data/farmerMockData';
+import { walletSummary, walletTransactions } from '../../../data/farmer';
 import { formatDate, formatMoney } from '../utils';
 
 function FarmerWallet() {

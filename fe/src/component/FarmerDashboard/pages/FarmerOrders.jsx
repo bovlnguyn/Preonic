@@ -2,7 +2,7 @@ import React from 'react';
 import { FiMapPin, FiTruck } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
-import { farmerOrders } from '../data/farmerMockData';
+import { farmerOrders } from '../../../data/farmer';
 import { formatDate } from '../utils';
 
 function FarmerOrders() {

@@ -1,17 +1,28 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
+import productService from '../../../services/product.service';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
-import { cropProducts } from '../data/farmerMockData';
 import { formatDate, formatMoney, getStoredProducts } from '../utils';
+
+
 
 function FarmerCrops() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('Tất cả');
+  const [cropProducts, setCropProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const products = useMemo(() => [...getStoredProducts(), ...cropProducts], []);
+  useEffect(() => {
+    productService.getMyProducts()
+      .then((data) => setCropProducts(data.products || data))
+      .catch(() => setCropProducts([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const products = useMemo(() => [...getStoredProducts(), ...cropProducts], [cropProducts]);
   const categories = useMemo(() => ['Tất cả', ...new Set(products.map((item) => item.category))], [products]);
   const filtered = filter === 'Tất cả' ? products : products.filter((item) => item.category === filter);
 

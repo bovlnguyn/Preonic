@@ -5,7 +5,9 @@ import SectionHeader from '../components/SectionHeader';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
-import { cropProducts, farmerContracts, farmerStats, farmerOrders } from '../data/farmerMockData';
+import { farmerContracts, farmerStats, farmerOrders } from '../../../data/farmer';
+import { useEffect, useState } from 'react';
+import productService from '../../../services/product.service';
 import { formatDate, formatMoney } from '../utils';
 
 function FarmerOverview() {
@@ -17,6 +19,14 @@ function FarmerOverview() {
     wallet: FiCreditCard,
     reputation: FiStar,
   };
+
+  const [cropProducts, setCropProducts] = useState([]);
+
+useEffect(() => {
+  productService.getMyProducts()
+    .then((data) => setCropProducts(data.products || data))
+    .catch(() => setCropProducts([]));
+}, []);
 
   return (
     <div className="farmer-stack">
