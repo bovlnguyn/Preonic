@@ -12,6 +12,32 @@ const REGIONS = ['Miền Bắc', 'Miền Trung', 'Miền Nam'];
 const UNITS = ['kg', 'Tạ', 'Tấn'];
 const COVERAGE_PRESETS = [25, 50, 75, 100];
 
+// Map region hiển thị (tiếng Việt) sang giá trị enum backend yêu cầu
+const REGION_MAP = {
+  'Miền Bắc': 'north',
+  'Miền Trung': 'central',
+  'Miền Nam': 'south',
+};
+
+// Loại nông sản (bắt buộc — backend yêu cầu dto.category)
+const CATEGORIES = [
+  { value: 'rice', label: 'Lúa gạo' },
+  { value: 'fruit', label: 'Trái cây' },
+  { value: 'vegetable', label: 'Rau củ' },
+  { value: 'coffee', label: 'Cà phê' },
+  { value: 'tea', label: 'Chè' },
+  { value: 'spice', label: 'Gia vị' },
+  { value: 'grain', label: 'Ngũ cốc' },
+  { value: 'other', label: 'Khác' },
+];
+
+// Hình thức sản phẩm (bắt buộc — backend yêu cầu dto.type)
+const TYPES = [
+  { value: 'fresh', label: 'Tươi' },
+  { value: 'dried', label: 'Khô' },
+  { value: 'processed', label: 'Đã sơ chế' },
+];
+
 const STEPS = [
   { key: 'product',  label: 'Sản phẩm',      sub: 'Tên và loại cây trồng',     icon: '🌿' },
   { key: 'season',   label: 'Mùa vụ',         sub: 'Thời vụ và sản lượng',      icon: '📅' },
@@ -28,7 +54,7 @@ const TIPS = [
 
 const initialForm = {
   // Bước 1
-  name: '', variety: '', area: '', region: 'Miền Trung',
+  name: '', category: '', type: '', variety: '', area: '', region: 'Miền Trung',
   // Bước 2
   plantDate: '', harvestDate: '', quantity: '', unit: 'tấn',
   // Bước 3
@@ -141,6 +167,39 @@ function Step1({ form, set }) {
           placeholder="Nhập tên đầy đủ để doanh nghiệp dễ tìm kiếm"
         />
         <span className="fcp-hint">Nhập tên đầy đủ để doanh nghiệp dễ tìm kiếm</span>
+      </div>
+
+      {/* Loại nông sản — bắt buộc, backend cần dto.category */}
+      <div className="fcp-field fcp-field--full">
+        <label>Loại nông sản <span className="fcp-required">*</span></label>
+        <div className="fcp-btn-group">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              className={`fcp-btn-region ${form.category === c.value ? 'fcp-btn-region--active' : ''}`}
+              onClick={() => set('category', c.value)}
+            >{c.label}</button>
+          ))}
+        </div>
+        {!form.category && (
+          <span className="fcp-hint">Vui lòng chọn loại nông sản phù hợp</span>
+        )}
+      </div>
+
+      {/* Hình thức — bắt buộc, backend cần dto.type */}
+      <div className="fcp-field fcp-field--full">
+        <label>Hình thức <span className="fcp-required">*</span></label>
+        <div className="fcp-btn-group">
+          {TYPES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              className={`fcp-btn-region ${form.type === t.value ? 'fcp-btn-region--active' : ''}`}
+              onClick={() => set('type', t.value)}
+            >{t.label}</button>
+          ))}
+        </div>
       </div>
 
       <div className="fcp-row">
@@ -419,7 +478,8 @@ export default function FarmerCreateProduct() {
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const canNext = () => {
-    if (step === 0) return form.name.trim() !== '';
+    // Bước 1: bắt buộc tên, loại nông sản (category) và hình thức (type)
+    if (step === 0) return form.name.trim() !== '' && form.category !== '' && form.type !== '';
     if (step === 1) return form.harvestDate !== '' && form.quantity !== '';
     if (step === 2) return form.price !== '';
     return true;
@@ -437,19 +497,25 @@ export default function FarmerCreateProduct() {
     setSubmitting(true);
     setError('');
     try {
+      const priceNum = Number(form.price || 0);
+
       await productService.createProduct(
         {
-          name: form.name,
-          variety: form.variety,
-          area: form.area,
-          region: form.region,
-          plantDate: form.plantDate,
-          harvestDate: form.harvestDate,
-          quantity: form.quantity,
-          unit: form.unit,
-          price: form.price,
-          priceUnit: form.priceUnit,
-          coverageRate: form.coverageRate,
+          // Bắt buộc theo backend (product.service.ts)
+          name:     form.name.trim(),
+          category: form.category,
+          type:     form.type,
+          region:   REGION_MAP[form.region] || form.region,
+
+          // Tùy chọn
+          farm:          form.variety?.trim(),
+          location:      form.area ? `${form.area} ha` : undefined,
+          totalQuantity: form.quantity ? Number(form.quantity) : undefined,
+          unit:          form.unit,
+          priceMin:      priceNum || undefined,
+          priceMax:      priceNum ? Math.round(priceNum * 1.15) : undefined,
+          expectedDate:  form.harvestDate || undefined,
+          note:          form.plantDate ? `Ngày gieo trồng: ${form.plantDate}` : undefined,
         },
         form.images,
         form.certFile ? [form.certFile] : [],

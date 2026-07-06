@@ -24,7 +24,10 @@ function FarmerOverview() {
 
 useEffect(() => {
   productService.getMyProducts()
-    .then((data) => setCropProducts(data.products || data))
+    .then((data) => {
+      const list = data?.data || data?.products || [];
+      setCropProducts(Array.isArray(list) ? list : []);
+    })
     .catch(() => setCropProducts([]));
 }, []);
 

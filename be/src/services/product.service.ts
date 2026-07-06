@@ -146,7 +146,7 @@ export const getById = async (productId: string) => {
 
   return product;
 };
-/*
+
 // ══════════════════════════════════════════
 // SẢN PHẨM TƯƠNG TỰ (cùng vùng miền hoặc nhóm sản phẩm)
 // ══════════════════════════════════════════
@@ -181,13 +181,16 @@ export const getByRegion = async (region: string) => {
 // SẢN PHẨM THEO NGƯỜI ĐĂNG (farmer)
 // ══════════════════════════════════════════
 export const getByUser = async (userId: string) => {
-  return productRepo().find({
-    where: { createdBy: userId, isActive: true },
-    order: { createdAt: 'DESC' },
-    relations: ['certifications', 'commitments'],
-  });
+  return productRepo()
+    .createQueryBuilder('product')
+    .where('product.createdBy = :userId', { userId })
+    .andWhere('product.isActive = :isActive', { isActive: true })
+    .orderBy('product.createdAt', 'DESC')
+    .leftJoinAndSelect('product.certifications', 'certifications')
+    .leftJoinAndSelect('product.commitments', 'commitments')
+    .getMany();
 };
-*/
+
 // ══════════════════════════════════════════
 // TẠO SẢN PHẨM MỚI (form 4 bước)
 // ══════════════════════════════════════════

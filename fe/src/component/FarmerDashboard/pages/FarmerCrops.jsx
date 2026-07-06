@@ -5,26 +5,32 @@ import productService from '../../../services/product.service';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
-import { formatDate, formatMoney, getStoredProducts } from '../utils';
-
-
+import { formatDate, formatMoney } from '../utils';
 
 function FarmerCrops() {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState('Tất cả');
+  const [filter,       setFilter]       = useState('Tất cả');
   const [cropProducts, setCropProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
     productService.getMyProducts()
-      .then((data) => setCropProducts(data.products || data))
+      .then((data) => {
+        const list = data?.data || data?.products || [];
+        setCropProducts(Array.isArray(list) ? list : []);
+      })
       .catch(() => setCropProducts([]))
       .finally(() => setLoading(false));
   }, []);
 
-  const products = useMemo(() => [...getStoredProducts(), ...cropProducts], [cropProducts]);
-  const categories = useMemo(() => ['Tất cả', ...new Set(products.map((item) => item.category))], [products]);
-  const filtered = filter === 'Tất cả' ? products : products.filter((item) => item.category === filter);
+  const categories = useMemo(() => [
+    'Tất cả',
+    ...new Set(cropProducts.map(item => item.category)),
+  ], [cropProducts]);
+
+  const filtered = filter === 'Tất cả'
+    ? cropProducts
+    : cropProducts.filter(item => item.category === filter);
 
   return (
     <div className="farmer-stack">
@@ -34,51 +40,90 @@ function FarmerCrops() {
           title="Quản lý nông sản đang canh tác và đang bán"
           desc="Trang này hiển thị sản lượng, chuẩn chất lượng, giá chào bán và tiến độ mùa vụ."
           action={
-            <button className="farmer-button farmer-button--primary" type="button" onClick={() => navigate('/farmer/create-product')}>
+            <button
+              className="farmer-button farmer-button--primary"
+              type="button"
+              onClick={() => navigate('/farmer/create-product')}
+            >
               <FiPlus /> Đăng bán mới
             </button>
           }
         />
 
-        <div className="farmer-filter-row">
-          {categories.map((category) => (
-            <button
-              key={category}
-              type="button"
-              className={filter === category ? 'active' : ''}
-              onClick={() => setFilter(category)}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
+        {loading ? (
+          <div className="farmer-loading">Đang tải...</div>
+        ) : (
+          <>
+            <div className="farmer-filter-row">
+              {categories.map(category => (
+                <button
+                  key={category}
+                  type="button"
+                  className={filter === category ? 'active' : ''}
+                  onClick={() => setFilter(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
 
-        <div className="farmer-product-grid">
-          {filtered.map((item) => (
-            <article className="farmer-product-card" key={item.id}>
-              <div className="farmer-product-card__top">
-                <span>{item.category}</span>
-                <StatusBadge status={item.status} />
+            {filtered.length === 0 ? (
+              <div className="farmer-empty">
+                <p>Bạn chưa có sản phẩm nào. Hãy đăng bán nông sản đầu tiên!</p>
+                <button
+                  className="farmer-button farmer-button--primary"
+                  type="button"
+                  onClick={() => navigate('/farmer/create-product')}
+                >
+                  <FiPlus /> Đăng bán ngay
+                </button>
               </div>
-              <h3>{item.name}</h3>
-              <p>{item.location} • {item.quantity} • {item.standard}</p>
-              <div className="farmer-product-card__meta">
-                <div>
-                  <span>Giá chào bán</span>
-                  <strong>{formatMoney(item.price)}</strong>
-                </div>
-                <div>
-                  <span>Thu hoạch</span>
-                  <strong>{formatDate(item.harvestDate)}</strong>
-                </div>
+            ) : (
+              <div className="farmer-product-grid">
+                {filtered.map(item => (
+                  <article
+  className="farmer-product-card"
+  key={item.id}
+  onClick={() => navigate('/products/' + item.id)}
+  style={{ cursor: 'pointer' }}
+>
+                    <div className="farmer-product-card__top">
+                      <span>{item.category}</span>
+                      <StatusBadge status={item.isActive ? 'active' : 'inactive'} />
+                    </div>
+                    <h3>{item.name}</h3>
+                    <p>
+                      {item.location || 'Chưa cập nhật'} •{' '}
+                      {item.totalQuantity ? `${item.totalQuantity} ${item.unit}` : 'Chưa cập nhật'}
+                    </p>
+                    <div className="farmer-product-card__meta">
+                      <div>
+                        <span>Giá chào bán</span>
+                        <strong>
+                          {item.priceMin && item.priceMax
+                            ? `${formatMoney(item.priceMin)} – ${formatMoney(item.priceMax)}`
+                            : item.priceMin
+                            ? formatMoney(item.priceMin)
+                            : 'Chưa cập nhật'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Thu hoạch</span>
+                        <strong>
+                          {item.expectedDate ? formatDate(item.expectedDate) : 'Chưa cập nhật'}
+                        </strong>
+                      </div>
+                    </div>
+                    <div className="farmer-product-card__progress">
+                      <span>Tiến độ mùa vụ: {item.progress || 0}%</span>
+                      <ProgressBar value={item.progress || 0} />
+                    </div>
+                  </article>
+                ))}
               </div>
-              <div className="farmer-product-card__progress">
-                <span>Tiến độ mùa vụ: {item.progress}%</span>
-                <ProgressBar value={item.progress} />
-              </div>
-            </article>
-          ))}
-        </div>
+            )}
+          </>
+        )}
       </section>
     </div>
   );
