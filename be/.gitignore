@@ -47,7 +47,8 @@ be/uploads/*
 
 # Giữ lại thư mục nhưng bỏ qua nội dung
 !be/uploads/.gitkeep
-
+be/uploads/products/*
+!be/uploads/products/.gitkeep
 # ═══════════════════════════════════════════════════════════
 # LOGS
 # ═══════════════════════════════════════════════════════════
