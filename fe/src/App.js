@@ -19,6 +19,8 @@ import GoogleCallback from './component/Auth/GoogleCallBack';
 import GoogleSelectRole from './component/Auth/GoogleSelectRole';
 import ResetPassword from './component/ResetPassword/ResetPassword';
 
+//Product
+import ProductDetail from './component/ProductDetail/ProductDetail';
 // Enterprise Dashboard
 import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
 import EnterpriseOverview         from './component/EnterpriseDashboard/pages/EnterpriseOverview';
@@ -105,6 +107,8 @@ const AppRoutes = () => {
       {/* Password / Email */}
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+      <Route path="/products/:id" element={<ProductDetail />} />
 
 
       {/* Route cũ sau login: giữ lại để không gãy luồng đăng nhập */}

@@ -93,7 +93,7 @@ export const getById = async (req: Request, res: Response) => {
     });
   }
 };
-/*
+
 // ══════════════════════════════════════════
 // GET /products/:id/similar — sản phẩm tương tự
 // ══════════════════════════════════════════
@@ -130,6 +130,7 @@ export const getByRegion = async (req: Request, res: Response) => {
 // ══════════════════════════════════════════
 export const getMyProducts = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('getMyProducts userId:', req.user?.id);
     const products = await productService.getByUser(req.user!.id);
     res.status(200).json({ success: true, data: products });
   } catch (err: any) {
@@ -139,7 +140,7 @@ export const getMyProducts = async (req: AuthRequest, res: Response) => {
     });
   }
 };
-*/
+
 // ══════════════════════════════════════════
 // POST /products — tạo sản phẩm mới (form 4 bước)
 // ══════════════════════════════════════════

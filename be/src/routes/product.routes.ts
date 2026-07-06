@@ -1,6 +1,7 @@
+import { getMyProducts, getByRegion } from './../controller/product.controller';
 import { Router, RequestHandler } from 'express';
 import {
-  getAll, getById,
+  getAll, getById,getSimilar,
   create, update, remove,
   getReviews, addReview,
 } from '../controller/product.controller';
@@ -12,16 +13,16 @@ const router = Router();
 
 // ── Public routes ──
 router.get('/',                getAll as RequestHandler);
-/*router.get('/region/:region',  getByRegion as RequestHandler);*/
+router.get('/region/:region',  getByRegion as RequestHandler);
 // ── Protected routes — Farmer ──
-/*router.get(
+router.get(
   '/my-products',
   protect as RequestHandler,
   getMyProducts as RequestHandler
-);*/
+);
 
 router.get('/:id',              getById as RequestHandler);
-/*router.get('/:id/similar',      getSimilar as RequestHandler);*/
+router.get('/:id/similar',      getSimilar as RequestHandler);
 router.get('/:id/reviews',      getReviews as RequestHandler);
 
 // ── Protected routes — Farmer ──
