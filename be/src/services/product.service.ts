@@ -2,12 +2,15 @@ import { AppDataSource } from '../config/database';
 import { Product } from '../models/Product.entity';
 import { ProductCertification } from '../models/ProductCertification.entity';
 import { ProductCommitment } from '../models/ProductCommitment.entity';
+import { Review } from '../models/Review.entity';
 import { User } from '../models/User.entity';
+import { PRODUCT_CONFIG } from '../constants';
 
-const productRepo  = () => AppDataSource.getRepository(Product);
-const certRepo      = () => AppDataSource.getRepository(ProductCertification);
-const commitRepo    = () => AppDataSource.getRepository(ProductCommitment);
-const userRepo      = () => AppDataSource.getRepository(User);
+const productRepo = () => AppDataSource.getRepository(Product);
+const certRepo    = () => AppDataSource.getRepository(ProductCertification);
+const commitRepo  = () => AppDataSource.getRepository(ProductCommitment);
+const reviewRepo  = () => AppDataSource.getRepository(Review);
+const userRepo    = () => AppDataSource.getRepository(User);
 
 const makeError = (message: string, statusCode = 400) => {
   const err: any = new Error(message);
@@ -16,7 +19,7 @@ const makeError = (message: string, statusCode = 400) => {
 };
 
 // ══════════════════════════════════════════
-// DTO — dữ liệu nhận từ form 4 bước
+// TYPES
 // ══════════════════════════════════════════
 export interface CreateProductDto {
   // Bước 1 — Thông tin cơ bản
@@ -32,48 +35,181 @@ export interface CreateProductDto {
   priceMax?:      number;
   unit?:          string;
   totalQuantity?: number;
-  expectedDate?:  string; // ISO date string
+  expectedDate?:  string;
   description?:   string;
   nutritionInfo?: string;
   note?:          string;
   badge?:         string;
-  commitments?:   string[]; // ["Không thuốc trừ sâu", "Thu hoạch đúng vụ", ...]
+  commitments?:   string[];
 
   // Bước 3 — Hình ảnh / Chứng chỉ
-  // (đường dẫn file đã upload, xử lý ở controller trước khi gọi service)
-  imagePaths?: string[];           // toàn bộ ảnh upload
+  imagePaths?: string[];
   certifications?: {
-    value: string;     // tên chứng chỉ, ví dụ "VietGAP"
-    fileUrl?: string;  // đường dẫn file minh chứng (ảnh/PDF) nếu có
+    value: string;
+    fileUrl?: string;
   }[];
-
-  // Bước 4 — Xác nhận (không có field riêng, chỉ là bước review ở FE)
 }
 
+export type UpdateProductDto = Partial<CreateProductDto>;
+
+export type ProductFilters = {
+  category?: string;
+  region?:   string;
+  type?:     string;
+  search?:   string;
+  page?:     number;
+  limit?:    number;
+  sort?:     string;
+};
+
+const PRODUCT_SORT_OPTIONS: Record<string, { column: string; direction: 'ASC' | 'DESC' }> = {
+  default:    { column: 'product.createdAt', direction: 'DESC' },
+  price_asc:  { column: 'product.priceMin',  direction: 'ASC'  },
+  price_desc: { column: 'product.priceMax',  direction: 'DESC' },
+  rating:     { column: 'product.rating',    direction: 'DESC' },
+  name:       { column: 'product.name',      direction: 'ASC'  },
+};
+
+// ── Các field cho phép cập nhật qua API update ──
+const UPDATABLE_FIELDS: (keyof Product)[] = [
+  'name', 'location', 'farm', 'image', 'images',
+  'priceMin', 'priceMax', 'unit', 'expectedDate',
+  'progress', 'remaining', 'totalQuantity',
+  'note', 'badge', 'category', 'region', 'type',
+  'description', 'nutritionInfo',
+];
+
 // ══════════════════════════════════════════
-// TẠO SẢN PHẨM MỚI
+// HELPER — build query filter
 // ══════════════════════════════════════════
-export const createProduct = async (userId: string, dto: CreateProductDto) => {
-  // ── Validate cơ bản ──
-  if (!dto.name?.trim())     throw makeError('Tên sản phẩm là bắt buộc');
-  if (!dto.category)         throw makeError('Vui lòng chọn loại nông sản');
-  if (!dto.region)           throw makeError('Vui lòng chọn vùng miền');
-  if (!dto.type)             throw makeError('Vui lòng chọn hình thức (tươi/khô/đã sơ chế)');
+const buildFilteredQuery = (filters: ProductFilters) => {
+  const qb = productRepo()
+    .createQueryBuilder('product')
+    .where('product.isActive = :isActive', { isActive: true });
+
+  if (filters.category) {
+    qb.andWhere('product.category = :category', { category: filters.category });
+  }
+  if (filters.region) {
+    qb.andWhere('product.region = :region', { region: filters.region });
+  }
+  if (filters.type) {
+    qb.andWhere('product.type = :type', { type: filters.type });
+  }
+  if (filters.search) {
+    qb.andWhere(
+      '(product.name LIKE :search OR product.location LIKE :search OR product.farm LIKE :search OR product.description LIKE :search)',
+      { search: `%${filters.search}%` }
+    );
+  }
+
+  return qb;
+};
+
+// ══════════════════════════════════════════
+// LẤY DANH SÁCH SẢN PHẨM (có filter + phân trang)
+// ══════════════════════════════════════════
+export const getAll = async (filters: ProductFilters) => {
+  const page  = filters.page  || 1;
+  const limit = filters.limit || PRODUCT_CONFIG.DEFAULT_PAGE_SIZE;
+  const skip  = (page - 1) * limit;
+
+  const sortOption = PRODUCT_SORT_OPTIONS[filters.sort || 'default'] || PRODUCT_SORT_OPTIONS.default;
+
+  const qb = buildFilteredQuery(filters)
+    .orderBy(sortOption.column, sortOption.direction)
+    .skip(skip)
+    .take(limit);
+
+  const [products, total] = await qb.getManyAndCount();
+
+  return {
+    products,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
+};
+
+// ══════════════════════════════════════════
+// LẤY SẢN PHẨM THEO ID
+// ══════════════════════════════════════════
+export const getById = async (productId: string) => {
+  const product = await productRepo().findOne({
+    where: { id: productId },
+    relations: ['certifications', 'commitments'],
+  });
+
+  if (!product || !product.isActive) {
+    throw makeError('Sản phẩm không tồn tại', 404);
+  }
+
+  return product;
+};
+/*
+// ══════════════════════════════════════════
+// SẢN PHẨM TƯƠNG TỰ (cùng vùng miền hoặc nhóm sản phẩm)
+// ══════════════════════════════════════════
+export const getSimilar = async (productId: string, limit: number = 4) => {
+  const product = await productRepo().findOne({ where: { id: productId } });
+  if (!product) throw makeError('Sản phẩm không tồn tại', 404);
+
+  return productRepo()
+    .createQueryBuilder('product')
+    .where('product.id != :id', { id: productId })
+    .andWhere('product.isActive = :isActive', { isActive: true })
+    .andWhere('(product.region = :region OR product.category = :category)', {
+      region:   product.region,
+      category: product.category,
+    })
+    .orderBy('product.rating', 'DESC')
+    .take(limit)
+    .getMany();
+};
+
+// ══════════════════════════════════════════
+// SẢN PHẨM THEO VÙNG MIỀN
+// ══════════════════════════════════════════
+export const getByRegion = async (region: string) => {
+  return productRepo().find({
+    where: { region: region as any, isActive: true },
+    order: { rating: 'DESC' },
+  });
+};
+
+// ══════════════════════════════════════════
+// SẢN PHẨM THEO NGƯỜI ĐĂNG (farmer)
+// ══════════════════════════════════════════
+export const getByUser = async (userId: string) => {
+  return productRepo().find({
+    where: { createdBy: userId, isActive: true },
+    order: { createdAt: 'DESC' },
+    relations: ['certifications', 'commitments'],
+  });
+};
+*/
+// ══════════════════════════════════════════
+// TẠO SẢN PHẨM MỚI (form 4 bước)
+// ══════════════════════════════════════════
+export const create = async (userId: string, dto: CreateProductDto) => {
+  if (!dto.name?.trim()) throw makeError('Tên sản phẩm là bắt buộc');
+  if (!dto.category)     throw makeError('Vui lòng chọn loại nông sản');
+  if (!dto.region)       throw makeError('Vui lòng chọn vùng miền');
+  if (!dto.type)         throw makeError('Vui lòng chọn hình thức (tươi/khô/đã sơ chế)');
 
   if (dto.priceMin != null && dto.priceMax != null && dto.priceMin > dto.priceMax) {
     throw makeError('Giá tối thiểu không được lớn hơn giá tối đa');
   }
 
-  // ── Lấy thông tin farmer để snapshot vào Product (seller info) ──
   const user = await userRepo().findOne({ where: { id: userId } });
   if (!user) throw makeError('Không tìm thấy người dùng', 404);
   if (user.role !== 'farmer') throw makeError('Chỉ Nông dân mới có thể đăng bán sản phẩm', 403);
 
-  // ── Ảnh đại diện = ảnh đầu tiên trong danh sách upload ──
   const imagePaths = dto.imagePaths || [];
   const mainImage  = imagePaths[0] || null;
 
-  // ── Tạo Product ──
+  const sellerName = user.fullName?.trim() || PRODUCT_CONFIG.DEFAULT_SELLER_NAME;
+
   const product = productRepo().create({
     name:          dto.name.trim(),
     category:      dto.category,
@@ -86,7 +222,7 @@ export const createProduct = async (userId: string, dto: CreateProductDto) => {
     priceMax:      dto.priceMax ?? null,
     unit:          dto.unit?.trim(),
     totalQuantity: dto.totalQuantity ?? null,
-    remaining:     dto.totalQuantity ?? null, // ban đầu remaining = totalQuantity
+    remaining:     dto.totalQuantity ?? null,
     progress:      0,
     expectedDate:  dto.expectedDate ? new Date(dto.expectedDate) : undefined,
     description:   dto.description?.trim(),
@@ -97,20 +233,18 @@ export const createProduct = async (userId: string, dto: CreateProductDto) => {
     image:  mainImage,
     images: imagePaths.length > 0 ? JSON.stringify(imagePaths) : null,
 
-    // Seller snapshot
     sellerUserId:         user.id,
-    sellerName:           user.fullName,
+    sellerName:           sellerName,
     sellerAvatar:         user.avatar,
-    sellerRating:         user.reputationScore,
-    sellerTotalContracts: 0,
+    sellerRating:         user.reputationScore ?? PRODUCT_CONFIG.DEFAULT_SELLER_RATING,
+    sellerTotalContracts: PRODUCT_CONFIG.DEFAULT_TOTAL_CONTRACTS,
 
     createdBy: user.id,
     isActive:  true,
-  }as Partial<Product>);
+  } as Partial<Product>);
 
   const savedProduct = await productRepo().save(product);
 
-  // ── Lưu Commitments (cam kết của farmer) ──
   if (dto.commitments && dto.commitments.length > 0) {
     const commitEntities = dto.commitments
       .filter(c => c?.trim())
@@ -124,7 +258,6 @@ export const createProduct = async (userId: string, dto: CreateProductDto) => {
     await commitRepo().save(commitEntities);
   }
 
-  // ── Lưu Certifications (chứng chỉ kèm file) ──
   if (dto.certifications && dto.certifications.length > 0) {
     const certEntities = dto.certifications
       .filter(c => c?.value?.trim())
@@ -139,11 +272,139 @@ export const createProduct = async (userId: string, dto: CreateProductDto) => {
     await certRepo().save(certEntities);
   }
 
-  // ── Trả về product đầy đủ kèm relations ──
-  const result = await productRepo().findOne({
-    where: { id: savedProduct.id },
-    relations: ['certifications', 'commitments'],
-  });
+  return getById(savedProduct.id);
+};
 
-  return result;
+// ══════════════════════════════════════════
+// CẬP NHẬT SẢN PHẨM (chỉ chủ sở hữu)
+// ══════════════════════════════════════════
+export const update = async (
+  productId: string,
+  userId: string,
+  dto: UpdateProductDto
+) => {
+  const product = await productRepo().findOne({ where: { id: productId } });
+  if (!product) throw makeError('Sản phẩm không tồn tại', 404);
+
+  if (product.createdBy !== userId) {
+    throw makeError('Bạn không có quyền chỉnh sửa sản phẩm này', 403);
+  }
+
+  if (dto.priceMin != null && dto.priceMax != null && dto.priceMin > dto.priceMax) {
+    throw makeError('Giá tối thiểu không được lớn hơn giá tối đa');
+  }
+
+  const updatePayload: Record<string, any> = {};
+  for (const field of UPDATABLE_FIELDS) {
+    if ((dto as any)[field] !== undefined) {
+      updatePayload[field] = (dto as any)[field];
+    }
+  }
+
+  if (dto.imagePaths) {
+    updatePayload.image  = dto.imagePaths[0] || null;
+    updatePayload.images = dto.imagePaths.length > 0 ? JSON.stringify(dto.imagePaths) : null;
+  }
+
+  if (dto.expectedDate) {
+    updatePayload.expectedDate = new Date(dto.expectedDate);
+  }
+
+  if (Object.keys(updatePayload).length > 0) {
+    await productRepo().update({ id: productId }, updatePayload);
+  }
+
+  if (dto.commitments) {
+    await commitRepo().delete({ productId });
+    const commitEntities = dto.commitments
+      .filter(c => c?.trim())
+      .map((value, index) =>
+        commitRepo().create({ productId, value: value.trim(), sortOrder: index })
+      );
+    if (commitEntities.length > 0) await commitRepo().save(commitEntities);
+  }
+
+  if (dto.certifications) {
+    await certRepo().delete({ productId });
+    const certEntities = dto.certifications
+      .filter(c => c?.value?.trim())
+      .map((c, index) =>
+        certRepo().create({ productId, value: c.value.trim(), fileUrl: c.fileUrl, sortOrder: index })
+      );
+    if (certEntities.length > 0) await certRepo().save(certEntities);
+  }
+
+  return getById(productId);
+};
+
+// ══════════════════════════════════════════
+// XÓA SẢN PHẨM (soft delete, chỉ chủ sở hữu)
+// ══════════════════════════════════════════
+export const remove = async (productId: string, userId: string) => {
+  const product = await productRepo().findOne({ where: { id: productId } });
+  if (!product) throw makeError('Sản phẩm không tồn tại', 404);
+
+  if (product.createdBy !== userId) {
+    throw makeError('Bạn không có quyền xóa sản phẩm này', 403);
+  }
+
+  await productRepo().update({ id: productId }, { isActive: false });
+};
+
+// ══════════════════════════════════════════
+// LẤY DANH SÁCH REVIEW CỦA SẢN PHẨM
+// ══════════════════════════════════════════
+export const getReviews = async (productId: string) => {
+  return reviewRepo().find({
+    where: { productId },
+    order: { createdAt: 'DESC' },
+  });
+};
+
+// ══════════════════════════════════════════
+// THÊM REVIEW (enterprise, mỗi user 1 review/sản phẩm)
+// ══════════════════════════════════════════
+export const addReview = async (
+  productId: string,
+  reviewerId: string,
+  reviewerName: string,
+  rating: number,
+  text: string
+) => {
+  const product = await productRepo().findOne({ where: { id: productId } });
+  if (!product || !product.isActive) {
+    throw makeError('Sản phẩm không tồn tại', 404);
+  }
+
+  if (rating < 1 || rating > 5) {
+    throw makeError('Đánh giá phải từ 1 đến 5 sao');
+  }
+
+  const existing = await reviewRepo().findOne({ where: { productId, reviewerId } });
+  if (existing) {
+    throw makeError('Bạn đã đánh giá sản phẩm này rồi', 400);
+  }
+
+  const review = reviewRepo().create({
+    productId,
+    reviewerId,
+    reviewerName,
+    reviewerAvatar: reviewerName.slice(0, 1).toUpperCase(),
+    rating,
+    text: text?.trim(),
+  });
+  const savedReview = await reviewRepo().save(review);
+
+  const allReviews = await reviewRepo().find({ where: { productId } });
+  const avg = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+
+  await productRepo().update(
+    { id: productId },
+    {
+      rating: Math.round(avg * 10) / 10,
+      reviewCount: allReviews.length,
+    }
+  );
+
+  return savedReview;
 };
