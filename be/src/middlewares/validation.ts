@@ -194,3 +194,84 @@ export const validateUpdatePassword = [
 
   handleValidationErrors,
 ];
+
+export const validateCreateProduct = [
+  body('name')
+    .trim()
+    .notEmpty()
+    .withMessage('Tên sản phẩm là bắt buộc')
+    .isLength({ min: 2, max: 255 })
+    .withMessage('Tên sản phẩm phải từ 2-255 ký tự'),
+
+  body('category')
+    .notEmpty()
+    .withMessage('Vui lòng chọn loại nông sản')
+    .isIn(['fruit', 'vegetable', 'rice', 'coffee', 'tea', 'spice', 'grain', 'other'])
+    .withMessage('Loại nông sản không hợp lệ'),
+
+  body('region')
+    .notEmpty()
+    .withMessage('Vui lòng chọn vùng miền')
+    .isIn(['north', 'central', 'south'])
+    .withMessage('Vùng miền không hợp lệ'),
+
+  body('type')
+    .notEmpty()
+    .withMessage('Vui lòng chọn hình thức (tươi/khô/đã sơ chế)')
+    .isIn(['fresh', 'dried', 'processed'])
+    .withMessage('Hình thức không hợp lệ'),
+
+  body('priceMin')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Giá tối thiểu phải là số không âm'),
+
+  body('priceMax')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Giá tối đa phải là số không âm')
+    .custom((value, { req }) => {
+      const min = Number(req.body.priceMin);
+      const max = Number(value);
+      if (req.body.priceMin && max < min) {
+        throw new Error('Giá tối đa không được nhỏ hơn giá tối thiểu');
+      }
+      return true;
+    }),
+
+  body('totalQuantity')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Tổng số lượng phải là số không âm'),
+
+  body('expectedDate')
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('Ngày dự kiến không hợp lệ'),
+
+  body('commitments')
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) throw new Error();
+        return true;
+      } catch {
+        throw new Error('Danh sách cam kết không hợp lệ');
+      }
+    }),
+
+  body('certificationNames')
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) throw new Error();
+        return true;
+      } catch {
+        throw new Error('Danh sách chứng chỉ không hợp lệ');
+      }
+    }),
+
+  handleValidationErrors,
+];
