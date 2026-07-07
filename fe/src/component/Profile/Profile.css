@@ -52,6 +52,12 @@
   border: 1px solid #fecaca;
 }
 
+.profile-alert--info {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
 .profile-layout {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);

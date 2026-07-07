@@ -155,8 +155,8 @@ export const create = async (req: AuthRequest, res: Response) => {
       category: body.category,
       region:   body.region,
       type:     body.type,
-      location: body.location,
-      farm:     body.farm,
+      variety:  body.variety,
+      area:     body.area ? Number(body.area) : undefined,
 
       priceMin:      body.priceMin      ? Number(body.priceMin)      : undefined,
       priceMax:      body.priceMax      ? Number(body.priceMax)      : undefined,
@@ -203,6 +203,8 @@ export const update = async (req: AuthRequest, res: Response) => {
     if (body.type)          updateDto.type = body.type;
     if (body.location)      updateDto.location = body.location;
     if (body.farm)          updateDto.farm = body.farm;
+    if (body.variety)       updateDto.variety = body.variety;
+    if (body.area)          updateDto.area = Number(body.area);
     if (body.priceMin)      updateDto.priceMin = Number(body.priceMin);
     if (body.priceMax)      updateDto.priceMax = Number(body.priceMax);
     if (body.unit)          updateDto.unit = body.unit;

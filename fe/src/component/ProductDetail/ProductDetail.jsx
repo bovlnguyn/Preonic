@@ -171,6 +171,18 @@ export default function ProductDetail() {
                 <strong>{product.farm}</strong>
               </div>
             )}
+            {product.variety && (
+              <div className="pd-info-row">
+                <span>🌱 Giống / Phân loại</span>
+                <strong>{product.variety}</strong>
+              </div>
+            )}
+            {product.area && (
+              <div className="pd-info-row">
+                <span>📐 Diện tích canh tác</span>
+                <strong>{Number(product.area).toLocaleString('vi-VN')} ha</strong>
+              </div>
+            )}
             <div className="pd-info-row">
               <span><FiCalendar /> Thu hoạch dự kiến</span>
               <strong>{product.expectedDate ? formatDate(product.expectedDate) : 'Chưa cập nhật'}</strong>

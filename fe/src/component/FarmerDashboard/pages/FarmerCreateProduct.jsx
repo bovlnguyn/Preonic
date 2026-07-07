@@ -6,6 +6,17 @@ import {
   FiCamera, FiFileText, FiX, FiMapPin, FiAlertTriangle,
 } from 'react-icons/fi';
 import productService from '../../../services/product.service';
+import { useAuth } from '../../../contexts/AuthContext';
+
+// Phải khớp với User.isProfileComplete() ở backend (be/src/models/User.entity.ts)
+const isFarmerProfileComplete = (user) =>
+  Boolean(
+    user?.firstName?.trim() &&
+    user?.lastName?.trim() &&
+    user?.phone?.trim() &&
+    user?.province?.trim() &&
+    user?.farmName?.trim()
+  );
 
 // ── Dữ liệu tĩnh ─────────────────────────────────────────
 const REGIONS = ['Miền Bắc', 'Miền Trung', 'Miền Nam'];
@@ -470,6 +481,7 @@ function Step4({ form, set }) {
 // ── Main Component ─────────────────────────────────────────
 export default function FarmerCreateProduct() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -508,8 +520,8 @@ export default function FarmerCreateProduct() {
           region:   REGION_MAP[form.region] || form.region,
 
           // Tùy chọn
-          farm:          form.variety?.trim(),
-          location:      form.area ? `${form.area} ha` : undefined,
+          variety:       form.variety?.trim() || undefined,
+          area:          form.area ? Number(form.area) : undefined,
           totalQuantity: form.quantity ? Number(form.quantity) : undefined,
           unit:          form.unit,
           priceMin:      priceNum || undefined,
@@ -528,6 +540,34 @@ export default function FarmerCreateProduct() {
   };
 
   const dots = Array.from({ length: STEPS.length }, (_, i) => i);
+
+  if (!isFarmerProfileComplete(user)) {
+    return (
+      <div className="fcp-page">
+        <div className="fcp-breadcrumb">
+          <span onClick={() => navigate('/farmer')} style={{ cursor: 'pointer' }}>Trang chủ</span>
+          <span> › </span>
+          <span>Đăng bán nông sản</span>
+        </div>
+
+        <div className="fcp-card" style={{ alignItems: 'center', textAlign: 'center', gap: 12 }}>
+          <span className="fcp-card__icon" style={{ fontSize: 40 }}>⚠️</span>
+          <div className="fcp-card__title">Vui lòng hoàn thiện hồ sơ trước khi đăng bán sản phẩm</div>
+          <div className="fcp-card__sub">
+            Hồ sơ cần có đầy đủ họ tên, số điện thoại, tỉnh/thành phố và tên trang trại
+            để doanh nghiệp có thể xác minh nguồn gốc sản phẩm.
+          </div>
+          <button
+            type="button"
+            className="fcp-nav__submit"
+            onClick={() => navigate('/profile?incomplete=1')}
+          >
+            Cập nhật hồ sơ ngay
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fcp-page">
