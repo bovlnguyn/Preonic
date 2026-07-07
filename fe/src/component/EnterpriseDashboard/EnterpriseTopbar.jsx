@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiBell, FiSearch } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { getInitials } from './utils';
 
 function EnterpriseTopbar() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const entName = user?.fullName || user?.name || 'Doanh nghiệp PreOnic';
 
   return (
@@ -22,10 +24,15 @@ function EnterpriseTopbar() {
         <button className="ent-icon-button" type="button" aria-label="Thông báo">
           <FiBell /><span />
         </button>
-        <div className="ent-profile-chip" title={entName}>
+        <button
+          type="button"
+          className="ent-profile-chip"
+          title={entName}
+          onClick={() => navigate('/profile')}
+        >
           <span>{getInitials(entName)}</span>
           <strong>{entName}</strong>
-        </div>
+        </button>
       </div>
     </header>
   );

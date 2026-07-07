@@ -26,6 +26,12 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
+  // Cập nhật user trong context + session sau khi chỉnh sửa hồ sơ
+  const updateUser = (userData) => {
+    sessionStorage.setItem(USER, JSON.stringify(userData));
+    setUser(userData);
+  };
+
   const logout = async () => {
     try { await authService.logout(); } catch {}
     // ← Đảm bảo xóa localStorage dù API có lỗi
@@ -35,7 +41,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

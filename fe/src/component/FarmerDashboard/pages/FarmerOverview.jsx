@@ -7,7 +7,7 @@ import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
 import { farmerContracts, farmerStats, farmerOrders } from '../../../data/farmer';
 import { useEffect, useState } from 'react';
-import productService from '../../../services/product.service';
+import farmerService from '../../../services/farmer.service';
 import { formatDate, formatMoney } from '../utils';
 
 function FarmerOverview() {
@@ -23,11 +23,8 @@ function FarmerOverview() {
   const [cropProducts, setCropProducts] = useState([]);
 
 useEffect(() => {
-  productService.getMyProducts()
-    .then((data) => {
-      const list = data?.data || data?.products || [];
-      setCropProducts(Array.isArray(list) ? list : []);
-    })
+  farmerService.getMyCrops()
+    .then(setCropProducts)
     .catch(() => setCropProducts([]));
 }, []);
 

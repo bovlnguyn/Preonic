@@ -175,6 +175,52 @@ export const validateResetPassword = [
 ];
 
 /**
+ * Validate Update Profile
+ */
+export const validateUpdateProfile = [
+  body('firstName')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Tên không được để trống')
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Tên phải từ 1-100 ký tự'),
+
+  body('lastName')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Họ không được để trống')
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Họ phải từ 1-100 ký tự'),
+
+  body('phone')
+    .optional()
+    .trim()
+    .matches(/^[0-9]{10,11}$/)
+    .withMessage('Số điện thoại phải có 10-11 chữ số'),
+
+  body('avatar')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Avatar không hợp lệ'),
+
+  body('farmSize')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Diện tích trang trại phải là số không âm'),
+
+  body('taxCode')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Mã số thuế không hợp lệ'),
+
+  handleValidationErrors,
+];
+
+/**
  * Validate Update Password
  */
 export const validateUpdatePassword = [

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
-import productService from '../../../services/product.service';
+import farmerService from '../../../services/farmer.service';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
@@ -14,11 +14,8 @@ function FarmerCrops() {
   const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
-    productService.getMyProducts()
-      .then((data) => {
-        const list = data?.data || data?.products || [];
-        setCropProducts(Array.isArray(list) ? list : []);
-      })
+    farmerService.getMyCrops()
+      .then(setCropProducts)
       .catch(() => setCropProducts([]))
       .finally(() => setLoading(false));
   }, []);
