@@ -27,6 +27,10 @@ export class User {
   @Column({ name: 'Role', type: 'nvarchar', length: 20 })
   role: 'farmer' | 'enterprise' | 'admin';
 
+  // Nguồn tạo tài khoản — 'google' thì mật khẩu là random, người dùng không biết
+  @Column({ name: 'AuthProvider', type: 'nvarchar', length: 20, default: 'local' })
+  authProvider: 'local' | 'google';
+
   @Column({ name: 'FirstName', type: 'nvarchar', length: 100, nullable: true })
   firstName: string;
 

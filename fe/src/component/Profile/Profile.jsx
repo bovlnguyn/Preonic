@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FiUser, FiPhone, FiMapPin, FiImage, FiMail,
   FiHome, FiBriefcase, FiHash, FiSave, FiStar, FiArrowLeft,
+  FiLock, FiEye, FiEyeOff,
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -45,7 +46,7 @@ function getInitials(name = '') {
 }
 
 function Profile() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, setAccessToken } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -55,6 +56,14 @@ function Profile() {
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+  const [pwErrors, setPwErrors] = useState({});
+  const [pwApiError, setPwApiError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     setForm(buildForm(user));
@@ -120,6 +129,47 @@ function Profile() {
       toast.error(err?.message || 'Cập nhật hồ sơ thất bại');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPwForm((prev) => ({ ...prev, [name]: value }));
+    if (pwErrors[name]) setPwErrors((prev) => ({ ...prev, [name]: '' }));
+  };
+
+  const isGoogleAccount = user?.authProvider === 'google';
+
+  const validatePassword = () => {
+    const e = {};
+    if (!isGoogleAccount && !pwForm.currentPassword) e.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
+    if (!pwForm.newPassword) e.newPassword = 'Vui lòng nhập mật khẩu mới';
+    else if (pwForm.newPassword.length < 6) e.newPassword = 'Mật khẩu mới phải có ít nhất 6 ký tự';
+    if (!pwForm.confirmNewPassword) e.confirmNewPassword = 'Vui lòng xác nhận mật khẩu mới';
+    else if (pwForm.newPassword !== pwForm.confirmNewPassword) e.confirmNewPassword = 'Mật khẩu xác nhận không khớp';
+    setPwErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPwApiError('');
+    if (!validatePassword()) return;
+
+    setPwSaving(true);
+    try {
+      const result = await authService.updatePassword(pwForm);
+      if (result?.data?.accessToken) setAccessToken(result.data.accessToken);
+      if (result?.data?.authProvider && result.data.authProvider !== user?.authProvider) {
+        updateUser({ ...user, authProvider: result.data.authProvider });
+      }
+      setPwForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+      toast.success('Đổi mật khẩu thành công');
+    } catch (err) {
+      setPwApiError(err?.message || 'Đổi mật khẩu thất bại. Vui lòng thử lại.');
+      toast.error(err?.message || 'Đổi mật khẩu thất bại');
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -316,6 +366,123 @@ function Profile() {
                 : <><FiSave /> Lưu thay đổi</>}
             </button>
           </div>
+        </div>
+      </form>
+
+      <form className="profile-card profile-password-card" onSubmit={handlePasswordSubmit} noValidate>
+        <h2>Đổi mật khẩu</h2>
+        <p className="profile-password-hint">
+          {isGoogleAccount
+            ? 'Tài khoản đăng nhập bằng Google chưa có mật khẩu do bạn tự đặt — hãy đặt mật khẩu lần đầu để có thể đăng nhập bằng email/mật khẩu.'
+            : 'Dùng mật khẩu mạnh, tối thiểu 6 ký tự, không trùng mật khẩu cũ.'}
+        </p>
+
+        {pwApiError && (
+          <div className="profile-alert profile-alert--error">{pwApiError}</div>
+        )}
+
+        {isGoogleAccount ? (
+          <div className="profile-field">
+            <label>Mật khẩu mới</label>
+            <div className={`profile-input-icon ${pwErrors.newPassword ? 'profile-input-icon--invalid' : ''}`}>
+              <FiLock />
+              <input
+                type={showNew ? 'text' : 'password'}
+                name="newPassword"
+                autoComplete="new-password"
+                value={pwForm.newPassword}
+                onChange={handlePasswordChange}
+                placeholder="Tối thiểu 6 ký tự"
+              />
+              <button
+                type="button" className="profile-input-icon__toggle"
+                onClick={() => setShowNew((s) => !s)}
+                aria-label="Hiện/ẩn mật khẩu mới"
+              >
+                {showNew ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
+            {pwErrors.newPassword && <div className="profile-field-error">{pwErrors.newPassword}</div>}
+          </div>
+        ) : (
+          <div className="profile-row">
+            <div className="profile-field">
+              <label>Mật khẩu hiện tại</label>
+              <div className={`profile-input-icon ${pwErrors.currentPassword ? 'profile-input-icon--invalid' : ''}`}>
+                <FiLock />
+                <input
+                  type={showCurrent ? 'text' : 'password'}
+                  name="currentPassword"
+                  autoComplete="current-password"
+                  value={pwForm.currentPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Nhập mật khẩu hiện tại"
+                />
+                <button
+                  type="button" className="profile-input-icon__toggle"
+                  onClick={() => setShowCurrent((s) => !s)}
+                  aria-label="Hiện/ẩn mật khẩu hiện tại"
+                >
+                  {showCurrent ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+              {pwErrors.currentPassword && <div className="profile-field-error">{pwErrors.currentPassword}</div>}
+            </div>
+
+            <div className="profile-field">
+              <label>Mật khẩu mới</label>
+              <div className={`profile-input-icon ${pwErrors.newPassword ? 'profile-input-icon--invalid' : ''}`}>
+                <FiLock />
+                <input
+                  type={showNew ? 'text' : 'password'}
+                  name="newPassword"
+                  autoComplete="new-password"
+                  value={pwForm.newPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Tối thiểu 6 ký tự"
+                />
+                <button
+                  type="button" className="profile-input-icon__toggle"
+                  onClick={() => setShowNew((s) => !s)}
+                  aria-label="Hiện/ẩn mật khẩu mới"
+                >
+                  {showNew ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+              {pwErrors.newPassword && <div className="profile-field-error">{pwErrors.newPassword}</div>}
+            </div>
+          </div>
+        )}
+
+        <div className="profile-field">
+          <label>Xác nhận mật khẩu mới</label>
+          <div className={`profile-input-icon ${pwErrors.confirmNewPassword ? 'profile-input-icon--invalid' : ''}`}>
+            <FiLock />
+            <input
+              type={showConfirm ? 'text' : 'password'}
+              name="confirmNewPassword"
+              autoComplete="new-password"
+              value={pwForm.confirmNewPassword}
+              onChange={handlePasswordChange}
+              placeholder="Nhập lại mật khẩu mới"
+            />
+            <button
+              type="button" className="profile-input-icon__toggle"
+              onClick={() => setShowConfirm((s) => !s)}
+              aria-label="Hiện/ẩn xác nhận mật khẩu mới"
+            >
+              {showConfirm ? <FiEyeOff /> : <FiEye />}
+            </button>
+          </div>
+          {pwErrors.confirmNewPassword && <div className="profile-field-error">{pwErrors.confirmNewPassword}</div>}
+        </div>
+
+        <div className="profile-actions">
+          <button type="submit" className="profile-submit" disabled={pwSaving}>
+            {pwSaving
+              ? <><span className="spinner-border spinner-border-sm me-2" />Đang lưu...</>
+              : <><FiLock /> Đổi mật khẩu</>}
+          </button>
         </div>
       </form>
     </div>

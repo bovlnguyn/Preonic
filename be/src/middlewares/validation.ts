@@ -224,9 +224,9 @@ export const validateUpdateProfile = [
  * Validate Update Password
  */
 export const validateUpdatePassword = [
+  // Optional: tài khoản Google lần đầu đặt mật khẩu sẽ không gửi trường này
   body('currentPassword')
-    .notEmpty()
-    .withMessage('Vui lòng nhập mật khẩu hiện tại'),
+    .optional(),
 
   body('newPassword')
     .notEmpty()
@@ -236,7 +236,13 @@ export const validateUpdatePassword = [
 
   body('confirmNewPassword')
     .notEmpty()
-    .withMessage('Vui lòng xác nhận mật khẩu mới'),
+    .withMessage('Vui lòng xác nhận mật khẩu mới')
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error('Mật khẩu xác nhận không khớp');
+      }
+      return true;
+    }),
 
   handleValidationErrors,
 ];

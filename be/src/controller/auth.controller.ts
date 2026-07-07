@@ -231,7 +231,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
 export const updatePassword = async (req: AuthRequest, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const { accessToken, refreshToken: newRefreshToken } =
+    const { accessToken, refreshToken: newRefreshToken, authProvider } =
       await authService.updatePassword(req.user!.id, currentPassword, newPassword);
 
     res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
@@ -239,7 +239,7 @@ export const updatePassword = async (req: AuthRequest, res: Response) => {
     res.status(200).json({
       success: true,
       message: 'Cập nhật mật khẩu thành công',
-      data: { accessToken },
+      data: { accessToken, authProvider },
     });
   } catch (err: any) {
     res.status(err.statusCode || 500).json({
