@@ -252,6 +252,9 @@
   align-items: center;
   gap: 9px;
   padding: 0 12px 0 8px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .ent-profile-chip > span {

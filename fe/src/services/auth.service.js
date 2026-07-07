@@ -189,7 +189,7 @@ const authService = {
    */
   updateProfile: async (data) => {
     try {
-      const response = await api.put('/auth/update-profile', data);
+      const response = await api.patch('/auth/me', data);
       if (response.data.success) {
         localStorage.setItem(USER, JSON.stringify(response.data.data.user));
       }

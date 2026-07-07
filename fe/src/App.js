@@ -46,6 +46,9 @@ import FarmerRatings from './component/FarmerDashboard/pages/FarmerRatings';
 import FarmerWeatherInsurance from './component/FarmerDashboard/pages/FarmerWeatherInsurance';
 import FarmerCreateProduct from './component/FarmerDashboard/pages/FarmerCreateProduct';
 
+// Profile (dùng chung Farmer/Enterprise)
+import Profile from './component/Profile/Profile';
+
 
 // Protected Route
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -110,6 +113,16 @@ const AppRoutes = () => {
 
       <Route path="/products/:id" element={<ProductDetail />} />
 
+      {/* Hồ sơ cá nhân — dùng chung Farmer/Enterprise, đứng ngoài layout dashboard */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute allowedRoles={['farmer', 'enterprise']}>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
+
 
       {/* Route cũ sau login: giữ lại để không gãy luồng đăng nhập */}
       <Route
@@ -139,6 +152,7 @@ const AppRoutes = () => {
         <Route path="ratings" element={<FarmerRatings />} />
         <Route path="weather-insurance" element={<FarmerWeatherInsurance />} />
         <Route path="create-product" element={<FarmerCreateProduct />} />
+       
       </Route>
 
      
@@ -171,6 +185,7 @@ const AppRoutes = () => {
         <Route path="transactions" element={<EnterpriseTransactions />} />
         <Route path="ratings" element={<EnterpriseRatings />} />
         <Route path="weather-insurance" element={<EnterpriseWeatherInsurance />} />
+        
 </Route>
 {/* Admin Dashboard */}
 <Route
