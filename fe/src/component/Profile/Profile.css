@@ -225,10 +225,37 @@
   height: 100%;
 }
 
+.profile-input-icon__toggle {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.profile-input-icon__toggle:hover {
+  color: #374151;
+}
+
 .profile-field-error {
   font-size: 12px;
   font-weight: 600;
   color: #dc2626;
+}
+
+.profile-password-card h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #052e16;
+}
+
+.profile-password-hint {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .profile-actions {
