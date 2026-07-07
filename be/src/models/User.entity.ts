@@ -188,6 +188,7 @@ export class User {
   if (!this.lastName?.trim())  return false;
   if (!this.phone?.trim())     return false;
   if (!this.province?.trim())  return false;
+  if (this.role === 'farmer' && !this.farmName?.trim()) return false;
   return true;
 }
 

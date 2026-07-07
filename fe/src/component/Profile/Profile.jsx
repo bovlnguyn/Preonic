@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FiUser, FiPhone, FiMapPin, FiImage, FiMail,
   FiHome, FiBriefcase, FiHash, FiSave, FiStar, FiArrowLeft,
@@ -48,6 +48,8 @@ function Profile() {
   const { user, updateUser } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isIncomplete = searchParams.get('incomplete') === '1';
 
   const [form, setForm] = useState(() => buildForm(user));
   const [errors, setErrors] = useState({});
@@ -135,6 +137,13 @@ function Profile() {
         <h1>Hồ sơ của tôi</h1>
         <p>Cập nhật thông tin cá nhân để đối tác dễ dàng liên hệ và xác minh giao dịch.</p>
       </div>
+
+      {isIncomplete && !apiError && (
+        <div className="profile-alert profile-alert--info">
+          Vui lòng hoàn thiện đầy đủ thông tin bên dưới (đặc biệt là tên trang trại nếu bạn là Nông dân)
+          để có thể đăng bán sản phẩm.
+        </div>
+      )}
 
       {apiError && (
         <div className="profile-alert profile-alert--error">{apiError}</div>

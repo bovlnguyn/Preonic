@@ -26,6 +26,12 @@ export class Product {
   @Column({ name: 'Farm', type: 'nvarchar', length: 255, nullable: true })
   farm: string;
 
+  @Column({ name: 'Variety', type: 'nvarchar', length: 200, nullable: true })
+  variety: string;
+
+  @Column({ name: 'Area', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  area: number;
+
   @Column({ name: 'Image', type: 'nvarchar', length: 500, nullable: true })
   image: string;
 
