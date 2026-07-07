@@ -18,8 +18,10 @@ import Auth from './component/Auth/Auth';
 import GoogleCallback from './component/Auth/GoogleCallBack';
 import GoogleSelectRole from './component/Auth/GoogleSelectRole';
 import ResetPassword from './component/ResetPassword/ResetPassword';
+import VerifyEmail from './component/VerifyEmail/VerifyEmail';
 
 //Product
+import ProductList from './pages/ProductList';
 import ProductDetail from './component/ProductDetail/ProductDetail';
 // Enterprise Dashboard
 import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
@@ -110,7 +112,9 @@ const AppRoutes = () => {
       {/* Password / Email */}
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
 
+      <Route path="/products" element={<ProductList />} />
       <Route path="/products/:id" element={<ProductDetail />} />
 
       {/* Hồ sơ cá nhân — dùng chung Farmer/Enterprise, đứng ngoài layout dashboard */}

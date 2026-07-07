@@ -5,7 +5,7 @@ import {
   create, update, remove,
   getReviews, addReview,
 } from '../controller/product.controller';
-import { protect } from '../middlewares/auth.middlewares';
+import { protect, requireCompleteProfile } from '../middlewares/auth.middlewares';
 import { uploadProductFiles } from '../middlewares/uploads.middlewares';
 import { validateCreateProduct } from '../middlewares/validation';
 
@@ -30,6 +30,7 @@ router.get('/:id/reviews',      getReviews as RequestHandler);
 router.post(
   '/',
   protect as RequestHandler,
+  requireCompleteProfile as RequestHandler,
   uploadProductFiles,
   validateCreateProduct,
   create as RequestHandler

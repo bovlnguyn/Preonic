@@ -27,8 +27,8 @@ export interface CreateProductDto {
   category: 'fruit' | 'vegetable' | 'rice' | 'coffee' | 'tea' | 'spice' | 'grain' | 'other';
   region:   'north' | 'central' | 'south';
   type:     'fresh' | 'dried' | 'processed';
-  location?: string;
-  farm?:     string;
+  variety?:  string;
+  area?:     number;
 
   // Bước 2 — Chi tiết
   priceMin?:      number;
@@ -72,7 +72,7 @@ const PRODUCT_SORT_OPTIONS: Record<string, { column: string; direction: 'ASC' | 
 
 // ── Các field cho phép cập nhật qua API update ──
 const UPDATABLE_FIELDS: (keyof Product)[] = [
-  'name', 'location', 'farm', 'image', 'images',
+  'name', 'location', 'farm', 'variety', 'area', 'image', 'images',
   'priceMin', 'priceMax', 'unit', 'expectedDate',
   'progress', 'remaining', 'totalQuantity',
   'note', 'badge', 'category', 'region', 'type',
@@ -218,8 +218,11 @@ export const create = async (userId: string, dto: CreateProductDto) => {
     category:      dto.category,
     region:        dto.region,
     type:          dto.type,
-    location:      dto.location?.trim(),
-    farm:          dto.farm?.trim(),
+    // farm/location là snapshot từ hồ sơ người bán, không nhận từ client
+    farm:          user.farmName?.trim() || undefined,
+    location:      [user.ward, user.district, user.province].filter(Boolean).join(', ') || undefined,
+    variety:       dto.variety?.trim(),
+    area:          dto.area ?? null,
 
     priceMin:      dto.priceMin ?? null,
     priceMax:      dto.priceMax ?? null,

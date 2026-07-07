@@ -1,6 +1,12 @@
 import api from './api';
 
 const productService = {
+  // Danh sách công khai — hỗ trợ filter (category, region, type), search theo tên, sort, phân trang
+  getProducts: async (params = {}) => {
+    const response = await api.get('/products', { params });
+    return response.data;
+  },
+
   createProduct: async (form, imageFiles = [], certFiles = []) => {
     const formData = new FormData();
 

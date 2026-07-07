@@ -185,14 +185,15 @@ console.log('lockUntil > now:', lockUntil && new Date(lockUntil) > new Date());
   // Tạo user không cần password thật
   const randomPassword = Math.random().toString(36).slice(-10) + 'Aa1!';
   const user = r.create({
-    email:      dto.email.toLowerCase().trim(),
-    password:   randomPassword,
-    role:       dto.role,
-    firstName:  dto.firstName.trim(),
-    lastName:   dto.lastName.trim(),
-    avatar:     dto.avatar,
-    isVerified: true,
-    isActive:   true,
+    email:        dto.email.toLowerCase().trim(),
+    password:     randomPassword,
+    role:         dto.role,
+    firstName:    dto.firstName.trim(),
+    lastName:     dto.lastName.trim(),
+    avatar:       dto.avatar,
+    isVerified:   true,
+    isActive:     true,
+    authProvider: 'google',
   });
 
   await user.hashPassword();
@@ -358,7 +359,7 @@ export const updateProfile = async (userId: string, dto: UpdateProfileDto) => {
 // ══════════════════════════════════════════
 export const updatePassword = async (
   userId: string,
-  currentPassword: string,
+  currentPassword: string | undefined,
   newPassword: string
 ) => {
   const user = await repo()
@@ -369,18 +370,25 @@ export const updatePassword = async (
 
   if (!user) throw makeError('Không tìm thấy người dùng', 404);
 
-  const isMatch = await user.comparePassword(currentPassword);
-  if (!isMatch) throw makeError('Mật khẩu hiện tại không đúng', 401);
+  // Tài khoản Google có mật khẩu random mà người dùng không biết
+  // → lần đầu đặt mật khẩu không cần xác nhận mật khẩu cũ.
+  if (user.authProvider !== 'google') {
+    if (!currentPassword) throw makeError('Vui lòng nhập mật khẩu hiện tại', 400);
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) throw makeError('Mật khẩu hiện tại không đúng', 401);
+  }
 
   user.password          = newPassword;
   user.passwordChangedAt = new Date(Date.now() - 1000);
+  // Từ nay tài khoản dùng mật khẩu do người dùng tự đặt và biết rõ
+  user.authProvider = 'local';
   await user.hashPassword();
 
   const { accessToken, refreshToken } = signTokens(user.id, user.role);
   user.refreshToken = refreshToken;
   await repo().save(user);
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, authProvider: user.authProvider };
 };
 
 // ══════════════════════════════════════════

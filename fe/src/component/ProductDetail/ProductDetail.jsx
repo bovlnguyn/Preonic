@@ -7,21 +7,15 @@ import {
 } from 'react-icons/fi';
 import productService from '../../services/product.service';
 import { useAuth } from '../../contexts/AuthContext';
+import { CATEGORY_LABEL, REGION_LABEL, TYPE_LABEL } from '../../constants/product';
 import './ProductDetail.css';
 
-const CATEGORY_LABEL = {
-  rice: 'Lúa gạo', vegetable: 'Rau củ', fruit: 'Trái cây',
-  coffee: 'Cà phê', spice: 'Hồ tiêu / Gia vị', tea: 'Trà',
-  grain: 'Ngũ cốc', other: 'Khác',
-};
-
-const REGION_LABEL = {
-  north: 'Miền Bắc', central: 'Miền Trung', south: 'Miền Nam',
-};
-
-const TYPE_LABEL = {
-  fresh: 'Tươi', dried: 'Khô', processed: 'Đã sơ chế',
-};
+const IMAGE_HOST = 'http://localhost:8080';
+const DEFAULT_AVATAR =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="20" fill="#dcfce7"/><text x="50%" y="56%" text-anchor="middle" font-size="18" fill="#166534" font-family="sans-serif">👤</text></svg>'
+  );
 
 const formatMoney = (value) =>
   value ? Number(value).toLocaleString('vi-VN') + ' ₫' : '';
@@ -104,7 +98,7 @@ export default function ProductDetail() {
           <div className="pd-main-image">
             {images.length > 0 ? (
               <img
-                src={'http://localhost:8080' + images[activeImage]}
+                src={IMAGE_HOST + images[activeImage]}
                 alt={product.name}
               />
             ) : (
@@ -119,7 +113,7 @@ export default function ProductDetail() {
               {images.map((img, i) => (
                 <img
                   key={i}
-                  src={'http://localhost:8080' + img}
+                  src={IMAGE_HOST + img}
                   alt={'ảnh ' + (i + 1)}
                   className={activeImage === i ? 'active' : ''}
                   onClick={() => setActiveImage(i)}
@@ -177,6 +171,18 @@ export default function ProductDetail() {
                 <strong>{product.farm}</strong>
               </div>
             )}
+            {product.variety && (
+              <div className="pd-info-row">
+                <span>🌱 Giống / Phân loại</span>
+                <strong>{product.variety}</strong>
+              </div>
+            )}
+            {product.area && (
+              <div className="pd-info-row">
+                <span>📐 Diện tích canh tác</span>
+                <strong>{Number(product.area).toLocaleString('vi-VN')} ha</strong>
+              </div>
+            )}
             <div className="pd-info-row">
               <span><FiCalendar /> Thu hoạch dự kiến</span>
               <strong>{product.expectedDate ? formatDate(product.expectedDate) : 'Chưa cập nhật'}</strong>
@@ -189,13 +195,28 @@ export default function ProductDetail() {
                   : 'Chưa có đánh giá'}
               </strong>
             </div>
-            {product.sellerName && (
-              <div className="pd-info-row">
-                <span>👤 Người bán</span>
-                <strong>{product.sellerName}</strong>
-              </div>
-            )}
           </div>
+
+          {product.sellerName && (
+            <div className="pd-seller">
+              <img
+                className="pd-seller__avatar"
+                src={product.sellerAvatar ? IMAGE_HOST + product.sellerAvatar : DEFAULT_AVATAR}
+                alt={product.sellerName}
+              />
+              <div className="pd-seller__info">
+                <strong>{product.sellerName}</strong>
+                <div className="pd-seller__meta">
+                  {product.sellerRating > 0 && (
+                    <span><FiStar /> {product.sellerRating}</span>
+                  )}
+                  {product.sellerTotalContracts > 0 && (
+                    <span>{product.sellerTotalContracts} hợp đồng đã thực hiện</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -252,7 +273,7 @@ export default function ProductDetail() {
                       <strong>{cert.value}</strong>
                      {cert.fileUrl && (
   
-                     <a href={'http://localhost:8080' + cert.fileUrl}
+                     <a href={IMAGE_HOST + cert.fileUrl}
                      target="_blank"
                      rel="noreferrer"
                     className="fpd-cert-link"

@@ -32,6 +32,11 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
+  // Cập nhật access token sau khi đổi mật khẩu (BE rotate token mới)
+  const setAccessToken = (accessToken) => {
+    sessionStorage.setItem(ACCESS_TOKEN, accessToken);
+  };
+
   const logout = async () => {
     try { await authService.logout(); } catch {}
     // ← Đảm bảo xóa localStorage dù API có lỗi
@@ -41,7 +46,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, setAccessToken }}>
       {children}
     </AuthContext.Provider>
   );
