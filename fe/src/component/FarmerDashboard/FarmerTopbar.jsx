@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiBell, FiSearch } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { getInitials } from './utils';
 
 function FarmerTopbar() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const farmerName = user?.fullName || user?.name || 'Nông dân PreOnic';
 
   return (
@@ -23,10 +25,15 @@ function FarmerTopbar() {
           <FiBell />
           <span />
         </button>
-        <div className="farmer-profile-chip" title={farmerName}>
+        <button
+          type="button"
+          className="farmer-profile-chip"
+          title={farmerName}
+          onClick={() => navigate('/profile')}
+        >
           <span>{getInitials(farmerName)}</span>
           <strong>{farmerName}</strong>
-        </div>
+        </button>
       </div>
     </header>
   );

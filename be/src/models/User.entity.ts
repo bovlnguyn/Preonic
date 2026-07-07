@@ -103,6 +103,19 @@ export class User {
   @Column({ name: 'TotalRatings', type: 'int', default: 0 })
   totalRatings: number;
 
+  // ── Profile chi tiết theo role ──
+  @Column({ name: 'FarmName', type: 'nvarchar', length: 255, nullable: true })
+  farmName: string;
+
+  @Column({ name: 'FarmSize', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  farmSize: number;
+
+  @Column({ name: 'CompanyName', type: 'nvarchar', length: 255, nullable: true })
+  companyName: string;
+
+  @Column({ name: 'TaxCode', type: 'nvarchar', length: 20, nullable: true })
+  taxCode: string;
+
   @CreateDateColumn({ name: 'CreatedAt', type: 'datetime2' })
   createdAt: Date;
 
