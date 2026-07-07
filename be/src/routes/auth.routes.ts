@@ -16,6 +16,7 @@ import {
   login,
   forgotPassword,
   resetPassword,
+  updateProfile,
 } from '../controller/auth.controller';
 
 import {
@@ -23,6 +24,7 @@ import {
   validateLogin,
   validateForgotPassword,
   validateResetPassword,
+  validateUpdateProfile,
 } from '../middlewares/validation';
 
 import { protect } from '../middlewares/auth.middlewares';
@@ -46,8 +48,9 @@ router.post('/google-register', validateGoogleRegister, googleRegister as Reques
 router.get('/verify-email/:token', verifyEmail as RequestHandler);
 
 // ── Protected routes ──
-router.get ('/me',     protect as RequestHandler, getMe as RequestHandler);
-router.post('/logout', protect as RequestHandler, logout as RequestHandler);
+router.get  ('/me',     protect as RequestHandler, getMe as RequestHandler);
+router.patch('/me',     protect as RequestHandler, validateUpdateProfile, updateProfile as RequestHandler);
+router.post ('/logout', protect as RequestHandler, logout as RequestHandler);
 // Google OAuth routes
 router.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'], session: false })

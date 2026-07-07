@@ -313,6 +313,47 @@ export const getMe = async (userId: string) => {
 };
 
 // ══════════════════════════════════════════
+// CẬP NHẬT HỒ SƠ (đã đăng nhập)
+// ══════════════════════════════════════════
+export interface UpdateProfileDto {
+  firstName?:   string;
+  lastName?:    string;
+  phone?:       string;
+  avatar?:      string;
+  province?:    string;
+  district?:    string;
+  ward?:        string;
+  address?:     string;
+  farmName?:    string;
+  farmSize?:    number;
+  companyName?: string;
+  taxCode?:     string;
+}
+
+export const updateProfile = async (userId: string, dto: UpdateProfileDto) => {
+  const r = repo();
+  const user = await r.findOne({ where: { id: userId } });
+  if (!user) throw makeError('Không tìm thấy người dùng', 404);
+
+  if (dto.firstName   !== undefined) user.firstName   = dto.firstName.trim();
+  if (dto.lastName    !== undefined) user.lastName    = dto.lastName.trim();
+  if (dto.phone       !== undefined) user.phone       = dto.phone.trim();
+  if (dto.avatar      !== undefined) user.avatar      = dto.avatar;
+  if (dto.province    !== undefined) user.province    = dto.province;
+  if (dto.district    !== undefined) user.district    = dto.district;
+  if (dto.ward        !== undefined) user.ward        = dto.ward;
+  if (dto.address     !== undefined) user.address     = dto.address;
+  if (dto.farmName    !== undefined) user.farmName    = dto.farmName;
+  if (dto.farmSize    !== undefined) user.farmSize    = dto.farmSize;
+  if (dto.companyName !== undefined) user.companyName = dto.companyName;
+  if (dto.taxCode     !== undefined) user.taxCode     = dto.taxCode;
+
+  await r.save(user);
+
+  return r.findOne({ where: { id: userId } });
+};
+
+// ══════════════════════════════════════════
 // CẬP NHẬT MẬT KHẨU (đã đăng nhập)
 // ══════════════════════════════════════════
 export const updatePassword = async (
