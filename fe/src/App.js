@@ -20,6 +20,7 @@ import GoogleSelectRole from './component/Auth/GoogleSelectRole';
 import ResetPassword from './component/ResetPassword/ResetPassword';
 
 //Product
+import ProductList from './pages/ProductList';
 import ProductDetail from './component/ProductDetail/ProductDetail';
 // Enterprise Dashboard
 import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
@@ -111,6 +112,7 @@ const AppRoutes = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
 
+      <Route path="/products" element={<ProductList />} />
       <Route path="/products/:id" element={<ProductDetail />} />
 
       {/* Hồ sơ cá nhân — dùng chung Farmer/Enterprise, đứng ngoài layout dashboard */}

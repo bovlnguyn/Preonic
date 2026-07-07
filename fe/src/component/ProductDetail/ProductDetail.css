@@ -167,6 +167,45 @@
 
 .pd-info-row strong { color: #0f1d12; text-align: right; }
 
+.pd-seller {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+}
+
+.pd-seller__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.pd-seller__info strong {
+  display: block;
+  font-size: 14px;
+  color: #0f1d12;
+}
+
+.pd-seller__meta {
+  display: flex;
+  gap: 14px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: #6b7c70;
+}
+
+.pd-seller__meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .pd-tabs {
   display: flex;
   gap: 4px;
