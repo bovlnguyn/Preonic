@@ -1,21 +1,37 @@
+import { In } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Product } from '../models/Product.entity';
 import { ProductCertification } from '../models/ProductCertification.entity';
 import { ProductCommitment } from '../models/ProductCommitment.entity';
 import { Review } from '../models/Review.entity';
 import { User } from '../models/User.entity';
+import { Contract } from '../models/Contract.entity';
 import { PRODUCT_CONFIG } from '../constants';
 
-const productRepo = () => AppDataSource.getRepository(Product);
-const certRepo    = () => AppDataSource.getRepository(ProductCertification);
-const commitRepo  = () => AppDataSource.getRepository(ProductCommitment);
-const reviewRepo  = () => AppDataSource.getRepository(Review);
-const userRepo    = () => AppDataSource.getRepository(User);
+const productRepo  = () => AppDataSource.getRepository(Product);
+const certRepo     = () => AppDataSource.getRepository(ProductCertification);
+const commitRepo   = () => AppDataSource.getRepository(ProductCommitment);
+const reviewRepo   = () => AppDataSource.getRepository(Review);
+const userRepo     = () => AppDataSource.getRepository(User);
+const contractRepo = () => AppDataSource.getRepository(Contract);
 
 const makeError = (message: string, statusCode = 400) => {
   const err: any = new Error(message);
   err.statusCode = statusCode;
   return err;
+};
+
+// Trạng thái hợp đồng đã vượt qua đề xuất ban đầu ('draft') và chưa bị hủy —
+// một khi tồn tại, sản phẩm liên quan không còn được sửa/xóa nữa.
+const LOCKED_CONTRACT_STATUSES = ['pending', 'approved', 'active', 'completed', 'disputed'];
+
+const assertNoLockedContract = async (productId: string) => {
+  const count = await contractRepo().count({
+    where: { productId, status: In(LOCKED_CONTRACT_STATUSES) },
+  });
+  if (count > 0) {
+    throw makeError('Sản phẩm đã có hợp đồng được xác nhận, không thể chỉnh sửa hoặc xóa', 409);
+  }
 };
 
 // ══════════════════════════════════════════
@@ -57,6 +73,8 @@ export type ProductFilters = {
   region?:   string;
   type?:     string;
   search?:   string;
+  minPrice?: number;
+  maxPrice?: number;
   page?:     number;
   limit?:    number;
   sort?:     string;
@@ -101,6 +119,13 @@ const buildFilteredQuery = (filters: ProductFilters) => {
       '(product.name LIKE :search OR product.location LIKE :search OR product.farm LIKE :search OR product.description LIKE :search)',
       { search: `%${filters.search}%` }
     );
+  }
+  // Lọc theo khoảng giá — sản phẩm hợp lệ nếu khoảng giá của nó giao với khoảng yêu cầu
+  if (filters.minPrice != null) {
+    qb.andWhere('(product.priceMax IS NULL OR product.priceMax >= :minPrice)', { minPrice: filters.minPrice });
+  }
+  if (filters.maxPrice != null) {
+    qb.andWhere('(product.priceMin IS NULL OR product.priceMin <= :maxPrice)', { maxPrice: filters.maxPrice });
   }
 
   return qb;
@@ -296,6 +321,8 @@ export const update = async (
     throw makeError('Bạn không có quyền chỉnh sửa sản phẩm này', 403);
   }
 
+  await assertNoLockedContract(productId);
+
   if (dto.priceMin != null && dto.priceMax != null && dto.priceMin > dto.priceMax) {
     throw makeError('Giá tối thiểu không được lớn hơn giá tối đa');
   }
@@ -353,6 +380,8 @@ export const remove = async (productId: string, userId: string) => {
   if (product.createdBy !== userId) {
     throw makeError('Bạn không có quyền xóa sản phẩm này', 403);
   }
+
+  await assertNoLockedContract(productId);
 
   await productRepo().update({ id: productId }, { isActive: false });
 };

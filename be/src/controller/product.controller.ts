@@ -49,8 +49,10 @@ const parseUploadedFiles = (req: AuthRequest) => {
 export const getAll = async (req: Request, res: Response) => {
   try {
     const { category, region, type, search, sort } = req.query;
-    const page  = req.query.page  ? Number(req.query.page)  : undefined;
-    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const page     = req.query.page     ? Number(req.query.page)     : undefined;
+    const limit    = req.query.limit    ? Number(req.query.limit)    : undefined;
+    const minPrice = req.query.minPrice ? Number(req.query.minPrice) : undefined;
+    const maxPrice = req.query.maxPrice ? Number(req.query.maxPrice) : undefined;
 
     const result = await productService.getAll({
       category: category as string,
@@ -58,6 +60,8 @@ export const getAll = async (req: Request, res: Response) => {
       type:     type     as string,
       search:   search   as string,
       sort:     sort     as string,
+      minPrice,
+      maxPrice,
       page,
       limit,
     });
