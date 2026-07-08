@@ -11,6 +11,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { ToastProvider } from './contexts/ToastContext';
 import AdminDashboard from './component/AdminDashboard/AdminDashboard';
 import Home from './pages/Home';
+import FarmerHome from './component/FarmerHome/FarmerHome';
+import EnterpriseHome from './component/EnterpriseHome/EnterpriseHome';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import Register from './component/Register/Register';
@@ -133,7 +135,7 @@ const AppRoutes = () => {
         path="/farmer-home"
         element={
           <ProtectedRoute allowedRoles={['farmer']}>
-            <Navigate to="/farmer" replace />
+            <FarmerHome />
           </ProtectedRoute>
         }
       />
@@ -165,7 +167,7 @@ const AppRoutes = () => {
   path="/enterprise-home"
   element={
     <ProtectedRoute allowedRoles={['enterprise']}>
-      <Navigate to="/enterprise" replace />
+      <EnterpriseHome />
     </ProtectedRoute>
   }
 />

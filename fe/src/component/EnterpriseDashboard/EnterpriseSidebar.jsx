@@ -48,7 +48,7 @@ function EnterpriseSidebar() {
       </nav>
 
       <div className="ent-sidebar__footer">
-        <button type="button" onClick={() => navigate('/')}>
+        <button type="button" onClick={() => navigate('/enterprise-home')}>
           <FiHome /><span>Về trang chủ</span>
         </button>
         <button type="button" onClick={handleLogout}>
