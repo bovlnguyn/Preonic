@@ -12,7 +12,10 @@ import { ToastProvider } from './contexts/ToastContext';
 import AdminDashboard from './component/AdminDashboard/AdminDashboard';
 import Home from './pages/Home';
 import FarmerHome from './component/FarmerHome/FarmerHome';
-import EnterpriseHome from './component/EnterpriseHome/EnterpriseHome';
+import FarmerProducts from './component/FarmerProducts/FarmerProducts';
+import FarmerSolutions from './component/FarmerSolutions/FarmerSolutions';
+import FarmerContact from './component/FarmerContact/FarmerContact';
+import FarmerAI from './component/FarmerAI/FarmerAI';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import Register from './component/Register/Register';
@@ -49,7 +52,6 @@ import FarmerWallet from './component/FarmerDashboard/pages/FarmerWallet';
 import FarmerRatings from './component/FarmerDashboard/pages/FarmerRatings';
 import FarmerWeatherInsurance from './component/FarmerDashboard/pages/FarmerWeatherInsurance';
 import FarmerCreateProduct from './component/FarmerDashboard/pages/FarmerCreateProduct';
-import FarmerEditProduct from './component/FarmerDashboard/pages/FarmerEditProduct';
 
 // Profile (dùng chung Farmer/Enterprise)
 import Profile from './component/Profile/Profile';
@@ -89,6 +91,26 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+// Trang / sẽ tự chuyển theo role nếu người dùng đã đăng nhập.
+// Public Home chỉ dành cho khách chưa đăng nhập.
+const HomeEntry = () => {
+  const { user } = useAuth();
+
+  if (user?.role === 'farmer') {
+    return <Navigate to="/farmer-home" replace />;
+  }
+
+  if (user?.role === 'enterprise') {
+    return <Navigate to="/enterprise-home" replace />;
+  }
+
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <Home />;
+};
+
 // Routes chính
 const AppRoutes = () => {
   const { loading } = useAuth();
@@ -104,7 +126,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public */}
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<HomeEntry />} />
       <Route path="/register" element={<Register />} />
       <Route path="/auth" element={<Auth />} />
 
@@ -131,12 +153,44 @@ const AppRoutes = () => {
       />
 
 
-      {/* Route cũ sau login: giữ lại để không gãy luồng đăng nhập */}
+      {/* Farmer role website pages - chỉ dành cho farmer đã đăng nhập */}
       <Route
         path="/farmer-home"
         element={
           <ProtectedRoute allowedRoles={['farmer']}>
             <FarmerHome />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/farmer-products"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerProducts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/farmer-solutions"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerSolutions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/farmer-contact"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerContact />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/farmer-ai-agriculture"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerAI />
           </ProtectedRoute>
         }
       />
@@ -159,7 +213,6 @@ const AppRoutes = () => {
         <Route path="ratings" element={<FarmerRatings />} />
         <Route path="weather-insurance" element={<FarmerWeatherInsurance />} />
         <Route path="create-product" element={<FarmerCreateProduct />} />
-        <Route path="edit-product/:id" element={<FarmerEditProduct />} />
        
       </Route>
 
@@ -169,7 +222,7 @@ const AppRoutes = () => {
   path="/enterprise-home"
   element={
     <ProtectedRoute allowedRoles={['enterprise']}>
-      <EnterpriseHome />
+      <Navigate to="/enterprise" replace />
     </ProtectedRoute>
   }
 />

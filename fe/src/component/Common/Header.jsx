@@ -1,17 +1,46 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { FiGrid } from "react-icons/fi";
 import logo from "../../assets/branding/preonic-logo-main.png";
 import { useAuth } from "../../contexts/AuthContext";
 import "./Header.css";
 
-const NAV_ITEMS = [
+const GUEST_NAV_ITEMS = [
   { label: "Trang chủ", path: "/" },
   { label: "Sản phẩm", path: "/products" },
   { label: "Giải pháp", path: "/solutions" },
   { label: "Liên hệ", path: "/contact" },
   { label: "AI nông nghiệp", path: "/ai-agriculture", highlight: true },
 ];
+
+const FARMER_NAV_ITEMS = [
+  { label: "Trang chủ", path: "/farmer-home" },
+  { label: "Sản phẩm", path: "/farmer-products" },
+  { label: "Giải pháp", path: "/farmer-solutions" },
+  { label: "Liên hệ", path: "/farmer-contact" },
+  { label: "AI nông nghiệp", path: "/farmer-ai-agriculture", highlight: true },
+];
+
+// Tạm thời enterprise/admin vẫn đi theo luồng cũ để không làm gãy project.
+// Khi bạn làm tiếp role enterprise, chỉ cần tạo ENTERPRISE_NAV_ITEMS tương tự FARMER_NAV_ITEMS.
+const ROLE_HOME_PATH = {
+  farmer: "/farmer-home",
+  enterprise: "/enterprise-home",
+  admin: "/admin",
+};
+
+const ROLE_DASHBOARD_PATH = {
+  farmer: "/farmer",
+  enterprise: "/enterprise",
+  admin: "/admin",
+};
+
+const ROLE_LABEL = {
+  farmer: "Farmer",
+  enterprise: "Enterprise",
+  admin: "Admin",
+};
 
 function Header() {
   const navigate = useNavigate();
@@ -20,12 +49,23 @@ function Header() {
 
   const user = auth?.user;
   const logout = auth?.logout;
+  const role = user?.role;
 
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [logoError, setLogoError] = useState(false);
 
   const isLoggedIn = Boolean(user);
+  const isFarmer = role === "farmer";
+
+  const navItems = useMemo(() => {
+    if (isFarmer) return FARMER_NAV_ITEMS;
+    return GUEST_NAV_ITEMS;
+  }, [isFarmer]);
+
+  const homePath = isLoggedIn ? ROLE_HOME_PATH[role] || "/" : "/";
+  const dashboardPath = isLoggedIn ? ROLE_DASHBOARD_PATH[role] : null;
+  const roleLabel = ROLE_LABEL[role] || "Dashboard";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,6 +77,10 @@ function Header() {
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname]);
 
   const closeMenu = () => setOpen(false);
 
@@ -54,6 +98,11 @@ function Header() {
     navigate("/");
   };
 
+  const isActive = (itemPath) => {
+    if (itemPath === "/") return location.pathname === "/";
+    return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
+  };
+
   return (
     <motion.header
       className={`preonic-header ${scrolled ? "preonic-header--scrolled" : ""}`}
@@ -64,7 +113,7 @@ function Header() {
       <div className="preonic-header__bg" />
 
       <div className="preonic-header__container">
-        <Link to="/" className="preonic-header__brand" onClick={closeMenu}>
+        <Link to={homePath} className="preonic-header__brand" onClick={closeMenu}>
           <span className="preonic-header__logo-shell">
             <span className="preonic-header__logo-glow" />
 
@@ -82,13 +131,15 @@ function Header() {
 
           <span className="preonic-header__brand-copy">
             <span className="preonic-header__brand-name">PreOnic</span>
-            <span className="preonic-header__brand-tagline">Nông nghiệp số</span>
+            <span className="preonic-header__brand-tagline">
+              {isFarmer ? "Farmer workspace" : "Nông nghiệp số"}
+            </span>
           </span>
         </Link>
 
         <nav className="preonic-header__nav" aria-label="Menu chính">
-          {NAV_ITEMS.map((item) => {
-            const active = location.pathname === item.path;
+          {navItems.map((item) => {
+            const active = isActive(item.path);
 
             return (
               <button
@@ -110,13 +161,26 @@ function Header() {
 
         <div className="preonic-header__actions">
           {isLoggedIn ? (
-            <button
-              type="button"
-              className="preonic-header__register"
-              onClick={handleLogout}
-            >
-              Đăng xuất
-            </button>
+            <>
+              {dashboardPath && (
+                <button
+                  type="button"
+                  className="preonic-header__dashboard"
+                  onClick={() => handleNavigate(dashboardPath)}
+                >
+                  <FiGrid />
+                  <span>{roleLabel}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="preonic-header__register"
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -161,12 +225,12 @@ function Header() {
             transition={{ duration: 0.28, ease: "easeOut" }}
           >
             <div className="preonic-header__mobile-inner">
-              {NAV_ITEMS.map((item) => (
+              {navItems.map((item) => (
                 <button
                   type="button"
                   key={item.path}
                   className={[
-                    location.pathname === item.path ? "active" : "",
+                    isActive(item.path) ? "active" : "",
                     item.highlight ? "mobile-ai" : "",
                   ].join(" ")}
                   onClick={() => handleNavigate(item.path)}
@@ -177,9 +241,17 @@ function Header() {
 
               <div className="preonic-header__mobile-actions">
                 {isLoggedIn ? (
-                  <button type="button" onClick={handleLogout}>
-                    Đăng xuất
-                  </button>
+                  <>
+                    {dashboardPath && (
+                      <button type="button" onClick={() => handleNavigate(dashboardPath)}>
+                        Vào {roleLabel}
+                      </button>
+                    )}
+
+                    <button type="button" onClick={handleLogout}>
+                      Đăng xuất
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button type="button" onClick={() => handleNavigate("/auth")}>

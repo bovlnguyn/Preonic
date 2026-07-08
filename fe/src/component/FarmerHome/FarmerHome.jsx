@@ -173,6 +173,7 @@ function FarmerHome() {
     <div className="farmer-role-home">
       <Header />
 
+
       <main>
         <section className="frh-hero">
           <div className="frh-orb frh-orb-one" />
