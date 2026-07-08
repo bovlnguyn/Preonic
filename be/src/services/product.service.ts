@@ -73,6 +73,8 @@ export type ProductFilters = {
   region?:   string;
   type?:     string;
   search?:   string;
+  minPrice?: number;
+  maxPrice?: number;
   page?:     number;
   limit?:    number;
   sort?:     string;
@@ -117,6 +119,13 @@ const buildFilteredQuery = (filters: ProductFilters) => {
       '(product.name LIKE :search OR product.location LIKE :search OR product.farm LIKE :search OR product.description LIKE :search)',
       { search: `%${filters.search}%` }
     );
+  }
+  // Lọc theo khoảng giá — sản phẩm hợp lệ nếu khoảng giá của nó giao với khoảng yêu cầu
+  if (filters.minPrice != null) {
+    qb.andWhere('(product.priceMax IS NULL OR product.priceMax >= :minPrice)', { minPrice: filters.minPrice });
+  }
+  if (filters.maxPrice != null) {
+    qb.andWhere('(product.priceMin IS NULL OR product.priceMin <= :maxPrice)', { maxPrice: filters.maxPrice });
   }
 
   return qb;

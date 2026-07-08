@@ -37,6 +37,11 @@ const productService = {
     return response.data;
   },
 
+  getReviews: async (id) => {
+    const response = await api.get(`/products/${id}/reviews`);
+    return response.data;
+  },
+
   updateProduct: async (id, form) => {
     const response = await api.put(`/products/${id}`, form);
     return response.data;

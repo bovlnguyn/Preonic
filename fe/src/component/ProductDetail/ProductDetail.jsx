@@ -24,7 +24,7 @@ const formatMoney = (value) =>
 const formatDate = (value) =>
   value ? new Date(value).toLocaleDateString('vi-VN') : '';
 
-const TABS = ['Thông tin', 'Chứng chỉ', 'Cam kết'];
+const TABS = ['Thông tin', 'Chứng chỉ', 'Cam kết', 'Đánh giá'];
 
 export default function ProductDetail() {
   const { id }       = useParams();
@@ -39,6 +39,7 @@ export default function ProductDetail() {
   const [activeImage,   setActiveImage]   = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting,      setDeleting]      = useState(false);
+  const [reviews,       setReviews]       = useState([]);
 
   const isFarmerOwner =
     user?.role === 'farmer' && product?.createdBy === user?.id;
@@ -52,6 +53,10 @@ export default function ProductDetail() {
       })
       .catch(() => setError('Không thể tải thông tin sản phẩm.'))
       .finally(() => setLoading(false));
+
+    productService.getReviews(id)
+      .then(data => setReviews(data?.data || []))
+      .catch(() => setReviews([]));
   }, [id]);
 
   const handleDelete = async () => {
@@ -344,6 +349,30 @@ export default function ProductDetail() {
               </ul>
             ) : (
               <p className="pd-empty">Chưa có cam kết nào.</p>
+            )}
+          </div>
+        )}
+
+        {/* Đánh giá */}
+        {activeTab === 'Đánh giá' && (
+          <div>
+            {reviews.length > 0 ? (
+              <div className="pd-review-list">
+                {reviews.map((r) => (
+                  <div key={r.id} className="pd-review-item">
+                    <div className="pd-review-item__head">
+                      <strong>{r.reviewerName || 'Ẩn danh'}</strong>
+                      <span className="pd-review-item__stars">
+                        {'⭐'.repeat(r.rating)} <span className="pd-review-item__rating-num">{r.rating}/5</span>
+                      </span>
+                    </div>
+                    {r.text && <p className="pd-text">{r.text}</p>}
+                    <span className="pd-review-item__date">{formatDate(r.createdAt)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="pd-empty">Chưa có đánh giá nào.</p>
             )}
           </div>
         )}

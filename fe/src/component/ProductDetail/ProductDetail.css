@@ -307,3 +307,37 @@
   background: #f0fdf4;
   border-radius: 8px;
 }
+
+.pd-review-list { display: flex; flex-direction: column; gap: 14px; }
+
+.pd-review-item {
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.pd-review-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.pd-review-item__head strong { font-size: 14px; color: #0f1d12; }
+
+.pd-review-item__stars {
+  font-size: 13px;
+  color: #f59e0b;
+  white-space: nowrap;
+}
+
+.pd-review-item__rating-num { color: #6b7c70; font-weight: 600; }
+
+.pd-review-item__date {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+}
