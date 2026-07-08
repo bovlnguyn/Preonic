@@ -1,0 +1,392 @@
+.farmer-contact-page {
+  --fc-green-950: #052e16;
+  --fc-green-900: #064e3b;
+  --fc-green-700: #15803d;
+  --fc-green-600: #16a34a;
+  --fc-green-500: #22c55e;
+  --fc-lime: #bef264;
+  --fc-gold: #facc15;
+  --fc-text: #153322;
+  --fc-muted: #647464;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(190, 242, 100, 0.22), transparent 24%),
+    radial-gradient(circle at 90% 18%, rgba(250, 204, 21, 0.14), transparent 25%),
+    linear-gradient(180deg, #f7fbef 0%, #eff9e9 50%, #fffaf0 100%);
+  color: var(--fc-text);
+}
+
+.farmer-contact-page button,
+.farmer-contact-page input,
+.farmer-contact-page select,
+.farmer-contact-page textarea {
+  font-family: inherit;
+}
+
+.fct-container {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.fct-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 92px 0 76px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(190, 242, 100, 0.18), transparent 30%),
+    linear-gradient(135deg, #052e16 0%, #166534 58%, #14532d 100%);
+}
+
+.fct-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), transparent 58%),
+    repeating-linear-gradient(145deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 22px);
+  opacity: 0.64;
+}
+
+.fct-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  align-items: center;
+  gap: 64px;
+}
+
+.fct-eyebrow,
+.fct-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  color: #dcfce7;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.fct-eyebrow {
+  padding: 11px 15px;
+  border: 1px solid rgba(190, 242, 100, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.fct-kicker {
+  color: var(--fc-green-700);
+}
+
+.fct-hero h1 {
+  max-width: 780px;
+  margin: 24px 0 20px;
+  color: #ffffff;
+  font-size: clamp(44px, 6.3vw, 76px);
+  line-height: 0.94;
+  font-weight: 950;
+  letter-spacing: -2.7px;
+}
+
+.fct-hero p {
+  max-width: 700px;
+  margin: 0;
+  color: rgba(236, 253, 245, 0.82);
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.fct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 34px;
+}
+
+.fct-btn,
+.fct-form button {
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  font-weight: 950;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+}
+
+.fct-btn {
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: 16px;
+}
+
+.fct-btn.primary {
+  color: #052e16;
+  background: linear-gradient(135deg, #facc15, #bef264);
+  box-shadow: 0 18px 34px rgba(250, 204, 21, 0.22);
+}
+
+.fct-btn.ghost {
+  color: #ffffff;
+  border: 1px solid rgba(220, 252, 231, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fct-btn:hover,
+.fct-form button:hover {
+  transform: translateY(-2px);
+}
+
+.fct-info-card {
+  position: relative;
+  overflow: hidden;
+  padding: 30px;
+  border-radius: 34px;
+  color: #0f2f1c;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(250, 204, 21, 0.2), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(240, 253, 244, 0.86));
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.24);
+}
+
+.fct-info-card > span {
+  display: block;
+  color: var(--fc-green-700);
+  font-size: 13px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.fct-info-card h3 {
+  margin: 10px 0 18px;
+  color: #102a19;
+  font-size: 30px;
+  line-height: 1.05;
+  font-weight: 950;
+}
+
+.fct-info-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(21, 128, 61, 0.1);
+}
+
+.fct-info-row:last-child { border-bottom: 0; }
+
+.fct-info-row > svg {
+  width: 48px;
+  height: 48px;
+  padding: 13px;
+  border-radius: 17px;
+  color: var(--fc-green-700);
+  background: rgba(220, 252, 231, 0.8);
+}
+
+.fct-info-row small {
+  display: block;
+  color: var(--fc-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.fct-info-row strong {
+  display: block;
+  margin-top: 3px;
+  color: #102a19;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.fct-section {
+  padding: 72px 0;
+}
+
+.fct-support-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.fct-support-card {
+  min-height: 220px;
+  padding: 24px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(21, 128, 61, 0.1);
+  box-shadow: 0 20px 52px rgba(5, 46, 22, 0.09);
+}
+
+.fct-support-card > svg {
+  width: 54px;
+  height: 54px;
+  padding: 14px;
+  border-radius: 19px;
+  color: var(--fc-green-700);
+  background: linear-gradient(135deg, rgba(190, 242, 100, 0.36), rgba(34, 197, 94, 0.14));
+}
+
+.fct-support-card h3 {
+  margin: 18px 0 10px;
+  color: #102a19;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.fct-support-card p {
+  margin: 0;
+  color: var(--fc-muted);
+  line-height: 1.68;
+}
+
+.fct-form-section {
+  padding-top: 10px;
+  padding-bottom: 90px;
+}
+
+.fct-form-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 42px;
+  align-items: start;
+}
+
+.fct-form-grid h2 {
+  margin: 8px 0 0;
+  color: #112f1e;
+  font-size: clamp(32px, 4.5vw, 52px);
+  line-height: 1.04;
+  font-weight: 950;
+  letter-spacing: -1.7px;
+}
+
+.fct-form-grid p {
+  margin: 18px 0 0;
+  color: var(--fc-muted);
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.fct-note {
+  margin-top: 22px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px;
+  border-radius: 20px;
+  color: #166534;
+  font-weight: 850;
+  line-height: 1.55;
+  background: rgba(220, 252, 231, 0.74);
+  border: 1px solid rgba(21, 128, 61, 0.12);
+}
+
+.fct-note svg { margin-top: 2px; }
+
+.fct-form {
+  padding: 26px;
+  display: grid;
+  gap: 16px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(21, 128, 61, 0.1);
+  box-shadow: 0 24px 62px rgba(5, 46, 22, 0.1);
+}
+
+.fct-form label {
+  display: grid;
+  gap: 8px;
+  color: #294837;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.fct-form input,
+.fct-form select,
+.fct-form textarea {
+  width: 100%;
+  border: 1px solid rgba(21, 128, 61, 0.12);
+  outline: 0;
+  border-radius: 17px;
+  color: #153322;
+  background: rgba(248, 252, 245, 0.9);
+  font-weight: 750;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.fct-form input,
+.fct-form select {
+  min-height: 52px;
+  padding: 0 14px;
+}
+
+.fct-form textarea {
+  padding: 14px;
+  resize: vertical;
+}
+
+.fct-form input:focus,
+.fct-form select:focus,
+.fct-form textarea:focus {
+  border-color: rgba(34, 197, 94, 0.42);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1);
+}
+
+.fct-form button {
+  min-height: 52px;
+  border-radius: 17px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 16px 34px rgba(34, 197, 94, 0.22);
+}
+
+.fct-success {
+  padding: 13px 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 16px;
+  color: #166534;
+  font-weight: 900;
+  background: rgba(220, 252, 231, 0.8);
+  border: 1px solid rgba(21, 128, 61, 0.12);
+}
+
+@media (max-width: 1080px) {
+  .fct-hero-grid,
+  .fct-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fct-info-card { max-width: 620px; }
+  .fct-support-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .fct-container { width: min(100% - 28px, 560px); }
+  .fct-hero { padding: 70px 0; }
+  .fct-hero h1 { font-size: clamp(38px, 14vw, 58px); }
+  .fct-actions { align-items: stretch; flex-direction: column; }
+  .fct-btn { width: 100%; }
+  .fct-support-grid { grid-template-columns: 1fr; }
+  .fct-form { padding: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farmer-contact-page *,
+  .farmer-contact-page *::before,
+  .farmer-contact-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
