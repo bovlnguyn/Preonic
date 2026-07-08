@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  FiArrowLeft, FiEdit2, FiMapPin, FiPackage,
+  FiArrowLeft, FiEdit2, FiTrash2, FiMapPin, FiPackage,
   FiStar, FiCalendar, FiCheckCircle, FiAward,
   FiImage, FiFileText
 } from 'react-icons/fi';
 import productService from '../../services/product.service';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { CATEGORY_LABEL, REGION_LABEL, TYPE_LABEL } from '../../constants/product';
 import './ProductDetail.css';
 
@@ -29,12 +30,15 @@ export default function ProductDetail() {
   const { id }       = useParams();
   const navigate     = useNavigate();
   const { user }     = useAuth();
+  const toast        = useToast();
 
-  const [product,     setProduct]     = useState(null);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState('');
-  const [activeTab,   setActiveTab]   = useState('Thông tin');
-  const [activeImage, setActiveImage] = useState(0);
+  const [product,       setProduct]       = useState(null);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState('');
+  const [activeTab,     setActiveTab]     = useState('Thông tin');
+  const [activeImage,   setActiveImage]   = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting,      setDeleting]      = useState(false);
 
   const isFarmerOwner =
     user?.role === 'farmer' && product?.createdBy === user?.id;
@@ -49,6 +53,19 @@ export default function ProductDetail() {
       .catch(() => setError('Không thể tải thông tin sản phẩm.'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await productService.deleteProduct(id);
+      toast.success('Đã xóa sản phẩm');
+      navigate('/farmer/crops');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Xóa sản phẩm thất bại, vui lòng thử lại.');
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   if (loading) return (
     <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -83,12 +100,34 @@ export default function ProductDetail() {
         </button>
         <h1 className="pd-title">{product.name}</h1>
         {isFarmerOwner && (
-          <button
-            className="pd-edit-btn"
-            onClick={() => navigate(`/farmer/edit-product/${id}`)}
-          >
-            <FiEdit2 /> Chỉnh sửa
-          </button>
+          <div className="pd-owner-actions">
+            <button
+              className="pd-edit-btn"
+              onClick={() => navigate(`/farmer/edit-product/${id}`)}
+            >
+              <FiEdit2 /> Chỉnh sửa
+            </button>
+
+            {!confirmDelete ? (
+              <button
+                type="button"
+                className="pd-delete-btn"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <FiTrash2 /> Xóa
+              </button>
+            ) : (
+              <div className="pd-delete-confirm">
+                <span>Xác nhận xóa?</span>
+                <button type="button" className="pd-delete-btn" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? 'Đang xóa...' : 'Xóa'}
+                </button>
+                <button type="button" className="pd-back-btn" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                  Hủy
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

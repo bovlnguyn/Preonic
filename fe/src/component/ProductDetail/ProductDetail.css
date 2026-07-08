@@ -54,6 +54,44 @@
 
 .pd-edit-btn:hover { background: #15803d; }
 
+.pd-owner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pd-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #dc2626;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pd-delete-btn:hover:not(:disabled) { background: #b91c1c; }
+.pd-delete-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pd-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #991b1b;
+  font-weight: 600;
+}
+
 .pd-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
