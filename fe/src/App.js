@@ -27,6 +27,7 @@ import ProductDetail from './component/ProductDetail/ProductDetail';
 import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
 import EnterpriseOverview         from './component/EnterpriseDashboard/pages/EnterpriseOverview';
 import EnterpriseContracts        from './component/EnterpriseDashboard/pages/EnterpriseContracts';
+import EnterpriseCreateContract from './component/EnterpriseDashboard/pages/EnterpriseCreateContract';
 import EnterpriseProducts         from './component/EnterpriseDashboard/pages/EnterpriseProducts';
 import EnterpriseOrders           from './component/EnterpriseDashboard/pages/EnterpriseOrders';
 import EnterpriseEscrow           from './component/EnterpriseDashboard/pages/EnterpriseEscrow';
@@ -181,6 +182,7 @@ const AppRoutes = () => {
   
   <Route index element={<EnterpriseOverview />} />
         <Route path="contracts" element={<EnterpriseContracts />} />
+        <Route path="contracts/create" element={<EnterpriseCreateContract />} />
         <Route path="products" element={<EnterpriseProducts />} />
         <Route path="orders" element={<EnterpriseOrders />} />
         <Route path="escrow" element={<EnterpriseEscrow />} />

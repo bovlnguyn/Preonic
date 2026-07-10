@@ -5,6 +5,7 @@ import StatusBadge   from '../components/StatusBadge';
 import ProgressBar   from '../components/ProgressBar';
 import { enterpriseContracts } from '../data/enterpriseMockData';
 import { formatDate, formatMoney } from '../utils';
+import { useNavigate } from 'react-router-dom';
 
 const TABS = [
   { key: 'all',       label: 'Tất cả' },
@@ -23,7 +24,9 @@ const matchTab = (status = '', tab) => {
   return true;
 };
 
+
 function EnterpriseContracts() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('all');
   const filtered = useMemo(
     () => enterpriseContracts.filter((c) => matchTab(c.status.toLowerCase(), tab)),
@@ -38,6 +41,14 @@ function EnterpriseContracts() {
           title="Theo dõi hợp đồng bao tiêu và mua bán nông sản"
           desc="Khi backend hoàn thiện, trang này cho phép ký/từ chối/hủy hợp đồng và nối escrow thật."
         />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+  <button
+    className="ent-btn-primary"
+    onClick={() => navigate('/enterprise/contracts/create')}
+  >
+    + Tạo hợp đồng mới
+  </button>
+</div>
 
         <div className="ent-filter-row">
           {TABS.map((t) => (
