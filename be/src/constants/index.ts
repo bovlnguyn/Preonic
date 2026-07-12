@@ -47,6 +47,7 @@ export const ROLES = {
 } as const;
 
 // ===== CONTRACT CONFIG =====
+// Ma hop dong dang: PRE-YYYY-XXXX (vi du: PRE-2026-1234)
 export const CONTRACT_CONFIG = {
   CODE_PREFIX: 'PRE',
   CODE_SEQUENCE_MIN: 1000,
@@ -55,12 +56,11 @@ export const CONTRACT_CONFIG = {
   COMMISSION_RATE: 3, // % — phải khớp với COMPANY.COMMISSION_RATE trong fe/src/constants/index.js
 } as const;
 
-export const UNIT_TO_KG = {
+export const UNIT_TO_KG: Record<string, number> = {
   kg: 1,
-  ta: 100,
-  tan: 1000,
-  thung: 25,
-} as const;
+  'tạ': 100,
+  'tấn': 1000,
+};
 
 // ===== PRODUCT CONFIG =====
 export const PRODUCT_CONFIG = {

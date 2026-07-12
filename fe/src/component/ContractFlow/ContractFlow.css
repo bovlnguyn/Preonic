@@ -1,0 +1,41 @@
+/* ── ContractFlow — thanh tien trinh hop dong dung chung ── */
+.cf-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.cf-step { display: flex; align-items: center; gap: 6px; }
+
+.cf-step__dot {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: #f1f5f9; border: 2px solid #cbd5e1;
+  color: #64748b; font-size: 13px; font-weight: 700;
+  transition: all .2s;
+}
+
+.cf-step--active .cf-step__dot {
+  background: #2563eb; border-color: #2563eb; color: #fff;
+}
+
+.cf-step--done .cf-step__dot {
+  background: #2563eb; border-color: #2563eb; color: #fff;
+}
+
+.cf-step--cancelled .cf-step__dot {
+  background: #dc2626; border-color: #dc2626; color: #fff;
+}
+
+.cf-step__label { font-size: 12px; font-weight: 600; color: #64748b; white-space: nowrap; }
+.cf-step--active .cf-step__label { color: #1d4ed8; }
+.cf-step--done   .cf-step__label { color: #2563eb; }
+.cf-step--cancelled .cf-step__label { color: #dc2626; }
+
+.cf-step__line {
+  width: 48px; height: 2px; background: #e2e8f0; margin: 0 6px; flex-shrink: 0;
+}
+.cf-step__line--done { background: #2563eb; }

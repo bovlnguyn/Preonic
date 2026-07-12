@@ -36,33 +36,6 @@
 }
 .ecc-back:hover { background: var(--ecc-blue-50); }
 
-/* ── Step bar ── */
-.ecc-steps {
-  display: flex; align-items: center; justify-content: center;
-  gap: 0; margin-bottom: 28px; flex-wrap: nowrap;
-}
-.ecc-step { display: flex; align-items: center; gap: 6px; }
-.ecc-step__dot {
-  width: 32px; height: 32px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: #f1f5f9; border: 2px solid #cbd5e1;
-  color: var(--ecc-muted); font-size: 13px; font-weight: 700;
-  transition: all .2s;
-}
-.ecc-step--active .ecc-step__dot {
-  background: var(--ecc-blue-600); border-color: var(--ecc-blue-600); color: #fff;
-}
-.ecc-step--done .ecc-step__dot {
-  background: var(--ecc-blue-600); border-color: var(--ecc-blue-600); color: #fff;
-}
-.ecc-step__label { font-size: 12px; font-weight: 600; color: var(--ecc-muted); white-space: nowrap; }
-.ecc-step--active .ecc-step__label { color: var(--ecc-blue-700); }
-.ecc-step--done   .ecc-step__label { color: var(--ecc-blue-600); }
-.ecc-step__line {
-  width: 48px; height: 2px; background: #e2e8f0; margin: 0 6px; flex-shrink: 0;
-}
-.ecc-step__line--done { background: var(--ecc-blue-600); }
-
 /* ── Body ── */
 .ecc-body { display: flex; flex-direction: column; gap: 16px; }
 

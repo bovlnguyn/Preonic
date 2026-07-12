@@ -47,6 +47,7 @@ import FarmerLayout from './component/FarmerDashboard/FarmerLayout';
 import FarmerOverview from './component/FarmerDashboard/pages/FarmerOverview';
 import FarmerCrops from './component/FarmerDashboard/pages/FarmerCrops';
 import FarmerContracts from './component/FarmerDashboard/pages/FarmerContracts';
+import ContractDetailView from './component/ContractDetailView/ContractDetailView';
 import FarmerOrders from './component/FarmerDashboard/pages/FarmerOrders';
 import FarmerEscrow from './component/FarmerDashboard/pages/FarmerEscrow';
 import FarmerWallet from './component/FarmerDashboard/pages/FarmerWallet';
@@ -209,6 +210,7 @@ const AppRoutes = () => {
         <Route index element={<FarmerOverview />} />
         <Route path="crops" element={<FarmerCrops />} />
         <Route path="contracts" element={<FarmerContracts />} />
+        <Route path="contracts/:id" element={<ContractDetailView />} />
         <Route path="orders" element={<FarmerOrders />} />
         <Route path="escrow" element={<FarmerEscrow />} />
         <Route path="wallet" element={<FarmerWallet />} />
@@ -250,6 +252,7 @@ const AppRoutes = () => {
   <Route index element={<EnterpriseOverview />} />
         <Route path="contracts" element={<EnterpriseContracts />} />
         <Route path="contracts/create" element={<EnterpriseCreateContract />} />
+        <Route path="contracts/:id" element={<ContractDetailView />} />
         <Route path="products" element={<EnterpriseProducts />} />
         <Route path="orders" element={<EnterpriseOrders />} />
         <Route path="escrow" element={<EnterpriseEscrow />} />
