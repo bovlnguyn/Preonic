@@ -162,7 +162,7 @@ function EnterpriseProducts() {
                           : item.priceMin
                           ? formatMoney(item.priceMin)
                           : 'Liên hệ'}
-                        {item.unit ? ` / ${item.unit}` : ''}
+                        {(item.priceUnit || item.unit) ? ` / ${item.priceUnit || item.unit}` : ''}
                       </strong>
                     </div>
                     <div>

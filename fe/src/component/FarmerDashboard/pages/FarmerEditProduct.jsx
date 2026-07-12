@@ -5,7 +5,9 @@ import productService from '../../../services/product.service';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { CATEGORY_OPTIONS, REGION_OPTIONS, TYPE_OPTIONS } from '../../../constants/product';
+import logo from '../../../assets/branding/preonic-logo-main.png';
 import './FarmerCreateProduct.css';
+import './FarmerEditProduct.css';
 
 const UNITS = ['kg', 'Tạ', 'Tấn'];
 
@@ -19,6 +21,7 @@ const buildForm = (product) => ({
   priceMin: product?.priceMin ?? '',
   priceMax: product?.priceMax ?? '',
   unit: product?.unit || 'kg',
+  priceUnit: product?.priceUnit || product?.unit || 'kg',
   totalQuantity: product?.totalQuantity ?? '',
   expectedDate: product?.expectedDate ? product.expectedDate.slice(0, 10) : '',
   description: product?.description || '',
@@ -67,6 +70,7 @@ export default function FarmerEditProduct() {
         priceMin: form.priceMin === '' ? undefined : Number(form.priceMin),
         priceMax: form.priceMax === '' ? undefined : Number(form.priceMax),
         unit: form.unit,
+        priceUnit: form.priceUnit,
         totalQuantity: form.totalQuantity === '' ? undefined : Number(form.totalQuantity),
         expectedDate: form.expectedDate || undefined,
         description: form.description.trim() || undefined,
@@ -84,31 +88,51 @@ export default function FarmerEditProduct() {
     }
   };
 
+  const Topbar = () => (
+    <header className="fep-topbar">
+      <div className="fep-topbar__brand" onClick={() => navigate('/farmer')}>
+        <img src={logo} alt="PreOnic" />
+        <span>PreOnic</span>
+      </div>
+      <button type="button" className="fep-topbar__close" onClick={() => navigate(`/products/${id}`)}>
+        <FiArrowLeft size={14} /> Quay lại sản phẩm
+      </button>
+    </header>
+  );
+
   if (loading) {
     return (
-      <div className="fcp-page">
-        <div className="spinner-border text-success" role="status" />
+      <div className="fep-shell">
+        <Topbar />
+        <div className="fcp-page fep-content fep-content--center">
+          <div className="spinner-border text-success" role="status" />
+        </div>
       </div>
     );
   }
 
   if (!product || (user && product.createdBy !== user.id)) {
     return (
-      <div className="fcp-page">
-        <div className="fcp-card" style={{ alignItems: 'center', textAlign: 'center', gap: 12 }}>
-          <span className="fcp-card__icon" style={{ fontSize: 40 }}>⚠️</span>
-          <div className="fcp-card__title">Không thể chỉnh sửa sản phẩm này</div>
-          <div className="fcp-card__sub">Sản phẩm không tồn tại hoặc không thuộc về bạn.</div>
-          <button type="button" className="fcp-nav__submit" onClick={() => navigate('/farmer/crops')}>
-            Quay lại danh sách
-          </button>
+      <div className="fep-shell">
+        <Topbar />
+        <div className="fcp-page fep-content fep-content--center">
+          <div className="fcp-card" style={{ alignItems: 'center', textAlign: 'center', gap: 12 }}>
+            <span className="fcp-card__icon" style={{ fontSize: 40 }}>⚠️</span>
+            <div className="fcp-card__title">Không thể chỉnh sửa sản phẩm này</div>
+            <div className="fcp-card__sub">Sản phẩm không tồn tại hoặc không thuộc về bạn.</div>
+            <button type="button" className="fcp-nav__submit" onClick={() => navigate('/farmer/crops')}>
+              Quay lại danh sách
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fcp-page">
+    <div className="fep-shell">
+      <Topbar />
+      <div className="fcp-page fep-content">
       <div className="fcp-breadcrumb">
         <span onClick={() => navigate('/farmer/crops')} style={{ cursor: 'pointer' }}>Mùa vụ của tôi</span>
         <span> › </span>
@@ -225,9 +249,24 @@ export default function FarmerEditProduct() {
                 onChange={(e) => set('totalQuantity', e.target.value)}
               />
               <select className="fcp-select-inline" value={form.unit} onChange={(e) => set('unit', e.target.value)}>
-                {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                {UNITS.map((u) => <option key={u} value={u.toLowerCase()}>{u}</option>)}
               </select>
             </div>
+          </div>
+
+          <div className="fcp-field fcp-field--full">
+            <label>Đơn vị tính giá</label>
+            <div className="fcp-btn-group">
+              {UNITS.map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  className={`fcp-btn-region ${form.priceUnit === u.toLowerCase() ? 'fcp-btn-region--active' : ''}`}
+                  onClick={() => set('priceUnit', u.toLowerCase())}
+                >{u}</button>
+              ))}
+            </div>
+            <span className="fcp-hint">Có thể khác với đơn vị sản lượng ở trên</span>
           </div>
 
           <div className="fcp-row">
@@ -240,7 +279,7 @@ export default function FarmerEditProduct() {
                   value={form.priceMin}
                   onChange={(e) => set('priceMin', e.target.value)}
                 />
-                <span>VNĐ/{form.unit}</span>
+                <span>VNĐ/{form.priceUnit}</span>
               </div>
             </div>
             <div className="fcp-field">
@@ -252,7 +291,7 @@ export default function FarmerEditProduct() {
                   value={form.priceMax}
                   onChange={(e) => set('priceMax', e.target.value)}
                 />
-                <span>VNĐ/{form.unit}</span>
+                <span>VNĐ/{form.priceUnit}</span>
               </div>
             </div>
           </div>
@@ -324,6 +363,7 @@ export default function FarmerEditProduct() {
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 }

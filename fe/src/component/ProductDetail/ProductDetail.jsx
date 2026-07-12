@@ -100,7 +100,10 @@ export default function ProductDetail() {
     <div className="pd-page">
       {/* ── Header ── */}
       <div className="pd-header">
-        <button className="pd-back-btn" onClick={() => navigate(-1)}>
+        <button
+          className="pd-back-btn"
+          onClick={() => (isFarmerOwner ? navigate('/farmer/crops') : navigate(-1))}
+        >
           <FiArrowLeft /> Quay lại
         </button>
         <h1 className="pd-title">{product.name}</h1>
@@ -198,11 +201,14 @@ export default function ProductDetail() {
             <div className="pd-info-row">
               <span>💰 Giá bán</span>
               <strong>
-                {product.priceMin && product.priceMax
-                  ? formatMoney(product.priceMin) + ' – ' + formatMoney(product.priceMax) + ' / ' + product.unit
-                  : product.priceMin
-                  ? formatMoney(product.priceMin) + ' / ' + product.unit
-                  : 'Chưa cập nhật'}
+                {(() => {
+                  const priceUnit = product.priceUnit || product.unit;
+                  return product.priceMin && product.priceMax
+                    ? formatMoney(product.priceMin) + ' – ' + formatMoney(product.priceMax) + ' / ' + priceUnit
+                    : product.priceMin
+                    ? formatMoney(product.priceMin) + ' / ' + priceUnit
+                    : 'Chưa cập nhật';
+                })()}
               </strong>
             </div>
             <div className="pd-info-row">
