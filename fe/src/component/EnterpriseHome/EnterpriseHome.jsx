@@ -43,7 +43,7 @@ const formatMoney = (value = 0) => {
 
 const getProductPrice = (product) => {
   const price = Number(product?.price || product?.unitPrice || product?.expectedPrice || 0);
-  const unit = product?.unit || product?.priceUnit || "kg";
+  const unit = product?.priceUnit || product?.unit || "kg";
   return price ? `${formatMoney(price)}đ/${unit}` : "Liên hệ";
 };
 

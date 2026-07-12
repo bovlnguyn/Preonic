@@ -53,6 +53,7 @@ import FarmerWallet from './component/FarmerDashboard/pages/FarmerWallet';
 import FarmerRatings from './component/FarmerDashboard/pages/FarmerRatings';
 import FarmerWeatherInsurance from './component/FarmerDashboard/pages/FarmerWeatherInsurance';
 import FarmerCreateProduct from './component/FarmerDashboard/pages/FarmerCreateProduct';
+import FarmerEditProduct from './component/FarmerDashboard/pages/FarmerEditProduct';
 
 // Profile (dùng chung Farmer/Enterprise)
 import Profile from './component/Profile/Profile';
@@ -214,8 +215,17 @@ const AppRoutes = () => {
         <Route path="ratings" element={<FarmerRatings />} />
         <Route path="weather-insurance" element={<FarmerWeatherInsurance />} />
         <Route path="create-product" element={<FarmerCreateProduct />} />
-       
+
       </Route>
+
+      <Route
+        path="/farmer/edit-product/:id"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerEditProduct />
+          </ProtectedRoute>
+        }
+      />
 
      
 {/* Enterprise */}

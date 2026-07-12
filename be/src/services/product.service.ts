@@ -50,6 +50,7 @@ export interface CreateProductDto {
   priceMin?:      number;
   priceMax?:      number;
   unit?:          string;
+  priceUnit?:     string;
   totalQuantity?: number;
   expectedDate?:  string;
   description?:   string;
@@ -91,7 +92,7 @@ const PRODUCT_SORT_OPTIONS: Record<string, { column: string; direction: 'ASC' | 
 // ── Các field cho phép cập nhật qua API update ──
 const UPDATABLE_FIELDS: (keyof Product)[] = [
   'name', 'location', 'farm', 'variety', 'area', 'image', 'images',
-  'priceMin', 'priceMax', 'unit', 'expectedDate',
+  'priceMin', 'priceMax', 'unit', 'priceUnit', 'expectedDate',
   'progress', 'remaining', 'totalQuantity',
   'note', 'badge', 'category', 'region', 'type',
   'description', 'nutritionInfo',
@@ -252,6 +253,7 @@ export const create = async (userId: string, dto: CreateProductDto) => {
     priceMin:      dto.priceMin ?? null,
     priceMax:      dto.priceMax ?? null,
     unit:          dto.unit?.trim(),
+    priceUnit:     dto.priceUnit?.trim() || dto.unit?.trim(),
     totalQuantity: dto.totalQuantity ?? null,
     remaining:     dto.totalQuantity ?? null,
     progress:      0,
