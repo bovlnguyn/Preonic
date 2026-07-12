@@ -88,12 +88,14 @@ const Register = () => {
   const validate = () => {
     const e = {};
     if (!form.lastName.trim())  e.lastName  = 'Họ là bắt buộc';
+    else if (/\d/.test(form.lastName)) e.lastName = 'Họ không được chứa số';
     if (!form.firstName.trim()) e.firstName = 'Tên là bắt buộc';
+    else if (/\d/.test(form.firstName)) e.firstName = 'Tên không được chứa số';
     if (!form.email)            e.email     = 'Email là bắt buộc';
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = 'Email không hợp lệ';
     if (!form.phone)            e.phone = 'Số điện thoại là bắt buộc';
         else if (!/^[0-9]{10,11}$/.test(form.phone))
-        e.phone = 'SĐT phải có 10-11 chữ số';
+        e.phone = 'SĐT không được chứa chữ và phải có 10-11 chữ số';
 if (!form.province)         e.province = 'Vui lòng chọn tỉnh / thành phố';
 if (!form.district)         e.district = 'Vui lòng chọn quận / huyện';
     if (!form.password)         e.password  = 'Mật khẩu là bắt buộc';
@@ -295,7 +297,7 @@ const PrivacyModal = () => (
               {/* Họ & Tên */}
               <div className="form-row">
                 <div className="form-group">
-                  <label>Họ</label>
+                  <label>Họ <span className="required-mark">*</span></label>
                   <div className={`input-icon ${errors.lastName ? 'input-icon--invalid' : ''}`}>
                     <IconUser className="input-icon__icon" />
                     <input
@@ -306,7 +308,7 @@ const PrivacyModal = () => (
                   {errors.lastName && <div className="field-error">{errors.lastName}</div>}
                 </div>
                 <div className="form-group">
-                  <label>Tên</label>
+                  <label>Tên <span className="required-mark">*</span></label>
                   <div className={`input-icon ${errors.firstName ? 'input-icon--invalid' : ''}`}>
                     <IconUser className="input-icon__icon" />
                     <input
@@ -321,7 +323,7 @@ const PrivacyModal = () => (
               {/* Email & SĐT */}
               <div className="form-row">
                 <div className="form-group">
-                  <label>Email</label>
+                  <label>Email <span className="required-mark">*</span></label>
                   <div className={`input-icon ${errors.email ? 'input-icon--invalid' : ''}`}>
                     <IconMail className="input-icon__icon" />
                     <input
@@ -332,7 +334,7 @@ const PrivacyModal = () => (
                   {errors.email && <div className="field-error">{errors.email}</div>}
                 </div>
                 <div className="form-group">
-                  <label>Số điện thoại</label>
+                  <label>Số điện thoại <span className="required-mark">*</span></label>
                   <div className={`input-icon ${errors.phone ? 'input-icon--invalid' : ''}`}>
                     <IconPhone className="input-icon__icon" />
                     <input
@@ -406,7 +408,7 @@ const PrivacyModal = () => (
               {/* Mật khẩu */}
               <div className="form-row">
                 <div className="form-group">
-                  <label>Mật khẩu</label>
+                  <label>Mật khẩu <span className="required-mark">*</span></label>
                   <div className={`input-icon ${errors.password ? 'input-icon--invalid' : ''}`}>
                     <IconLock className="input-icon__icon" />
                     <input
@@ -430,7 +432,7 @@ const PrivacyModal = () => (
 
                 {/* Xác nhận mật khẩu */}
                 <div className="form-group">
-                  <label>Xác nhận mật khẩu</label>
+                  <label>Xác nhận mật khẩu <span className="required-mark">*</span></label>
                   <div className={`input-icon ${errors.confirmPassword ? 'input-icon--invalid' : ''}`}>
                     <IconLock className="input-icon__icon" />
                     <input

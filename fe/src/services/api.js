@@ -47,7 +47,7 @@ const refreshAccessToken = () => {
     .then((response) => {
       const { accessToken } = response.data?.data || {};
       if (!accessToken) throw new Error('Không nhận được access token mới từ máy chủ');
-      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+      sessionStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
       return accessToken;
     })
     .finally(() => { _refreshing = null; });
