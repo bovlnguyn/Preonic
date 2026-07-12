@@ -43,6 +43,7 @@ export default function ProductDetail() {
 
   const isFarmerOwner =
     user?.role === 'farmer' && product?.createdBy === user?.id;
+  const isEnterpriseViewer = user?.role === 'enterprise';
 
   useEffect(() => {
     setLoading(true);
@@ -135,6 +136,16 @@ export default function ProductDetail() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+        {isEnterpriseViewer && (
+          <div className="pd-owner-actions">
+            <button
+              className="pd-edit-btn"
+              onClick={() => navigate(`/enterprise/contracts/create?product=${id}`)}
+            >
+              <FiFileText /> Tạo hợp đồng
+            </button>
           </div>
         )}
       </div>
