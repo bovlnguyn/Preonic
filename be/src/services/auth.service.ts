@@ -5,6 +5,8 @@ import { User } from '../models/User.entity';
 
 const repo = () => AppDataSource.getRepository(User);
 
+const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 phút
+
 // ── Helpers ──
 const signTokens = (id: string, role: string) => {
   const accessToken = jwt.sign(
@@ -138,18 +140,22 @@ console.log('lockUntil > now:', lockUntil && new Date(lockUntil) > new Date());
  if (!isMatch) {
   // Lấy loginAttempts hiện tại từ DB
   const result = await AppDataSource.query(
-    `SELECT LoginAttempts FROM Users WHERE UserId = '${user.id}'`
+    `SELECT LoginAttempts FROM Users WHERE UserId = @0`, [user.id]
   );
   const currentAttempts = parseInt(result[0]?.LoginAttempts || 0, 10);
   const newAttempts = currentAttempts + 1;
 
   await AppDataSource.query(
-    `UPDATE Users SET LoginAttempts = ${newAttempts} WHERE UserId = '${user.id}'`
+    `UPDATE Users SET LoginAttempts = @0 WHERE UserId = @1`, [newAttempts, user.id]
   );
 
   if (newAttempts >= 5) {
+  // Tính mốc khoá bằng JS Date (thay vì GETUTCDATE()/DATEADD phía SQL Server) rồi bind
+  // qua tham số, để cùng đi qua driver mssql (useUTC:false mặc định của TypeORM) như lúc
+  // đọc lại — tránh lệch múi giờ khiến LockUntil bị đọc thành thời điểm đã qua ngay lập tức.
+  const lockUntilAt = new Date(Date.now() + LOCK_DURATION_MS);
   await AppDataSource.query(
-    `UPDATE Users SET LockUntil = DATEADD(MINUTE, 15, GETUTCDATE()) WHERE UserId = '${user.id}'`
+    `UPDATE Users SET LockUntil = @0 WHERE UserId = @1`, [lockUntilAt, user.id]
   );
 }
 
