@@ -46,6 +46,10 @@ export class Product {
   @Column({ name: 'Unit', type: 'nvarchar', length: 50, nullable: true })
   unit: string;
 
+  // Đơn vị tính giá (VNĐ/kg, VNĐ/tạ, VNĐ/tấn...) — độc lập với đơn vị sản lượng ở trên
+  @Column({ name: 'PriceUnit', type: 'nvarchar', length: 50, nullable: true })
+  priceUnit: string;
+
   @Column({ name: 'ExpectedDate', type: 'date', nullable: true })
   expectedDate: Date;
 

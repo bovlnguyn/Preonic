@@ -34,21 +34,25 @@ export const validateRegister = [
 body('firstName')
   .trim()
   .notEmpty()
-  .withMessage('Vui lòng nhập tên')
+  .withMessage('Vui lòng nhập tên (*)')
   .isLength({ min: 1, max: 100 })
-  .withMessage('Tên phải từ 1-100 ký tự'),
+  .withMessage('Tên phải từ 1-100 ký tự')
+  .matches(/^[^\d0-9]+$/)
+  .withMessage('Tên không được chứa số'),
 
 body('lastName')
   .trim()
   .notEmpty()
-  .withMessage('Vui lòng nhập họ')
+  .withMessage('Vui lòng nhập họ (*)')
   .isLength({ min: 1, max: 100 })
-  .withMessage('Họ phải từ 1-100 ký tự'),
+  .withMessage('Họ phải từ 1-100 ký tự')
+  .matches(/^[^\d0-9]+$/)
+  .withMessage('Họ không được chứa số'),
 
   body('email')
     .trim()
     .notEmpty()
-    .withMessage('Vui lòng nhập email')
+    .withMessage('Vui lòng nhập email (*)')
     .isEmail()
     .withMessage('Email không hợp lệ')
     .toLowerCase(),
@@ -56,9 +60,9 @@ body('lastName')
   body('phone')
   .trim()
   .notEmpty()
-  .withMessage('Vui lòng nhập số điện thoại')
+  .withMessage('Vui lòng nhập số điện thoại (*)')
   .matches(/^[0-9]{10,11}$/)
-  .withMessage('Số điện thoại phải có 10-11 chữ số'),
+  .withMessage('Số điện thoại không được chứa chữ và phải có 10-11 chữ số'),
 
 
   body('password')

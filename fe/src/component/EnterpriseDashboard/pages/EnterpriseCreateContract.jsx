@@ -6,14 +6,10 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../../../contexts/AuthContext';
 import contractService from '../../../services/contract.service';
+import enterpriseService from '../../../services/enterprise.service';
+import productService from '../../../services/product.service';
+import ContractFlow from '../../ContractFlow/ContractFlow';
 import './EnterpriseCreateContract.css';
-
-// ── Sinh mã hợp đồng tự động ──────────────────────────────
-const generateContractCode = () => {
-  const year = new Date().getFullYear();
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `PRE-${year}-${rand}`;
-};
 
 // ── Hằng số ───────────────────────────────────────────────
 const STEPS = [
@@ -33,7 +29,6 @@ const PAYMENT_TERMS = [
 ];
 
 const UNITS = ['kg', 'tạ', 'tấn'];
-const UNIT_TO_KG = { kg: 1, tạ: 100, tấn: 1000 };
 
 const fmtMoney = (n) =>
   Number(n || 0).toLocaleString('vi-VN') + 'đ';
@@ -46,34 +41,6 @@ const getDepositLabel = (paymentTerms, customDeposit, customOnDelivery) => {
   if (paymentTerms === 'custom')       return `${customDeposit}% đặt cọc / ${customOnDelivery}% khi nhận hàng`;
   return '';
 };
-
-// ── Step Indicator ─────────────────────────────────────────
-function StepBar({ current }) {
-  return (
-    <div className="ecc-steps">
-      {STEPS.map((s, i) => {
-        const done   = i < current;
-        const active = i === current;
-        return (
-          <React.Fragment key={s.key}>
-            <div className={`ecc-step ${active ? 'ecc-step--active' : ''} ${done ? 'ecc-step--done' : ''}`}>
-              <div className="ecc-step__dot">
-                {done
-                  ? <FiCheck size={14} />
-                  : <span>{i + 1}</span>
-                }
-              </div>
-              <span className="ecc-step__label">{s.label}</span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div className={`ecc-step__line ${done ? 'ecc-step__line--done' : ''}`} />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-}
 
 // ── Terms Modal ────────────────────────────────────────────
 function TermsModal({ type, onClose, onAgree }) {
@@ -137,7 +104,7 @@ export default function EnterpriseCreateContract() {
   const [step, setStep]           = useState(0);
   const [loading, setLoading]     = useState(false);
   const [errors, setErrors]       = useState({});
-  const [contractCode]            = useState(generateContractCode);
+  const [contractCode]            = useState(enterpriseService.generateContractCode);
   const [createdContract, setCreatedContract] = useState(null);
   const [showTermsModal, setShowTermsModal]   = useState(null); // 'contract' | 'service'
   const [agreed, setAgreed]       = useState({ terms: false, preon: false });
@@ -170,14 +137,26 @@ export default function EnterpriseCreateContract() {
   // Tự điền nếu có productId
   useEffect(() => {
     if (!productId) return;
-    // Khi có API: productService.getById(productId).then(...)
-    // Hiện tại để trống, backend sẽ điền
+    productService.getProductById(productId)
+      .then(data => {
+        const p = data?.data?.product || data?.data || data;
+        if (!p) return;
+        const matchedUnit = UNITS.find(
+          u => u.normalize('NFC') === String(p.unit || '').normalize('NFC')
+        );
+        setForm(prev => ({
+          ...prev,
+          productName:  p.name || prev.productName,
+          farmerName:   p.sellerName || prev.farmerName,
+          unit:         matchedUnit || prev.unit,
+          pricePerUnit: p.priceMin ? String(p.priceMin) : prev.pricePerUnit,
+        }));
+      })
+      .catch(() => {});
   }, [productId]);
 
   // ── Computed ───────────────────────────────────────────
-  const unitFactor    = UNIT_TO_KG[form.unit] || 1;
-  const totalValue    = (parseFloat(form.quantity) || 0) * (parseFloat(form.pricePerUnit) || 0) * unitFactor;
-  const commission    = totalValue * 0.03;
+  const { totalValue, commission } = enterpriseService.calculateContractTotals(form);
   const today         = new Date().toISOString().split('T')[0];
 
   const customDepositValid = () => {
@@ -234,12 +213,7 @@ export default function EnterpriseCreateContract() {
   const handleSign = async () => {
     setLoading(true);
     try {
-      const depositPct =
-        form.paymentTerms === '50_50'        ? 50
-        : form.paymentTerms === '30_70'      ? 30
-        : form.paymentTerms === '100_upfront'? 100
-        : form.paymentTerms === 'custom'     ? parseFloat(form.customDeposit) || 0
-        : 0;
+      const depositPct = enterpriseService.resolveDepositPercentage(form.paymentTerms, form.customDeposit);
 
       const payload = {
         contractCode,
@@ -270,7 +244,7 @@ export default function EnterpriseCreateContract() {
         };
       }
 
-      const result = await contractService.create(payload);
+      const result = await enterpriseService.proposeContract(payload);
       const contract = result.data?.contract || result.data;
       setCreatedContract(contract);
 
@@ -305,7 +279,7 @@ export default function EnterpriseCreateContract() {
         <p>Luồng ký hợp đồng qua trung gian <strong>PreOnic</strong> -- đảm bảo quyền lợi hai bên</p>
       </div>
 
-      <StepBar current={step} />
+      <ContractFlow steps={STEPS} currentIndex={step} />
 
       <div className="ecc-body">
 

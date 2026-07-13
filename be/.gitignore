@@ -44,9 +44,6 @@ fe/dist/
 # UPLOADS — file do người dùng upload (ảnh SP, chứng chỉ)
 # ═══════════════════════════════════════════════════════════
 be/uploads/*
-# Uploads
-uploads/
-temp/
 
 # Giữ lại thư mục nhưng bỏ qua nội dung
 !be/uploads/.gitkeep

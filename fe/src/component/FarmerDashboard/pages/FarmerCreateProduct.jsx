@@ -297,7 +297,7 @@ function Step2({ form, set }) {
             onChange={(e) => set('quantity', e.target.value)}
           />
           <select className="fcp-select-inline" value={form.unit} onChange={(e) => set('unit', e.target.value)}>
-            {UNITS.map((u) => <option key={u}>{u}</option>)}
+            {UNITS.map((u) => <option key={u} value={u.toLowerCase()}>{u}</option>)}
           </select>
         </div>
         {totalKg > 0 && (
@@ -315,6 +315,8 @@ function Step3({ form, set }) {
   const highPrice = Math.round(priceNum * 1.15);
   const totalKg = form.unit === 'tấn'
     ? Number(form.quantity || 0) * 1000
+    : form.unit === 'tạ'
+    ? Number(form.quantity || 0) * 100
     : Number(form.quantity || 0);
   const totalValue = totalKg * priceNum;
 
@@ -524,10 +526,12 @@ export default function FarmerCreateProduct() {
           area:          form.area ? Number(form.area) : undefined,
           totalQuantity: form.quantity ? Number(form.quantity) : undefined,
           unit:          form.unit,
+          priceUnit:     form.priceUnit,
           priceMin:      priceNum || undefined,
           priceMax:      priceNum ? Math.round(priceNum * 1.15) : undefined,
           expectedDate:  form.harvestDate || undefined,
           note:          form.plantDate ? `Ngày gieo trồng: ${form.plantDate}` : undefined,
+          certificationNames: form.certFile ? [form.certFile.name] : [],
         },
         form.images,
         form.certFile ? [form.certFile] : [],

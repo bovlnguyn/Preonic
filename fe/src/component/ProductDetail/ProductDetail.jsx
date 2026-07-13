@@ -43,6 +43,7 @@ export default function ProductDetail() {
 
   const isFarmerOwner =
     user?.role === 'farmer' && product?.createdBy === user?.id;
+  const isEnterpriseViewer = user?.role === 'enterprise';
 
   useEffect(() => {
     setLoading(true);
@@ -100,7 +101,10 @@ export default function ProductDetail() {
     <div className="pd-page">
       {/* ── Header ── */}
       <div className="pd-header">
-        <button className="pd-back-btn" onClick={() => navigate(-1)}>
+        <button
+          className="pd-back-btn"
+          onClick={() => (isFarmerOwner ? navigate('/farmer/crops') : navigate(-1))}
+        >
           <FiArrowLeft /> Quay lại
         </button>
         <h1 className="pd-title">{product.name}</h1>
@@ -132,6 +136,16 @@ export default function ProductDetail() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+        {isEnterpriseViewer && (
+          <div className="pd-owner-actions">
+            <button
+              className="pd-edit-btn"
+              onClick={() => navigate(`/enterprise/contracts/create?product=${id}`)}
+            >
+              <FiFileText /> Tạo hợp đồng
+            </button>
           </div>
         )}
       </div>
@@ -198,11 +212,14 @@ export default function ProductDetail() {
             <div className="pd-info-row">
               <span>💰 Giá bán</span>
               <strong>
-                {product.priceMin && product.priceMax
-                  ? formatMoney(product.priceMin) + ' – ' + formatMoney(product.priceMax) + ' / ' + product.unit
-                  : product.priceMin
-                  ? formatMoney(product.priceMin) + ' / ' + product.unit
-                  : 'Chưa cập nhật'}
+                {(() => {
+                  const priceUnit = product.priceUnit || product.unit;
+                  return product.priceMin && product.priceMax
+                    ? formatMoney(product.priceMin) + ' – ' + formatMoney(product.priceMax) + ' / ' + priceUnit
+                    : product.priceMin
+                    ? formatMoney(product.priceMin) + ' / ' + priceUnit
+                    : 'Chưa cập nhật';
+                })()}
               </strong>
             </div>
             <div className="pd-info-row">
