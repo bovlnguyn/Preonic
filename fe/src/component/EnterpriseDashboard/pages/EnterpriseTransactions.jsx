@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SectionHeader from '../components/SectionHeader';
-import { enterpriseTransactions, enterpriseContracts, enterpriseEscrows } from '../data/enterpriseMockData';
+
+import contractService from '../../../services/contract.service';
 import { formatDate, formatMoney } from '../utils';
 
 const TABS = [
@@ -11,6 +12,17 @@ const TABS = [
 
 function EnterpriseTransactions() {
   const [tab, setTab] = useState('wallet');
+  const [transactions, setTransactions] = useState([]);
+const [contracts, setContracts]       = useState([]);
+const [escrows, setEscrows]           = useState([]);
+const [loading, setLoading]           = useState(true);
+
+useEffect(() => {
+  contractService.list()
+    .then(res => setContracts(res?.data || []))
+    .catch(() => {})
+    .finally(() => setLoading(false));
+}, []);
 
   return (
     <div className="ent-stack">
@@ -37,7 +49,7 @@ function EnterpriseTransactions() {
                 <tr><th>Mã GD</th><th>Loại</th><th>Nội dung</th><th>Ngày</th><th>Số tiền</th></tr>
               </thead>
               <tbody>
-                {enterpriseTransactions.map((tx) => (
+                {transactions.map((tx) => (
                   <tr key={tx.id}>
                     <td>{tx.id}</td><td>{tx.type}</td><td>{tx.note}</td>
                     <td>{formatDate(tx.date)}</td>
@@ -58,7 +70,7 @@ function EnterpriseTransactions() {
                 <tr><th>Mã HĐ</th><th>Nông dân</th><th>Sản phẩm</th><th>Giá trị</th><th>Hạn giao</th><th>Trạng thái</th></tr>
               </thead>
               <tbody>
-                {enterpriseContracts.map((c) => (
+                {contracts.map((c) => (
                   <tr key={c.id}>
                     <td>{c.id}</td><td>{c.farmer}</td><td>{c.product}</td>
                     <td>{formatMoney(c.value)}</td><td>{formatDate(c.deliveryDate)}</td>
@@ -77,7 +89,7 @@ function EnterpriseTransactions() {
                 <tr><th>Mã Escrow</th><th>Nông dân</th><th>Tổng ký quỹ</th><th>Đã giải ngân</th><th>Mốc hiện tại</th><th>Trạng thái</th></tr>
               </thead>
               <tbody>
-                {enterpriseEscrows.map((e) => (
+                {escrows.map((e) => (
                   <tr key={e.id}>
                     <td>{e.id}</td><td>{e.farmer}</td>
                     <td>{formatMoney(e.amount)}</td><td>{formatMoney(e.released)}</td>
