@@ -14,6 +14,35 @@ const userRepo = () => AppDataSource.getRepository(User);
 const PAYMENT_TERMS = ['50_50', '30_70', '100_delivery', '100_upfront'] as const;
 type PaymentTerms = (typeof PAYMENT_TERMS)[number];
 
+const CONTRACT_STATUSES = [
+  'draft',
+  'pending',
+  'approved',
+  'active',
+  'completed',
+  'cancelled',
+  'disputed',
+] as const;
+
+const CONTRACT_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'deliveryDate',
+  'totalValue',
+  'status',
+] as const;
+
+type ContractStatus = (typeof CONTRACT_STATUSES)[number];
+type ContractSortField = (typeof CONTRACT_SORT_FIELDS)[number];
+
+export interface ListContractsQuery {
+  status?: string;
+  sort?: string;
+  order?: string;
+  page?: number;
+  limit?: number;
+}
+
 const makeError = (message: string, statusCode = 400) => {
   const err: any = new Error(message);
   err.statusCode = statusCode;
@@ -174,21 +203,98 @@ const TERMINAL_STATUSES = ['cancelled', 'completed', 'disputed'];
 const withRelations = (id: string) =>
   contractRepo().findOne({ where: { id }, relations: ['product', 'farmer', 'enterprise'] });
 
+// export const listContractsForUser = async (
+//   userId: string,
+//   role: string,
+//   status?: string
+// ) => {
+//   const where: any = role === 'farmer' ? { farmerId: userId } : { enterpriseId: userId };
+//   if (status) where.status = status;
+
+//   return contractRepo().find({
+//     where,
+//     relations: ['product', 'farmer', 'enterprise'],
+//     order: { createdAt: 'DESC' },
+//   });
+// };
+
 export const listContractsForUser = async (
   userId: string,
   role: string,
-  status?: string
+  query: ListContractsQuery = {}
 ) => {
-  const where: any = role === 'farmer' ? { farmerId: userId } : { enterpriseId: userId };
-  if (status) where.status = status;
+  const page = Number.isFinite(Number(query.page)) && Number(query.page) > 0
+    ? Number(query.page)
+    : 1;
 
-  return contractRepo().find({
-    where,
-    relations: ['product', 'farmer', 'enterprise'],
-    order: { createdAt: 'DESC' },
-  });
+  const limit = Number.isFinite(Number(query.limit)) && Number(query.limit) > 0
+    ? Math.min(Number(query.limit), 100)
+    : 10;
+
+  const skip = (page - 1) * limit;
+
+  const qb = contractRepo()
+    .createQueryBuilder('contract')
+    .leftJoinAndSelect('contract.product', 'product')
+    .leftJoinAndSelect('contract.farmer', 'farmer')
+    .leftJoinAndSelect('contract.enterprise', 'enterprise');
+
+  if (role === 'farmer') {
+    qb.where('contract.farmerId = :userId', { userId });
+  } else if (role === 'enterprise') {
+    qb.where('contract.enterpriseId = :userId', { userId });
+  } else {
+    throw makeError('Vai tro nguoi dung khong hop le', 403);
+  }
+
+  if (query.status) {
+    const statuses = query.status
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const invalidStatus = statuses.find(
+      (status) => !CONTRACT_STATUSES.includes(status as ContractStatus)
+    );
+
+    if (invalidStatus) {
+      throw makeError(`Trang thai hop dong khong hop le: ${invalidStatus}`, 400);
+    }
+
+    if (statuses.length > 0) {
+      qb.andWhere('contract.status IN (:...statuses)', { statuses });
+    }
+  }
+
+  const sortField = CONTRACT_SORT_FIELDS.includes(query.sort as ContractSortField)
+    ? query.sort
+    : 'createdAt';
+
+  const sortOrder = String(query.order || 'DESC').toUpperCase() === 'ASC'
+    ? 'ASC'
+    : 'DESC';
+
+  qb.orderBy(`contract.${sortField}`, sortOrder as 'ASC' | 'DESC')
+    .skip(skip)
+    .take(limit);
+
+  const [contracts, total] = await qb.getManyAndCount();
+
+  return {
+    contracts,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    filters: {
+      status: query.status || null,
+      sort: sortField,
+      order: sortOrder,
+    },
+  };
 };
-
 export const getContractForUser = async (id: string, userId: string) => {
   const contract = await withRelations(id);
   if (!contract) throw makeError('Khong tim thay hop dong', 404);
