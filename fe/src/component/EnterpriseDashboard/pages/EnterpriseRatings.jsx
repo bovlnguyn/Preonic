@@ -1,9 +1,16 @@
 import React from 'react';
 import { FiStar } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
-import { enterpriseRatings } from '../data/enterpriseMockData';
+import { useState, useEffect } from 'react';
 
 function EnterpriseRatings() {
+  const [enterpriseRatings, setEnterpriseRatings] = useState([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  // Khi có API: ratingService.list().then(...)
+  setLoading(false);
+}, []);
   return (
     <div className="ent-stack">
       <section className="ent-card">

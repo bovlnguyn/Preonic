@@ -2,10 +2,17 @@ import React from 'react';
 import { FiStar } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
-import { enterpriseSuppliers } from '../data/enterpriseMockData';
+import { useState, useEffect } from 'react';
 import { formatMoney } from '../utils';
 
 function EnterpriseSuppliers() {
+  const [enterpriseSuppliers, setEnterpriseSuppliers] = useState([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  // Khi có API: supplierService.list().then(...)
+  setLoading(false);
+}, []);
   return (
     <div className="ent-stack">
       <section className="ent-card">
