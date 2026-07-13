@@ -109,18 +109,48 @@ export const createContract = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// export const listContracts = async (req: AuthRequest, res: Response) => {
+//   try {
+//     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+//     const contracts = await contractService.listContractsForUser(
+//       req.user!.id,
+//       req.user!.role,
+//       status
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       data: { contracts: contracts.map(formatContract) },
+//     });
+//   } catch (err: any) {
+//     res.status(err.statusCode || 500).json({
+//       success: false,
+//       message: err.message || 'Lay danh sach hop dong that bai',
+//     });
+//   }
+// };
+
 export const listContracts = async (req: AuthRequest, res: Response) => {
   try {
-    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-    const contracts = await contractService.listContractsForUser(
+    const result = await contractService.listContractsForUser(
       req.user!.id,
       req.user!.role,
-      status
+      {
+        status: typeof req.query.status === 'string' ? req.query.status : undefined,
+        sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,
+        order: typeof req.query.order === 'string' ? req.query.order : undefined,
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      }
     );
 
     res.status(200).json({
       success: true,
-      data: { contracts: contracts.map(formatContract) },
+      data: {
+        contracts: result.contracts.map(formatContract),
+        pagination: result.pagination,
+        filters: result.filters,
+      },
     });
   } catch (err: any) {
     res.status(err.statusCode || 500).json({
