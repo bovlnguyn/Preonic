@@ -2,10 +2,18 @@ import React from 'react';
 import { FiMapPin, FiTruck } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
-import { enterpriseOrders } from '../data/enterpriseMockData';
+import { useState, useEffect } from 'react';
 import { formatDate } from '../utils';
 
 function EnterpriseOrders() {
+  const [enterpriseOrders, setEnterpriseOrders] = useState([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  // Khi có API: orderService.list().then(...)
+  // Tạm thời để rỗng, chờ backend
+  setLoading(false);
+}, []);
   return (
     <div className="ent-stack">
       <section className="ent-card">

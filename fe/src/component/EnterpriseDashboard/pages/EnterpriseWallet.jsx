@@ -2,11 +2,19 @@ import React from 'react';
 import { FiArrowDownLeft, FiArrowUpRight, FiCreditCard, FiLock } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatCard      from '../components/StatCard';
-import { enterpriseWalletSummary, enterpriseTransactions } from '../data/enterpriseMockData';
+import { useState, useEffect } from 'react';
 import { formatDate, formatMoney } from '../utils';
 
 function EnterpriseWallet() {
-  const w = enterpriseWalletSummary;
+  const w = walletSummary;
+  const [walletSummary, setWalletSummary]       = useState({ balance: 0, escrowLocked: 0, spentThisMonth: 0, pendingPayment: 0 });
+const [transactions, setTransactions]         = useState([]);
+const [loading, setLoading]                   = useState(true);
+
+useEffect(() => {
+  // Khi có API: walletService.getSummary().then(...)
+  setLoading(false);
+}, []);
   return (
     <div className="ent-stack">
       <section className="ent-grid ent-grid--4">
@@ -30,7 +38,7 @@ function EnterpriseWallet() {
               </tr>
             </thead>
             <tbody>
-              {enterpriseTransactions.map((tx) => (
+              {transactions.map((tx) => (
                 <tr key={tx.id}>
                   <td>{tx.id}</td>
                   <td>{tx.type}</td>

@@ -5,9 +5,8 @@ import SectionHeader from '../components/SectionHeader';
 import StatCard     from '../components/StatCard';
 import StatusBadge  from '../components/StatusBadge';
 import ProgressBar  from '../components/ProgressBar';
-import {
-  enterpriseStats, enterpriseContracts, enterpriseOrders,
-} from '../data/enterpriseMockData';
+import { useState, useEffect } from 'react';
+import contractService from '../../../services/contract.service';
 import { formatDate, formatMoney } from '../utils';
 
 const STAT_ICONS = {
@@ -19,6 +18,23 @@ const STAT_ICONS = {
 
 function EnterpriseOverview() {
   const navigate = useNavigate();
+  const [stats, setStats]             = useState([]);
+const [contracts, setContracts]     = useState([]);
+const [orders, setOrders]           = useState([]);
+const [loading, setLoading]         = useState(true);
+
+useEffect(() => {
+  Promise.all([
+    contractService.list(),
+    // Khi có API orders: orderService.list()
+  ])
+    .then(([contractsRes]) => {
+  const list = contractsRes?.data?.contracts;
+  setContracts(Array.isArray(list) ? list : []);
+    })
+    .catch(() => {})
+    .finally(() => setLoading(false));
+}, []);
 
   return (
     <div className="ent-stack">
@@ -50,7 +66,7 @@ function EnterpriseOverview() {
 
       {/* Stats */}
       <section className="ent-grid ent-grid--4">
-        {enterpriseStats.map((item) => (
+        {stats.map((item) => (
           <StatCard
             key={item.id}
             icon={STAT_ICONS[item.id]}
@@ -71,11 +87,11 @@ function EnterpriseOverview() {
             desc="Ưu tiên các hợp đồng gần hạn giao hoặc đang ở bước escrow quan trọng."
           />
           <div className="ent-mini-list">
-            {enterpriseContracts.slice(0, 3).map((c) => (
+            {contracts.slice(0, 3).map((c) => (
               <article key={c.id} className="ent-mini-item">
                 <div>
-                  <strong>{c.id} — {c.product}</strong>
-                  <span>{c.farmer} • {formatMoney(c.value)} • {formatDate(c.deliveryDate)}</span>
+                  <strong>{c.id} — {c.product?.name}</strong>
+                    <span>{c.farmer?.name} • {formatMoney(c.totalValue)} • {formatDate(c.deliveryDate)}</span>
                   <ProgressBar value={c.progress} />
                 </div>
                 <StatusBadge status={c.status} />
@@ -91,7 +107,7 @@ function EnterpriseOverview() {
             desc="Theo dõi milestone vận chuyển và kiểm tra chất lượng để tránh trễ tiến độ."
           />
           <div className="ent-mini-list">
-            {enterpriseOrders.map((o) => (
+            {orders.map((o) => (
               <article key={o.id} className="ent-mini-item">
                 <div>
                   <strong>{o.id} • {o.product}</strong>
@@ -121,12 +137,12 @@ function EnterpriseOverview() {
               </tr>
             </thead>
             <tbody>
-              {enterpriseContracts.map((c) => (
+              {contracts.map((c) => (
                 <tr key={c.id}>
                   <td>{c.id}</td>
-                  <td>{c.farmer}</td>
-                  <td>{c.product}</td>
-                  <td>{formatMoney(c.value)}</td>
+                  <td>{c.farmer?.name}</td>
+                  <td>{c.product?.name}</td>
+                  <td>{formatMoney(c.totalValue)}</td>
                   <td>{formatDate(c.deliveryDate)}</td>
                   <td className="ent-table__progress"><ProgressBar value={c.progress} /></td>
                   <td><StatusBadge status={c.status} /></td>

@@ -1,9 +1,17 @@
 import React from 'react';
 import { FiCloudRain, FiDroplet, FiShield, FiThermometer, FiWind } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
-import { enterpriseWeatherCards, enterpriseInsurancePlans } from '../data/enterpriseMockData';
+import { useState, useEffect } from 'react';
 
 function EnterpriseWeatherInsurance() {
+  const [weatherCards, setWeatherCards]           = useState([]);
+const [insurancePlans, setInsurancePlans]       = useState([]);
+const [loading, setLoading]                     = useState(true);
+
+useEffect(() => {
+  // Khi có API: weatherService.getCards().then(...)
+  setLoading(false);
+}, []);
   return (
     <div className="ent-stack">
 
@@ -17,7 +25,7 @@ function EnterpriseWeatherInsurance() {
       </section>
 
       <section className="ent-weather-grid">
-        {enterpriseWeatherCards.map((w) => (
+        {weatherCards.map((w) => (
           <article className="ent-weather-card" key={w.province}>
             <div className="ent-weather-card__top">
               <div>
@@ -44,7 +52,7 @@ function EnterpriseWeatherInsurance() {
           desc="Gợi ý các gói bảo hiểm phù hợp cho từng loại rủi ro theo mùa vụ và khu vực."
         />
         <div className="ent-insurance-grid">
-          {enterpriseInsurancePlans.map((plan) => (
+          {insurancePlans.map((plan) => (
             <article className="ent-insurance-card" key={plan.id}>
               <FiShield />
               <span>{plan.provider}</span>
