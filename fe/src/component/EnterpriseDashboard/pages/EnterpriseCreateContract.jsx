@@ -249,7 +249,7 @@ export default function EnterpriseCreateContract() {
       setCreatedContract(contract);
 
       // Auto-sign
-      const cId = contract?._id;
+      const cId = contract?.id;
       if (cId) {
         try { await contractService.sign(cId); } catch (e) { console.warn('Auto-sign:', e); }
       }
