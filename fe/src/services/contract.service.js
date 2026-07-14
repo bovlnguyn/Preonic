@@ -90,13 +90,25 @@ const contractService = {
     }
   },
   confirmCancel: async (id) => {
-  try {
-    const response = await api.post(`/contracts/${id}/confirm-cancel`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { success: false, message: 'Xác nhận hủy thất bại' };
-  }
-},
+    try {
+      const response = await api.post(`/contracts/${id}/confirm-cancel`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Xác nhận hủy thất bại' };
+    }
+  },
+
+  /**
+   * Decline a cancel request (the non-requesting party keeps the contract active)
+   */
+  declineCancel: async (id) => {
+    try {
+      const response = await api.post(`/contracts/${id}/decline-cancel`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Từ chối yêu cầu hủy thất bại' };
+    }
+  },
 };
 
 export default contractService;

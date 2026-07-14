@@ -213,8 +213,7 @@ export default function ContractDetailView() {
   const handleDeclineCancel = async () => {
     setActing(true);
     try {
-      // Gọi API reject cancel — backend tự xử lý
-      await contractService.reject(id, 'Không đồng ý hủy hợp đồng');
+      await contractService.declineCancel(id);
       toast.success('Đã từ chối yêu cầu hủy. Hợp đồng tiếp tục có hiệu lực.');
       setShowConfirmCancel(false);
       load();
@@ -253,7 +252,7 @@ export default function ContractDetailView() {
   const canCancel = contract.status === 'active';
 
   // Bên bị yêu cầu hủy: cancel_pending và mình không phải người gửi yêu cầu
-  const isCancelRequester = contract.cancelRequestedBy === user?._id;
+  const isCancelRequester = contract.cancelRequestedBy === user?.id;
   const canRespondToCancel = contract.status === 'cancel_pending' && !isCancelRequester;
 
   const { currentIndex, cancelled } = resolveFlowProgress(contract);

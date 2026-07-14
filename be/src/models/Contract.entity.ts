@@ -81,7 +81,7 @@ export class Contract {
 
   // Status
   @Column({ name: 'Status', type: 'nvarchar', length: 30, default: 'draft' })
-  status: 'draft' | 'pending' | 'approved' | 'active' | 'completed' | 'cancelled' | 'disputed';
+  status: 'draft' | 'pending' | 'approved' | 'active' | 'cancel_pending' | 'completed' | 'cancelled' | 'disputed';
 
   @Column({ name: 'SignedByFarmer', type: 'bit', default: false })
   signedByFarmer: boolean;
@@ -100,6 +100,9 @@ export class Contract {
 
   @Column({ name: 'CancelReason', type: 'nvarchar', length: 500, nullable: true })
   cancelReason: string;
+
+  @Column({ name: 'CancelRequestedBy', type: 'uniqueidentifier', nullable: true })
+  cancelRequestedBy: string;
 
   // Farmer insurance
   @Column({ name: 'InsuranceEnabled', type: 'bit', default: false })
