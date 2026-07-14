@@ -11,6 +11,7 @@ import contractRoutes from './routes/contract.routes';
 // Import Routes
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
+import enterpriseRoutes from './routes/enterprise.routes';
 
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
@@ -97,6 +98,7 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/products`, productRoutes);
 app.use(`${API_PREFIX}/contracts`, contractRoutes);
+app.use(`${API_PREFIX}/enterprise`, enterpriseRoutes);
 // Các route khác bạn sẽ mở comment và thêm vào sau...
 
 // ══════════════════════════════════════════════════════
