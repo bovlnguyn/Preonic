@@ -20,6 +20,7 @@ export const ToastProvider = ({ children }) => {
   const toast = {
     success: (msg) => push(msg, 'success'),
     error:   (msg) => push(msg, 'error'),
+    warning: (msg) => push(msg, 'warning'),
     info:    (msg) => push(msg, 'info'),
   };
 
@@ -65,6 +66,7 @@ const styles = {
   },
   success: { background: '#16a34a' },
   error:   { background: '#dc2626' },
+  warning: { background: '#d97706' },
   info:    { background: '#2563eb' },
 };
 

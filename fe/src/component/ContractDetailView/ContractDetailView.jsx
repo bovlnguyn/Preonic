@@ -10,8 +10,8 @@ import './ContractDetailView.css';
 
 const FLOW_STEPS = [
   { key: 'proposed',         label: 'Đề xuất' },
-  { key: 'enterprise_sign',  label: 'Doanh nghiệp ký' },
   { key: 'farmer_sign',      label: 'Nông dân xác nhận' },
+  { key: 'enterprise_sign',  label: 'Doanh nghiệp ký' },
   { key: 'done',             label: 'Hoàn tất' },
 ];
 
@@ -25,14 +25,14 @@ const resolveFlowProgress = (contract) => {
     return { currentIndex: FLOW_STEPS.length, cancelled: false };
   }
   if (cancelled) {
-    const reachedIndex = contract.signedByEnterprise ? 2 : 1;
+    const reachedIndex = contract.signedByFarmer ? 2 : 1;
     return { currentIndex: reachedIndex, cancelled: true };
   }
   if (contract.signedByEnterprise && contract.signedByFarmer) {
     return { currentIndex: FLOW_STEPS.length, cancelled: false };
   }
-  // Chi can mot ben da ky (bat ke thu tu) la da qua buoc "cho ky", den luot ben con lai
-  if (contract.signedByEnterprise || contract.signedByFarmer) {
+  // Nong dan phai ky truoc, den luot doanh nghiep ky sau
+  if (contract.signedByFarmer) {
     return { currentIndex: 2, cancelled: false };
   }
   return { currentIndex: 1, cancelled: false };
@@ -122,9 +122,10 @@ function ContractDetailView() {
 
   const isFarmer = user?.role === 'farmer';
   const mySigned = isFarmer ? contract.signedByFarmer : contract.signedByEnterprise;
-  // Ca hai ben deu co the tu ky xac nhan neu chua ky (vi du auto-sign luc tao
-  // hop dong bi loi), nhung chi nong dan moi duoc phep tu choi hop dong.
-  const canDecide = !mySigned &&
+  // Nong dan xac nhan/tu choi truoc; doanh nghiep chi duoc ky sau khi nong dan da ky
+  // (khop voi guard o BE contract.service.ts#signContract).
+  const waitingOnFarmer = !isFarmer && !contract.signedByFarmer;
+  const canDecide = !mySigned && !waitingOnFarmer &&
     !['cancelled', 'completed', 'disputed'].includes(contract.status);
 
   const { currentIndex, cancelled } = resolveFlowProgress(contract);
@@ -194,6 +195,12 @@ function ContractDetailView() {
         {contract.status === 'cancelled' && contract.cancelReason && (
           <div className="cdv-note cdv-note--danger">
             <FiAlertTriangle size={14} /> Lý do từ chối: {contract.cancelReason}
+          </div>
+        )}
+
+        {waitingOnFarmer && !TERMINAL_STATUSES.includes(contract.status) && (
+          <div className="cdv-note cdv-note--info">
+            Đang chờ nông dân xác nhận đề xuất. Bạn sẽ có thể ký chính thức sau khi nông dân đồng ý.
           </div>
         )}
 

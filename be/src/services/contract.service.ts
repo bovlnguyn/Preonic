@@ -315,6 +315,9 @@ export const signContract = async (id: string, userId: string, role: string) => 
     contract.signedByFarmer = true;
   } else {
     if (contract.signedByEnterprise) throw makeError('Ban da ky hop dong nay roi');
+    if (!contract.signedByFarmer) {
+      throw makeError('Cho nong dan xac nhan hop dong truoc khi doanh nghiep ky');
+    }
     contract.signedByEnterprise = true;
   }
 

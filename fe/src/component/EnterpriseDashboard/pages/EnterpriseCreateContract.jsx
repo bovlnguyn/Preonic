@@ -5,7 +5,6 @@ import {
   FiShield, FiCheck, FiAlertTriangle, FiX
 } from 'react-icons/fi';
 import { useAuth } from '../../../contexts/AuthContext';
-import contractService from '../../../services/contract.service';
 import enterpriseService from '../../../services/enterprise.service';
 import productService from '../../../services/product.service';
 import ContractFlow from '../../ContractFlow/ContractFlow';
@@ -16,8 +15,8 @@ const STEPS = [
   { key: 'propose',      label: 'Đề xuất' },
   { key: 'review',       label: 'Xem xét' },
   { key: 'preon_verify', label: 'PreOnic Xác nhận' },
-  { key: 'sign',         label: 'Ký hợp đồng' },
-  { key: 'done',         label: 'Hoàn tất' },
+  { key: 'sign',         label: 'Gửi đề xuất' },
+  { key: 'done',         label: 'Đã gửi' },
 ];
 
 const PAYMENT_TERMS = [
@@ -210,7 +209,7 @@ export default function EnterpriseCreateContract() {
 
   const handleBack = () => { if (step > 0) setStep(s => s - 1); };
 
-  const handleSign = async () => {
+  const handleSubmitProposal = async () => {
     setLoading(true);
     try {
       const depositPct = enterpriseService.resolveDepositPercentage(form.paymentTerms, form.customDeposit);
@@ -247,12 +246,6 @@ export default function EnterpriseCreateContract() {
       const result = await enterpriseService.proposeContract(payload);
       const contract = result.data?.contract || result.data;
       setCreatedContract(contract);
-
-      // Auto-sign
-      const cId = contract?.id;
-      if (cId) {
-        try { await contractService.sign(cId); } catch (e) { console.warn('Auto-sign:', e); }
-      }
 
       setStep(4);
     } catch (err) {
@@ -534,7 +527,7 @@ export default function EnterpriseCreateContract() {
         {/* ── BƯỚC 3: Ký hợp đồng ── */}
         {step === 3 && (
           <div className="ecc-card">
-            <h3 className="ecc-card__title">Ký hợp đồng điện tử</h3>
+            <h3 className="ecc-card__title">Xác nhận & gửi đề xuất hợp đồng</h3>
 
             <div className="ecc-contract-doc">
               <div className="ecc-contract-doc__header">
@@ -571,10 +564,10 @@ export default function EnterpriseCreateContract() {
               </label>
             </div>
 
-            <div className="ecc-signature">
-              <p>Chữ ký của bạn</p>
-              <div className="ecc-signature__pad">{user?.fullName || 'Ký tên tại đây'}</div>
-            </div>
+            <p className="ecc-sign-note">
+              Sau khi gửi, nông dân sẽ xem xét và xác nhận hoặc từ chối đề xuất này.
+              Bạn sẽ ký chính thức để kích hoạt hợp đồng sau khi nông dân đồng ý.
+            </p>
 
             {errors.submit && (
               <div className="ecc-error-box">
@@ -588,13 +581,14 @@ export default function EnterpriseCreateContract() {
         {step === 4 && (
           <div className="ecc-card ecc-card--center">
             <div className="ecc-done__icon"><FiCheckCircle size={48} /></div>
-            <h3 className="ecc-card__title">Hợp đồng đã được ký thành công!</h3>
+            <h3 className="ecc-card__title">Đề xuất hợp đồng đã được gửi!</h3>
             <p>Mã hợp đồng: <strong>{createdContract?.contractCode || contractCode}</strong></p>
+            <p>Nông dân sẽ nhận được thông báo để xem xét và xác nhận. Bạn có thể ký chính thức sau khi nông dân đồng ý.</p>
             <div className="ecc-done__summary">
               <div><span>Sản phẩm:</span><strong>{form.productName}</strong></div>
               <div><span>Giá trị:</span><strong>{fmtMoney(createdContract?.totalValue || totalValue)}</strong></div>
               <div><span>Phí PreOnic:</span><strong>{fmtMoney(createdContract?.commission || commission)}</strong></div>
-              <div><span>Trạng thái:</span><strong className="ecc-status-active">{createdContract?.status || 'active'}</strong></div>
+              <div><span>Trạng thái:</span><strong className="ecc-status-active">{createdContract?.status || 'pending'}</strong></div>
             </div>
             <div className="ecc-done__actions">
               <button className="ecc-btn ecc-btn--primary"
@@ -617,9 +611,9 @@ export default function EnterpriseCreateContract() {
               </button>
             ) : (
               <button className="ecc-btn ecc-btn--primary"
-                onClick={handleSign}
+                onClick={handleSubmitProposal}
                 disabled={!canSign || loading}>
-                {loading ? 'Đang xử lý...' : 'Ký hợp đồng'}
+                {loading ? 'Đang xử lý...' : 'Gửi đề xuất hợp đồng'}
               </button>
             )}
           </div>
