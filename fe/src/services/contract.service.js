@@ -89,6 +89,14 @@ const contractService = {
       throw error.response?.data || { success: false, message: 'Từ chối hợp đồng thất bại' };
     }
   },
+  confirmCancel: async (id) => {
+  try {
+    const response = await api.post(`/contracts/${id}/confirm-cancel`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { success: false, message: 'Xác nhận hủy thất bại' };
+  }
+},
 };
 
 export default contractService;

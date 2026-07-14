@@ -203,3 +203,136 @@
   justify-content: flex-end;
   gap: 12px;
 }
+
+/* ── Note variants ── */
+.cdv-note--warning {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+}
+
+/* ── Ghost button (hủy hợp đồng) ── */
+.cdv-btn--ghost {
+  background: transparent;
+  border: 1.5px solid #e5e7eb;
+  color: #6b7280;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all .15s;
+}
+.cdv-btn--ghost:hover:not(:disabled) {
+  border-color: #dc2626;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+/* ── Warning button ── */
+.cdv-btn--warning {
+  background: #fffbeb;
+  border: 1.5px solid #fcd34d;
+  color: #92400e;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s;
+}
+.cdv-btn--warning:hover:not(:disabled) { background: #fef3c7; }
+
+/* ── Modal ── */
+.cdv-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+.cdv-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  padding: 28px 32px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cdv-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cdv-modal__header h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+.cdv-modal__desc {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.6;
+}
+.cdv-modal__reason {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #374151;
+}
+.cdv-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cdv-modal__field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+.cdv-modal__field textarea {
+  padding: 10px 14px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  resize: vertical;
+  outline: none;
+  transition: border-color .15s;
+}
+.cdv-modal__field textarea:focus { border-color: #2563eb; }
+.cdv-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* ── Badge cancel_pending ── */
+.cdv-badge--cancel_pending {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
