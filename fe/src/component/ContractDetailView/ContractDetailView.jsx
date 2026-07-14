@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiX, FiAlertTriangle, FiClock } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiX, FiAlertTriangle } from 'react-icons/fi';
 import contractService from '../../services/contract.service';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -28,8 +28,26 @@ const resolveFlowProgress = (contract) => {
     const reachedIndex = contract.signedByEnterprise ? 2 : 1;
     return { currentIndex: reachedIndex, cancelled: true };
   }
-  if (contract.signedByEnterprise) return { currentIndex: 2, cancelled: false };
+  if (contract.signedByEnterprise && contract.signedByFarmer) {
+    return { currentIndex: FLOW_STEPS.length, cancelled: false };
+  }
+  // Chi can mot ben da ky (bat ke thu tu) la da qua buoc "cho ky", den luot ben con lai
+  if (contract.signedByEnterprise || contract.signedByFarmer) {
+    return { currentIndex: 2, cancelled: false };
+  }
   return { currentIndex: 1, cancelled: false };
+};
+
+// Nhan trang thai chinh xac theo tung ben da ky hay chua, thay vi mot chuoi
+// co dinh cho status 'pending'/'draft' (truoc day luon ghi "Cho nong dan xac nhan"
+// ke ca khi nong dan da ky va dang cho doanh nghiep).
+const resolveStatusLabel = (contract) => {
+  if (contract.status === 'pending' || contract.status === 'draft') {
+    if (contract.signedByFarmer && !contract.signedByEnterprise) return 'Chờ doanh nghiệp ký';
+    if (!contract.signedByFarmer && contract.signedByEnterprise) return 'Chờ nông dân xác nhận';
+    if (!contract.signedByFarmer && !contract.signedByEnterprise) return 'Chờ ký xác nhận';
+  }
+  return CONTRACT_STATUS_LABEL[contract.status] || contract.status;
 };
 
 const formatMoney = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
@@ -103,8 +121,10 @@ function ContractDetailView() {
   );
 
   const isFarmer = user?.role === 'farmer';
-  const canDecide = isFarmer &&
-    !contract.signedByFarmer &&
+  const mySigned = isFarmer ? contract.signedByFarmer : contract.signedByEnterprise;
+  // Ca hai ben deu co the tu ky xac nhan neu chua ky (vi du auto-sign luc tao
+  // hop dong bi loi), nhung chi nong dan moi duoc phep tu choi hop dong.
+  const canDecide = !mySigned &&
     !['cancelled', 'completed', 'disputed'].includes(contract.status);
 
   const { currentIndex, cancelled } = resolveFlowProgress(contract);
@@ -126,7 +146,7 @@ function ContractDetailView() {
             <p>Số: {contract.contractCode}</p>
           </div>
           <span className={`cdv-badge cdv-badge--${contract.status}`}>
-            {CONTRACT_STATUS_LABEL[contract.status] || contract.status}
+            {resolveStatusLabel(contract)}
           </span>
         </div>
 
@@ -150,6 +170,27 @@ function ContractDetailView() {
           <div className="cdv-summary__row"><span>Phí dịch vụ PreOnic ({contract.commissionRate}%):</span><strong>{formatMoney(contract.commission)}</strong></div>
         </div>
 
+        <div className="cdv-signatures">
+          <div className={`cdv-sig ${contract.signedByEnterprise ? 'cdv-sig--signed' : ''}`}>
+            <span className="cdv-sig__role">Bên mua (Doanh nghiệp)</span>
+            <strong className="cdv-sig__name">{contract.enterprise?.name}</strong>
+            <span className="cdv-sig__status">
+              {contract.signedByEnterprise
+                ? <><FiCheck size={12} /> Đã ký{contract.signedAt ? ` · ${formatDate(contract.signedAt)}` : ''}</>
+                : 'Chưa ký'}
+            </span>
+          </div>
+          <div className={`cdv-sig ${contract.signedByFarmer ? 'cdv-sig--signed' : ''}`}>
+            <span className="cdv-sig__role">Bên bán (Nông dân)</span>
+            <strong className="cdv-sig__name">{contract.farmer?.name}</strong>
+            <span className="cdv-sig__status">
+              {contract.signedByFarmer
+                ? <><FiCheck size={12} /> Đã ký{contract.signedAt ? ` · ${formatDate(contract.signedAt)}` : ''}</>
+                : 'Chưa ký'}
+            </span>
+          </div>
+        </div>
+
         {contract.status === 'cancelled' && contract.cancelReason && (
           <div className="cdv-note cdv-note--danger">
             <FiAlertTriangle size={14} /> Lý do từ chối: {contract.cancelReason}
@@ -160,9 +201,11 @@ function ContractDetailView() {
           <div className="cdv-actions">
             {!showReject ? (
               <>
-                <button className="cdv-btn cdv-btn--danger" disabled={acting} onClick={() => setShowReject(true)}>
-                  <FiX size={14} /> Từ chối
-                </button>
+                {isFarmer && (
+                  <button className="cdv-btn cdv-btn--danger" disabled={acting} onClick={() => setShowReject(true)}>
+                    <FiX size={14} /> Từ chối
+                  </button>
+                )}
                 <button className="cdv-btn cdv-btn--primary" disabled={acting} onClick={handleSign}>
                   <FiCheck size={14} /> {acting ? 'Đang xử lý...' : 'Ký xác nhận'}
                 </button>
@@ -189,15 +232,11 @@ function ContractDetailView() {
           </div>
         )}
 
-        {isFarmer && contract.signedByFarmer && contract.status !== 'cancelled' && (
+        {!TERMINAL_STATUSES.includes(contract.status) && contract.status !== 'cancelled' && mySigned && (
           <div className="cdv-note cdv-note--success">
             <FiCheck size={14} /> Bạn đã ký xác nhận hợp đồng này{contract.signedAt ? ` vào ${formatDate(contract.signedAt)}` : ''}.
-          </div>
-        )}
-
-        {!isFarmer && contract.status === 'pending' && (
-          <div className="cdv-note cdv-note--info">
-            <FiClock size={14} /> Đang chờ nông dân xác nhận hợp đồng.
+            {(isFarmer ? !contract.signedByEnterprise : !contract.signedByFarmer) &&
+              ` Đang chờ ${isFarmer ? 'doanh nghiệp' : 'nông dân'} ký.`}
           </div>
         )}
       </div>
