@@ -26,19 +26,24 @@ function validateEnv(): void {
 
 // ── Cấu hình DataSource — đọc từ .env, khớp với schema preonic ──
 function buildOptions(): DataSourceOptions {
+  const instanceName = process.env.DB_INSTANCE || undefined;
+  const port = instanceName
+    ? undefined
+    : Number(process.env.DB_PORT ?? 1433);
+
   return {
     type:     'mssql',
     host:     process.env.DB_HOST     ?? 'localhost',
-    port:     Number(process.env.DB_PORT ?? 1433),
+    port,
     username: process.env.DB_USERNAME ?? 'sa',
     password: process.env.DB_PASSWORD ?? '',
     database: process.env.DB_DATABASE ?? 'preonic',
  
     entities: [
-  process.env.NODE_ENV === 'production'
-    ? 'dist/models/**/*.entity.js'
-    : 'src/models/**/*.entity.ts',
-],
+      process.env.NODE_ENV === 'production'
+        ? 'dist/models/**/*.entity.js'
+        : 'src/models/**/*.entity.ts',
+    ],
  
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
     migrations:  [
@@ -52,7 +57,7 @@ function buildOptions(): DataSourceOptions {
       encrypt:                process.env.DB_ENCRYPT === 'true',
       trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE !== 'false',
       enableArithAbort:       true,
-      instanceName:           process.env.DB_INSTANCE || undefined,
+      instanceName,
     },
   };
 }
