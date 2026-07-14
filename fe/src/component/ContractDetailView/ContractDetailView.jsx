@@ -10,25 +10,26 @@ import './ContractDetailView.css';
 
 const FLOW_STEPS = [
   { key: 'proposed',        label: 'Đề xuất' },
-  { key: 'enterprise_sign', label: 'Doanh nghiệp ký' },
   { key: 'farmer_sign',     label: 'Nông dân xác nhận' },
+  { key: 'enterprise_sign', label: 'Doanh nghiệp ký' },
   { key: 'done',            label: 'Hoàn tất' },
 ];
 
 const TERMINAL_STATUSES = ['cancelled', 'disputed'];
 const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved', 'active'];
 
+// Nong dan phai ky truoc, den luot doanh nghiep ky sau khi kich hoat hop dong
 const resolveFlowProgress = (contract) => {
   const cancelled = TERMINAL_STATUSES.includes(contract.status);
   if (contract.status === 'active' || contract.status === 'completed')
     return { currentIndex: FLOW_STEPS.length, cancelled: false };
   if (cancelled) {
-    const reachedIndex = contract.signedByEnterprise ? 2 : 1;
+    const reachedIndex = contract.signedByFarmer ? 2 : 1;
     return { currentIndex: reachedIndex, cancelled: true };
   }
   if (contract.signedByEnterprise && contract.signedByFarmer)
     return { currentIndex: FLOW_STEPS.length, cancelled: false };
-  if (contract.signedByEnterprise || contract.signedByFarmer)
+  if (contract.signedByFarmer)
     return { currentIndex: 2, cancelled: false };
   return { currentIndex: 1, cancelled: false };
 };
@@ -242,8 +243,11 @@ export default function ContractDetailView() {
   const mySigned  = isFarmer ? contract.signedByFarmer : contract.signedByEnterprise;
   const isTerminal = TERMINAL_STATUSES.includes(contract.status);
 
-  // Có thể ký nếu chưa ký và HĐ chưa kết thúc
-  const canSign = !mySigned && !isTerminal && contract.status !== 'cancel_pending';
+  // Doanh nghiep chi duoc ky sau khi nong dan da ky (khop guard o BE contract.service.ts#signContract)
+  const waitingOnFarmer = !isFarmer && !contract.signedByFarmer;
+
+  // Có thể ký nếu chưa ký, HĐ chưa kết thúc, và (là nông dân hoặc nông dân đã ký)
+  const canSign = !mySigned && !isTerminal && contract.status !== 'cancel_pending' && !waitingOnFarmer;
 
   // Có thể hủy nếu HĐ đang trong trạng thái cho phép và chưa ai gửi yêu cầu hủy
   const canCancel = contract.status === 'active';
@@ -329,6 +333,13 @@ export default function ContractDetailView() {
               : `${isFarmer ? 'Doanh nghiệp' : 'Nông dân'} đã gửi yêu cầu hủy hợp đồng.`
             }
             {contract.cancelReason && <div style={{ marginTop: 4 }}>Lý do: <strong>{contract.cancelReason}</strong></div>}
+          </div>
+        )}
+
+        {/* Doanh nghiệp: chờ nông dân xác nhận trước khi được ký */}
+        {waitingOnFarmer && !isTerminal && contract.status !== 'cancel_pending' && (
+          <div className="cdv-note cdv-note--info">
+            Đang chờ nông dân xác nhận đề xuất. Bạn sẽ có thể ký chính thức sau khi nông dân đồng ý.
           </div>
         )}
 

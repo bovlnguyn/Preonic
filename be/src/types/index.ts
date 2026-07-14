@@ -20,3 +20,11 @@ export interface JwtUserPayload {
   iat?: number;
   exp?: number;
 }
+
+// ── Khuôn dạng response chuẩn trả về client ──
+export interface ApiResponse<T = any> {
+  success: boolean;
+  status: 'success' | 'error';
+  message?: string;
+  data?: T;
+}
