@@ -79,6 +79,7 @@ const formatContract = (contract: any) => ({
 
   cancelReason: contract.cancelReason,
   cancelledAt: contract.cancelledAt,
+  cancelRequestedBy: contract.cancelRequestedBy,
 
   createdAt: contract.createdAt,
   updatedAt: contract.updatedAt,
@@ -200,6 +201,48 @@ export const cancelContract = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+export const confirmCancelContract = async (req: AuthRequest, res: Response) => {
+  try {
+    const contract = await contractService.confirmCancelContract(
+      req.params.id,
+      req.user!.id,
+      req.user!.role
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Da xac nhan huy hop dong',
+      data: { contract: formatContract(contract) },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Xac nhan huy hop dong that bai',
+    });
+  }
+};
+
+export const declineCancelContract = async (req: AuthRequest, res: Response) => {
+  try {
+    const contract = await contractService.declineCancelContract(
+      req.params.id,
+      req.user!.id,
+      req.user!.role
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Da tu choi yeu cau huy hop dong',
+      data: { contract: formatContract(contract) },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Tu choi yeu cau huy hop dong that bai',
+    });
+  }
+};
+
 export const rejectContract = async (req: AuthRequest, res: Response) => {
   try {
     const contract = await contractService.rejectContract(

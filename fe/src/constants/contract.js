@@ -8,6 +8,7 @@ export const CONTRACT_STATUS_LABEL = {
   pending: 'Chờ nông dân xác nhận',
   approved: 'Đã duyệt',
   active: 'Đang hiệu lực',
+  cancel_pending: 'Đang chờ xác nhận hủy',
   completed: 'Hoàn tất',
   cancelled: 'Đã hủy',
   disputed: 'Tranh chấp',
