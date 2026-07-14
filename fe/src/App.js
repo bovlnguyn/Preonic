@@ -11,6 +11,11 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { ToastProvider } from './contexts/ToastContext';
 import AdminDashboard from './component/AdminDashboard/AdminDashboard';
 import Home from './pages/Home';
+import FarmerHome from './component/FarmerHome/FarmerHome';
+import FarmerProducts from './component/FarmerProducts/FarmerProducts';
+import FarmerSolutions from './component/FarmerSolutions/FarmerSolutions';
+import FarmerContact from './component/FarmerContact/FarmerContact';
+import FarmerAI from './component/FarmerAI/FarmerAI';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import Register from './component/Register/Register';
@@ -27,6 +32,7 @@ import ProductDetail from './component/ProductDetail/ProductDetail';
 import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
 import EnterpriseOverview         from './component/EnterpriseDashboard/pages/EnterpriseOverview';
 import EnterpriseContracts        from './component/EnterpriseDashboard/pages/EnterpriseContracts';
+import EnterpriseCreateContract from './component/EnterpriseDashboard/pages/EnterpriseCreateContract';
 import EnterpriseProducts         from './component/EnterpriseDashboard/pages/EnterpriseProducts';
 import EnterpriseOrders           from './component/EnterpriseDashboard/pages/EnterpriseOrders';
 import EnterpriseEscrow           from './component/EnterpriseDashboard/pages/EnterpriseEscrow';
@@ -41,6 +47,7 @@ import FarmerLayout from './component/FarmerDashboard/FarmerLayout';
 import FarmerOverview from './component/FarmerDashboard/pages/FarmerOverview';
 import FarmerCrops from './component/FarmerDashboard/pages/FarmerCrops';
 import FarmerContracts from './component/FarmerDashboard/pages/FarmerContracts';
+import ContractDetailView from './component/ContractDetailView/ContractDetailView';
 import FarmerOrders from './component/FarmerDashboard/pages/FarmerOrders';
 import FarmerEscrow from './component/FarmerDashboard/pages/FarmerEscrow';
 import FarmerWallet from './component/FarmerDashboard/pages/FarmerWallet';
@@ -87,6 +94,26 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+// Trang / sẽ tự chuyển theo role nếu người dùng đã đăng nhập.
+// Public Home chỉ dành cho khách chưa đăng nhập.
+const HomeEntry = () => {
+  const { user } = useAuth();
+
+  if (user?.role === 'farmer') {
+    return <Navigate to="/farmer-home" replace />;
+  }
+
+  if (user?.role === 'enterprise') {
+    return <Navigate to="/enterprise-home" replace />;
+  }
+
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <Home />;
+};
+
 // Routes chính
 const AppRoutes = () => {
   const { loading } = useAuth();
@@ -102,7 +129,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public */}
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<HomeEntry />} />
       <Route path="/register" element={<Register />} />
       <Route path="/auth" element={<Auth />} />
 
@@ -129,12 +156,44 @@ const AppRoutes = () => {
       />
 
 
-      {/* Route cũ sau login: giữ lại để không gãy luồng đăng nhập */}
+      {/* Farmer role website pages - chỉ dành cho farmer đã đăng nhập */}
       <Route
         path="/farmer-home"
         element={
           <ProtectedRoute allowedRoles={['farmer']}>
-            <Navigate to="/farmer" replace />
+            <FarmerHome />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/farmer-products"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerProducts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/farmer-solutions"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerSolutions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/farmer-contact"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerContact />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/farmer-ai-agriculture"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerAI />
           </ProtectedRoute>
         }
       />
@@ -151,15 +210,24 @@ const AppRoutes = () => {
         <Route index element={<FarmerOverview />} />
         <Route path="crops" element={<FarmerCrops />} />
         <Route path="contracts" element={<FarmerContracts />} />
+        <Route path="contracts/:id" element={<ContractDetailView />} />
         <Route path="orders" element={<FarmerOrders />} />
         <Route path="escrow" element={<FarmerEscrow />} />
         <Route path="wallet" element={<FarmerWallet />} />
         <Route path="ratings" element={<FarmerRatings />} />
         <Route path="weather-insurance" element={<FarmerWeatherInsurance />} />
         <Route path="create-product" element={<FarmerCreateProduct />} />
-        <Route path="edit-product/:id" element={<FarmerEditProduct />} />
-       
+
       </Route>
+
+      <Route
+        path="/farmer/edit-product/:id"
+        element={
+          <ProtectedRoute allowedRoles={['farmer']}>
+            <FarmerEditProduct />
+          </ProtectedRoute>
+        }
+      />
 
      
 {/* Enterprise */}
@@ -183,6 +251,8 @@ const AppRoutes = () => {
   
   <Route index element={<EnterpriseOverview />} />
         <Route path="contracts" element={<EnterpriseContracts />} />
+        <Route path="contracts/create" element={<EnterpriseCreateContract />} />
+        <Route path="contracts/:id" element={<ContractDetailView />} />
         <Route path="products" element={<EnterpriseProducts />} />
         <Route path="orders" element={<EnterpriseOrders />} />
         <Route path="escrow" element={<EnterpriseEscrow />} />

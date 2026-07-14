@@ -1,33 +1,37 @@
-import React, { useMemo, useState } from 'react';
-import { FiDownload, FiEye } from 'react-icons/fi';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiEye } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
-import ProgressBar   from '../components/ProgressBar';
-import { enterpriseContracts } from '../data/enterpriseMockData';
+import EmptyState    from '../components/EmptyState';
+import contractService from '../../../services/contract.service';
+import { CONTRACT_STATUS_LABEL } from '../../../constants/contract';
 import { formatDate, formatMoney } from '../utils';
 
 const TABS = [
   { key: 'all',       label: 'Tất cả' },
+  { key: 'pending',   label: 'Chờ nông dân xác nhận' },
   { key: 'active',    label: 'Đang thực hiện' },
-  { key: 'pending',   label: 'Chờ giao hàng' },
   { key: 'completed', label: 'Hoàn thành' },
   { key: 'cancelled', label: 'Đã hủy' },
 ];
 
-const matchTab = (status = '', tab) => {
-  if (tab === 'all')       return true;
-  if (tab === 'active')    return status.includes('thực hiện');
-  if (tab === 'pending')   return status.includes('chờ');
-  if (tab === 'completed') return status.includes('hoàn thành');
-  if (tab === 'cancelled') return status.includes('hủy');
-  return true;
-};
-
 function EnterpriseContracts() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('all');
+  const [contracts, setContracts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    contractService.list()
+      .then(res => setContracts(res?.data?.contracts || []))
+      .catch(() => setContracts([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   const filtered = useMemo(
-    () => enterpriseContracts.filter((c) => matchTab(c.status.toLowerCase(), tab)),
-    [tab],
+    () => (tab === 'all' ? contracts : contracts.filter((c) => c.status === tab)),
+    [contracts, tab],
   );
 
   return (
@@ -36,8 +40,16 @@ function EnterpriseContracts() {
         <SectionHeader
           eyebrow="Hợp đồng"
           title="Theo dõi hợp đồng bao tiêu và mua bán nông sản"
-          desc="Khi backend hoàn thiện, trang này cho phép ký/từ chối/hủy hợp đồng và nối escrow thật."
+          desc="Xem tiến trình ký xác nhận và theo dõi tình trạng từng hợp đồng đã đề xuất."
         />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <button
+            className="ent-btn-primary"
+            onClick={() => navigate('/enterprise/contracts/create')}
+          >
+            + Tạo hợp đồng mới
+          </button>
+        </div>
 
         <div className="ent-filter-row">
           {TABS.map((t) => (
@@ -48,38 +60,50 @@ function EnterpriseContracts() {
           ))}
         </div>
 
-        <div className="ent-table-wrap">
-          <table className="ent-table">
-            <thead>
-              <tr>
-                <th>Mã HĐ</th><th>Nông dân</th><th>Nông sản</th><th>Số lượng</th>
-                <th>Giá trị</th><th>Ngày ký</th><th>Hạn giao</th>
-                <th>Tiến độ</th><th>Trạng thái</th><th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.id}</td>
-                  <td>{c.farmer}</td>
-                  <td>{c.product}</td>
-                  <td>{c.quantity}</td>
-                  <td>{formatMoney(c.value)}</td>
-                  <td>{formatDate(c.signedDate)}</td>
-                  <td>{formatDate(c.deliveryDate)}</td>
-                  <td className="ent-table__progress"><ProgressBar value={c.progress} /></td>
-                  <td><StatusBadge status={c.status} /></td>
-                  <td>
-                    <div className="ent-action-group">
-                      <button type="button" title="Xem chi tiết"><FiEye /></button>
-                      <button type="button" title="Tải hợp đồng"><FiDownload /></button>
-                    </div>
-                  </td>
+        {loading ? (
+          <div className="spinner-border text-success" role="status" />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title="Chưa có hợp đồng nào"
+            desc="Các hợp đồng bạn đề xuất với nông dân sẽ hiển thị tại đây."
+          />
+        ) : (
+          <div className="ent-table-wrap">
+            <table className="ent-table">
+              <thead>
+                <tr>
+                  <th>Mã HĐ</th><th>Nông dân</th><th>Nông sản</th><th>Số lượng</th>
+                  <th>Giá trị</th><th>Hạn giao</th>
+                  <th>Trạng thái</th><th>Thao tác</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.contractCode}</td>
+                    <td>{c.farmer?.name}</td>
+                    <td>{c.product?.name}</td>
+                    <td>{c.quantity} {c.unit}</td>
+                    <td>{formatMoney(c.totalValue)}</td>
+                    <td>{formatDate(c.deliveryDate)}</td>
+                    <td><StatusBadge status={CONTRACT_STATUS_LABEL[c.status] || c.status} /></td>
+                    <td>
+                      <div className="ent-action-group">
+                        <button
+                          type="button"
+                          title="Xem chi tiết"
+                          onClick={() => navigate(`/enterprise/contracts/${c.id}`)}
+                        >
+                          <FiEye />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

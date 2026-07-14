@@ -372,3 +372,9 @@
   opacity: 0.7;
 }
 .btn-close:hover { opacity: 1; }
+
+/* Dấu (*) cho các trường bắt buộc */
+.required-mark {
+  color: #dc2626;
+  margin-left: 2px;
+}

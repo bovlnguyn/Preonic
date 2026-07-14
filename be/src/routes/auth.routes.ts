@@ -81,10 +81,9 @@ router.get('/google/callback',
       process.env.JWT_SECRET as Secret,
       { expiresIn: (process.env.JWT_EXPIRE || '7d') as SignOptions['expiresIn'] }
     );
-    const userData = encodeURIComponent(JSON.stringify({
-      id: user.id, email: user.email, role: user.role,
-      firstName: user.firstName, lastName: user.lastName,
-    }));
+    // Gửi nguyên đối tượng user (đã qua toJSON() lọc field nhạy cảm) thay vì
+    // chỉ vài field, để không ghi đè mất các thông tin hồ sơ đã cập nhật trước đó.
+    const userData = encodeURIComponent(JSON.stringify(user));
     res.redirect(`${process.env.FRONTEND_URL}/auth/google/callback?token=${accessToken}&user=${userData}`);
   }
 );

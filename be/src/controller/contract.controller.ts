@@ -75,6 +75,10 @@ const formatContract = (contract: any) => ({
 
   signedByFarmer: contract.signedByFarmer,
   signedByEnterprise: contract.signedByEnterprise,
+  signedAt: contract.signedAt,
+
+  cancelReason: contract.cancelReason,
+  cancelledAt: contract.cancelledAt,
 
   createdAt: contract.createdAt,
   updatedAt: contract.updatedAt,
@@ -103,4 +107,118 @@ export const createContract = async (req: AuthRequest, res: Response) => {
       message: err.message || 'Tao de xuat hop dong that bai',
     });
   }
+};
+
+export const listContracts = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await contractService.listContractsForUser(
+      req.user!.id,
+      req.user!.role,
+      {
+        status: typeof req.query.status === 'string' ? req.query.status : undefined,
+        sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,
+        order: typeof req.query.order === 'string' ? req.query.order : undefined,
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        contracts: result.contracts.map(formatContract),
+        pagination: result.pagination,
+        filters: result.filters,
+      },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lay danh sach hop dong that bai',
+    });
+  }
+};
+
+export const getContract = async (req: AuthRequest, res: Response) => {
+  try {
+    const contract = await contractService.getContractForUser(req.params.id, req.user!.id);
+
+    res.status(200).json({
+      success: true,
+      data: { contract: formatContract(contract) },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lay hop dong that bai',
+    });
+  }
+};
+
+export const signContract = async (req: AuthRequest, res: Response) => {
+  try {
+    const contract = await contractService.signContract(
+      req.params.id,
+      req.user!.id,
+      req.user!.role
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Ky hop dong thanh cong',
+      data: { contract: formatContract(contract) },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Ky hop dong that bai',
+    });
+  }
+};
+export const cancelContract = async (req: AuthRequest, res: Response) => {
+  try {
+    const contract = await contractService.cancelContract(
+      req.params.id,
+      req.user!.id,
+      req.user!.role,
+      {
+        reason: req.body?.reason,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Huy hop dong thanh cong',
+      data: {
+        contract: formatContract(contract),
+      },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Huy hop dong that bai',
+    });
+  }
+};
+export const rejectContract = async (req: AuthRequest, res: Response) => {
+  try {
+    const contract = await contractService.rejectContract(
+      req.params.id,
+      req.user!.id,
+      req.body?.reason
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Tu choi hop dong thanh cong',
+      data: { contract: formatContract(contract) },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Tu choi hop dong that bai',
+    });
+  }
+
+
 };

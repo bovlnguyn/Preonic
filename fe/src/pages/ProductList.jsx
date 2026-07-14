@@ -194,9 +194,9 @@ export default function ProductList() {
 
                       <p className="product-list-card__price">
                         {product.priceMin && product.priceMax
-                          ? `${formatMoney(product.priceMin)} – ${formatMoney(product.priceMax)} / ${product.unit}`
+                          ? `${formatMoney(product.priceMin)} – ${formatMoney(product.priceMax)} / ${product.priceUnit || product.unit}`
                           : product.priceMin
-                          ? `${formatMoney(product.priceMin)} / ${product.unit}`
+                          ? `${formatMoney(product.priceMin)} / ${product.priceUnit || product.unit}`
                           : 'Liên hệ để biết giá'}
                       </p>
                     </div>

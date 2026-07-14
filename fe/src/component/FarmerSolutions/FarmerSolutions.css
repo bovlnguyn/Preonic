@@ -1,0 +1,423 @@
+.farmer-solutions-page {
+  --fs-green-950: #052e16;
+  --fs-green-900: #064e3b;
+  --fs-green-700: #15803d;
+  --fs-green-600: #16a34a;
+  --fs-green-500: #22c55e;
+  --fs-lime: #bef264;
+  --fs-gold: #facc15;
+  --fs-text: #153322;
+  --fs-muted: #637467;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(190, 242, 100, 0.22), transparent 24%),
+    radial-gradient(circle at 90% 18%, rgba(250, 204, 21, 0.14), transparent 25%),
+    linear-gradient(180deg, #f7fbef 0%, #eff9e9 45%, #fffaf0 100%);
+  color: var(--fs-text);
+}
+
+.farmer-solutions-page button { font-family: inherit; }
+
+.fsol-container {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.fsol-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 92px 0 76px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(190, 242, 100, 0.16), transparent 28%),
+    linear-gradient(135deg, #052e16 0%, #166534 58%, #14532d 100%);
+}
+
+.fsol-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), transparent 58%),
+    repeating-linear-gradient(145deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 22px);
+  opacity: 0.64;
+}
+
+.fsol-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  align-items: center;
+  gap: 64px;
+}
+
+.fsol-eyebrow,
+.fsol-section-kicker,
+.fsol-section-head span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  color: #dcfce7;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.fsol-eyebrow {
+  padding: 11px 15px;
+  border: 1px solid rgba(190, 242, 100, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.fsol-section-kicker,
+.fsol-section-head span {
+  color: var(--fs-green-700);
+}
+
+.fsol-hero h1 {
+  max-width: 780px;
+  margin: 24px 0 20px;
+  color: #ffffff;
+  font-size: clamp(44px, 6.4vw, 76px);
+  line-height: 0.94;
+  font-weight: 950;
+  letter-spacing: -2.7px;
+}
+
+.fsol-hero p {
+  max-width: 700px;
+  margin: 0;
+  color: rgba(236, 253, 245, 0.82);
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.fsol-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 34px;
+}
+
+.fsol-btn,
+.fsol-card button,
+.fsol-final-card button {
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  font-weight: 950;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+}
+
+.fsol-btn {
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: 16px;
+}
+
+.fsol-btn.primary {
+  color: #052e16;
+  background: linear-gradient(135deg, #facc15, #bef264);
+  box-shadow: 0 18px 34px rgba(250, 204, 21, 0.22);
+}
+
+.fsol-btn.ghost {
+  color: #ffffff;
+  border: 1px solid rgba(220, 252, 231, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fsol-btn:hover,
+.fsol-card button:hover,
+.fsol-final-card button:hover {
+  transform: translateY(-2px);
+}
+
+.fsol-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 30px;
+  border-radius: 34px;
+  color: #0f2f1c;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(250, 204, 21, 0.2), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(240, 253, 244, 0.86));
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.24);
+}
+
+.fsol-panel > span {
+  display: block;
+  color: var(--fs-green-700);
+  font-size: 13px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.fsol-panel h3 {
+  margin: 10px 0 20px;
+  color: #102a19;
+  font-size: 30px;
+  line-height: 1.05;
+  font-weight: 950;
+}
+
+.fsol-panel p {
+  color: #49624f;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.fsol-panel-graph {
+  height: 150px;
+  padding: 22px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  border-radius: 26px;
+  background: linear-gradient(135deg, #052e16, #16a34a);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+.fsol-panel-graph i {
+  flex: 1;
+  border-radius: 999px 999px 14px 14px;
+  background: linear-gradient(180deg, #bef264, #22c55e);
+  box-shadow: 0 14px 26px rgba(34, 197, 94, 0.25);
+}
+
+.fsol-panel-graph i:nth-child(1) { height: 48%; }
+.fsol-panel-graph i:nth-child(2) { height: 74%; }
+.fsol-panel-graph i:nth-child(3) { height: 92%; }
+
+.fsol-section {
+  padding: 76px 0;
+}
+
+.fsol-section-head {
+  max-width: 760px;
+  margin-bottom: 28px;
+}
+
+.fsol-section-head h2,
+.fsol-roadmap-grid h2,
+.fsol-final-card h2 {
+  margin: 8px 0 0;
+  color: #112f1e;
+  font-size: clamp(32px, 4.5vw, 52px);
+  line-height: 1.04;
+  font-weight: 950;
+  letter-spacing: -1.7px;
+}
+
+.fsol-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.fsol-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 290px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(21, 128, 61, 0.1);
+  box-shadow: 0 20px 52px rgba(5, 46, 22, 0.09);
+}
+
+.fsol-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, #22c55e, #bef264, #facc15);
+}
+
+.fsol-card-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  color: var(--fs-green-700);
+  background: linear-gradient(135deg, rgba(190, 242, 100, 0.36), rgba(34, 197, 94, 0.14));
+}
+
+.fsol-card-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.fsol-card h3 {
+  margin: 18px 0 10px;
+  color: #102a19;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.fsol-card p {
+  flex: 1;
+  margin: 0;
+  color: var(--fs-muted);
+  line-height: 1.68;
+}
+
+.fsol-card button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 20px;
+  border-radius: 15px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 14px 28px rgba(34, 197, 94, 0.2);
+}
+
+.fsol-roadmap-section {
+  padding-top: 30px;
+}
+
+.fsol-roadmap-grid {
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 42px;
+  align-items: start;
+}
+
+.fsol-roadmap-grid p {
+  margin: 18px 0 0;
+  color: var(--fs-muted);
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.fsol-roadmap {
+  display: grid;
+  gap: 14px;
+}
+
+.fsol-roadmap-item {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(21, 128, 61, 0.1);
+  box-shadow: 0 18px 46px rgba(5, 46, 22, 0.07);
+}
+
+.fsol-roadmap-item > span {
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  color: #052e16;
+  font-size: 20px;
+  font-weight: 950;
+  background: linear-gradient(135deg, #bef264, #facc15);
+}
+
+.fsol-roadmap-item h3 {
+  margin: 0 0 6px;
+  color: #102a19;
+  font-size: 19px;
+  font-weight: 950;
+}
+
+.fsol-roadmap-item p {
+  margin: 0;
+  color: var(--fs-muted);
+  line-height: 1.6;
+}
+
+.fsol-final-cta {
+  padding: 0 0 84px;
+}
+
+.fsol-final-card {
+  position: relative;
+  overflow: hidden;
+  padding: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-radius: 34px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(250, 204, 21, 0.22), transparent 30%),
+    linear-gradient(135deg, #052e16, #166534);
+  box-shadow: 0 30px 70px rgba(5, 46, 22, 0.18);
+}
+
+.fsol-final-card span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #dcfce7;
+  font-weight: 950;
+}
+
+.fsol-final-card h2 {
+  max-width: 720px;
+  color: #ffffff;
+}
+
+.fsol-final-card button {
+  min-height: 52px;
+  padding: 0 22px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  color: #052e16;
+  background: linear-gradient(135deg, #facc15, #bef264);
+  box-shadow: 0 18px 34px rgba(250, 204, 21, 0.2);
+}
+
+@media (max-width: 1080px) {
+  .fsol-hero-grid,
+  .fsol-roadmap-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fsol-panel { max-width: 620px; }
+
+  .fsol-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .fsol-final-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 760px) {
+  .fsol-container { width: min(100% - 28px, 560px); }
+  .fsol-hero { padding: 70px 0; }
+  .fsol-hero h1 { font-size: clamp(38px, 14vw, 58px); }
+  .fsol-actions { align-items: stretch; flex-direction: column; }
+  .fsol-btn,
+  .fsol-final-card button { width: 100%; }
+  .fsol-grid { grid-template-columns: 1fr; }
+  .fsol-roadmap-item { grid-template-columns: 1fr; }
+  .fsol-final-card { padding: 26px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farmer-solutions-page *,
+  .farmer-solutions-page *::before,
+  .farmer-solutions-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

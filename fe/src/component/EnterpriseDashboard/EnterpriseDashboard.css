@@ -1077,3 +1077,16 @@
   color: var(--ent-text);
   font-size: 13px;
 }
+
+.ent-btn-primary {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.ent-btn-primary:hover { background: #1d4ed8; }

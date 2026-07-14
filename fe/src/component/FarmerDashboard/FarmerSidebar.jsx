@@ -64,7 +64,7 @@ function FarmerSidebar() {
       </nav>
 
       <div className="farmer-sidebar__footer">
-        <button type="button" onClick={() => navigate('/')}>
+        <button type="button" onClick={() => navigate('/farmer-home')}>
           <FiHome />
           <span>Về trang chủ</span>
         </button>

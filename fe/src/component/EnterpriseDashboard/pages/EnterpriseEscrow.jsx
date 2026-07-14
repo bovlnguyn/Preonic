@@ -3,10 +3,17 @@ import { FiShield } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
 import ProgressBar   from '../components/ProgressBar';
-import { enterpriseEscrows } from '../data/enterpriseMockData';
+import { useState, useEffect } from 'react';
 import { formatMoney } from '../utils';
 
 function EnterpriseEscrow() {
+  const [enterpriseEscrows, setEnterpriseEscrows] = useState([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  // Khi có API: escrowService.list().then(...)
+  setLoading(false);
+}, []);
   return (
     <div className="ent-stack">
       <section className="ent-card">
