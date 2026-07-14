@@ -19,3 +19,7 @@ export const PAYMENT_TERMS_LABEL = {
   '100_delivery': '100% khi nhận hàng',
   '100_upfront': '100% trả trước',
 };
+
+export const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved', 'active'];
+
+export const CANCEL_PENDING_STATUS = 'cancel_pending';
