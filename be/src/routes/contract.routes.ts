@@ -5,6 +5,7 @@ import {
   getContract,
   signContract,
   rejectContract,
+  cancelContract,
 } from '../controller/contract.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
 
@@ -20,6 +21,7 @@ router.post(
 router.get('/', protect as RequestHandler, listContracts as RequestHandler);
 router.get('/:id', protect as RequestHandler, getContract as RequestHandler);
 
+router.patch('/:id/cancel', protect as RequestHandler, cancelContract as RequestHandler);
 router.post('/:id/sign', protect as RequestHandler, signContract as RequestHandler);
 router.post(
   '/:id/reject',

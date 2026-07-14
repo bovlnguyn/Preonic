@@ -4,12 +4,14 @@ import { CONTRACT_CONFIG, UNIT_TO_KG } from '../constants';
 import { Contract } from '../models/Contract.entity';
 import { Product } from '../models/Product.entity';
 import { User } from '../models/User.entity';
+import { Notification } from '../models/Notification.entity';
 
 const toKg = (value: number, unit?: string | null) => value * (UNIT_TO_KG[unit || 'kg'] ?? 1);
 
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const productRepo = () => AppDataSource.getRepository(Product);
 const userRepo = () => AppDataSource.getRepository(User);
+const notificationRepo = () => AppDataSource.getRepository(Notification);
 
 const PAYMENT_TERMS = ['50_50', '30_70', '100_delivery', '100_upfront'] as const;
 type PaymentTerms = (typeof PAYMENT_TERMS)[number];
@@ -63,6 +65,10 @@ export interface CreateContractDto {
   insuranceProvider?: string;
   insurancePackage?: string;
   insuranceFee?: number;
+}
+
+export interface CancelContractDto {
+  reason: string;
 }
 
 const displayName = (user: User) =>
@@ -203,21 +209,6 @@ const TERMINAL_STATUSES = ['cancelled', 'completed', 'disputed'];
 const withRelations = (id: string) =>
   contractRepo().findOne({ where: { id }, relations: ['product', 'farmer', 'enterprise'] });
 
-// export const listContractsForUser = async (
-//   userId: string,
-//   role: string,
-//   status?: string
-// ) => {
-//   const where: any = role === 'farmer' ? { farmerId: userId } : { enterpriseId: userId };
-//   if (status) where.status = status;
-
-//   return contractRepo().find({
-//     where,
-//     relations: ['product', 'farmer', 'enterprise'],
-//     order: { createdAt: 'DESC' },
-//   });
-// };
-
 export const listContractsForUser = async (
   userId: string,
   role: string,
@@ -295,6 +286,7 @@ export const listContractsForUser = async (
     },
   };
 };
+
 export const getContractForUser = async (id: string, userId: string) => {
   const contract = await withRelations(id);
   if (!contract) throw makeError('Khong tim thay hop dong', 404);
@@ -338,6 +330,80 @@ export const signContract = async (id: string, userId: string, role: string) => 
   return withRelations(id);
 };
 
+const CANCELLABLE_STATUSES = ['draft', 'pending', 'approved', 'active'];
+
+export const cancelContract = async (
+  id: string,
+  userId: string,
+  role: string,
+  dto: CancelContractDto
+) => {
+  const reason = dto.reason?.trim();
+
+  if (!reason) {
+    throw makeError('Vui long nhap ly do huy hop dong', 400);
+  }
+
+  if (reason.length < 5) {
+    throw makeError('Ly do huy hop dong phai co it nhat 5 ky tu', 400);
+  }
+
+  if (reason.length > 500) {
+    throw makeError('Ly do huy hop dong khong duoc vuot qua 500 ky tu', 400);
+  }
+
+  const contract = await contractRepo().findOne({
+    where: { id },
+    relations: ['product', 'farmer', 'enterprise'],
+  });
+
+  if (!contract) {
+    throw makeError('Khong tim thay hop dong', 404);
+  }
+
+  const isFarmer = role === 'farmer' && contract.farmerId === userId;
+  const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
+
+  if (!isFarmer && !isEnterprise) {
+    throw makeError('Ban khong co quyen huy hop dong nay', 403);
+  }
+
+  if (!CANCELLABLE_STATUSES.includes(contract.status)) {
+    throw makeError('Hop dong o trang thai hien tai khong the huy', 400);
+  }
+
+  if (contract.escrowStatus === 'funded' || Number(contract.paidAmount || 0) > 0) {
+    throw makeError('Hop dong da phat sinh thanh toan, khong the huy truc tiep', 400);
+  }
+
+  const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
+  const cancelledByName = isFarmer ? contract.farmerName : contract.enterpriseName;
+
+  contract.status = 'cancelled';
+  contract.cancelReason = reason;
+  contract.cancelledAt = new Date();
+  contract.updatedBy = userId;
+
+  await contractRepo().save(contract);
+
+  await notificationRepo().save(
+    notificationRepo().create({
+      userId: partnerId,
+      type: 'contract_cancelled',
+      title: 'Hop dong da bi huy',
+      message: `${cancelledByName || 'Doi tac'} da huy hop dong ${contract.contractCode}. Ly do: ${reason}`,
+      relatedId: contract.id,
+      relatedModel: 'Contract',
+      severity: 'warning',
+      isRead: false,
+      emailSent: false,
+    })
+  );
+
+  return withRelations(id);
+};
+
+
 export const rejectContract = async (id: string, userId: string, reason?: string) => {
   const contract = await contractRepo().findOne({ where: { id } });
   if (!contract) throw makeError('Khong tim thay hop dong', 404);
@@ -358,4 +424,5 @@ export const rejectContract = async (id: string, userId: string, reason?: string
 
   await contractRepo().save(contract);
   return withRelations(id);
+
 };
