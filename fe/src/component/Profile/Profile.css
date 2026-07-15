@@ -102,6 +102,47 @@
   object-fit: cover;
 }
 
+.profile-avatar--upload {
+  position: relative;
+  cursor: pointer;
+}
+
+.profile-avatar__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 20px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.profile-avatar--upload:hover .profile-avatar__overlay {
+  opacity: 1;
+}
+
+.profile-avatar__change-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+
+.profile-avatar__change-btn:hover {
+  background: #f3f4f6;
+}
+
 .profile-avatar__name {
   margin: 4px 0 0;
   font-size: 18px;
@@ -189,6 +230,10 @@
 .profile-optional {
   font-weight: 400;
   color: #9ca3af;
+}
+
+.profile-required {
+  color: #ef4444;
 }
 
 .profile-input-icon {
