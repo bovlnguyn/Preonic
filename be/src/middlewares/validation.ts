@@ -188,7 +188,9 @@ export const validateUpdateProfile = [
     .notEmpty()
     .withMessage('Tên không được để trống')
     .isLength({ min: 1, max: 100 })
-    .withMessage('Tên phải từ 1-100 ký tự'),
+    .withMessage('Tên phải từ 1-100 ký tự')
+    .matches(/^[^\d0-9]+$/)
+    .withMessage('Tên không được chứa số'),
 
   body('lastName')
     .optional()
@@ -196,13 +198,15 @@ export const validateUpdateProfile = [
     .notEmpty()
     .withMessage('Họ không được để trống')
     .isLength({ min: 1, max: 100 })
-    .withMessage('Họ phải từ 1-100 ký tự'),
+    .withMessage('Họ phải từ 1-100 ký tự')
+    .matches(/^[^\d0-9]+$/)
+    .withMessage('Họ không được chứa số'),
 
   body('phone')
     .optional()
     .trim()
     .matches(/^[0-9]{10,11}$/)
-    .withMessage('Số điện thoại phải có 10-11 chữ số'),
+    .withMessage('Số điện thoại không được chứa chữ và phải có 10-11 chữ số'),
 
   body('avatar')
     .optional()
@@ -212,6 +216,9 @@ export const validateUpdateProfile = [
 
   body('farmSize')
     .optional({ checkFalsy: true })
+    .trim()
+    .matches(/^\d+(\.\d+)?$/)
+    .withMessage('Diện tích trang trại không được chứa chữ')
     .isFloat({ min: 0 })
     .withMessage('Diện tích trang trại phải là số không âm'),
 
@@ -300,10 +307,42 @@ export const validateCreateProduct = [
     .isFloat({ min: 0 })
     .withMessage('Tổng số lượng phải là số không âm'),
 
-  body('expectedDate')
-    .optional({ checkFalsy: true })
+  body('plantDate')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập ngày gieo trồng (*)')
     .isISO8601()
-    .withMessage('Ngày dự kiến không hợp lệ'),
+    .withMessage('Ngày gieo trồng không hợp lệ'),
+
+  body('expectedDate')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập ngày thu hoạch dự kiến (*)')
+    .isISO8601()
+    .withMessage('Ngày thu hoạch không hợp lệ')
+    .custom((value, { req }) => {
+      const normalize = (input: string | Date) => {
+        const d = new Date(input);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+
+      const harvestDate = normalize(value);
+      const today = normalize(new Date());
+
+      if (harvestDate < today) {
+        throw new Error('Ngày thu hoạch không được trước ngày hiện tại');
+      }
+
+      if (req.body.plantDate && !isNaN(Date.parse(req.body.plantDate))) {
+        const plantDate = normalize(req.body.plantDate);
+        if (harvestDate < plantDate) {
+          throw new Error('Ngày thu hoạch không được trước ngày gieo trồng');
+        }
+      }
+
+      return true;
+    }),
 
   body('commitments')
     .optional({ checkFalsy: true })

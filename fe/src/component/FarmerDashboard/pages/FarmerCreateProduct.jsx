@@ -265,6 +265,8 @@ function Step2({ form, set }) {
     ? Number(form.quantity || 0) * 100
     : Number(form.quantity || 0);
 
+  const today = new Date().toISOString().split('T')[0];
+
   return (
     <div className="fcp-card">
       <div className="fcp-card__head">
@@ -277,12 +279,18 @@ function Step2({ form, set }) {
 
       <div className="fcp-row">
         <div className="fcp-field">
-          <label>Ngày bắt đầu gieo / trồng</label>
+          <label>Ngày bắt đầu gieo / trồng <span className="fcp-required">*</span></label>
           <input className="fcp-input" type="date" value={form.plantDate} onChange={(e) => set('plantDate', e.target.value)} />
         </div>
         <div className="fcp-field">
           <label>Ngày thu hoạch dự kiến <span className="fcp-required">*</span></label>
-          <input className="fcp-input" type="date" value={form.harvestDate} onChange={(e) => set('harvestDate', e.target.value)} />
+          <input
+            className="fcp-input"
+            type="date"
+            min={form.plantDate && form.plantDate > today ? form.plantDate : today}
+            value={form.harvestDate}
+            onChange={(e) => set('harvestDate', e.target.value)}
+          />
         </div>
       </div>
 
@@ -494,7 +502,7 @@ export default function FarmerCreateProduct() {
   const canNext = () => {
     // Bước 1: bắt buộc tên, loại nông sản (category) và hình thức (type)
     if (step === 0) return form.name.trim() !== '' && form.category !== '' && form.type !== '';
-    if (step === 1) return form.harvestDate !== '' && form.quantity !== '';
+    if (step === 1) return form.plantDate !== '' && form.harvestDate !== '' && form.quantity !== '';
     if (step === 2) return form.price !== '';
     return true;
   };
@@ -529,8 +537,8 @@ export default function FarmerCreateProduct() {
           priceUnit:     form.priceUnit,
           priceMin:      priceNum || undefined,
           priceMax:      priceNum ? Math.round(priceNum * 1.15) : undefined,
+          plantDate:     form.plantDate || undefined,
           expectedDate:  form.harvestDate || undefined,
-          note:          form.plantDate ? `Ngày gieo trồng: ${form.plantDate}` : undefined,
           certificationNames: form.certFile ? [form.certFile.name] : [],
         },
         form.images,

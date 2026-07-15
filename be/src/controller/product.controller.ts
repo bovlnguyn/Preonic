@@ -167,6 +167,7 @@ export const create = async (req: AuthRequest, res: Response) => {
       unit:          body.unit,
       priceUnit:     body.priceUnit,
       totalQuantity: body.totalQuantity ? Number(body.totalQuantity) : undefined,
+      plantDate:     body.plantDate,
       expectedDate:  body.expectedDate,
       description:   body.description,
       nutritionInfo: body.nutritionInfo,
@@ -215,6 +216,7 @@ export const update = async (req: AuthRequest, res: Response) => {
     if (body.unit)          updateDto.unit = body.unit;
     if (body.priceUnit)     updateDto.priceUnit = body.priceUnit;
     if (body.totalQuantity) updateDto.totalQuantity = Number(body.totalQuantity);
+    if (body.plantDate)     updateDto.plantDate = body.plantDate;
     if (body.expectedDate)  updateDto.expectedDate = body.expectedDate;
     if (body.description)   updateDto.description = body.description;
     if (body.nutritionInfo) updateDto.nutritionInfo = body.nutritionInfo;

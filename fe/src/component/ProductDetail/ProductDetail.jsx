@@ -244,7 +244,7 @@ const ProductDetail = () => {
         <div className="pd-breadcrumb">
           <span onClick={() => navigate(ROUTES.HOME)}>Trang chủ</span>
           <span className="sep">›</span>
-          <span onClick={() => navigate(ROUTES.PRODUCTS)}>Sản phẩm</span>
+          <span onClick={() => navigate(isFarmer ? '/farmer/crops' : ROUTES.PRODUCTS)}>Sản phẩm</span>
           <span className="sep">›</span>
           <span className="current">{product.name}</span>
         </div>

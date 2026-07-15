@@ -52,6 +52,7 @@ export interface CreateProductDto {
   unit?:          string;
   priceUnit?:     string;
   totalQuantity?: number;
+  plantDate?:     string;
   expectedDate?:  string;
   description?:   string;
   nutritionInfo?: string;
@@ -92,7 +93,7 @@ const PRODUCT_SORT_OPTIONS: Record<string, { column: string; direction: 'ASC' | 
 // ── Các field cho phép cập nhật qua API update ──
 const UPDATABLE_FIELDS: (keyof Product)[] = [
   'name', 'location', 'farm', 'variety', 'area', 'image', 'images',
-  'priceMin', 'priceMax', 'unit', 'priceUnit', 'expectedDate',
+  'priceMin', 'priceMax', 'unit', 'priceUnit', 'plantDate', 'expectedDate',
   'progress', 'remaining', 'totalQuantity',
   'note', 'badge', 'category', 'region', 'type',
   'description', 'nutritionInfo',
@@ -257,6 +258,7 @@ export const create = async (userId: string, dto: CreateProductDto) => {
     totalQuantity: dto.totalQuantity ?? null,
     remaining:     dto.totalQuantity ?? null,
     progress:      0,
+    plantDate:     dto.plantDate ? new Date(dto.plantDate) : undefined,
     expectedDate:  dto.expectedDate ? new Date(dto.expectedDate) : undefined,
     description:   dto.description?.trim(),
     nutritionInfo: dto.nutritionInfo?.trim(),
@@ -339,6 +341,10 @@ export const update = async (
   if (dto.imagePaths) {
     updatePayload.image  = dto.imagePaths[0] || null;
     updatePayload.images = dto.imagePaths.length > 0 ? JSON.stringify(dto.imagePaths) : null;
+  }
+
+  if (dto.plantDate) {
+    updatePayload.plantDate = new Date(dto.plantDate);
   }
 
   if (dto.expectedDate) {

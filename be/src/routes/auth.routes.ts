@@ -30,6 +30,7 @@ import {
 } from '../middlewares/validation';
 
 import { protect } from '../middlewares/auth.middlewares';
+import { uploadAvatar } from '../middlewares/uploads.middlewares';
 
 import {
   authLimiter,
@@ -51,7 +52,7 @@ router.get('/verify-email/:token', verifyEmail as RequestHandler);
 
 // ── Protected routes ──
 router.get  ('/me',     protect as RequestHandler, getMe as RequestHandler);
-router.patch('/me',     protect as RequestHandler, validateUpdateProfile, updateProfile as RequestHandler);
+router.patch('/me',     protect as RequestHandler, uploadAvatar, validateUpdateProfile, updateProfile as RequestHandler);
 router.put  ('/update-password', protect as RequestHandler, validateUpdatePassword, updatePassword as RequestHandler);
 router.post ('/logout', protect as RequestHandler, logout as RequestHandler);
 // Google OAuth routes
