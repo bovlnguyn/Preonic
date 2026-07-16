@@ -22,8 +22,14 @@ const FARMER_NAV_ITEMS = [
   { label: "AI nông nghiệp", path: "/farmer-ai-agriculture", highlight: true },
 ];
 
-// Tạm thời enterprise/admin vẫn đi theo luồng cũ để không làm gãy project.
-// Khi bạn làm tiếp role enterprise, chỉ cần tạo ENTERPRISE_NAV_ITEMS tương tự FARMER_NAV_ITEMS.
+const ENTERPRISE_NAV_ITEMS = [
+  { label: "Trang chủ", path: "/enterprise-home" },
+  { label: "Sản phẩm", path: "/enterprise-products" },
+  { label: "Giải pháp", path: "/enterprise-solutions" },
+  { label: "Liên hệ", path: "/enterprise-contact" },
+  { label: "AI thu mua", path: "/enterprise-ai-agriculture", highlight: true },
+];
+
 const ROLE_HOME_PATH = {
   farmer: "/farmer-home",
   enterprise: "/enterprise-home",
@@ -42,6 +48,12 @@ const ROLE_LABEL = {
   admin: "Admin",
 };
 
+const ROLE_TAGLINE = {
+  farmer: "Farmer workspace",
+  enterprise: "Enterprise workspace",
+  admin: "Admin workspace",
+};
+
 function Header() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,25 +68,22 @@ function Header() {
   const [logoError, setLogoError] = useState(false);
 
   const isLoggedIn = Boolean(user);
-  const isFarmer = role === "farmer";
 
   const navItems = useMemo(() => {
-    if (isFarmer) return FARMER_NAV_ITEMS;
+    if (role === "farmer") return FARMER_NAV_ITEMS;
+    if (role === "enterprise") return ENTERPRISE_NAV_ITEMS;
     return GUEST_NAV_ITEMS;
-  }, [isFarmer]);
+  }, [role]);
 
   const homePath = isLoggedIn ? ROLE_HOME_PATH[role] || "/" : "/";
   const dashboardPath = isLoggedIn ? ROLE_DASHBOARD_PATH[role] : null;
   const roleLabel = ROLE_LABEL[role] || "Dashboard";
+  const tagline = isLoggedIn ? ROLE_TAGLINE[role] || "Nông nghiệp số" : "Nông nghiệp số";
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 24);
-    };
-
+    const handleScroll = () => setScrolled(window.scrollY > 24);
     handleScroll();
     window.addEventListener("scroll", handleScroll);
-
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -90,10 +99,7 @@ function Header() {
   };
 
   const handleLogout = async () => {
-    if (logout) {
-      await logout();
-    }
-
+    if (logout) await logout();
     closeMenu();
     navigate("/");
   };
@@ -116,7 +122,6 @@ function Header() {
         <Link to={homePath} className="preonic-header__brand" onClick={closeMenu}>
           <span className="preonic-header__logo-shell">
             <span className="preonic-header__logo-glow" />
-
             {!logoError ? (
               <img
                 src={logo}
@@ -131,16 +136,13 @@ function Header() {
 
           <span className="preonic-header__brand-copy">
             <span className="preonic-header__brand-name">PreOnic</span>
-            <span className="preonic-header__brand-tagline">
-              {isFarmer ? "Farmer workspace" : "Nông nghiệp số"}
-            </span>
+            <span className="preonic-header__brand-tagline">{tagline}</span>
           </span>
         </Link>
 
         <nav className="preonic-header__nav" aria-label="Menu chính">
           {navItems.map((item) => {
             const active = isActive(item.path);
-
             return (
               <button
                 type="button"
@@ -173,29 +175,17 @@ function Header() {
                 </button>
               )}
 
-              <button
-                type="button"
-                className="preonic-header__register"
-                onClick={handleLogout}
-              >
+              <button type="button" className="preonic-header__register" onClick={handleLogout}>
                 Đăng xuất
               </button>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                className="preonic-header__login"
-                onClick={() => handleNavigate("/auth")}
-              >
+              <button type="button" className="preonic-header__login" onClick={() => handleNavigate("/auth")}>
                 Đăng nhập
               </button>
 
-              <button
-                type="button"
-                className="preonic-header__register"
-                onClick={() => handleNavigate("/register")}
-              >
+              <button type="button" className="preonic-header__register" onClick={() => handleNavigate("/register")}>
                 Đăng ký
               </button>
             </>
@@ -247,20 +237,12 @@ function Header() {
                         Vào {roleLabel}
                       </button>
                     )}
-
-                    <button type="button" onClick={handleLogout}>
-                      Đăng xuất
-                    </button>
+                    <button type="button" onClick={handleLogout}>Đăng xuất</button>
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={() => handleNavigate("/auth")}>
-                      Đăng nhập
-                    </button>
-
-                    <button type="button" onClick={() => handleNavigate("/register")}>
-                      Đăng ký
-                    </button>
+                    <button type="button" onClick={() => handleNavigate("/auth")}>Đăng nhập</button>
+                    <button type="button" onClick={() => handleNavigate("/register")}>Đăng ký</button>
                   </>
                 )}
               </div>
