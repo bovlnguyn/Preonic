@@ -39,7 +39,11 @@ const toUiProductDetail = (p) => ({
   image: resolveImageUrl(p.image) || "/images/products/default.jpg",
   badge: p.badge || null,
   expectedDate: p.expectedDate || "Quanh năm",
-  certifications: (p.certifications || []).map((c) => (typeof c === "string" ? c : c.value)),
+  certifications: (p.certifications || []).map((c) =>
+    typeof c === "string"
+      ? { value: c, fileUrl: null }
+      : { value: c.value, fileUrl: resolveImageUrl(c.fileUrl) }
+  ),
   description: p.description || "Sản phẩm nông sản chất lượng cao từ nông dân Việt Nam.",
   nutritionInfo: p.nutritionInfo || "Thông tin dinh dưỡng đang được cập nhật.",
   commitments: p.commitments?.length
@@ -69,6 +73,7 @@ const ProductDetail = () => {
   const [myReviewText, setMyReviewText] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [certPreview, setCertPreview] = useState(null);
 
   // Determine role
   const role = !isLoggedIn ? ROLE.GUEST
@@ -270,7 +275,18 @@ const ProductDetail = () => {
               <h4>Chứng nhận</h4>
               <div className="pd-certs">
                 {product.certifications.map((c, i) => (
-                  <span key={i} className="cert-tag">{c}</span>
+                  c.fileUrl ? (
+                    <button
+                      key={i}
+                      type="button"
+                      className="cert-tag cert-tag-clickable"
+                      onClick={() => setCertPreview(c)}
+                    >
+                      {c.value}
+                    </button>
+                  ) : (
+                    <span key={i} className="cert-tag">{c.value}</span>
+                  )
                 ))}
               </div>
             </div>
@@ -546,6 +562,35 @@ const ProductDetail = () => {
           </div>
         )}
       </div>
+
+      {/* CERTIFICATION PREVIEW MODAL */}
+      {certPreview && (
+        <div className="modal-overlay" onClick={() => setCertPreview(null)}>
+          <div className="cert-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cert-modal-header">
+              <h3>{certPreview.value}</h3>
+              <button className="cert-modal-close" onClick={() => setCertPreview(null)}>×</button>
+            </div>
+            {/\.pdf($|\?)/i.test(certPreview.fileUrl) ? (
+              <iframe
+                title={certPreview.value}
+                src={certPreview.fileUrl}
+                className="cert-modal-pdf"
+              />
+            ) : (
+              <img src={certPreview.fileUrl} alt={certPreview.value} className="cert-modal-image" />
+            )}
+            <a
+              href={certPreview.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cert-modal-link"
+            >
+              Mở trong tab mới
+            </a>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
