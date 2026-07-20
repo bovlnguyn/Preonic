@@ -106,8 +106,8 @@ export const login = async (emailOrPhone: string, password: string) => {
   .addSelect([
     'user.password',
     'user.refreshToken',
-    //'user.loginAttempts',  // ← đã có chưa?
-    //'user.lockUntil',
+    'user.loginAttempts',  // ← đã có chưa?
+    'user.lockUntil',
   ])
   .where('user.email = :email OR user.phone = :phone', {
     email: emailOrPhone.trim(),
