@@ -12,6 +12,7 @@ import contractRoutes from './routes/contract.routes';
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
 import enterpriseRoutes from './routes/enterprise.routes';
+import escrowRoutes from './routes/escrow.routes';
 
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
@@ -99,6 +100,7 @@ app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/products`, productRoutes);
 app.use(`${API_PREFIX}/contracts`, contractRoutes);
 app.use(`${API_PREFIX}/enterprise`, enterpriseRoutes);
+app.use(`${API_PREFIX}/escrow`, escrowRoutes);
 // Các route khác bạn sẽ mở comment và thêm vào sau...
 
 // ══════════════════════════════════════════════════════

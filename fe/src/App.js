@@ -1,14 +1,10 @@
 import React from 'react';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  
-} from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { ToastProvider } from './contexts/ToastContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+
 import AdminDashboard from './component/AdminDashboard/AdminDashboard';
 import Home from './pages/Home';
 import FarmerHome from './component/FarmerHome/FarmerHome';
@@ -16,7 +12,6 @@ import FarmerProducts from './component/FarmerProducts/FarmerProducts';
 import FarmerSolutions from './component/FarmerSolutions/FarmerSolutions';
 import FarmerContact from './component/FarmerContact/FarmerContact';
 import FarmerAI from './component/FarmerAI/FarmerAI';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import Register from './component/Register/Register';
 import Auth from './component/Auth/Auth';
@@ -25,21 +20,22 @@ import GoogleSelectRole from './component/Auth/GoogleSelectRole';
 import ResetPassword from './component/ResetPassword/ResetPassword';
 import VerifyEmail from './component/VerifyEmail/VerifyEmail';
 
-//Product
+// Product
 import ProductList from './pages/ProductList';
 import ProductDetail from './component/ProductDetail/ProductDetail';
+
 // Enterprise Dashboard
-import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
-import EnterpriseOverview         from './component/EnterpriseDashboard/pages/EnterpriseOverview';
-import EnterpriseContracts        from './component/EnterpriseDashboard/pages/EnterpriseContracts';
+import EnterpriseLayout from './component/EnterpriseDashboard/EnterpriseLayout';
+import EnterpriseOverview from './component/EnterpriseDashboard/pages/EnterpriseOverview';
+import EnterpriseContracts from './component/EnterpriseDashboard/pages/EnterpriseContracts';
 import EnterpriseCreateContract from './component/EnterpriseDashboard/pages/EnterpriseCreateContract';
-import EnterpriseProducts         from './component/EnterpriseDashboard/pages/EnterpriseProducts';
-import EnterpriseOrders           from './component/EnterpriseDashboard/pages/EnterpriseOrders';
-import EnterpriseEscrow           from './component/EnterpriseDashboard/pages/EnterpriseEscrow';
-import EnterpriseWallet           from './component/EnterpriseDashboard/pages/EnterpriseWallet';
-import EnterpriseSuppliers        from './component/EnterpriseDashboard/pages/EnterpriseSuppliers';
-import EnterpriseTransactions     from './component/EnterpriseDashboard/pages/EnterpriseTransactions';
-import EnterpriseRatings          from './component/EnterpriseDashboard/pages/EnterpriseRatings';
+import EnterpriseProducts from './component/EnterpriseDashboard/pages/EnterpriseProducts';
+import EnterpriseOrders from './component/EnterpriseDashboard/pages/EnterpriseOrders';
+import EnterpriseEscrow from './component/EnterpriseDashboard/pages/EnterpriseEscrow';
+import EnterpriseWallet from './component/EnterpriseDashboard/pages/EnterpriseWallet';
+import EnterpriseSuppliers from './component/EnterpriseDashboard/pages/EnterpriseSuppliers';
+import EnterpriseTransactions from './component/EnterpriseDashboard/pages/EnterpriseTransactions';
+import EnterpriseRatings from './component/EnterpriseDashboard/pages/EnterpriseRatings';
 import EnterpriseWeatherInsurance from './component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance';
 
 // Farmer Dashboard Layout + Pages
@@ -59,17 +55,19 @@ import FarmerEditProduct from './component/FarmerDashboard/pages/FarmerEditProdu
 // Profile (dùng chung Farmer/Enterprise)
 import Profile from './component/Profile/Profile';
 
+// Hiển thị khi đang xác thực người dùng
+const LoadingSpinner = () => (
+  <div className="min-vh-100 d-flex align-items-center justify-content-center">
+    <div className="spinner-border text-success" role="status" />
+  </div>
+);
 
 // Protected Route
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="spinner-border text-success" role="status" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!user) {
@@ -84,7 +82,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     if (user.role === 'enterprise') {
       return <Navigate to="/enterprise" replace />;
     }
-    if (user.role === 'admin'){     
+    if (user.role === 'admin') {
       return <Navigate to="/admin" replace />;
     }
 
@@ -119,11 +117,7 @@ const AppRoutes = () => {
   const { loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-vh-100 d-flex align-items-center justify-content-center">
-        <div className="spinner-border text-success" role="status" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -154,7 +148,6 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-
 
       {/* Farmer role website pages - chỉ dành cho farmer đã đăng nhập */}
       <Route
@@ -217,7 +210,6 @@ const AppRoutes = () => {
         <Route path="ratings" element={<FarmerRatings />} />
         <Route path="weather-insurance" element={<FarmerWeatherInsurance />} />
         <Route path="create-product" element={<FarmerCreateProduct />} />
-
       </Route>
 
       <Route
@@ -229,27 +221,26 @@ const AppRoutes = () => {
         }
       />
 
-     
-{/* Enterprise */}
+      {/* Enterprise */}
       <Route
-  path="/enterprise-home"
-  element={
-    <ProtectedRoute allowedRoles={['enterprise']}>
-      <Navigate to="/enterprise" replace />
-    </ProtectedRoute>
-  }
-/>
-{/* Cấu hình các Dashboard thực tế của Enterprise */}
-<Route
-  path="/enterprise"
-  element={
-    <ProtectedRoute allowedRoles={['enterprise']}>
-      <EnterpriseLayout />
-    </ProtectedRoute>
-  }
->
-  
-  <Route index element={<EnterpriseOverview />} />
+        path="/enterprise-home"
+        element={
+          <ProtectedRoute allowedRoles={['enterprise']}>
+            <Navigate to="/enterprise" replace />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Cấu hình các Dashboard thực tế của Enterprise */}
+      <Route
+        path="/enterprise"
+        element={
+          <ProtectedRoute allowedRoles={['enterprise']}>
+            <EnterpriseLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<EnterpriseOverview />} />
         <Route path="contracts" element={<EnterpriseContracts />} />
         <Route path="contracts/create" element={<EnterpriseCreateContract />} />
         <Route path="contracts/:id" element={<ContractDetailView />} />
@@ -261,17 +252,17 @@ const AppRoutes = () => {
         <Route path="transactions" element={<EnterpriseTransactions />} />
         <Route path="ratings" element={<EnterpriseRatings />} />
         <Route path="weather-insurance" element={<EnterpriseWeatherInsurance />} />
-        
-</Route>
-{/* Admin Dashboard */}
-<Route
-  path="/admin"
-  element={
-    <ProtectedRoute allowedRoles={['admin']}>
-      <AdminDashboard />
-    </ProtectedRoute>
-  }
-/>
+      </Route>
+
+      {/* Admin Dashboard */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
 
       {/* 404 */}
       <Route

@@ -38,6 +38,10 @@ const MILESTONE_TEMPLATES = [
   { step: 5, name: 'Hoàn tất',            description: 'Hai bên xác nhận hoàn thành — giải ngân số dư còn lại',         requiredBy: 'system'     as const },
 ];
 
+export function getMilestoneRequiredRole(step: number): 'farmer' | 'enterprise' | 'system' | undefined {
+  return MILESTONE_TEMPLATES.find((t) => t.step === step)?.requiredBy;
+}
+
 export function buildMilestones(paymentTerms: PaymentTerms, totalAmount: number): IMilestone[] {
   const pcts = RELEASE_PERCENT_BY_TERMS[paymentTerms] ?? RELEASE_PERCENT_BY_TERMS['custom'];
 
