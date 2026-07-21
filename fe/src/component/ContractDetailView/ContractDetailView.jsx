@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { CONTRACT_STATUS_LABEL, PAYMENT_TERMS_LABEL } from '../../constants/contract';
 import ContractFlow from '../ContractFlow/ContractFlow';
+import EscrowPanel from '../EscrowPanel/EscrowPanel';
 import './ContractDetailView.css';
 
 const FLOW_STEPS = [
@@ -403,6 +404,8 @@ export default function ContractDetailView() {
           )}
         </div>
       </div>
+
+      <EscrowPanel contract={contract} userRole={user?.role} />
 
       {/* Modal hủy hợp đồng */}
       {showCancelModal && (

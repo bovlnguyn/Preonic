@@ -1,0 +1,277 @@
+.esc-panel {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  margin-top: 20px;
+}
+
+.esc-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px dashed #d1d5db;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+
+.esc-panel__header h3 {
+  margin: 0;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+}
+
+.esc-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.esc-empty {
+  text-align: center;
+  padding: 20px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.esc-empty__hint {
+  color: #9ca3af;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* ── Badge (trạng thái escrow / milestone) ── */
+.esc-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.esc-badge--active,
+.esc-badge--completed { background: #f0fdf4; color: #15803d; }
+.esc-badge--pending { background: #fffbeb; color: #b45309; }
+.esc-badge--disputed { background: #fef2f2; color: #b91c1c; }
+.esc-badge--refunded,
+.esc-badge--cancelled { background: #f1f5f9; color: #475569; }
+
+.esc-badge--ms-completed { background: #f0fdf4; color: #15803d; }
+.esc-badge--ms-pending { background: #f1f5f9; color: #64748b; }
+.esc-badge--ms-waiting_confirmation { background: #eff6ff; color: #1d4ed8; }
+.esc-badge--ms-disputed { background: #fef2f2; color: #b91c1c; }
+
+/* ── Tổng quan số tiền ── */
+.esc-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.esc-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.esc-summary__item span { font-size: 12px; color: #6b7280; }
+.esc-summary__item strong { font-size: 15px; color: #16a34a; }
+
+/* ── Thanh tiến độ tổng ── */
+.esc-progress-row {
+  margin-bottom: 20px;
+}
+
+.esc-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.esc-progress span {
+  display: block;
+  height: 100%;
+  background: #16a34a;
+  border-radius: 999px;
+  transition: width .3s ease;
+}
+
+.esc-progress-row small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* ── Danh sách milestone ── */
+.esc-milestones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.esc-milestone {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.esc-milestone--completed {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.esc-milestone--disputed {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.esc-milestone__dot {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.esc-milestone--completed .esc-milestone__dot {
+  background: #16a34a;
+  color: #fff;
+}
+
+.esc-milestone--disputed .esc-milestone__dot {
+  background: #dc2626;
+  color: #fff;
+}
+
+.esc-milestone__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.esc-milestone__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.esc-milestone__top strong {
+  font-size: 14px;
+  color: #111827;
+}
+
+.esc-milestone__desc {
+  margin: 4px 0 8px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.esc-milestone__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.esc-milestone__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.esc-milestone__confirms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.esc-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.esc-confirm--done {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.esc-milestone__evidence {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #374151;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.esc-milestone__action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.esc-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+/* ── Buttons ── */
+.esc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: #fff;
+}
+
+.esc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.esc-btn--primary { background: #16a34a; color: #fff; }
+.esc-btn--primary:hover:not(:disabled) { background: #15803d; }
+
+.esc-btn--sm { padding: 7px 14px; font-size: 13px; }
