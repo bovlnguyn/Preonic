@@ -12,6 +12,11 @@ import FarmerProducts from './component/FarmerProducts/FarmerProducts';
 import FarmerSolutions from './component/FarmerSolutions/FarmerSolutions';
 import FarmerContact from './component/FarmerContact/FarmerContact';
 import FarmerAI from './component/FarmerAI/FarmerAI';
+import EnterpriseHome from './component/EnterpriseHome/EnterpriseHome';
+import EnterpriseProductsPage from './component/EnterpriseProducts/EnterpriseProducts';
+import EnterpriseSolutions from './component/EnterpriseSolutions/EnterpriseSolutions';
+import EnterpriseContact from './component/EnterpriseContact/EnterpriseContact';
+import EnterpriseAI from './component/EnterpriseAI/EnterpriseAI';
 
 import Register from './component/Register/Register';
 import Auth from './component/Auth/Auth';
@@ -25,17 +30,16 @@ import ProductList from './pages/ProductList';
 import ProductDetail from './component/ProductDetail/ProductDetail';
 
 // Enterprise Dashboard
-import EnterpriseLayout from './component/EnterpriseDashboard/EnterpriseLayout';
-import EnterpriseOverview from './component/EnterpriseDashboard/pages/EnterpriseOverview';
-import EnterpriseContracts from './component/EnterpriseDashboard/pages/EnterpriseContracts';
-import EnterpriseCreateContract from './component/EnterpriseDashboard/pages/EnterpriseCreateContract';
-import EnterpriseProducts from './component/EnterpriseDashboard/pages/EnterpriseProducts';
-import EnterpriseOrders from './component/EnterpriseDashboard/pages/EnterpriseOrders';
-import EnterpriseEscrow from './component/EnterpriseDashboard/pages/EnterpriseEscrow';
-import EnterpriseWallet from './component/EnterpriseDashboard/pages/EnterpriseWallet';
-import EnterpriseSuppliers from './component/EnterpriseDashboard/pages/EnterpriseSuppliers';
-import EnterpriseTransactions from './component/EnterpriseDashboard/pages/EnterpriseTransactions';
-import EnterpriseRatings from './component/EnterpriseDashboard/pages/EnterpriseRatings';
+import EnterpriseLayout           from './component/EnterpriseDashboard/EnterpriseLayout';
+import EnterpriseOverview         from './component/EnterpriseDashboard/pages/EnterpriseOverview';
+import EnterpriseContracts        from './component/EnterpriseDashboard/pages/EnterpriseContracts';
+import EnterpriseProducts         from './component/EnterpriseDashboard/pages/EnterpriseProducts';
+import EnterpriseOrders           from './component/EnterpriseDashboard/pages/EnterpriseOrders';
+import EnterpriseEscrow           from './component/EnterpriseDashboard/pages/EnterpriseEscrow';
+import EnterpriseWallet           from './component/EnterpriseDashboard/pages/EnterpriseWallet';
+import EnterpriseSuppliers        from './component/EnterpriseDashboard/pages/EnterpriseSuppliers';
+import EnterpriseTransactions     from './component/EnterpriseDashboard/pages/EnterpriseTransactions';
+import EnterpriseRatings          from './component/EnterpriseDashboard/pages/EnterpriseRatings';
 import EnterpriseWeatherInsurance from './component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance';
 
 // Farmer Dashboard Layout + Pages
@@ -43,14 +47,12 @@ import FarmerLayout from './component/FarmerDashboard/FarmerLayout';
 import FarmerOverview from './component/FarmerDashboard/pages/FarmerOverview';
 import FarmerCrops from './component/FarmerDashboard/pages/FarmerCrops';
 import FarmerContracts from './component/FarmerDashboard/pages/FarmerContracts';
-import ContractDetailView from './component/ContractDetailView/ContractDetailView';
 import FarmerOrders from './component/FarmerDashboard/pages/FarmerOrders';
 import FarmerEscrow from './component/FarmerDashboard/pages/FarmerEscrow';
 import FarmerWallet from './component/FarmerDashboard/pages/FarmerWallet';
 import FarmerRatings from './component/FarmerDashboard/pages/FarmerRatings';
 import FarmerWeatherInsurance from './component/FarmerDashboard/pages/FarmerWeatherInsurance';
 import FarmerCreateProduct from './component/FarmerDashboard/pages/FarmerCreateProduct';
-import FarmerEditProduct from './component/FarmerDashboard/pages/FarmerEditProduct';
 
 // Profile (dùng chung Farmer/Enterprise)
 import Profile from './component/Profile/Profile';
@@ -203,47 +205,70 @@ const AppRoutes = () => {
         <Route index element={<FarmerOverview />} />
         <Route path="crops" element={<FarmerCrops />} />
         <Route path="contracts" element={<FarmerContracts />} />
-        <Route path="contracts/:id" element={<ContractDetailView />} />
         <Route path="orders" element={<FarmerOrders />} />
         <Route path="escrow" element={<FarmerEscrow />} />
         <Route path="wallet" element={<FarmerWallet />} />
         <Route path="ratings" element={<FarmerRatings />} />
         <Route path="weather-insurance" element={<FarmerWeatherInsurance />} />
         <Route path="create-product" element={<FarmerCreateProduct />} />
+       
       </Route>
 
-      <Route
-        path="/farmer/edit-product/:id"
-        element={
-          <ProtectedRoute allowedRoles={['farmer']}>
-            <FarmerEditProduct />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Enterprise */}
+     
+{/* Enterprise role website pages - chỉ dành cho enterprise đã đăng nhập */}
       <Route
         path="/enterprise-home"
         element={
           <ProtectedRoute allowedRoles={['enterprise']}>
-            <Navigate to="/enterprise" replace />
+            <EnterpriseHome />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/enterprise-products"
+        element={
+          <ProtectedRoute allowedRoles={['enterprise']}>
+            <EnterpriseProductsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/enterprise-solutions"
+        element={
+          <ProtectedRoute allowedRoles={['enterprise']}>
+            <EnterpriseSolutions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/enterprise-contact"
+        element={
+          <ProtectedRoute allowedRoles={['enterprise']}>
+            <EnterpriseContact />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/enterprise-ai-agriculture"
+        element={
+          <ProtectedRoute allowedRoles={['enterprise']}>
+            <EnterpriseAI />
           </ProtectedRoute>
         }
       />
 
       {/* Cấu hình các Dashboard thực tế của Enterprise */}
-      <Route
-        path="/enterprise"
-        element={
-          <ProtectedRoute allowedRoles={['enterprise']}>
-            <EnterpriseLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<EnterpriseOverview />} />
+<Route
+  path="/enterprise"
+  element={
+    <ProtectedRoute allowedRoles={['enterprise']}>
+      <EnterpriseLayout />
+    </ProtectedRoute>
+  }
+>
+  
+  <Route index element={<EnterpriseOverview />} />
         <Route path="contracts" element={<EnterpriseContracts />} />
-        <Route path="contracts/create" element={<EnterpriseCreateContract />} />
-        <Route path="contracts/:id" element={<ContractDetailView />} />
         <Route path="products" element={<EnterpriseProducts />} />
         <Route path="orders" element={<EnterpriseOrders />} />
         <Route path="escrow" element={<EnterpriseEscrow />} />
