@@ -204,15 +204,24 @@
   border-radius: 10px;
   padding: 16px;
   margin: 16px 0;
+  padding: 16px;
+  margin: 16px 0;
   display: flex;
+  flex-direction: column;
   flex-direction: column;
   gap: 10px;
 }
+
 .fpd-item {
   display: flex;
   justify-content: space-between;
+  justify-content: space-between;
   font-size: 13px;
 }
+.fpd-label { color: #555; }
+.fpd-val { font-weight: 700; color: #111; }
+.fpd-val.fpd-done { color: #16a34a; }
+.fpd-val.fpd-open { color: #2563eb; }
 .fpd-label { color: #555; }
 .fpd-val { font-weight: 700; color: #111; }
 .fpd-val.fpd-done { color: #16a34a; }
@@ -221,7 +230,16 @@
 .pd-owner-info-box {
   background: #fffbeb;
   border: 1px solid #fde68a;
+.pd-owner-info-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
   border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.5;
+  margin-top: 6px;
+}
   padding: 10px 12px;
   font-size: 13px;
   color: #92400e;
@@ -233,7 +251,12 @@
 .btn-edit-product, .btn-delete-product {
   flex: 1;
   padding: 10px;
+.pd-owner-actions { display: flex; gap: 10px; margin-top: 10px; }
+.btn-edit-product, .btn-delete-product {
+  flex: 1;
+  padding: 10px;
   border-radius: 8px;
+  font-size: 13px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -243,7 +266,15 @@
 .btn-delete-product { background: transparent; color: #dc2626; border: 2px solid #dc2626; }
 .btn-delete-product:hover { background: rgba(220,38,38,0.08); }
 .btn-delete-product:disabled { opacity: 0.6; cursor: not-allowed; }
+  cursor: pointer;
+}
+.btn-edit-product { background: transparent; color: #13ec37; border: 2px solid #13ec37; }
+.btn-edit-product:hover { background: rgba(19,236,55,0.1); }
+.btn-delete-product { background: transparent; color: #dc2626; border: 2px solid #dc2626; }
+.btn-delete-product:hover { background: rgba(220,38,38,0.08); }
+.btn-delete-product:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.pd-farmer-info-box {
 .pd-farmer-info-box {
   display: flex;
   align-items: center;
@@ -262,9 +293,27 @@
   color: #13ec37;
   border: 2px solid #13ec37;
   border-radius: 10px;
+  padding: 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-top: 16px;
+}
+
+.btn-view-contracts {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: #13ec37;
+  border: 2px solid #13ec37;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  margin-top: 8px;
+}
+.btn-view-contracts:hover { background: rgba(19,236,55,0.1); }
+
   margin-top: 8px;
 }
 .btn-view-contracts:hover { background: rgba(19,236,55,0.1); }
