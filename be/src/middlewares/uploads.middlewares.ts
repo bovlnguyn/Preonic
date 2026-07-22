@@ -85,6 +85,32 @@ const avatarFileFilter = (
   }
 };
 
+const DISPUTE_UPLOAD_DIR = path.join(__dirname, '../../uploads/disputes');
+
+if (!fs.existsSync(DISPUTE_UPLOAD_DIR)) {
+  fs.mkdirSync(DISPUTE_UPLOAD_DIR, { recursive: true });
+}
+
+const disputeStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, DISPUTE_UPLOAD_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, uniqueName);
+  },
+});
+
+export const uploadDisputeFiles = multer({
+  storage: disputeStorage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+}).fields([
+  { name: 'evidences', maxCount: 10 },
+  { name: 'evidence', maxCount: 10 },
+]);
+
 export const uploadAvatar = multer({
   storage: avatarStorage,
   fileFilter: avatarFileFilter,

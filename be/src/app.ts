@@ -15,7 +15,7 @@ import productRoutes from './routes/product.routes';
 import enterpriseRoutes from './routes/enterprise.routes';
 import escrowRoutes from './routes/escrow.routes';
 import weatherRoutes from './routes/weather.routes';
-
+import disputeRoutes from './routes/dispute.routes';
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
 import { createLogger } from './utils/logger';
@@ -110,7 +110,7 @@ app.use(`${API_PREFIX}/escrow`, escrowRoutes);
 app.use(`${API_PREFIX}/weather`, weatherRoutes);
 app.use(`${API_PREFIX}/admin`, adminRoutes);
 // Các route khác bạn sẽ mở comment và thêm vào sau...
-
+app.use(`${API_PREFIX}/disputes`, disputeRoutes);
 // ══════════════════════════════════════════════════════
 // 4. ERROR HANDLING (Phải đặt sau cùng)
 // ══════════════════════════════════════════════════════
