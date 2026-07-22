@@ -45,7 +45,7 @@ function EnterpriseContracts() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
           <button
             className="ent-btn-primary"
-            onClick={() => navigate('/enterprise/contracts/create')}
+            onClick={() => navigate('/enterprise/products')}
           >
             + Tạo hợp đồng mới
           </button>
