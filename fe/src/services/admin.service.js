@@ -134,38 +134,23 @@ const adminService = {
 
   // ── Users ──
   getUsers: async (params = {}) => {
-    await delay();
-    let list = [...MOCK_USERS];
-    if (params.search) {
-      const s = params.search.toLowerCase();
-      list = list.filter(u => u.fullName.toLowerCase().includes(s) || u.email.toLowerCase().includes(s));
-    }
-    if (params.role) list = list.filter(u => u.role === params.role);
-    if (params.isActive !== undefined && params.isActive !== '') {
-      list = list.filter(u => String(u.isActive) === String(params.isActive));
-    }
-    const result = paginate(list, params.page, params.limit);
-    return { success: true, ...result };
+    const response = await api.get('/admin/users', { params });
+    return response.data;
   },
 
   getUserDetail: async (userId) => {
-    await delay();
-    const user = MOCK_USERS.find(u => u._id === userId) || MOCK_USERS[0];
-    return { success: true, data: { user, contractCount: 4, transactionCount: 9 } };
+    const response = await api.get(`/admin/users/${userId}`);
+    return response.data;
   },
 
   toggleUserStatus: async (userId) => {
-    await delay(300);
-    const user = MOCK_USERS.find(u => u._id === userId);
-    if (user) user.isActive = !user.isActive;
-    return { success: true };
+    const response = await api.patch(`/admin/users/${userId}/toggle-status`);
+    return response.data;
   },
 
   deleteUser: async (userId) => {
-    await delay(300);
-    const idx = MOCK_USERS.findIndex(u => u._id === userId);
-    if (idx !== -1) MOCK_USERS.splice(idx, 1);
-    return { success: true };
+    const response = await api.delete(`/admin/users/${userId}`);
+    return response.data;
   },
 
   // ── Contracts ──

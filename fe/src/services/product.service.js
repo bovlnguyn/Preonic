@@ -1,4 +1,13 @@
-import api from './api';
+import api, { API_URL } from './api';
+
+const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, '');
+
+// Ảnh sản phẩm lưu đường dẫn tương đối (vd: /uploads/xxx.jpg) — ghép với gốc server để hiển thị.
+export const resolveImageUrl = (path) => {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${UPLOADS_BASE_URL}${path}`;
+};
 
 const productService = {
   // Danh sách công khai — hỗ trợ filter (category, region, type), search theo tên, sort, phân trang
@@ -37,8 +46,23 @@ const productService = {
     return response.data;
   },
 
+  getById: async (id) => {
+    const response = await api.get(`/products/${id}`);
+    return response.data;
+  },
+
+  getSimilar: async (id) => {
+    const response = await api.get(`/products/${id}/similar`);
+    return response.data;
+  },
+
   getReviews: async (id) => {
     const response = await api.get(`/products/${id}/reviews`);
+    return response.data;
+  },
+
+  addReview: async (id, { rating, text }) => {
+    const response = await api.post(`/products/${id}/reviews`, { rating, text });
     return response.data;
   },
 

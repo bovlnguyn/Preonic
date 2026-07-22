@@ -38,7 +38,7 @@ export default function QuanLyNguoiDung() {
   useEffect(() => { load(1); }, [load]);
 
   const openDetail = async (userId) => {
-    setSelectedUser({ _id: userId, loading: true });
+    setSelectedUser({ id: userId, loading: true });
     try {
       const res = await adminService.getUserDetail(userId);
       setSelectedUser({ ...res?.data?.user, contractCount: res?.data?.contractCount, transactionCount: res?.data?.transactionCount });
@@ -53,8 +53,8 @@ export default function QuanLyNguoiDung() {
     try {
       await adminService.toggleUserStatus(userId);
       toast.success(`Tài khoản đã ${currentStatus ? "vô hiệu hóa" : "kích hoạt"}`);
-      setUsers(prev => prev.map(u => u._id === userId ? { ...u, isActive: !u.isActive } : u));
-      if (selectedUser?._id === userId) {
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, isActive: !u.isActive } : u));
+      if (selectedUser?.id === userId) {
         setSelectedUser(prev => ({ ...prev, isActive: !prev.isActive }));
       }
     } catch {
@@ -68,11 +68,11 @@ export default function QuanLyNguoiDung() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await adminService.deleteUser(deleteTarget._id);
+      await adminService.deleteUser(deleteTarget.id);
       toast.success(`Đã xóa tài khoản "${deleteTarget.fullName}"`);
-      setUsers(prev => prev.filter(u => u._id !== deleteTarget._id));
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
       setPagination(prev => ({ ...prev, total: prev.total - 1 }));
-      if (selectedUser?._id === deleteTarget._id) setSelectedUser(null);
+      if (selectedUser?.id === deleteTarget.id) setSelectedUser(null);
       setDeleteTarget(null);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Không thể xóa tài khoản");
@@ -137,7 +137,7 @@ export default function QuanLyNguoiDung() {
                 </thead>
                 <tbody>
                   {users.map(u => (
-                    <tr key={u._id}>
+                    <tr key={u.id}>
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <div style={{ width: 32, height: 32, borderRadius: "50%", background: u.role === "farmer" ? "#dcfce7" : "#dbeafe", color: u.role === "farmer" ? "#16a34a" : "#1d4ed8", fontWeight: 700, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -161,13 +161,13 @@ export default function QuanLyNguoiDung() {
                       <td style={{ color: "#64748b" }}>{fmtDate(u.createdAt)}</td>
                       <td>
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button className="adm-btn adm-btn-outline" onClick={() => openDetail(u._id)}>Chi tiết</button>
+                          <button className="adm-btn adm-btn-outline" onClick={() => openDetail(u.id)}>Chi tiết</button>
                           <button
                             className={`adm-btn ${u.isActive ? "adm-btn-danger" : "adm-btn-success"}`}
-                            onClick={() => handleToggle(u._id, u.isActive)}
-                            disabled={toggling === u._id}
+                            onClick={() => handleToggle(u.id, u.isActive)}
+                            disabled={toggling === u.id}
                           >
-                            {toggling === u._id ? "..." : u.isActive ? "Khóa" : "Mở khóa"}
+                            {toggling === u.id ? "..." : u.isActive ? "Khóa" : "Mở khóa"}
                           </button>
                           <button
                             className="adm-btn adm-btn-delete"
@@ -236,10 +236,10 @@ export default function QuanLyNguoiDung() {
               <div className="adm-modal-ft">
                 <button
                   className={`adm-btn ${selectedUser.isActive ? "adm-btn-danger" : "adm-btn-success"}`}
-                  onClick={() => handleToggle(selectedUser._id, selectedUser.isActive)}
-                  disabled={toggling === selectedUser._id}
+                  onClick={() => handleToggle(selectedUser.id, selectedUser.isActive)}
+                  disabled={toggling === selectedUser.id}
                 >
-                  {toggling === selectedUser._id ? "Đang xử lý..." : selectedUser.isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}
+                  {toggling === selectedUser.id ? "Đang xử lý..." : selectedUser.isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}
                 </button>
                 <button
                   className="adm-btn adm-btn-delete"

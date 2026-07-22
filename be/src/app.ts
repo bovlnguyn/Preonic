@@ -8,9 +8,11 @@ import path from 'path';
 import './config/passport';
 import passport from 'passport';
 import contractRoutes from './routes/contract.routes';
+import adminRoutes from './routes/admin.routes';
 // Import Routes
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
+import weatherRoutes from './routes/weather.routes';
 
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
@@ -70,6 +72,10 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // 2. DB HEALTH GUARD
 // ══════════════════════════════════════════════════════
 app.use(`${API_PREFIX}`, (req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/weather')) {
+    return next();
+  }
+
   if (!isDatabaseConnected()) {
     return res.status(503).json({
       success: false,
@@ -97,6 +103,8 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/products`, productRoutes);
 app.use(`${API_PREFIX}/contracts`, contractRoutes);
+app.use(`${API_PREFIX}/weather`, weatherRoutes);
+app.use(`${API_PREFIX}/admin`, adminRoutes);
 // Các route khác bạn sẽ mở comment và thêm vào sau...
 
 // ══════════════════════════════════════════════════════
