@@ -1,399 +1,598 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
-  FiArrowLeft, FiEdit2, FiTrash2, FiMapPin, FiPackage,
-  FiStar, FiCalendar, FiCheckCircle, FiAward,
-  FiImage, FiFileText
-} from 'react-icons/fi';
-import productService from '../../services/product.service';
-import { useAuth } from '../../contexts/AuthContext';
-import { useToast } from '../../contexts/ToastContext';
-import { CATEGORY_LABEL, REGION_LABEL, TYPE_LABEL } from '../../constants/product';
-import './ProductDetail.css';
+  FiMapPin, FiStar, FiClock, FiShield, FiCheckCircle, FiAward,
+  FiMessageSquare, FiUsers, FiFileText
+} from "react-icons/fi";
+import Header from "../Common/Header";
+import { useToast } from "../../contexts/ToastContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { ROUTES, TOAST_DURATION, REGIONS } from "../../constants";
+import productService, { resolveImageUrl } from "../../services/product.service";
+import "./ProductDetail.css";
 
-const IMAGE_HOST = 'http://localhost:8080';
-const DEFAULT_AVATAR =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="20" fill="#dcfce7"/><text x="50%" y="56%" text-anchor="middle" font-size="18" fill="#166534" font-family="sans-serif">👤</text></svg>'
-  );
+// Role guard helper
+const ROLE = { GUEST: "guest", FARMER: "farmer", ENTERPRISE: "enterprise" };
 
-const formatMoney = (value) =>
-  value ? Number(value).toLocaleString('vi-VN') + ' ₫' : '';
+const formatPrice = (value) => (value ? `${Number(value).toLocaleString("vi-VN")} ₫` : "");
+const formatPriceRange = (min, max) =>
+  min && max && min !== max ? `${formatPrice(min)} – ${formatPrice(max)}` : formatPrice(min || max);
 
-const formatDate = (value) =>
-  value ? new Date(value).toLocaleDateString('vi-VN') : '';
+// Fill defaults for fields that API products may not have
+const toUiProductDetail = (p) => ({
+  id: p._id || p.id,
+  createdBy: p.createdBy,
+  name: p.name,
+  location: p.location || "Việt Nam",
+  farm: p.farm || "-",
+  category: p.category || "other",
+  region: (p.region || "south").toLowerCase(),
+  priceMin: p.priceMin || 0,
+  priceMax: p.priceMax || p.priceMin || 0,
+  unit: p.unit || "kg",
+  progress: p.progress || 0,
+  remaining: p.remaining ?? p.totalQuantity ?? 0,
+  totalQuantity: p.totalQuantity || 0,
+  rating: p.rating || 4.5,
+  reviewCount: p.reviewCount || 0,
+  image: resolveImageUrl(p.image) || "/images/products/default.jpg",
+  badge: p.badge || null,
+  expectedDate: p.expectedDate || "Quanh năm",
+  certifications: (p.certifications || []).map((c) =>
+    typeof c === "string"
+      ? { value: c, fileUrl: null }
+      : { value: c.value, fileUrl: resolveImageUrl(c.fileUrl) }
+  ),
+  description: p.description || "Sản phẩm nông sản chất lượng cao từ nông dân Việt Nam.",
+  nutritionInfo: p.nutritionInfo || "Thông tin dinh dưỡng đang được cập nhật.",
+  commitments: p.commitments?.length
+    ? p.commitments.map((c) => (typeof c === "string" ? c : c.value))
+    : ["Đảm bảo chất lượng đã cam kết", "Giao hàng đúng hạn", "Hỗ trợ sau bán hàng"],
+  seller: {
+    userId: p.sellerUserId,
+    name: p.sellerName || "Nông dân",
+    rating: p.sellerRating || 4.5,
+    totalContracts: p.sellerTotalContracts ?? 0,
+    avatar: p.sellerName?.trim()?.charAt(0)?.toUpperCase() || "ND",
+  },
+});
 
-const TABS = ['Thông tin', 'Chứng chỉ', 'Cam kết', 'Đánh giá'];
+const ProductDetail = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const { user, loading: authLoading } = useAuth();
+  const isLoggedIn = Boolean(user);
+  const [product, setProduct] = useState(null);
+  const [similar, setSimilar] = useState([]);
+  const [quantity, setQuantity] = useState(1000);
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
+  const [reviews, setReviews] = useState([]);
+  const [myRating, setMyRating] = useState(5);
+  const [myReviewText, setMyReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [certPreview, setCertPreview] = useState(null);
 
-export default function ProductDetail() {
-  const { id }       = useParams();
-  const navigate     = useNavigate();
-  const { user }     = useAuth();
-  const toast        = useToast();
+  // Determine role
+  const role = !isLoggedIn ? ROLE.GUEST
+    : user?.role === "enterprise" ? ROLE.ENTERPRISE
+    : ROLE.FARMER;
 
-  const [product,       setProduct]       = useState(null);
-  const [loading,       setLoading]       = useState(true);
-  const [error,         setError]         = useState('');
-  const [activeTab,     setActiveTab]     = useState('Thông tin');
-  const [activeImage,   setActiveImage]   = useState(0);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting,      setDeleting]      = useState(false);
-  const [reviews,       setReviews]       = useState([]);
-
-  const isFarmerOwner =
-    user?.role === 'farmer' && product?.createdBy === user?.id;
-  const isEnterpriseViewer = user?.role === 'enterprise';
+  const isEnterprise = role === ROLE.ENTERPRISE;
+  const isFarmer = role === ROLE.FARMER;
+  const isOwner = isFarmer && product?.createdBy &&
+    (user?.id === product.createdBy || user?._id === product.createdBy);
 
   useEffect(() => {
-    setLoading(true);
-    productService.getProductById(id)
-      .then(data => {
-        const p = data?.data?.product || data?.data || data;
-        setProduct(p);
-      })
-      .catch(() => setError('Không thể tải thông tin sản phẩm.'))
-      .finally(() => setLoading(false));
+    if (authLoading) return;
+    if (!isLoggedIn) {
+      toast.warning("Vui lòng đăng nhập để xem chi tiết sản phẩm", TOAST_DURATION.DEFAULT);
+      navigate(ROUTES.AUTH);
+      return;
+    }
+    const load = async () => {
+      try {
+        const res = await productService.getById(id);
+        if (res?.data?.product) {
+          setProduct(toUiProductDetail(res.data.product));
+          // Try to load similar products from API
+          try {
+            const simRes = await productService.getSimilar(id);
+            if (Array.isArray(simRes?.data)) {
+              setSimilar(simRes.data.map(toUiProductDetail));
+            }
+          } catch { /* ignore */ }
+          window.scrollTo(0, 0);
+          return;
+        }
+      } catch {
+        toast.error("Không tìm thấy sản phẩm", TOAST_DURATION.DEFAULT);
+        navigate(ROUTES.PRODUCTS);
+        return;
+      }
+      window.scrollTo(0, 0);
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, navigate, isLoggedIn, authLoading]);
 
-    productService.getReviews(id)
-      .then(data => setReviews(data?.data || []))
-      .catch(() => setReviews([]));
+  // Countdown timer (simulated: next harvest date)
+  useEffect(() => {
+    if (!product?.expectedDate || product.expectedDate === "Quanh năm") return;
+    // Support both DD/MM/YYYY (static data) and YYYY-MM-DD (API/ISO)
+    let target;
+    if (/^\d{4}-\d{2}-\d{2}/.test(product.expectedDate)) {
+      target = new Date(product.expectedDate);
+    } else {
+      const parts = product.expectedDate.split("/");
+      target = new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+    if (isNaN(target.getTime())) return;
+    const timer = setInterval(() => {
+      const now = new Date();
+      const diff = Math.max(0, target - now);
+      setCountdown({
+        days: Math.floor(diff / 86400000),
+        hours: Math.floor((diff % 86400000) / 3600000),
+        mins: Math.floor((diff % 3600000) / 60000),
+        secs: Math.floor((diff % 60000) / 1000),
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [product]);
+
+  // Load reviews when product is available
+  useEffect(() => {
+    if (!id) return;
+    const loadReviews = async () => {
+      try {
+        const res = await productService.getReviews(id);
+        if (Array.isArray(res?.data)) {
+          setReviews(res.data);
+        }
+      } catch { /* ignore */ }
+    };
+    loadReviews();
   }, [id]);
 
-  const handleDelete = async () => {
-    setDeleting(true);
+  if (!product) return null;
+
+  const region = REGIONS[product.region.toUpperCase()] || REGIONS.SOUTH;
+  const committedPct = product.totalQuantity > 0
+    ? Math.min(100, ((product.totalQuantity - product.remaining) / product.totalQuantity) * 100)
+    : (product.progress || 0);
+  const remainPct = (100 - committedPct).toFixed(1);
+
+  // Real review distribution from fetched reviews
+  const distribution = [5, 4, 3, 2, 1].map(star => {
+    const count = reviews.filter(r => r.rating === star).length;
+    return { star, count, percent: reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0 };
+  });
+
+  const alreadyReviewed = reviews.some(
+    r => r.reviewerId === user?.id || r.reviewerId === user?._id
+  );
+
+  const handleSubmitReview = async () => {
+    if (!myReviewText.trim()) {
+      toast.warning("Vui lòng nhập nội dung đánh giá.");
+      return;
+    }
+    setSubmittingReview(true);
     try {
-      await productService.deleteProduct(id);
-      toast.success('Đã xóa sản phẩm');
-      navigate('/farmer/crops');
+      const res = await productService.addReview(product.id, { rating: myRating, text: myReviewText });
+      if (res?.data?.review) {
+        setReviews(prev => [res.data.review, ...prev]);
+        setMyReviewText("");
+        setMyRating(5);
+        toast.success("Đánh giá của bạn đã được ghi nhận!");
+        // Update local product rating
+        setProduct(prev => ({
+          ...prev,
+          rating: res.data.review.rating,
+          reviewCount: (prev.reviewCount || 0) + 1,
+        }));
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Xóa sản phẩm thất bại, vui lòng thử lại.');
-      setDeleting(false);
-      setConfirmDelete(false);
+      toast.error(err?.response?.data?.message || "Không thể gửi đánh giá. Vui lòng thử lại.");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
-  if (loading) return (
-    <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="spinner-border text-success" role="status" />
-    </div>
-  );
+  const handleGoContract = () => {
+    navigate(`${ROUTES.ENTERPRISE}/contracts/create?product=${product.id}`);
+  };
 
-  if (error || !product) return (
-    <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-      <p style={{ color: '#dc2626' }}>{error || 'Không tìm thấy sản phẩm.'}</p>
-      <button onClick={() => navigate(-1)} style={{ cursor: 'pointer' }}>
-        <FiArrowLeft /> Quay lại
-      </button>
-    </div>
-  );
+  const handleEditProduct = () => {
+    navigate(`/farmer/edit-product/${product.id}`);
+  };
 
-  // Parse images
-  let images = [];
-  try {
-    images = product.images ? JSON.parse(product.images) : [];
-  } catch {
-    images = [];
-  }
-  if (images.length === 0 && product.image) images = [product.image];
+  const handleDeleteProduct = async () => {
+    if (!window.confirm(`Bạn có chắc muốn xóa sản phẩm "${product.name}"? Hành động này không thể hoàn tác.`)) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await productService.deleteProduct(product.id);
+      toast.success("Đã xóa sản phẩm thành công.");
+      navigate('/farmer/crops');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Không thể xóa sản phẩm. Vui lòng thử lại.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleOpenMessaging = () => {
+    const partnerId = product?.seller?.userId?._id || product?.seller?.userId;
+    const partnerName = product?.seller?.name || "";
+
+    if (!partnerId || isOwner) {
+      navigate(ROUTES.MESSAGING);
+      return;
+    }
+
+    navigate(
+      `${ROUTES.MESSAGING}?partnerId=${encodeURIComponent(partnerId)}&partnerName=${encodeURIComponent(partnerName)}`
+    );
+  };
 
   return (
-    <div className="pd-page">
-      {/* ── Header ── */}
-      <div className="pd-header">
-        <button
-          className="pd-back-btn"
-          onClick={() => (isFarmerOwner ? navigate('/farmer/crops') : navigate(-1))}
-        >
-          <FiArrowLeft /> Quay lại
-        </button>
-        <h1 className="pd-title">{product.name}</h1>
-        {isFarmerOwner && (
-          <div className="pd-owner-actions">
-            <button
-              className="pd-edit-btn"
-              onClick={() => navigate(`/farmer/edit-product/${id}`)}
-            >
-              <FiEdit2 /> Chỉnh sửa
-            </button>
-
-            {!confirmDelete ? (
-              <button
-                type="button"
-                className="pd-delete-btn"
-                onClick={() => setConfirmDelete(true)}
-              >
-                <FiTrash2 /> Xóa
-              </button>
-            ) : (
-              <div className="pd-delete-confirm">
-                <span>Xác nhận xóa?</span>
-                <button type="button" className="pd-delete-btn" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? 'Đang xóa...' : 'Xóa'}
-                </button>
-                <button type="button" className="pd-back-btn" onClick={() => setConfirmDelete(false)} disabled={deleting}>
-                  Hủy
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-        {isEnterpriseViewer && (
-          <div className="pd-owner-actions">
-            <button
-              className="pd-edit-btn"
-              onClick={() => navigate(`/enterprise/contracts/create?product=${id}`)}
-            >
-              <FiFileText /> Tạo hợp đồng
-            </button>
-          </div>
-        )}
-      </div>
+    <motion.div className="product-detail-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <Header />
 
       <div className="pd-container">
-        {/* ── Left: Gallery ── */}
-        <div className="pd-gallery">
-          <div className="pd-main-image">
-            {images.length > 0 ? (
-              <img
-                src={IMAGE_HOST + images[activeImage]}
-                alt={product.name}
-              />
-            ) : (
-              <div className="pd-no-image">
-                <FiImage size={48} color="#9ca3af" />
-                <p>Chưa có ảnh</p>
+        {/* BREADCRUMB */}
+        <div className="pd-breadcrumb">
+          <span onClick={() => navigate(ROUTES.HOME)}>Trang chủ</span>
+          <span className="sep">›</span>
+          <span onClick={() => navigate(isFarmer ? '/farmer/crops' : ROUTES.PRODUCTS)}>Sản phẩm</span>
+          <span className="sep">›</span>
+          <span className="current">{product.name}</span>
+        </div>
+
+        {/* MAIN CONTENT */}
+        <div className="pd-main">
+          {/* LEFT: IMAGE + INFO */}
+          <div className="pd-left">
+            <motion.div className="pd-image-wrap" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+              <img src={product.image} alt={product.name} />
+              {product.badge && <span className="pd-badge">{product.badge}</span>}
+              <span className="pd-region-tag" style={{ background: region.color }}>
+                {region.icon} {region.label}
+              </span>
+            </motion.div>
+
+            {/* DESCRIPTION */}
+            <div className="pd-description">
+              <h3>Mô tả sản phẩm</h3>
+              <p>{product.description}</p>
+              <h4>Thông tin dinh dưỡng</h4>
+              <p>{product.nutritionInfo}</p>
+              <h4>Chứng nhận</h4>
+              <div className="pd-certs">
+                {product.certifications.map((c, i) => (
+                  c.fileUrl ? (
+                    <button
+                      key={i}
+                      type="button"
+                      className="cert-tag cert-tag-clickable"
+                      onClick={() => setCertPreview(c)}
+                    >
+                      {c.value}
+                    </button>
+                  ) : (
+                    <span key={i} className="cert-tag">{c.value}</span>
+                  )
+                ))}
               </div>
-            )}
+            </div>
           </div>
-          {images.length > 1 && (
-            <div className="pd-thumbnails">
-              {images.map((img, i) => (
-                <img
-                  key={i}
-                  src={IMAGE_HOST + img}
-                  alt={'ảnh ' + (i + 1)}
-                  className={activeImage === i ? 'active' : ''}
-                  onClick={() => setActiveImage(i)}
-                />
+
+          {/* RIGHT: PURCHASE PANEL */}
+          <div className="pd-right">
+            <motion.div className="pd-purchase" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+              {/* Owner badge for farmer who created this product */}
+              {isOwner && (
+                <div className="pd-owner-badge">Đây là sản phẩm của bạn</div>
+              )}
+
+              <h1 className="pd-name">{product.name}</h1>
+              <p className="pd-location"><FiMapPin size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />{product.location} • {product.farm}</p>
+
+              {/* RATING */}
+              <div className="pd-rating">
+                <div className="stars">
+                  {[1, 2, 3, 4, 5].map(s => (
+                    <span key={s} className={s <= Math.round(product.rating) ? "star filled" : "star"}>★</span>
+                  ))}
+                </div>
+                <span className="rating-num">{product.rating}</span>
+                <span className="review-count">({product.reviewCount} đánh giá)</span>
+              </div>
+
+              {/* PRICE */}
+              <div className="pd-price">
+                <span className="price-range">{formatPriceRange(product.priceMin, product.priceMax)}</span>
+                <span className="price-unit">/{product.unit}</span>
+              </div>
+
+              {/* PROGRESS BAR — purchase overview */}
+              <div className="pd-progress-section">
+                <div className="progress-header">
+                  <span>Đã cam kết</span>
+                  <span className="progress-pct">{committedPct.toFixed(1)}%</span>
+                </div>
+                <div className="pd-progress-bar">
+                  <div className="pd-progress-fill" style={{ width: `${committedPct}%` }} />
+                </div>
+                <div className="progress-stats">
+                  <span>• Còn lại: <strong>{product.remaining.toLocaleString()} {product.unit}</strong></span>
+                  <span>Tổng: {product.totalQuantity.toLocaleString()} {product.unit}</span>
+                </div>
+              </div>
+
+              {/* FARMER: progress detail panel */}
+              {isFarmer && (
+                <div className="pd-farmer-progress-detail">
+                  <div className="fpd-item">
+                    <span className="fpd-label">Đã được cam kết</span>
+                    <span className="fpd-val fpd-done">{committedPct.toFixed(1)}%</span>
+                  </div>
+                  <div className="fpd-item">
+                    <span className="fpd-label">Còn trống</span>
+                    <span className="fpd-val fpd-open">{remainPct}%</span>
+                  </div>
+                  <div className="fpd-item">
+                    <span className="fpd-label">Số lượng còn lại</span>
+                    <span className="fpd-val">{product.remaining.toLocaleString()} {product.unit}</span>
+                  </div>
+                  <div className="fpd-item">
+                    <span className="fpd-label">Tổng sản lượng</span>
+                    <span className="fpd-val">{product.totalQuantity.toLocaleString()} {product.unit}</span>
+                  </div>
+                  {isOwner && (
+                    <>
+                      <div className="pd-owner-info-box">
+                        <p>Bạn là người đăng sản phẩm này. Các doanh nghiệp có thể đăng ký bao tiêu và gửi hợp đồng cho bạn.</p>
+                      </div>
+                      <div className="pd-owner-actions">
+                        <button className="btn-edit-product" onClick={handleEditProduct}>
+                          Chỉnh sửa sản phẩm
+                        </button>
+                        <button className="btn-delete-product" onClick={handleDeleteProduct} disabled={deleting}>
+                          {deleting ? "Đang xóa..." : "Xóa sản phẩm"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* COUNTDOWN — shown to all roles */}
+              {product.expectedDate !== "Quanh năm" && (
+                <div className="pd-countdown">
+                  <p className="countdown-label"><FiClock size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />Thu hoạch dự kiến: {product.expectedDate}</p>
+                  <div className="countdown-boxes">
+                    <div className="cd-box"><span className="cd-num">{countdown.days}</span><span className="cd-label">Ngày</span></div>
+                    <div className="cd-box"><span className="cd-num">{countdown.hours}</span><span className="cd-label">Giờ</span></div>
+                    <div className="cd-box"><span className="cd-num">{countdown.mins}</span><span className="cd-label">Phút</span></div>
+                    <div className="cd-box"><span className="cd-num">{countdown.secs}</span><span className="cd-label">Giây</span></div>
+                  </div>
+                </div>
+              )}
+
+              {/* ENTERPRISE ONLY: quantity + seller + action buttons */}
+              {isEnterprise && (
+                <>
+                  <div className="pd-quantity">
+                    <label>Số lượng cam kết ({product.unit})</label>
+                    <div className="qty-input">
+                      <button onClick={() => setQuantity(Math.max(100, quantity - 500))}>−</button>
+                      <input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(100, Number(e.target.value)))} />
+                      <button onClick={() => setQuantity(Math.min(product.remaining, quantity + 500))}>+</button>
+                    </div>
+                    <p className="qty-estimate">
+                      Giá ước tính: <strong>{formatPrice(quantity * product.priceMin)} – {formatPrice(quantity * product.priceMax)}</strong>
+                    </p>
+                  </div>
+
+                  <div className="pd-seller">
+                    <div className="seller-avatar">{product.seller.avatar}</div>
+                    <div className="seller-info">
+                      <p className="seller-name">{product.seller.name}</p>
+                      <p className="seller-meta"><FiStar size={12} style={{ marginRight: 2, verticalAlign: 'middle' }} />{product.seller.rating} • {product.seller.totalContracts} hợp đồng</p>
+                    </div>
+                    <button className="btn-message" onClick={handleOpenMessaging}><FiMessageSquare size={14} style={{ marginRight: 4 }} />Nhắn tin</button>
+                  </div>
+
+                  <button className="btn-commit" onClick={handleGoContract}><FiUsers size={15} style={{ marginRight: 6 }} />Đăng ký Bao tiêu</button>
+                  <button className="btn-view-contracts" onClick={() => navigate(ROUTES.ENTERPRISE)}>
+                    <FiFileText size={14} style={{ marginRight: 4 }} />Xem hợp đồng của tôi
+                  </button>
+                </>
+              )}
+
+              {/* FARMER: view seller info (for non-owner) */}
+              {isFarmer && !isOwner && (
+                <div className="pd-farmer-info-box">
+                  <div className="seller-avatar">{product.seller.avatar}</div>
+                  <div className="seller-info">
+                    <p className="seller-name">{product.seller.name}</p>
+                    <p className="seller-meta"><FiStar size={12} style={{ marginRight: 2, verticalAlign: 'middle' }} />{product.seller.rating} • {product.seller.totalContracts} hợp đồng</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        </div>
+
+        {/* COMMITMENTS SECTION */}
+        <div className="pd-commitments">
+          <h2><FiShield size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />Cam kết từ nhà sản xuất</h2>
+          <div className="commitments-grid">
+            {product.commitments.map((c, i) => (
+              <motion.div key={i} className="commitment-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+                <span className="commit-icon"><FiCheckCircle size={20} /></span>
+                <p>{c}</p>
+              </motion.div>
+            ))}
+          </div>
+          <div className="preonc-guarantee">
+            <span className="guarantee-icon"><FiAward size={28} /></span>
+            <div>
+              <h4>Bảo đảm bởi PreOnic</h4>
+              <p>Mọi giao dịch trên PreOnic đều được bảo vệ bởi hệ thống ký quỹ. Nếu nhà sản xuất vi phạm cam kết, bạn sẽ được hoàn tiền 100% qua PreOnic Escrow.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* RATING SECTION */}
+        <div className="pd-reviews">
+          <h2>Đánh giá từ người mua ({reviews.length})</h2>
+          {reviews.length > 0 ? (
+            <div className="rating-overview">
+              <div className="rating-big">
+                <span className="rating-number">{product.rating}</span>
+                <div className="rating-stars">
+                  {[1, 2, 3, 4, 5].map(s => (
+                    <span key={s} className={s <= Math.round(product.rating) ? "star filled" : "star"}>★</span>
+                  ))}
+                </div>
+                <span className="total-reviews">{reviews.length} đánh giá</span>
+              </div>
+              <div className="rating-bars">
+                {distribution.map(r => (
+                  <div key={r.star} className="rating-bar-row">
+                    <span>{r.star}★</span>
+                    <div className="rbar">
+                      <div className="rbar-fill" style={{ width: `${r.percent}%` }} />
+                    </div>
+                    <span>{r.percent}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="pd-no-reviews">Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sản phẩm này!</p>
+          )}
+
+          {/* Review submission form — Enterprise users only */}
+          {isEnterprise && !alreadyReviewed && (
+            <div className="pd-review-form">
+              <h4>Viết đánh giá của bạn</h4>
+              <div className="review-star-select">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <span
+                    key={s}
+                    className={s <= myRating ? "star filled clickable" : "star clickable"}
+                    onClick={() => setMyRating(s)}
+                  >★</span>
+                ))}
+              </div>
+              <textarea
+                className="review-textarea"
+                rows={3}
+                placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này..."
+                value={myReviewText}
+                onChange={e => setMyReviewText(e.target.value)}
+                maxLength={1000}
+              />
+              <button
+                className="btn-submit-review"
+                onClick={handleSubmitReview}
+                disabled={submittingReview}
+              >
+                {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+              </button>
+            </div>
+          )}
+
+          {isEnterprise && alreadyReviewed && (
+            <p className="pd-already-reviewed">Bạn đã đánh giá sản phẩm này rồi.</p>
+          )}
+
+          {/* Reviews list */}
+          {reviews.length > 0 && (
+            <div className="reviews-list">
+              {reviews.map((review, i) => (
+                <div key={review._id || i} className="review-card">
+                  <div className="review-header">
+                    <div className="review-user">
+                      <div className="review-avatar">{review.reviewerAvatar || review.reviewerName?.charAt(0)}</div>
+                      <div>
+                        <p className="review-name">{review.reviewerName}</p>
+                        <p className="review-date">{new Date(review.createdAt).toLocaleDateString("vi-VN")}</p>
+                      </div>
+                    </div>
+                    <div className="review-stars">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <span key={s} className={s <= review.rating ? "star filled" : "star"}>★</span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="review-text">{review.text}</p>
+                </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* ── Right: Info ── */}
-        <div className="pd-info">
-          {/* Status + tags */}
-          <div className="pd-status-row">
-            <span className={'pd-badge ' + (product.isActive ? 'active' : 'inactive')}>
-              {product.isActive ? '● Đang bán' : '● Đã ẩn'}
-            </span>
-            {product.badge && (
-              <span className="pd-badge special">{product.badge}</span>
-            )}
-          </div>
-
-          <div className="pd-tags">
-            <span className="pd-tag">{CATEGORY_LABEL[product.category] || product.category}</span>
-            <span className="pd-tag">{REGION_LABEL[product.region]   || product.region}</span>
-            <span className="pd-tag">{TYPE_LABEL[product.type]       || product.type}</span>
-          </div>
-
-          {/* Key info */}
-          <div className="pd-key-info">
-            <div className="pd-info-row">
-              <span><FiPackage /> Số lượng</span>
-              <strong>
-                {product.totalQuantity
-                  ? Number(product.totalQuantity).toLocaleString('vi-VN') + ' ' + product.unit
-                  : 'Chưa cập nhật'}
-              </strong>
-            </div>
-            <div className="pd-info-row">
-              <span>💰 Giá bán</span>
-              <strong>
-                {(() => {
-                  const priceUnit = product.priceUnit || product.unit;
-                  return product.priceMin && product.priceMax
-                    ? formatMoney(product.priceMin) + ' – ' + formatMoney(product.priceMax) + ' / ' + priceUnit
-                    : product.priceMin
-                    ? formatMoney(product.priceMin) + ' / ' + priceUnit
-                    : 'Chưa cập nhật';
-                })()}
-              </strong>
-            </div>
-            <div className="pd-info-row">
-              <span><FiMapPin /> Khu vực</span>
-              <strong>{product.location || 'Chưa cập nhật'}</strong>
-            </div>
-            {product.farm && (
-              <div className="pd-info-row">
-                <span>🌾 Nông trại</span>
-                <strong>{product.farm}</strong>
-              </div>
-            )}
-            {product.variety && (
-              <div className="pd-info-row">
-                <span>🌱 Giống / Phân loại</span>
-                <strong>{product.variety}</strong>
-              </div>
-            )}
-            {product.area && (
-              <div className="pd-info-row">
-                <span>📐 Diện tích canh tác</span>
-                <strong>{Number(product.area).toLocaleString('vi-VN')} ha</strong>
-              </div>
-            )}
-            <div className="pd-info-row">
-              <span><FiCalendar /> Thu hoạch dự kiến</span>
-              <strong>{product.expectedDate ? formatDate(product.expectedDate) : 'Chưa cập nhật'}</strong>
-            </div>
-            <div className="pd-info-row">
-              <span><FiStar /> Đánh giá</span>
-              <strong>
-                {product.rating > 0
-                  ? product.rating + ' ⭐ (' + product.reviewCount + ' đánh giá)'
-                  : 'Chưa có đánh giá'}
-              </strong>
+        {/* SIMILAR PRODUCTS */}
+        {similar.length > 0 && (
+          <div className="pd-similar">
+            <h2>Sản phẩm tương tự</h2>
+            <div className="similar-grid">
+              {similar.map(p => (
+                <motion.div key={p.id} className="similar-card" whileHover={{ y: -5 }}
+                  onClick={() => navigate(`/products/${p.id}`)}>
+                  <img src={p.image} alt={p.name} />
+                  <div className="similar-info">
+                    <h4>{p.name}</h4>
+                    <p className="sim-location"><FiMapPin size={12} style={{ marginRight: 3, verticalAlign: 'middle' }} />{p.location}</p>
+                    <p className="sim-price">{formatPriceRange(p.priceMin, p.priceMax)}/{p.unit}</p>
+                    <div className="sim-rating"><FiStar size={12} style={{ marginRight: 2, verticalAlign: 'middle' }} />{p.rating} ({p.reviewCount})</div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </div>
+        )}
+      </div>
 
-          {product.sellerName && (
-            <div className="pd-seller">
-              <img
-                className="pd-seller__avatar"
-                src={product.sellerAvatar ? IMAGE_HOST + product.sellerAvatar : DEFAULT_AVATAR}
-                alt={product.sellerName}
+      {/* CERTIFICATION PREVIEW MODAL */}
+      {certPreview && (
+        <div className="modal-overlay" onClick={() => setCertPreview(null)}>
+          <div className="cert-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cert-modal-header">
+              <h3>{certPreview.value}</h3>
+              <button className="cert-modal-close" onClick={() => setCertPreview(null)}>×</button>
+            </div>
+            {/\.pdf($|\?)/i.test(certPreview.fileUrl) ? (
+              <iframe
+                title={certPreview.value}
+                src={certPreview.fileUrl}
+                className="cert-modal-pdf"
               />
-              <div className="pd-seller__info">
-                <strong>{product.sellerName}</strong>
-                <div className="pd-seller__meta">
-                  {product.sellerRating > 0 && (
-                    <span><FiStar /> {product.sellerRating}</span>
-                  )}
-                  {product.sellerTotalContracts > 0 && (
-                    <span>{product.sellerTotalContracts} hợp đồng đã thực hiện</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+            ) : (
+              <img src={certPreview.fileUrl} alt={certPreview.value} className="cert-modal-image" />
+            )}
+            <a
+              href={certPreview.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cert-modal-link"
+            >
+              Mở trong tab mới
+            </a>
+          </div>
         </div>
-      </div>
-
-      {/* ── Tabs ── */}
-      <div className="pd-tabs">
-        {TABS.map(tab => (
-          <button
-            key={tab}
-            type="button"
-            className={'pd-tab ' + (activeTab === tab ? 'active' : '')}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <div className="pd-tab-content">
-        {/* Thông tin */}
-        {activeTab === 'Thông tin' && (
-          <div>
-            {product.description ? (
-              <>
-                <h4>Mô tả sản phẩm</h4>
-                <p className="pd-text">{product.description}</p>
-              </>
-            ) : (
-              <p className="pd-empty">Chưa có mô tả.</p>
-            )}
-            {product.nutritionInfo && (
-              <>
-                <h4 style={{ marginTop: 20 }}>Thông tin dinh dưỡng</h4>
-                <p className="pd-text">{product.nutritionInfo}</p>
-              </>
-            )}
-            {product.note && (
-              <>
-                <h4 style={{ marginTop: 20 }}>Ghi chú</h4>
-                <p className="pd-text">{product.note}</p>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Chứng chỉ */}
-        {activeTab === 'Chứng chỉ' && (
-          <div>
-            {product.certifications?.length > 0 ? (
-              <div className="pd-cert-list">
-                {product.certifications.map((cert, i) => (
-                  <div key={i} className="pd-cert-item">
-                    <FiAward color="#16a34a" size={20} />
-                    <div>
-                      <strong>{cert.value}</strong>
-                     {cert.fileUrl && (
-  
-                     <a href={IMAGE_HOST + cert.fileUrl}
-                     target="_blank"
-                     rel="noreferrer"
-                    className="fpd-cert-link"
-                     >
-                    <FiFileText /> Xem file minh chứng
-                </a>
-                    )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="pd-empty">Chưa có chứng chỉ nào.</p>
-            )}
-          </div>
-        )}
-
-        {/* Cam kết */}
-        {activeTab === 'Cam kết' && (
-          <div>
-            {product.commitments?.length > 0 ? (
-              <ul className="pd-commit-list">
-                {product.commitments.map((c, i) => (
-                  <li key={i} className="pd-commit-item">
-                    <FiCheckCircle color="#16a34a" size={16} />
-                    <span>{c.value}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="pd-empty">Chưa có cam kết nào.</p>
-            )}
-          </div>
-        )}
-
-        {/* Đánh giá */}
-        {activeTab === 'Đánh giá' && (
-          <div>
-            {reviews.length > 0 ? (
-              <div className="pd-review-list">
-                {reviews.map((r) => (
-                  <div key={r.id} className="pd-review-item">
-                    <div className="pd-review-item__head">
-                      <strong>{r.reviewerName || 'Ẩn danh'}</strong>
-                      <span className="pd-review-item__stars">
-                        {'⭐'.repeat(r.rating)} <span className="pd-review-item__rating-num">{r.rating}/5</span>
-                      </span>
-                    </div>
-                    {r.text && <p className="pd-text">{r.text}</p>}
-                    <span className="pd-review-item__date">{formatDate(r.createdAt)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="pd-empty">Chưa có đánh giá nào.</p>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </motion.div>
   );
-}
+};
+
+export default ProductDetail;

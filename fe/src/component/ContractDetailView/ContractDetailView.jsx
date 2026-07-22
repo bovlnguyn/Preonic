@@ -6,29 +6,31 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { CONTRACT_STATUS_LABEL, PAYMENT_TERMS_LABEL } from '../../constants/contract';
 import ContractFlow from '../ContractFlow/ContractFlow';
+import EscrowPanel from '../EscrowPanel/EscrowPanel';
 import './ContractDetailView.css';
 
 const FLOW_STEPS = [
   { key: 'proposed',        label: 'Đề xuất' },
-  { key: 'enterprise_sign', label: 'Doanh nghiệp ký' },
   { key: 'farmer_sign',     label: 'Nông dân xác nhận' },
+  { key: 'enterprise_sign', label: 'Doanh nghiệp ký' },
   { key: 'done',            label: 'Hoàn tất' },
 ];
 
 const TERMINAL_STATUSES = ['cancelled', 'disputed'];
 const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved', 'active'];
 
+// Nong dan phai ky truoc, den luot doanh nghiep ky sau khi kich hoat hop dong
 const resolveFlowProgress = (contract) => {
   const cancelled = TERMINAL_STATUSES.includes(contract.status);
   if (contract.status === 'active' || contract.status === 'completed')
     return { currentIndex: FLOW_STEPS.length, cancelled: false };
   if (cancelled) {
-    const reachedIndex = contract.signedByEnterprise ? 2 : 1;
+    const reachedIndex = contract.signedByFarmer ? 2 : 1;
     return { currentIndex: reachedIndex, cancelled: true };
   }
   if (contract.signedByEnterprise && contract.signedByFarmer)
     return { currentIndex: FLOW_STEPS.length, cancelled: false };
-  if (contract.signedByEnterprise || contract.signedByFarmer)
+  if (contract.signedByFarmer)
     return { currentIndex: 2, cancelled: false };
   return { currentIndex: 1, cancelled: false };
 };
@@ -212,8 +214,7 @@ export default function ContractDetailView() {
   const handleDeclineCancel = async () => {
     setActing(true);
     try {
-      // Gọi API reject cancel — backend tự xử lý
-      await contractService.reject(id, 'Không đồng ý hủy hợp đồng');
+      await contractService.declineCancel(id);
       toast.success('Đã từ chối yêu cầu hủy. Hợp đồng tiếp tục có hiệu lực.');
       setShowConfirmCancel(false);
       load();
@@ -242,14 +243,17 @@ export default function ContractDetailView() {
   const mySigned  = isFarmer ? contract.signedByFarmer : contract.signedByEnterprise;
   const isTerminal = TERMINAL_STATUSES.includes(contract.status);
 
-  // Có thể ký nếu chưa ký và HĐ chưa kết thúc
-  const canSign = !mySigned && !isTerminal && contract.status !== 'cancel_pending';
+  // Doanh nghiep chi duoc ky sau khi nong dan da ky (khop guard o BE contract.service.ts#signContract)
+  const waitingOnFarmer = !isFarmer && !contract.signedByFarmer;
+
+  // Có thể ký nếu chưa ký, HĐ chưa kết thúc, và (là nông dân hoặc nông dân đã ký)
+  const canSign = !mySigned && !isTerminal && contract.status !== 'cancel_pending' && !waitingOnFarmer;
 
   // Có thể hủy nếu HĐ đang trong trạng thái cho phép và chưa ai gửi yêu cầu hủy
   const canCancel = contract.status === 'active';
 
   // Bên bị yêu cầu hủy: cancel_pending và mình không phải người gửi yêu cầu
-  const isCancelRequester = contract.cancelRequestedBy === user?._id;
+  const isCancelRequester = contract.cancelRequestedBy === user?.id;
   const canRespondToCancel = contract.status === 'cancel_pending' && !isCancelRequester;
 
   const { currentIndex, cancelled } = resolveFlowProgress(contract);
@@ -332,6 +336,13 @@ export default function ContractDetailView() {
           </div>
         )}
 
+        {/* Doanh nghiệp: chờ nông dân xác nhận trước khi được ký */}
+        {waitingOnFarmer && !isTerminal && contract.status !== 'cancel_pending' && (
+          <div className="cdv-note cdv-note--info">
+            Đang chờ nông dân xác nhận đề xuất. Bạn sẽ có thể ký chính thức sau khi nông dân đồng ý.
+          </div>
+        )}
+
         {/* Đã ký rồi — hiện thông báo chờ bên kia */}
         {!isTerminal && contract.status !== 'cancel_pending' && mySigned && (
           <div className="cdv-note cdv-note--success">
@@ -393,6 +404,8 @@ export default function ContractDetailView() {
           )}
         </div>
       </div>
+
+      <EscrowPanel contract={contract} userRole={user?.role} />
 
       {/* Modal hủy hợp đồng */}
       {showCancelModal && (

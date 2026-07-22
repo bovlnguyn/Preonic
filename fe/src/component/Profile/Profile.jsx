@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  FiUser, FiPhone, FiMapPin, FiImage, FiMail,
+  FiUser, FiPhone, FiMapPin, FiCamera, FiMail,
   FiHome, FiBriefcase, FiHash, FiSave, FiStar, FiArrowLeft,
   FiLock, FiEye, FiEyeOff,
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import authService from '../../services/auth.service';
+import { resolveImageUrl } from '../../services/product.service';
 import { VN_DISTRICTS, VN_WARDS } from '../../data/vn-locations';
 import './Profile.css';
 
@@ -56,6 +57,9 @@ function Profile() {
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const avatarInputRef = useRef();
 
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
   const [pwErrors, setPwErrors] = useState({});
@@ -68,6 +72,27 @@ function Profile() {
   useEffect(() => {
     setForm(buildForm(user));
   }, [user]);
+
+  useEffect(() => {
+    if (!avatarFile) { setAvatarPreview(''); return; }
+    const url = URL.createObjectURL(avatarFile);
+    setAvatarPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatarFile]);
+
+  const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_AVATAR_SIZE) {
+      toast.error('Ảnh đại diện không được vượt quá 5MB');
+      e.target.value = '';
+      return;
+    }
+    setAvatarFile(file);
+    e.target.value = '';
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -84,8 +109,13 @@ function Profile() {
     const e = {};
     if (!form.firstName.trim()) e.firstName = 'Tên là bắt buộc';
     if (!form.lastName.trim()) e.lastName = 'Họ là bắt buộc';
-    if (form.phone && !/^[0-9]{10,11}$/.test(form.phone.trim())) {
-      e.phone = 'Số điện thoại phải có 10-11 chữ số';
+    if (form.phone) {
+      const phoneVal = form.phone.trim();
+      if (/[^0-9]/.test(phoneVal)) {
+        e.phone = 'Số điện thoại không được chứa chữ hoặc ký tự đặc biệt';
+      } else if (!/^[0-9]{10,11}$/.test(phoneVal)) {
+        e.phone = 'Số điện thoại phải có 10-11 chữ số';
+      }
     }
     if (form.farmSize !== '' && Number(form.farmSize) < 0) {
       e.farmSize = 'Diện tích phải là số không âm';
@@ -103,7 +133,6 @@ function Profile() {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       phone: form.phone.trim(),
-      avatar: form.avatar.trim(),
       province: form.province,
       district: form.district,
       ward: form.ward,
@@ -121,8 +150,9 @@ function Profile() {
 
     setSaving(true);
     try {
-      const result = await authService.updateProfile(payload);
+      const result = await authService.updateProfile(payload, avatarFile);
       if (result?.data?.user) updateUser(result.data.user);
+      setAvatarFile(null);
       toast.success('Cập nhật hồ sơ thành công');
     } catch (err) {
       setApiError(err?.message || 'Cập nhật hồ sơ thất bại. Vui lòng thử lại.');
@@ -201,24 +231,40 @@ function Profile() {
 
       <form className="profile-layout" onSubmit={handleSubmit} noValidate>
         <aside className="profile-card profile-card--side">
-          <div className="profile-avatar">
-            {form.avatar
-              ? <img src={form.avatar} alt="Ảnh đại diện" onError={(e) => { e.target.style.display = 'none'; }} />
+          <div
+            className="profile-avatar profile-avatar--upload"
+            onClick={() => avatarInputRef.current.click()}
+            title="Nhấn để đổi ảnh đại diện"
+          >
+            {avatarPreview || form.avatar
+              ? (
+                <img
+                  src={avatarPreview || resolveImageUrl(form.avatar)}
+                  alt="Ảnh đại diện"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              )
               : <span>{getInitials(fullName)}</span>}
+            <div className="profile-avatar__overlay">
+              <FiCamera />
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg"
+              hidden
+              onChange={handleAvatarChange}
+            />
           </div>
           <h3 className="profile-avatar__name">{fullName}</h3>
           <span className="profile-avatar__role">{ROLE_LABEL[user?.role] || user?.role}</span>
-
-          <div className="profile-field">
-            <label>Ảnh đại diện (URL)</label>
-            <div className="profile-input-icon">
-              <FiImage />
-              <input
-                type="text" name="avatar" placeholder="https://..."
-                value={form.avatar} onChange={handleChange}
-              />
-            </div>
-          </div>
+          <button
+            type="button"
+            className="profile-avatar__change-btn"
+            onClick={() => avatarInputRef.current.click()}
+          >
+            <FiCamera /> Đổi ảnh đại diện
+          </button>
 
           <div className="profile-meta">
             <div className="profile-meta__row">
@@ -237,7 +283,7 @@ function Profile() {
             <h2>Thông tin cá nhân</h2>
             <div className="profile-row">
               <div className="profile-field">
-                <label>Họ</label>
+                <label>Họ <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.lastName ? 'profile-input-icon--invalid' : ''}`}>
                   <FiUser />
                   <input type="text" name="lastName" value={form.lastName} onChange={handleChange} placeholder="Nhập họ" />
@@ -245,7 +291,7 @@ function Profile() {
                 {errors.lastName && <div className="profile-field-error">{errors.lastName}</div>}
               </div>
               <div className="profile-field">
-                <label>Tên</label>
+                <label>Tên <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.firstName ? 'profile-input-icon--invalid' : ''}`}>
                   <FiUser />
                   <input type="text" name="firstName" value={form.firstName} onChange={handleChange} placeholder="Nhập tên" />
@@ -256,7 +302,7 @@ function Profile() {
 
             <div className="profile-row">
               <div className="profile-field">
-                <label>Số điện thoại</label>
+                <label>Số điện thoại <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.phone ? 'profile-input-icon--invalid' : ''}`}>
                   <FiPhone />
                   <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="09xx xxx xxx" />
@@ -264,7 +310,7 @@ function Profile() {
                 {errors.phone && <div className="profile-field-error">{errors.phone}</div>}
               </div>
               <div className="profile-field">
-                <label>Địa chỉ cụ thể</label>
+                <label>Địa chỉ cụ thể <span className="profile-required">*</span></label>
                 <div className="profile-input-icon">
                   <FiHome />
                   <input type="text" name="address" value={form.address} onChange={handleChange} placeholder="Số nhà, tên đường..." />
@@ -277,7 +323,7 @@ function Profile() {
             <h2>Địa chỉ hành chính</h2>
             <div className="profile-row">
               <div className="profile-field">
-                <label>Tỉnh / Thành phố</label>
+                <label>Tỉnh / Thành phố <span className="profile-required">*</span></label>
                 <div className="profile-input-icon">
                   <FiMapPin />
                   <select name="province" value={form.province} onChange={handleChange}>
@@ -287,7 +333,7 @@ function Profile() {
                 </div>
               </div>
               <div className="profile-field">
-                <label>Quận / Huyện</label>
+                <label>Quận / Huyện <span className="profile-required">*</span></label>
                 <div className="profile-input-icon">
                   <FiMapPin />
                   <select name="district" value={form.district} onChange={handleChange} disabled={!form.province}>

@@ -1,0 +1,40 @@
+.enterprise-contact-page { min-height: 100vh; color: #0f172a; background: linear-gradient(180deg,#f8fafc,#eff6ff 55%,#f0fdf4); }
+.ec-container { width: min(1180px, calc(100% - 48px)); margin: 0 auto; }
+.ec-hero { padding: 78px 0 88px; color: #fff; background: radial-gradient(circle at 15% 20%,rgba(56,189,248,.28),transparent 32%), linear-gradient(135deg,#082f49,#1d4ed8 52%,#065f46); }
+.ec-hero__grid { display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 54px; align-items: center; }
+.ec-eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; border-radius: 999px; color: #dbeafe; font-weight: 950; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); }
+.ec-eyebrow--blue { color: #2563eb; background: #eff6ff; border-color: #dbeafe; }
+.ec-hero h1 { max-width: 850px; margin: 22px 0 16px; font-size: clamp(38px,5vw,66px); line-height: .98; font-weight: 950; letter-spacing: -.055em; }
+.ec-hero p { max-width: 750px; margin: 0; color: rgba(239,246,255,.82); font-size: 17px; line-height: 1.8; }
+.ec-response-card { padding: 30px; border-radius: 32px; background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.18); box-shadow: 0 30px 70px rgba(15,23,42,.3); backdrop-filter: blur(18px); }
+.ec-response-card svg { width: 40px; height: 40px; color: #67e8f9; }
+.ec-response-card strong { display: block; margin: 20px 0 8px; font-size: 26px; font-weight: 950; }
+.ec-response-card span { color: rgba(255,255,255,.78); line-height: 1.6; font-weight: 750; }
+.ec-card-grid { margin-top: -38px; position: relative; z-index: 3; display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+.ec-card-grid article, .ec-form, .ec-side { border: 1px solid rgba(148,163,184,.18); background: rgba(255,255,255,.9); box-shadow: 0 20px 55px rgba(15,23,42,.08); backdrop-filter: blur(18px); }
+.ec-card-grid article { padding: 26px; border-radius: 28px; }
+.ec-card-grid svg { width: 30px; height: 30px; color: #2563eb; }
+.ec-card-grid h3 { margin: 18px 0 10px; font-size: 20px; font-weight: 950; }
+.ec-card-grid strong { color: #0f766e; font-size: 20px; }
+.ec-card-grid p { margin: 10px 0 0; color: #64748b; line-height: 1.65; font-weight: 650; }
+.ec-contact-grid { padding: 70px 0 90px; display: grid; grid-template-columns: minmax(0,1fr) 380px; gap: 24px; align-items: start; }
+.ec-form, .ec-side { border-radius: 34px; }
+.ec-form { padding: 32px; }
+.ec-form h2 { margin: 18px 0 24px; font-size: clamp(30px,3.6vw,46px); line-height: 1.05; font-weight: 950; letter-spacing: -.04em; }
+.ec-field-row { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+.ec-form label { display: grid; gap: 8px; margin-bottom: 15px; color: #334155; font-weight: 900; }
+.ec-form input, .ec-form select, .ec-form textarea { width: 100%; border: 1px solid #dbeafe; outline: 0; border-radius: 16px; padding: 14px 15px; color: #0f172a; background: #f8fafc; font-weight: 750; transition: border-color .2s ease, box-shadow .2s ease; }
+.ec-form input:focus, .ec-form select:focus, .ec-form textarea:focus { border-color: #38bdf8; box-shadow: 0 0 0 4px rgba(56,189,248,.16); background: #fff; }
+.ec-form button { min-height: 52px; padding: 0 22px; display: inline-flex; align-items: center; gap: 9px; border: 0; border-radius: 17px; color: #fff; font-weight: 950; cursor: pointer; background: linear-gradient(135deg,#2563eb,#38bdf8 52%,#22c55e); box-shadow: 0 16px 36px rgba(37,99,235,.23); }
+.ec-success { margin-top: 16px; padding: 14px; display: flex; gap: 10px; align-items: center; border-radius: 16px; color: #166534; font-weight: 850; background: #dcfce7; }
+.ec-side { padding: 28px; }
+.ec-side__team { padding: 26px; border-radius: 28px; color: #fff; background: linear-gradient(135deg,#1d4ed8,#0891b2 55%,#059669); }
+.ec-side__team svg { width: 38px; height: 38px; }
+.ec-side__team h2 { margin: 18px 0 10px; font-size: 26px; font-weight: 950; }
+.ec-side__team p { margin: 0; color: rgba(255,255,255,.82); line-height: 1.7; }
+.ec-faq { margin-top: 22px; }
+.ec-faq h3 { margin: 0 0 14px; font-size: 22px; font-weight: 950; }
+.ec-faq div { display: flex; gap: 10px; padding: 14px 0; border-top: 1px solid #e2e8f0; color: #475569; font-weight: 750; line-height: 1.55; }
+.ec-faq svg { flex: 0 0 auto; color: #22c55e; margin-top: 2px; }
+@media (max-width: 1020px) { .ec-hero__grid, .ec-contact-grid { grid-template-columns: 1fr; } .ec-card-grid { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .ec-container { width: min(100% - 28px,1180px); } .ec-field-row { grid-template-columns: 1fr; } .ec-form { padding: 22px; } }

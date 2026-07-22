@@ -41,14 +41,19 @@ fe/build/
 fe/dist/
 
 # ═══════════════════════════════════════════════════════════
-# UPLOADS — file do người dùng upload (ảnh SP, chứng chỉ)
+# UPLOADS — file do người dùng upload (ảnh SP, chứng chỉ, avatar)
+# Chỉ giữ lại cấu trúc thư mục (.gitkeep), không commit file thật
 # ═══════════════════════════════════════════════════════════
-be/uploads/*
+uploads/*
+!uploads/.gitkeep
+!uploads/products/
+!uploads/avatars/
 
-# Giữ lại thư mục nhưng bỏ qua nội dung
-!be/uploads/.gitkeep
- be/uploads/products/*
-!be/uploads/products/.gitkeep
+uploads/products/*
+!uploads/products/.gitkeep
+
+uploads/avatars/*
+!uploads/avatars/.gitkeep
 # ═══════════════════════════════════════════════════════════
 # LOGS
 # ═══════════════════════════════════════════════════════════

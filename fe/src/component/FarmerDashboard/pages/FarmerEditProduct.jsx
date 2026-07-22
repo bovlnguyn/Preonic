@@ -23,6 +23,7 @@ const buildForm = (product) => ({
   unit: product?.unit || 'kg',
   priceUnit: product?.priceUnit || product?.unit || 'kg',
   totalQuantity: product?.totalQuantity ?? '',
+  plantDate: product?.plantDate ? product.plantDate.slice(0, 10) : '',
   expectedDate: product?.expectedDate ? product.expectedDate.slice(0, 10) : '',
   description: product?.description || '',
   nutritionInfo: product?.nutritionInfo || '',
@@ -58,6 +59,19 @@ export default function FarmerEditProduct() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const today = new Date().toISOString().split('T')[0];
+    if (form.expectedDate) {
+      if (form.expectedDate < today) {
+        setError('Ngày thu hoạch không được trước ngày hiện tại.');
+        return;
+      }
+      if (form.plantDate && form.expectedDate < form.plantDate) {
+        setError('Ngày thu hoạch không được trước ngày gieo trồng.');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       await productService.updateProduct(id, {
@@ -72,6 +86,7 @@ export default function FarmerEditProduct() {
         unit: form.unit,
         priceUnit: form.priceUnit,
         totalQuantity: form.totalQuantity === '' ? undefined : Number(form.totalQuantity),
+        plantDate: form.plantDate || undefined,
         expectedDate: form.expectedDate || undefined,
         description: form.description.trim() || undefined,
         nutritionInfo: form.nutritionInfo.trim() || undefined,
@@ -296,14 +311,25 @@ export default function FarmerEditProduct() {
             </div>
           </div>
 
-          <div className="fcp-field fcp-field--full">
-            <label>Ngày thu hoạch dự kiến</label>
-            <input
-              className="fcp-input"
-              type="date"
-              value={form.expectedDate}
-              onChange={(e) => set('expectedDate', e.target.value)}
-            />
+          <div className="fcp-row">
+            <div className="fcp-field">
+              <label>Ngày bắt đầu gieo / trồng</label>
+              <input
+                className="fcp-input"
+                type="date"
+                value={form.plantDate}
+                onChange={(e) => set('plantDate', e.target.value)}
+              />
+            </div>
+            <div className="fcp-field">
+              <label>Ngày thu hoạch dự kiến</label>
+              <input
+                className="fcp-input"
+                type="date"
+                value={form.expectedDate}
+                onChange={(e) => set('expectedDate', e.target.value)}
+              />
+            </div>
           </div>
         </div>
 

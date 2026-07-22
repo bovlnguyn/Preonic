@@ -185,11 +185,25 @@ const authService = {
   /**
    * Update user profile
    * @param {Object} data - { fullName, phone, avatar, ... }
+   * @param {File} [avatarFile] - ảnh đại diện mới (nếu có) để upload
    * @returns {Promise}
    */
-  updateProfile: async (data) => {
+  updateProfile: async (data, avatarFile) => {
     try {
-      const response = await api.patch('/auth/me', data);
+      let payload = data;
+      let config;
+
+      if (avatarFile) {
+        const formData = new FormData();
+        Object.entries(data).forEach(([key, value]) => {
+          if (value !== undefined) formData.append(key, value);
+        });
+        formData.append('avatar', avatarFile);
+        payload = formData;
+        config = { headers: { 'Content-Type': 'multipart/form-data' } };
+      }
+
+      const response = await api.patch('/auth/me', payload, config);
       if (response.data.success) {
         localStorage.setItem(USER, JSON.stringify(response.data.data.user));
       }

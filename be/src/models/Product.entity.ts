@@ -50,6 +50,9 @@ export class Product {
   @Column({ name: 'PriceUnit', type: 'nvarchar', length: 50, nullable: true })
   priceUnit: string;
 
+  @Column({ name: 'PlantDate', type: 'date', nullable: true })
+  plantDate: Date;
+
   @Column({ name: 'ExpectedDate', type: 'date', nullable: true })
   expectedDate: Date;
 
