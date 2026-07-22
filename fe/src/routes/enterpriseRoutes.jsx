@@ -20,6 +20,7 @@ import EnterpriseSuppliers from '../component/EnterpriseDashboard/pages/Enterpri
 import EnterpriseTransactions from '../component/EnterpriseDashboard/pages/EnterpriseTransactions';
 import EnterpriseRatings from '../component/EnterpriseDashboard/pages/EnterpriseRatings';
 import EnterpriseWeatherInsurance from '../component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance';
+import EnterpriseCreateContract from '../component/EnterpriseDashboard/pages/EnterpriseCreateContract';
 
 // Dùng chung Farmer/Enterprise
 import ContractDetailView from '../component/ContractDetailView/ContractDetailView';
@@ -43,6 +44,7 @@ const enterpriseRoutes = [
     children: [
       { index: true, element: <EnterpriseOverview /> },
       { path: 'contracts', element: <EnterpriseContracts /> },
+      { path: 'contracts/create', element: <EnterpriseCreateContract /> },
       { path: 'contracts/:id', element: <ContractDetailView /> },
       { path: 'products', element: <EnterpriseProducts /> },
       { path: 'orders', element: <EnterpriseOrders /> },

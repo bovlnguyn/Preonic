@@ -19,6 +19,7 @@ import FarmerWallet from '../component/FarmerDashboard/pages/FarmerWallet';
 import FarmerRatings from '../component/FarmerDashboard/pages/FarmerRatings';
 import FarmerWeatherInsurance from '../component/FarmerDashboard/pages/FarmerWeatherInsurance';
 import FarmerCreateProduct from '../component/FarmerDashboard/pages/FarmerCreateProduct';
+import FarmerEditProduct from '../component/FarmerDashboard/pages/FarmerEditProduct';
 
 // Dùng chung Farmer/Enterprise
 import ContractDetailView from '../component/ContractDetailView/ContractDetailView';
@@ -50,6 +51,7 @@ const farmerRoutes = [
       { path: 'ratings', element: <FarmerRatings /> },
       { path: 'weather-insurance', element: <FarmerWeatherInsurance /> },
       { path: 'create-product', element: <FarmerCreateProduct /> },
+      { path: 'edit-product/:id', element: <FarmerEditProduct /> },
     ],
   },
 ];
