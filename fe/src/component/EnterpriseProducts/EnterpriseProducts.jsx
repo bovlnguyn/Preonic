@@ -13,6 +13,7 @@ import {
   FiTruck,
 } from "react-icons/fi";
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import "./EnterpriseProducts.css";
 
 const supplies = [
@@ -263,6 +264,7 @@ function EnterpriseProducts() {
           </aside>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

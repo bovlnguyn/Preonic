@@ -12,6 +12,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import "./EnterpriseContact.css";
 
 const contactCards = [
@@ -139,6 +140,7 @@ function EnterpriseContact() {
           </motion.aside>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

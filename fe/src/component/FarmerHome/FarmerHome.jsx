@@ -18,6 +18,7 @@ import {
 } from "react-icons/fi";
 
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import { useAuth } from "../../contexts/AuthContext";
 import farmerService from "../../services/farmer.service";
 import { COMPANY, ROUTES } from "../../constants";
@@ -425,6 +426,7 @@ function FarmerHome() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

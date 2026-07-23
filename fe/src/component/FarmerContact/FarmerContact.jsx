@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import { COMPANY } from "../../constants";
 import "./FarmerContact.css";
 
@@ -191,6 +192,7 @@ function FarmerContact() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

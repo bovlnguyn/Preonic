@@ -15,6 +15,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import { useAuth } from "../../contexts/AuthContext";
 import "./EnterpriseHome.css";
 
@@ -251,6 +252,7 @@ function EnterpriseHome() {
           </button>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

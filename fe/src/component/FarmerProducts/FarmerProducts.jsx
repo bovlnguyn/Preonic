@@ -17,6 +17,7 @@ import {
 } from "react-icons/fi";
 
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import farmerService from "../../services/farmer.service";
 import "./FarmerProducts.css";
 
@@ -273,6 +274,7 @@ function FarmerProducts() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }
