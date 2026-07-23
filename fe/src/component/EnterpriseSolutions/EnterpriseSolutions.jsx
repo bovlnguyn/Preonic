@@ -14,6 +14,7 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import "./EnterpriseSolutions.css";
 
 const solutions = [
@@ -149,6 +150,7 @@ function EnterpriseSolutions() {
           <button type="button" onClick={() => navigate("/enterprise")}>Vào dashboard <FiArrowRight /></button>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

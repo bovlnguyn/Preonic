@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import "./FarmerAI.css";
 
 const fadeUp = {
@@ -169,6 +170,7 @@ function FarmerAI() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

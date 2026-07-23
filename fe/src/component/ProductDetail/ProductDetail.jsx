@@ -6,6 +6,7 @@ import {
   FiMessageSquare, FiUsers, FiFileText
 } from "react-icons/fi";
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import { useToast } from "../../contexts/ToastContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { ROUTES, TOAST_DURATION, REGIONS } from "../../constants";
@@ -562,6 +563,7 @@ const ProductDetail = () => {
           </div>
         )}
       </div>
+      <Footer />
 
       {/* CERTIFICATION PREVIEW MODAL */}
       {certPreview && (

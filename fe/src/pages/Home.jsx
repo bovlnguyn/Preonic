@@ -1,4 +1,5 @@
 import Header from "../component/Common/Header";
+import Footer from "../component/Common/Footer";
 
 import HomeHero from "../component/HomeSections/HomeHero/HomeHero";
 import HomeStats from "../component/HomeSections/HomeStats/HomeStats";
@@ -24,6 +25,8 @@ function Home() {
         <HomeProcess />
         <HomeCTA />
       </main>
+
+      <Footer />
     </div>
   );
 }

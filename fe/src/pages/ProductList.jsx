@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { FiSearch, FiMapPin, FiStar, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { FaSeedling } from 'react-icons/fa';
 import Header from '../component/Common/Header';
+import Footer from "../component/Common/Footer";
 import productService from '../services/product.service';
 import { CATEGORY_LABEL, REGION_LABEL, TYPE_LABEL, CATEGORY_OPTIONS, REGION_OPTIONS, TYPE_OPTIONS } from '../constants/product';
 import './Home.css';
@@ -229,6 +230,7 @@ export default function ProductList() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

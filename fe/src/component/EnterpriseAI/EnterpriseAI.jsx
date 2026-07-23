@@ -14,6 +14,7 @@ import {
   FiZap,
 } from "react-icons/fi";
 import Header from "../Common/Header";
+import Footer from "../Common/Footer";
 import "./EnterpriseAI.css";
 
 const suggestions = [
@@ -160,6 +161,7 @@ function EnterpriseAI() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   );
 }
