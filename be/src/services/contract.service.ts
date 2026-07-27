@@ -322,7 +322,8 @@ export const signContract = async (id: string, userId: string, role: string) => 
     contract.signedByEnterprise = true;
   }
 
-  if (contract.signedByFarmer && contract.signedByEnterprise) {
+  const becameActive = contract.signedByFarmer && contract.signedByEnterprise;
+  if (becameActive) {
     contract.status = 'active';
     contract.signedAt = new Date();
   } else {
@@ -331,6 +332,26 @@ export const signContract = async (id: string, userId: string, role: string) => 
   contract.updatedBy = userId;
 
   await contractRepo().save(contract);
+
+  const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
+  const signerName = isFarmer ? contract.farmerName : contract.enterpriseName;
+
+  await notificationRepo().save(
+    notificationRepo().create({
+      userId: partnerId,
+      type: becameActive ? 'contract_signed' : 'contract_sign_pending',
+      title: becameActive ? 'Hop dong da co hieu luc' : 'Hop dong cho ban xac nhan ky',
+      message: becameActive
+        ? `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Hop dong chinh thuc co hieu luc.`
+        : `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Vui long xac nhan ky de hop dong co hieu luc.`,
+      relatedId: contract.id,
+      relatedModel: 'Contract',
+      severity: 'info',
+      isRead: false,
+      emailSent: false,
+    })
+  );
+
   return withRelations(id);
 };
 

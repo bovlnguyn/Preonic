@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiX, FiAlertTriangle } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiX, FiAlertTriangle, FiMessageCircle } from 'react-icons/fi';
 import contractService from '../../services/contract.service';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -138,6 +138,7 @@ export default function ContractDetailView() {
   const [showConfirmCancel, setShowConfirmCancel] = useState(false); // popup xác nhận hủy
 
   const backPath = user?.role === 'farmer' ? '/farmer/contracts' : '/enterprise/contracts';
+  const messagesBasePath = user?.role === 'farmer' ? '/farmer/messages' : '/enterprise/messages';
   const isFarmer = user?.role === 'farmer';
 
   const load = () => {
@@ -257,6 +258,7 @@ export default function ContractDetailView() {
   const canRespondToCancel = contract.status === 'cancel_pending' && !isCancelRequester;
 
   const { currentIndex, cancelled } = resolveFlowProgress(contract);
+  const partnerId = isFarmer ? contract.enterprise?.id : contract.farmer?.id;
 
   return (
     <div className="cdv-page">
@@ -264,6 +266,14 @@ export default function ContractDetailView() {
         <button className="cdv-back" onClick={() => navigate(backPath)}>
           <FiArrowLeft size={14} /> Quay lại
         </button>
+        {partnerId && (
+          <button
+            className="cdv-message-btn"
+            onClick={() => navigate(`${messagesBasePath}?partnerId=${partnerId}`)}
+          >
+            <FiMessageCircle size={14} /> Nhắn tin
+          </button>
+        )}
       </div>
 
       <ContractFlow steps={FLOW_STEPS} currentIndex={currentIndex} cancelled={cancelled} />

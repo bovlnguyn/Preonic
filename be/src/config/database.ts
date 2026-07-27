@@ -58,6 +58,11 @@ function buildOptions(): DataSourceOptions {
       trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE !== 'false',
       enableArithAbort:       true,
       instanceName,
+      // TypeORM mac dinh set useUTC:false cho mssql driver neu khong khai bao.
+      // Cac cot CreatedAt/UpdatedAt trong DB dung default sysutcdatetime() (luu gio UTC that),
+      // nhung useUTC:false khien driver doc gia tri do va hieu nham la gio local (VN, UTC+7)
+      // -> moi timestamp doc ra bi lech -7h. Phai bat useUTC:true de doc/ghi dung chuan UTC.
+      useUTC: true,
     },
   };
 }
