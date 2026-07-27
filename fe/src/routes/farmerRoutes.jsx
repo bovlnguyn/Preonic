@@ -23,6 +23,7 @@ import FarmerEditProduct from '../component/FarmerDashboard/pages/FarmerEditProd
 
 // Dùng chung Farmer/Enterprise
 import ContractDetailView from '../component/ContractDetailView/ContractDetailView';
+import Messaging from '../component/Messaging/Messaging';
 
 const forFarmer = (element) => (
   <ProtectedRoute allowedRoles={['farmer']}>{element}</ProtectedRoute>
@@ -45,6 +46,7 @@ const farmerRoutes = [
       { path: 'crops', element: <FarmerCrops /> },
       { path: 'contracts', element: <FarmerContracts /> },
       { path: 'contracts/:id', element: <ContractDetailView /> },
+      { path: 'messages', element: <Messaging /> },
       { path: 'orders', element: <FarmerOrders /> },
       { path: 'escrow', element: <FarmerEscrow /> },
       { path: 'wallet', element: <FarmerWallet /> },

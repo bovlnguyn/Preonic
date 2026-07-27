@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBell, FiSearch } from 'react-icons/fi';
+import { FiSearch } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
+import NotificationBell from '../Notifications/NotificationBell';
 import { getInitials } from './utils';
 
 function FarmerTopbar() {
@@ -21,10 +22,7 @@ function FarmerTopbar() {
           <FiSearch />
           <input type="search" placeholder="Tìm mùa vụ, hợp đồng, đơn hàng..." />
         </label>
-        <button className="farmer-icon-button" type="button" aria-label="Thông báo">
-          <FiBell />
-          <span />
-        </button>
+        <NotificationBell triggerClassName="farmer-icon-button" />
         <button
           type="button"
           className="farmer-profile-chip"

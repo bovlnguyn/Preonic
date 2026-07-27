@@ -1,7 +1,7 @@
 import React from 'react';
 import ProtectedRoute from './ProtectedRoute';
 import HomeEntry from './HomeEntry';
-import WalletTest from '../pages/WalletTest';
+
 
 
 import Register from '../component/Register/Register';

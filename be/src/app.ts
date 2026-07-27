@@ -17,6 +17,8 @@ import escrowRoutes from './routes/escrow.routes';
 import weatherRoutes from './routes/weather.routes';
 import disputeRoutes from './routes/dispute.routes';
 import walletRoutes from './routes/wallet.routes';
+import notificationRoutes from './routes/notification.routes';
+import messagingRoutes from './routes/messaging.routes';
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
 import { createLogger } from './utils/logger';
@@ -114,6 +116,10 @@ app.use(`${API_PREFIX}/admin`, adminRoutes);
 app.use(`${API_PREFIX}/disputes`, disputeRoutes);
 // Wallet
 app.use(`${API_PREFIX}/wallet`, walletRoutes);
+// Notifications
+app.use(`${API_PREFIX}/notifications`, notificationRoutes);
+// Messaging
+app.use(`${API_PREFIX}/messaging`, messagingRoutes);
 // ══════════════════════════════════════════════════════
 // 4. ERROR HANDLING (Phải đặt sau cùng)
 // ══════════════════════════════════════════════════════
