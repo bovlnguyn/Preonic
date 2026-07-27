@@ -1,6 +1,8 @@
 import React from 'react';
 import ProtectedRoute from './ProtectedRoute';
 import HomeEntry from './HomeEntry';
+import WalletTest from '../pages/WalletTest';
+
 
 import Register from '../component/Register/Register';
 import Auth from '../component/Auth/Auth';
@@ -31,6 +33,8 @@ const publicRoutes = [
 
   { path: '/products', element: <ProductList /> },
   { path: '/products/:id', element: <ProductDetail /> },
+
+
 
   {
     path: '/profile',
