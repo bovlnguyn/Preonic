@@ -5,6 +5,7 @@ dotenv.config(); // Load .env trước tất cả import khác
 import app from './app';
 import connectDB, { isDatabaseConnected } from './config/database';
 import { createLogger } from './utils/logger';
+import { startContractExpiryCron } from './jobs/contract-cron';
 
 const log  = createLogger('Server');
 const PORT = Number(process.env.PORT ?? 8080);
@@ -21,6 +22,9 @@ connectDB(() => {
     log.info(`API prefix  : ${process.env.API_PREFIX ?? '/api/v1'}`);
     log.info(`Frontend URL: ${process.env.FRONTEND_URL}`);
   });
+
+  // Cron jobs — chi chay sau khi DB da ket noi thanh cong
+  startContractExpiryCron();
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
