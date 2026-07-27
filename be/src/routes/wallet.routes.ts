@@ -2,6 +2,7 @@ import { Router, RequestHandler } from 'express';
 import {
   getWallet,
   getWalletTransactions,
+  topupWallet,
 } from '../controller/wallet.controller';
 import { protect } from '../middlewares/auth.middlewares';
 
@@ -17,6 +18,12 @@ router.get(
   '/transactions',
   protect as RequestHandler,
   getWalletTransactions as RequestHandler
+);
+
+router.post(
+  '/topup',
+  protect as RequestHandler,
+  topupWallet as RequestHandler
 );
 
 export default router;

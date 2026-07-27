@@ -131,6 +131,7 @@ export const getWalletTransactions = async (
       createdAt: item.createdAt,
     };
   });
+  
 
   const allTransactions = [
     ...normalizedPaymentTransactions,
@@ -153,6 +154,93 @@ export const getWalletTransactions = async (
     },
     filters: {
       type: query.type || null,
+    },
+  };
+
+};
+
+export const demoTopupWallet = async (
+  userId: string,
+  role: string,
+  dto: { amount: number; note?: string }
+) => {
+  if (role !== 'enterprise') {
+    throw makeError('Chi doanh nghiep moi co the nap tien demo', 403);
+  }
+
+  const amount = Number(dto.amount);
+  const maxDemoTopupAmount = 100_000_000;
+
+  if (!Number.isFinite(amount)) {
+    throw makeError('So tien nap khong hop le', 400);
+  }
+
+  if (amount <= 0) {
+    throw makeError('So tien nap phai lon hon 0', 400);
+  }
+
+  if (amount > maxDemoTopupAmount) {
+    throw makeError('So tien nap demo khong duoc vuot qua 100,000,000 VND', 400);
+  }
+
+  const user = await userRepo().findOne({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw makeError('Khong tim thay nguoi dung', 404);
+  }
+
+  if (user.role !== 'enterprise') {
+    throw makeError('Chi doanh nghiep moi co the nap tien demo', 403);
+  }
+
+  const balanceBefore = Number(user.virtualBalance || 0);
+  const balanceAfter = balanceBefore + amount;
+  const orderCode = `TOPUP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  const savedTransaction = await AppDataSource.transaction(async (manager) => {
+    user.virtualBalance = balanceAfter;
+    await manager.getRepository(User).save(user);
+
+    const transaction = manager.getRepository(PaymentTransaction).create({
+      userId: user.id,
+      type: 'topup',
+      amount,
+      status: 'completed',
+      paymentMethod: 'demo',
+      gatewayRef: orderCode,
+      orderCode,
+      description: dto.note?.trim() || 'Nap tien demo vao vi ao',
+      balanceBefore,
+      balanceAfter,
+      metadata: JSON.stringify({
+        source: 'demo_topup',
+        createdBy: user.id,
+      }),
+      completedAt: new Date(),
+    } as Partial<PaymentTransaction>);
+
+    return manager.getRepository(PaymentTransaction).save(transaction);
+  });
+
+  return {
+    wallet: {
+      balance: balanceAfter,
+      currency: 'VND',
+    },
+    transaction: {
+      id: savedTransaction.id,
+      type: savedTransaction.type,
+      amount: Number(savedTransaction.amount || 0),
+      status: savedTransaction.status,
+      paymentMethod: savedTransaction.paymentMethod,
+      orderCode: savedTransaction.orderCode,
+      description: savedTransaction.description,
+      balanceBefore: Number(savedTransaction.balanceBefore || 0),
+      balanceAfter: Number(savedTransaction.balanceAfter || 0),
+      createdAt: savedTransaction.createdAt,
+      completedAt: savedTransaction.completedAt,
     },
   };
 };
