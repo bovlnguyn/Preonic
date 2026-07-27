@@ -39,3 +39,27 @@ export const getWalletTransactions = async (req: AuthRequest, res: Response) => 
     });
   }
 };
+
+export const topupWallet = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await walletService.demoTopupWallet(
+      req.user!.id,
+      req.user!.role,
+      {
+        amount: Number(req.body?.amount),
+        note: req.body?.note,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Nap tien demo thanh cong',
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Nap tien demo that bai',
+    });
+  }
+};
