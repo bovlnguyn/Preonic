@@ -1,4 +1,4 @@
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, LessThan } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { CONTRACT_CONFIG, UNIT_TO_KG } from '../constants';
 import { Contract } from '../models/Contract.entity';
@@ -548,4 +548,51 @@ export const rejectContract = async (id: string, userId: string, reason?: string
   await contractRepo().save(contract);
   return withRelations(id);
 
+};
+
+// Dung cho cron job: hop dong con 'draft' (nong dan chua ky) qua han
+// CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS ke tu ngay tao thi tu dong chuyen 'cancelled'.
+export const expireUnsignedContracts = async () => {
+  const deadline = new Date(
+    Date.now() - CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS * 24 * 60 * 60 * 1000
+  );
+
+  const expiredContracts = await contractRepo().find({
+    where: { status: 'draft', signedByFarmer: false, createdAt: LessThan(deadline) },
+  });
+
+  for (const contract of expiredContracts) {
+    contract.status = 'cancelled';
+    contract.cancelReason = `Tu dong huy: nong dan khong xac nhan ky hop dong trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay`;
+    contract.cancelledAt = new Date();
+
+    await contractRepo().save(contract);
+
+    await notificationRepo().save([
+      notificationRepo().create({
+        userId: contract.farmerId,
+        type: 'contract_auto_cancelled',
+        title: 'Hop dong da tu dong huy',
+        message: `Hop dong ${contract.contractCode} da tu dong chuyen sang trang thai huy do ban khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`,
+        relatedId: contract.id,
+        relatedModel: 'Contract',
+        severity: 'warning',
+        isRead: false,
+        emailSent: false,
+      }),
+      notificationRepo().create({
+        userId: contract.enterpriseId,
+        type: 'contract_auto_cancelled',
+        title: 'Hop dong da tu dong huy',
+        message: `Hop dong ${contract.contractCode} da tu dong chuyen sang trang thai huy do nong dan khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`,
+        relatedId: contract.id,
+        relatedModel: 'Contract',
+        severity: 'warning',
+        isRead: false,
+        emailSent: false,
+      }),
+    ]);
+  }
+
+  return expiredContracts.length;
 };
