@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   FiBarChart2, FiBriefcase, FiCloudRain, FiCreditCard,
-  FiFileText, FiHome, FiLogOut, FiMessageCircle, FiPackage,
+  FiFileText, FiHome, FiLogOut, FiPackage,
   FiShield, FiStar, FiTruck, FiUsers,
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,7 +11,6 @@ import logo from '../../assets/branding/preonic-logo-main.png';
 const navItems = [
   { to: '/enterprise',              label: 'Tổng quan',             icon: FiBarChart2, end: true },
   { to: '/enterprise/contracts',    label: 'Hợp đồng',              icon: FiFileText },
-  { to: '/enterprise/messages',     label: 'Tin nhắn',              icon: FiMessageCircle },
   { to: '/enterprise/products',     label: 'Danh sách sản phẩm',    icon: FiPackage },
   { to: '/enterprise/orders',       label: 'Theo dõi đơn hàng',     icon: FiTruck },
   { to: '/enterprise/escrow',       label: 'Thanh toán trung gian',  icon: FiShield },

@@ -5,10 +5,12 @@ import { COMPANY } from '../constants';
  * Enterprise Service - Nghiep vu de xuat hop dong bao tieu phia doanh nghiep
  */
 
+// Gia nhap tren UI luon la VND/kg; so luong co the nhap theo kg/ta/tan.
 const UNIT_TO_KG = { kg: 1, tạ: 100, tấn: 1000 };
 
 const enterpriseService = {
   COMMISSION_RATE: COMPANY.COMMISSION_RATE,
+  UNIT_TO_KG,
 
   /**
    * Sinh ma hop dong xem truoc dang PRE-YYYY-XXXX.
@@ -21,13 +23,16 @@ const enterpriseService = {
   },
 
   /**
-   * Tinh tong gia tri hop dong va phi hoa hong 3% tu so luong, don gia, don vi.
+   * Tinh tong gia tri hop dong va phi hoa hong 3% tu so luong, don gia (luon la VND/kg), don vi so luong.
+   * unitFactor quy doi so luong ve kg de nhan voi don gia/kg.
+   * Backend luu contract.pricePerUnit theo contract.unit, nen khi gui de xuat can nhan
+   * don gia/kg voi unitFactor de ra don gia tuong ung voi don vi da chon (xem handleSubmitProposal).
    */
   calculateContractTotals: ({ quantity, pricePerUnit, unit }) => {
     const unitFactor = UNIT_TO_KG[unit] || 1;
     const totalValue = (parseFloat(quantity) || 0) * (parseFloat(pricePerUnit) || 0) * unitFactor;
     const commission = totalValue * (COMPANY.COMMISSION_RATE / 100);
-    return { unitFactor, totalValue, commission };
+    return { totalValue, commission, unitFactor };
   },
 
   /**
