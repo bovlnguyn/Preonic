@@ -4,6 +4,7 @@ import { FiArrowLeft, FiCheck, FiX, FiAlertTriangle, FiMessageCircle } from 'rea
 import contractService from '../../services/contract.service';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { useMessagingWidget } from '../../contexts/MessagingWidgetContext';
 import { CONTRACT_STATUS_LABEL, PAYMENT_TERMS_LABEL } from '../../constants/contract';
 import ContractFlow from '../ContractFlow/ContractFlow';
 import EscrowPanel from '../EscrowPanel/EscrowPanel';
@@ -127,6 +128,7 @@ export default function ContractDetailView() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast    = useToast();
+  const { openChatWith } = useMessagingWidget();
 
   const [contract, setContract]         = useState(null);
   const [loading, setLoading]           = useState(true);
@@ -138,7 +140,6 @@ export default function ContractDetailView() {
   const [showConfirmCancel, setShowConfirmCancel] = useState(false); // popup xác nhận hủy
 
   const backPath = user?.role === 'farmer' ? '/farmer/contracts' : '/enterprise/contracts';
-  const messagesBasePath = user?.role === 'farmer' ? '/farmer/messages' : '/enterprise/messages';
   const isFarmer = user?.role === 'farmer';
 
   const load = () => {
@@ -259,6 +260,7 @@ export default function ContractDetailView() {
 
   const { currentIndex, cancelled } = resolveFlowProgress(contract);
   const partnerId = isFarmer ? contract.enterprise?.id : contract.farmer?.id;
+  const partnerName = isFarmer ? contract.enterprise?.name : contract.farmer?.name;
 
   return (
     <div className="cdv-page">
@@ -269,7 +271,7 @@ export default function ContractDetailView() {
         {partnerId && (
           <button
             className="cdv-message-btn"
-            onClick={() => navigate(`${messagesBasePath}?partnerId=${partnerId}`)}
+            onClick={() => openChatWith(partnerId, partnerName)}
           >
             <FiMessageCircle size={14} /> Nhắn tin
           </button>

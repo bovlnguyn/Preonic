@@ -9,8 +9,10 @@ import Header from "../Common/Header";
 import Footer from "../Common/Footer";
 import { useToast } from "../../contexts/ToastContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { useMessagingWidget } from "../../contexts/MessagingWidgetContext";
 import { ROUTES, TOAST_DURATION, REGIONS } from "../../constants";
 import productService, { resolveImageUrl } from "../../services/product.service";
+import contractService from "../../services/contract.service";
 import "./ProductDetail.css";
 
 // Role guard helper
@@ -64,6 +66,7 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { user, loading: authLoading } = useAuth();
+  const { openChatWith } = useMessagingWidget();
   const isLoggedIn = Boolean(user);
   const [product, setProduct] = useState(null);
   const [similar, setSimilar] = useState([]);
@@ -75,6 +78,7 @@ const ProductDetail = () => {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [certPreview, setCertPreview] = useState(null);
+  const [checkingContract, setCheckingContract] = useState(false);
 
   // Determine role
   const role = !isLoggedIn ? ROLE.GUEST
@@ -207,6 +211,24 @@ const ProductDetail = () => {
     navigate(`${ROUTES.ENTERPRISE}/contracts/create?product=${product.id}`);
   };
 
+  const handleViewContract = async () => {
+    setCheckingContract(true);
+    try {
+      const res = await contractService.list(undefined, { limit: 100 });
+      const contracts = res?.data?.contracts || [];
+      const existing = contracts.find((c) => c.product?.id === product.id);
+      if (existing) {
+        navigate(`${ROUTES.ENTERPRISE}/contracts/${existing.id}`);
+      } else {
+        toast.warning("Bạn chưa ký kết hợp đồng với sản phẩm này", TOAST_DURATION.DEFAULT);
+      }
+    } catch (err) {
+      toast.error(err?.message || "Không thể kiểm tra hợp đồng. Vui lòng thử lại.");
+    } finally {
+      setCheckingContract(false);
+    }
+  };
+
   const handleEditProduct = () => {
     navigate(`/farmer/edit-product/${product.id}`);
   };
@@ -231,14 +253,9 @@ const ProductDetail = () => {
     const partnerId = product?.seller?.userId?._id || product?.seller?.userId;
     const partnerName = product?.seller?.name || "";
 
-    if (!partnerId || isOwner) {
-      navigate(ROUTES.MESSAGING);
-      return;
-    }
+    if (!partnerId || isOwner) return;
 
-    navigate(
-      `${ROUTES.MESSAGING}?partnerId=${encodeURIComponent(partnerId)}&partnerName=${encodeURIComponent(partnerName)}`
-    );
+    openChatWith(partnerId, partnerName);
   };
 
   return (
@@ -411,8 +428,9 @@ const ProductDetail = () => {
                   </div>
 
                   <button className="btn-commit" onClick={handleGoContract}><FiUsers size={15} style={{ marginRight: 6 }} />Đăng ký Bao tiêu</button>
-                  <button className="btn-view-contracts" onClick={() => navigate(ROUTES.ENTERPRISE)}>
-                    <FiFileText size={14} style={{ marginRight: 4 }} />Xem hợp đồng của tôi
+                  <button className="btn-view-contracts" onClick={handleViewContract} disabled={checkingContract}>
+                    <FiFileText size={14} style={{ marginRight: 4 }} />
+                    {checkingContract ? "Đang kiểm tra..." : "Xem hợp đồng của tôi"}
                   </button>
                 </>
               )}

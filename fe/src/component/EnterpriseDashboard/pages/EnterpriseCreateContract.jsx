@@ -143,19 +143,23 @@ export default function EnterpriseCreateContract() {
         const matchedUnit = UNITS.find(
           u => u.normalize('NFC') === String(p.unit || '').normalize('NFC')
         );
+        // Gia san pham (priceMin) duoc luu theo p.priceUnit (co the la ta/tan),
+        // quy doi ve VND/kg vi form nhap gia luon la don gia theo kg.
+        const priceUnitFactor = enterpriseService.UNIT_TO_KG[p.priceUnit || p.unit] || 1;
+        const pricePerKg = p.priceMin ? p.priceMin / priceUnitFactor : null;
         setForm(prev => ({
           ...prev,
           productName:  p.name || prev.productName,
           farmerName:   p.sellerName || prev.farmerName,
           unit:         matchedUnit || prev.unit,
-          pricePerUnit: p.priceMin ? String(p.priceMin) : prev.pricePerUnit,
+          pricePerUnit: pricePerKg != null ? String(pricePerKg) : prev.pricePerUnit,
         }));
       })
       .catch(() => {});
   }, [productId]);
 
   // ── Computed ───────────────────────────────────────────
-  const { totalValue, commission } = enterpriseService.calculateContractTotals(form);
+  const { totalValue, commission, unitFactor } = enterpriseService.calculateContractTotals(form);
   const today         = new Date().toISOString().split('T')[0];
 
   const customDepositValid = () => {
@@ -221,7 +225,9 @@ export default function EnterpriseCreateContract() {
         enterpriseName:    form.enterpriseName || user?.fullName,
         quantity:          parseFloat(form.quantity),
         unit:              form.unit,
-        pricePerUnit:      parseFloat(form.pricePerUnit),
+        // form.pricePerUnit luon la VND/kg; quy doi ve don gia theo don vi da chon (form.unit)
+        // vi backend tinh totalValue = quantity * pricePerUnit ma khong tu quy doi don vi.
+        pricePerUnit:      parseFloat(form.pricePerUnit) * unitFactor,
         deliveryDate:      form.deliveryDate,
         paymentTerms:      form.paymentTerms,
         qualityRequirements: form.notes,
@@ -313,7 +319,7 @@ export default function EnterpriseCreateContract() {
 
             <div className="ecc-row">
               <div className="ecc-field">
-                <label>Giá mỗi {form.unit} (VND) <span className="ecc-req">*</span></label>
+                <label>Giá mỗi kg (VND) <span className="ecc-req">*</span></label>
                 <input
                   className={errors.pricePerUnit ? 'ecc-input ecc-input--error' : 'ecc-input'}
                   type="number" min="0"
@@ -472,7 +478,7 @@ export default function EnterpriseCreateContract() {
             <div className="ecc-summary">
               <div className="ecc-summary__row"><span>Sản phẩm:</span><strong>{form.productName}</strong></div>
               <div className="ecc-summary__row"><span>Số lượng:</span><strong>{form.quantity} {form.unit}</strong></div>
-              <div className="ecc-summary__row"><span>Đơn giá:</span><strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/{form.unit}</strong></div>
+              <div className="ecc-summary__row"><span>Đơn giá:</span><strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/kg</strong></div>
               <div className="ecc-summary__row"><span>Ngày giao:</span><strong>{form.deliveryDate || '--'}</strong></div>
               <div className="ecc-summary__row"><span>Đặt cọc:</span><strong>{getDepositLabel(form.paymentTerms, form.customDeposit, form.customOnDelivery)}</strong></div>
               <div className="ecc-summary__row"><span>Nhà sản xuất:</span><strong>{form.farmerName || '--'}</strong></div>
@@ -535,7 +541,7 @@ export default function EnterpriseCreateContract() {
                 <p>So: {contractCode}</p>
               </div>
               <div className="ecc-contract-doc__body">
-                <p>Hợp đồng bao tiêu <strong>{form.quantity} {form.unit} {form.productName}</strong> với đơn giá <strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/{form.unit}</strong>.</p>
+                <p>Hợp đồng bao tiêu <strong>{form.quantity} {form.unit} {form.productName}</strong> với đơn giá <strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/kg</strong>.</p>
                 <p>Tổng giá trị: <strong>{fmtMoney(totalValue)}</strong> | Phí dịch vụ PreOnic: <strong>{fmtMoney(commission)}</strong></p>
                 <p>Ngày giao hàng: <strong>{form.deliveryDate}</strong></p>
                 <p>Bên bán: {form.farmerName || '--'} | Bên mua: {form.enterpriseName || user?.fullName || '--'}</p>

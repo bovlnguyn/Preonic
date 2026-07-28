@@ -17,7 +17,6 @@ export const ROUTES = {
   PRODUCT_DETAIL: '/products/:id',
   FARMER_HOME: '/farmer-home',
   ENTERPRISE_HOME: '/enterprise-home',
-  MESSAGING: '/messaging',
   CONTRACT_FLOW: '/contract-flow',
   PROFILE: '/profile',
   CROP_HEALTH: '/crop-health',

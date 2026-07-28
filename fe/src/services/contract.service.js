@@ -19,9 +19,9 @@ const contractService = {
   /**
    * List user's contracts
    */
-  list: async (status) => {
+  list: async (status, extraParams = {}) => {
     try {
-      const params = status ? { status } : {};
+      const params = { ...(status ? { status } : {}), ...extraParams };
       const response = await api.get('/contracts', { params });
       return response.data;
     } catch (error) {
