@@ -190,7 +190,9 @@ export default function EnterpriseWeatherContent() {
 
   useEffect(() => {
     let cancelled = false;
-    weatherService.getProvinceCoords().then(coords => { if (!cancelled) setProvinceCoords(coords); });
+    weatherService.getProvinceCoords()
+      .then(coords => { if (!cancelled) setProvinceCoords(coords); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
