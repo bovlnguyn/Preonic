@@ -32,7 +32,7 @@ export interface CreateDisputeDto {
 
 const DISPUTABLE_CONTRACT_STATUSES = ['active', 'disputed'];
 const DISPUTABLE_ESCROW_STATUSES = ['active', 'disputed'];
-const DISPUTABLE_MILESTONE_STATUSES = ['pending', 'disputed'];
+const DISPUTABLE_MILESTONE_STATUSES = ['pending', 'waiting_confirmation', 'disputed'];
 
 const normalizeEvidenceUrls = (value?: string[]) => {
   if (!Array.isArray(value)) return [];
