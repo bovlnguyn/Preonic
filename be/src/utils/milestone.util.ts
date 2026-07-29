@@ -7,7 +7,7 @@ export interface IMilestone {
   step: number;
   name: string;
   description: string;
-  requiredBy: 'farmer' | 'enterprise' | 'system';
+  requiredBy: 'farmer' | 'enterprise' | 'both';
   status: 'pending';
   farmerConfirmed: boolean;
   enterpriseConfirmed: boolean;
@@ -35,10 +35,10 @@ const MILESTONE_TEMPLATES = [
   { step: 2, name: 'Chuẩn bị hàng hóa',  description: 'Nông dân chuẩn bị và đóng gói sản phẩm theo yêu cầu',          requiredBy: 'farmer'     as const },
   { step: 3, name: 'Giao hàng',           description: 'Nông dân xác nhận đã gửi hàng và cung cấp thông tin vận chuyển', requiredBy: 'farmer'     as const },
   { step: 4, name: 'Kiểm tra chất lượng', description: 'Doanh nghiệp nhận hàng và kiểm tra chất lượng sản phẩm',        requiredBy: 'enterprise' as const },
-  { step: 5, name: 'Hoàn tất',            description: 'Hai bên xác nhận hoàn thành — giải ngân số dư còn lại',         requiredBy: 'system'     as const },
+  { step: 5, name: 'Hoàn tất',            description: 'Hai bên xác nhận hoàn thành — giải ngân số dư còn lại',         requiredBy: 'both'       as const },
 ];
 
-export function getMilestoneRequiredRole(step: number): 'farmer' | 'enterprise' | 'system' | undefined {
+export function getMilestoneRequiredRole(step: number): 'farmer' | 'enterprise' | 'both' | undefined {
   return MILESTONE_TEMPLATES.find((t) => t.step === step)?.requiredBy;
 }
 

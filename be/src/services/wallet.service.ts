@@ -29,8 +29,10 @@ const WALLET_TRANSACTION_TYPES = [
 
 const normalizeTransactionType = (type: string) => {
   if (type === 'topup') return 'Nạp tiền';
-  if (type === 'escrow_deposit') return 'Đặt cọc / ký quỹ';
-  if (type === 'escrow_release') return 'Giải ngân';
+  // EscrowTransaction.type thuc te la 'deposit'/'release' (xem escrow.service.ts),
+  // khong phai 'escrow_deposit'/'escrow_release' — giu ca hai de tuong thich nguoc.
+  if (type === 'deposit' || type === 'escrow_deposit') return 'Đặt cọc / ký quỹ';
+  if (type === 'release' || type === 'escrow_release') return 'Giải ngân';
   if (type === 'refund') return 'Hoàn tiền';
   return type;
 };

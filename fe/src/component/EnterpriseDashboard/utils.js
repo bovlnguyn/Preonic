@@ -20,8 +20,8 @@ export function getInitials(name = 'Doanh nghiệp') {
 
 export function getStatusClass(status = '') {
   const v = status.toLowerCase();
-  if (v.includes('hoàn thành') || v.includes('đã ký') || v.includes('đang hợp tác') || v.includes('đã giao'))  return 'success';
   if (v.includes('chờ') || v.includes('chuẩn bị') || v.includes('đang ký quỹ'))                                return 'warning';
+  if (v.includes('hoàn thành') || v.includes('đã ký') || v.includes('đang hợp tác') || v.includes('đã giao'))  return 'success';
   if (v.includes('đang') || v.includes('vận chuyển') || v.includes('kiểm tra') || v.includes('giải ngân'))     return 'info';
   if (v.includes('hủy') || v.includes('rủi ro'))                                                                return 'danger';
   return 'neutral';

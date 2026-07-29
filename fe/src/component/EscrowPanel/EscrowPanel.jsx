@@ -10,12 +10,15 @@ const fmtMoney = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
 // Nong dan xac nhan step 3 (Giao hang) co the kem thong tin van chuyen
 const EVIDENCE_STEPS = [3];
 
-// Mot moc co the xac nhan neu: escrow dang active, dung luot cua vai tro nay,
-// chua hoan tat/tranh chap, va moc truoc do (neu co) da hoan tat.
+// Mot moc co the xac nhan neu: escrow dang active, dung luot cua vai tro nay
+// (hoac moc can "ca hai ben" nhu moc Hoan tat), chua hoan tat/tranh chap,
+// nguoi dung chua tung xac nhan phan cua minh, va moc truoc do (neu co) da hoan tat.
 const canConfirmMilestone = (escrow, milestone, index, userRole) => {
   if (!escrow || escrow.status !== 'active') return false;
   if (milestone.status === 'completed' || milestone.status === 'disputed') return false;
-  if (milestone.requiredBy !== userRole) return false;
+  if (milestone.requiredBy !== userRole && milestone.requiredBy !== 'both') return false;
+  if (userRole === 'farmer' && milestone.farmerConfirmed) return false;
+  if (userRole === 'enterprise' && milestone.enterpriseConfirmed) return false;
   if (index > 0) {
     const previous = escrow.milestones[index - 1];
     if (!previous || previous.status !== 'completed') return false;
@@ -43,7 +46,7 @@ function MilestoneItem({ escrow, milestone, index, userRole, onConfirm, confirmi
         <p className="esc-milestone__desc">{milestone.description}</p>
 
         <div className="esc-milestone__meta">
-          {milestone.requiredBy && milestone.requiredBy !== 'system' && (
+          {milestone.requiredBy && (
             <span><FiClock size={12} /> Người xác nhận: {MILESTONE_ROLE_LABEL[milestone.requiredBy]}</span>
           )}
           {Number(milestone.releaseAmount) > 0 && (
