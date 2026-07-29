@@ -27,8 +27,8 @@ export function getInitials(name = 'Nông dân') {
 
 export function getStatusClass(status = '') {
   const value = status.toLowerCase();
-  if (value.includes('hiệu lực') || value.includes('hoàn') || value.includes('sẵn') || value.includes('đã ký')) return 'success';
   if (value.includes('chờ') || value.includes('chuẩn bị') || value.includes('đợi')) return 'warning';
+  if (value.includes('hiệu lực') || value.includes('hoàn') || value.includes('sẵn') || value.includes('đã ký')) return 'success';
   if (value.includes('đàm phán') || value.includes('giao') || value.includes('tạo lệnh') || value.includes('chăm sóc')) return 'info';
   if (value.includes('hủy') || value.includes('rủi ro')) return 'danger';
   return 'neutral';

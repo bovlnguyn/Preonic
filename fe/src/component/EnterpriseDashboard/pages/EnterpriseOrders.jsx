@@ -1,19 +1,52 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FiMapPin, FiTruck } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
-import { useState, useEffect } from 'react';
+import EmptyState    from '../components/EmptyState';
+import contractService from '../../../services/contract.service';
+import escrowService from '../../../services/escrow.service';
+import { getOrderStatusLabel, getActiveMilestone } from '../../../constants/escrow';
 import { formatDate } from '../utils';
 
-function EnterpriseOrders() {
-  const [enterpriseOrders, setEnterpriseOrders] = useState([]);
-const [loading, setLoading] = useState(true);
+const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
 
-useEffect(() => {
-  // Khi có API: orderService.list().then(...)
-  // Tạm thời để rỗng, chờ backend
-  setLoading(false);
-}, []);
+function EnterpriseOrders() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      contractService.list(),
+      escrowService.list().catch(() => ({ data: { escrows: [] } })),
+    ])
+      .then(([contractsRes, escrowsRes]) => {
+        const contracts = (contractsRes?.data?.contracts || [])
+          .filter((c) => ORDER_CONTRACT_STATUSES.includes(c.status));
+        const escrowByContract = new Map(
+          (escrowsRes?.data?.escrows || []).map((e) => [e.contractId, e])
+        );
+
+        setOrders(contracts.map((c) => {
+          const escrow = escrowByContract.get(c.id);
+          const activeMilestone = getActiveMilestone(escrow);
+          return {
+            id: c.contractCode,
+            farmer: c.farmer?.name,
+            product: c.product?.name,
+            quantity: `${c.quantity} ${c.unit || ''}`.trim(),
+            deliveryDate: c.deliveryDate,
+            address: c.farmLocation,
+            status: getOrderStatusLabel(c, escrow),
+            milestone: escrow
+              ? (activeMilestone ? activeMilestone.description : 'Đã hoàn tất tất cả mốc thanh toán')
+              : 'Chờ nạp ký quỹ để bắt đầu theo dõi',
+          };
+        }));
+      })
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="ent-stack">
       <section className="ent-card">
@@ -23,31 +56,40 @@ useEffect(() => {
           desc="Theo dõi milestone vận chuyển, kiểm tra chất lượng và xác nhận nhận hàng để kích hoạt giải ngân."
         />
 
-        <div className="ent-order-list">
-          {enterpriseOrders.map((o) => (
-            <article className="ent-order-card" key={o.id}>
-              <div className="ent-order-card__icon"><FiTruck /></div>
-              <div className="ent-order-card__body">
-                <div className="ent-order-card__head">
-                  <div>
-                    <span>{o.id} • {o.contractId}</span>
-                    <h3>{o.product}</h3>
+        {loading ? (
+          <div className="spinner-border text-success" role="status" />
+        ) : orders.length === 0 ? (
+          <EmptyState
+            title="Chưa có đơn hàng nào"
+            desc="Đơn hàng sẽ xuất hiện khi hợp đồng được kích hoạt."
+          />
+        ) : (
+          <div className="ent-order-list">
+            {orders.map((o) => (
+              <article className="ent-order-card" key={o.id}>
+                <div className="ent-order-card__icon"><FiTruck /></div>
+                <div className="ent-order-card__body">
+                  <div className="ent-order-card__head">
+                    <div>
+                      <span>{o.id}</span>
+                      <h3>{o.product}</h3>
+                    </div>
+                    <StatusBadge status={o.status} />
                   </div>
-                  <StatusBadge status={o.status} />
+                  <div className="ent-order-card__grid">
+                    <p><strong>Nông dân:</strong> {o.farmer}</p>
+                    <p><strong>Số lượng:</strong> {o.quantity}</p>
+                    <p><strong>Hạn giao:</strong> {formatDate(o.deliveryDate)}</p>
+                    <p><FiMapPin /> {o.address}</p>
+                  </div>
+                  <p style={{ marginTop: 12, color: 'var(--ent-blue-700)', fontWeight: 900, fontSize: 13 }}>
+                    {o.milestone}
+                  </p>
                 </div>
-                <div className="ent-order-card__grid">
-                  <p><strong>Nông dân:</strong> {o.farmer}</p>
-                  <p><strong>Số lượng:</strong> {o.quantity}</p>
-                  <p><strong>Hạn giao:</strong> {formatDate(o.deliveryDate)}</p>
-                  <p><FiMapPin /> {o.address}</p>
-                </div>
-                <p style={{ marginTop: 12, color: 'var(--ent-blue-700)', fontWeight: 900, fontSize: 13 }}>
-                  {o.milestone}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
