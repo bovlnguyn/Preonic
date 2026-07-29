@@ -284,12 +284,14 @@ export const addReview = async (req: AuthRequest, res: Response) => {
   try {
     const reviewerId   = req.user!.id;
     const reviewerName = req.user!.fullName || 'Doanh nghiệp';
+    const reviewerRole = req.user!.role;
     const { rating, text } = req.body;
 
     const review = await productService.addReview(
       req.params.id,
       reviewerId,
       reviewerName,
+      reviewerRole,
       Number(rating),
       text
     );

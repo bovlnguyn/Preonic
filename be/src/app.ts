@@ -19,6 +19,7 @@ import disputeRoutes from './routes/dispute.routes';
 import walletRoutes from './routes/wallet.routes';
 import notificationRoutes from './routes/notification.routes';
 import messagingRoutes from './routes/messaging.routes';
+import partnerRatingRoutes from './routes/partner-rating.routes';
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
 import { createLogger } from './utils/logger';
@@ -120,6 +121,8 @@ app.use(`${API_PREFIX}/wallet`, walletRoutes);
 app.use(`${API_PREFIX}/notifications`, notificationRoutes);
 // Messaging
 app.use(`${API_PREFIX}/messaging`, messagingRoutes);
+// Partner ratings
+app.use(`${API_PREFIX}/partner-ratings`, partnerRatingRoutes);
 // ══════════════════════════════════════════════════════
 // 4. ERROR HANDLING (Phải đặt sau cùng)
 // ══════════════════════════════════════════════════════

@@ -6,14 +6,36 @@ import { ProductCommitment } from '../models/ProductCommitment.entity';
 import { Review } from '../models/Review.entity';
 import { User } from '../models/User.entity';
 import { Contract } from '../models/Contract.entity';
+import { Escrow } from '../models/Escrow.entity';
+import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { PRODUCT_CONFIG } from '../constants';
 
-const productRepo  = () => AppDataSource.getRepository(Product);
-const certRepo     = () => AppDataSource.getRepository(ProductCertification);
-const commitRepo   = () => AppDataSource.getRepository(ProductCommitment);
-const reviewRepo   = () => AppDataSource.getRepository(Review);
-const userRepo     = () => AppDataSource.getRepository(User);
-const contractRepo = () => AppDataSource.getRepository(Contract);
+const productRepo   = () => AppDataSource.getRepository(Product);
+const certRepo      = () => AppDataSource.getRepository(ProductCertification);
+const commitRepo    = () => AppDataSource.getRepository(ProductCommitment);
+const reviewRepo    = () => AppDataSource.getRepository(Review);
+const userRepo      = () => AppDataSource.getRepository(User);
+const contractRepo  = () => AppDataSource.getRepository(Contract);
+const milestoneRepo = () => AppDataSource.getRepository(EscrowMilestone);
+
+// Moc 4 (Kiem tra chat luong) hoan tat = doanh nghiep da thuc su nhan hang.
+// Chi doanh nghiep da tung nhan hang cua san pham nay (o bat ky hop dong nao)
+// moi duoc danh gia — tranh review ao tu nguoi chua tung giao dich.
+const RECEIVED_GOODS_MILESTONE_STEP = 4;
+
+const hasReceivedGoods = async (productId: string, enterpriseId: string) => {
+  const received = await milestoneRepo()
+    .createQueryBuilder('milestone')
+    .innerJoin(Escrow, 'escrow', 'escrow.id = milestone.escrowId')
+    .innerJoin(Contract, 'contract', 'contract.id = escrow.contractId')
+    .where('contract.productId = :productId', { productId })
+    .andWhere('contract.enterpriseId = :enterpriseId', { enterpriseId })
+    .andWhere('milestone.step = :step', { step: RECEIVED_GOODS_MILESTONE_STEP })
+    .andWhere('milestone.status = :status', { status: 'completed' })
+    .getOne();
+
+  return Boolean(received);
+};
 
 const makeError = (message: string, statusCode = 400) => {
   const err: any = new Error(message);
@@ -411,9 +433,14 @@ export const addReview = async (
   productId: string,
   reviewerId: string,
   reviewerName: string,
+  reviewerRole: string,
   rating: number,
   text: string
 ) => {
+  if (reviewerRole !== 'enterprise') {
+    throw makeError('Chỉ doanh nghiệp mới có thể đánh giá sản phẩm', 403);
+  }
+
   const product = await productRepo().findOne({ where: { id: productId } });
   if (!product || !product.isActive) {
     throw makeError('Sản phẩm không tồn tại', 404);
@@ -426,6 +453,13 @@ export const addReview = async (
   const existing = await reviewRepo().findOne({ where: { productId, reviewerId } });
   if (existing) {
     throw makeError('Bạn đã đánh giá sản phẩm này rồi', 400);
+  }
+
+  if (!(await hasReceivedGoods(productId, reviewerId))) {
+    throw makeError(
+      'Bạn cần nhận hàng (hoàn tất mốc Kiểm tra chất lượng) ở một hợp đồng với sản phẩm này trước khi đánh giá',
+      403
+    );
   }
 
   const review = reviewRepo().create({
