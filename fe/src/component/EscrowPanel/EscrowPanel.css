@@ -274,4 +274,56 @@
 .esc-btn--primary { background: #16a34a; color: #fff; }
 .esc-btn--primary:hover:not(:disabled) { background: #15803d; }
 
+.esc-btn--outline { background: #fff; color: #b91c1c; border-color: #fecaca; }
+.esc-btn--outline:hover:not(:disabled) { background: #fef2f2; }
+
 .esc-btn--sm { padding: 7px 14px; font-size: 13px; }
+
+/* ── Form báo tranh chấp ── */
+.esc-dispute-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px dashed #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+}
+
+.esc-textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.esc-dispute-form__hint {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.esc-dispute-form__upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 7px 12px;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #374151;
+  cursor: pointer;
+}
+
+.esc-dispute-form__upload:hover { border-color: #b91c1c; }
+
+.esc-dispute-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
