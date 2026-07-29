@@ -1,8 +1,10 @@
 import { Router, RequestHandler } from 'express';
 import {
+  createVnpayTopup,
   getWallet,
   getWalletTransactions,
   topupWallet,
+  vnpayReturn,
 } from '../controller/wallet.controller';
 import { protect } from '../middlewares/auth.middlewares';
 
@@ -24,6 +26,17 @@ router.post(
   '/topup',
   protect as RequestHandler,
   topupWallet as RequestHandler
+);
+
+router.post(
+  '/topup/vnpay/create',
+  protect as RequestHandler,
+  createVnpayTopup as RequestHandler
+);
+
+router.get(
+  '/vnpay/return',
+  vnpayReturn as RequestHandler
 );
 
 export default router;
