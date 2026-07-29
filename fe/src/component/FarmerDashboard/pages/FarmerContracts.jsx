@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiEye } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
@@ -8,8 +8,17 @@ import contractService from '../../../services/contract.service';
 import { CONTRACT_STATUS_LABEL } from '../../../constants/contract';
 import { formatDate, formatMoney } from '../utils';
 
+const TABS = [
+  { key: 'all',       label: 'Tất cả' },
+  { key: 'pending',   label: 'Chờ xác nhận' },
+  { key: 'active',    label: 'Đang hiệu lực' },
+  { key: 'completed', label: 'Hoàn tất' },
+  { key: 'cancelled', label: 'Đã hủy' },
+];
+
 function FarmerContracts() {
   const navigate = useNavigate();
+  const [tab, setTab] = useState('all');
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,6 +29,11 @@ function FarmerContracts() {
       .finally(() => setLoading(false));
   }, []);
 
+  const filtered = useMemo(
+    () => (tab === 'all' ? contracts : contracts.filter((c) => c.status === tab)),
+    [contracts, tab],
+  );
+
   return (
     <div className="farmer-stack">
       <section className="farmer-card">
@@ -29,9 +43,18 @@ function FarmerContracts() {
           desc="Ký xác nhận hoặc từ chối các đề xuất hợp đồng từ doanh nghiệp."
         />
 
+        <div className="farmer-filter-row">
+          {TABS.map((t) => (
+            <button key={t.key} type="button"
+              className={tab === t.key ? 'active' : ''}
+              onClick={() => setTab(t.key)}
+            >{t.label}</button>
+          ))}
+        </div>
+
         {loading ? (
           <div className="spinner-border text-success" role="status" />
-        ) : contracts.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="Chưa có hợp đồng nào"
             desc="Các đề xuất hợp đồng từ doanh nghiệp sẽ hiển thị tại đây."
@@ -52,7 +75,7 @@ function FarmerContracts() {
                 </tr>
               </thead>
               <tbody>
-                {contracts.map((item) => (
+                {filtered.map((item) => (
                   <tr key={item.id}>
                     <td>{item.contractCode}</td>
                     <td>{item.enterprise?.name}</td>

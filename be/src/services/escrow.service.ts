@@ -278,6 +278,7 @@ export const confirmMilestone = async (
     const txUserRepo = manager.getRepository(User);
     const txTransactionRepo = manager.getRepository(EscrowTransaction);
     const txNotificationRepo = manager.getRepository(Notification);
+    const txContractRepo = manager.getRepository(Contract);
 
     const now = new Date();
     if (isFarmer) {
@@ -305,6 +306,19 @@ export const confirmMilestone = async (
       escrow.releasedAmount = Number(escrow.releasedAmount) + releaseAmount;
       if (escrow.releasedAmount >= Number(escrow.depositedAmount)) {
         escrow.status = 'completed';
+
+        // Da giai ngan het ky quy (thuong la sau khi ca hai ben xac nhan moc 5 "Hoan tat")
+        // -- hop dong chinh thuc chuyen sang trang thai 'completed'.
+        const finishedContract = escrow.contract;
+        if (finishedContract) {
+          finishedContract.status = 'completed';
+          finishedContract.completedAt = now;
+          finishedContract.escrowStatus = 'released';
+          finishedContract.paidAmount = Number(escrow.releasedAmount);
+          finishedContract.remainingAmount = 0;
+          finishedContract.updatedBy = userId;
+          await txContractRepo.save(finishedContract);
+        }
       }
       await txEscrowRepo.save(escrow);
 
@@ -340,6 +354,24 @@ export const confirmMilestone = async (
         emailSent: false,
       })
     );
+
+    if (escrow.status === 'completed') {
+      await txNotificationRepo.save(
+        [escrow.farmerId, escrow.enterpriseId].map((uid) =>
+          txNotificationRepo.create({
+            userId: uid,
+            type: 'contract_completed',
+            title: 'Hop dong da hoan tat',
+            message: `Hop dong ${contractCode} da giai ngan het ky quy va chuyen sang trang thai Hoan tat.`,
+            relatedId: escrow.contractId,
+            relatedModel: 'Contract',
+            severity: 'info',
+            isRead: false,
+            emailSent: false,
+          })
+        )
+      );
+    }
 
     return escrow.id;
   });

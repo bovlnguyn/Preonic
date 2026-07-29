@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 const ToastContext = createContext(null);
 
@@ -17,12 +17,15 @@ export const ToastProvider = ({ children }) => {
     setTimeout(() => remove(id), 3500);
   }, [remove]);
 
-  const toast = {
+  // toast phải giữ nguyên identity giữa các lần render — nếu không, mọi
+  // component dùng useToast() trong dependency array (vd useCallback(load, [..., toast]))
+  // sẽ bị re-run vô hạn mỗi khi có toast mới được đẩy vào (push -> setToasts -> re-render -> toast object moi).
+  const toast = useMemo(() => ({
     success: (msg) => push(msg, 'success'),
     error:   (msg) => push(msg, 'error'),
     warning: (msg) => push(msg, 'warning'),
     info:    (msg) => push(msg, 'info'),
-  };
+  }), [push]);
 
   return (
     <ToastContext.Provider value={toast}>

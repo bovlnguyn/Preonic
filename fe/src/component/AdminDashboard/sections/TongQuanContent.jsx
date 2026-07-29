@@ -117,7 +117,7 @@ export default function TongQuanContent({ onNavigate }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {recentUsers.map(u => (
-                <div key={u._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f8fafc" }}>
+                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f8fafc" }}>
                   <div style={{ width: 36, height: 36, borderRadius: "50%", background: u.role === "farmer" ? "#dcfce7" : "#dbeafe", color: u.role === "farmer" ? "#16a34a" : "#1d4ed8", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {(u.fullName || "?").slice(0, 2).toUpperCase()}
                   </div>
@@ -146,7 +146,7 @@ export default function TongQuanContent({ onNavigate }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {recentContracts.map(c => (
-                <div key={c._id} style={{ padding: "8px 0", borderBottom: "1px solid #f8fafc" }}>
+                <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid #f8fafc" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: "#4f46e5" }}>{c.contractCode}</span>
                     <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{formatMoney(c.totalValue || 0)}</span>
