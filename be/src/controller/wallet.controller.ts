@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthRequest } from '../types';
 import * as walletService from '../services/wallet.service';
 
@@ -61,5 +61,42 @@ export const topupWallet = async (req: AuthRequest, res: Response) => {
       success: false,
       message: err.message || 'Nap tien demo that bai',
     });
+  }
+};
+
+export const createVnpayTopup = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await walletService.createVnpayTopupPayment(
+      req.user!.id,
+      req.user!.role,
+      {
+        amount: Number(req.body?.amount),
+        ipAddr: req.ip,
+      }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Tao thanh toan VNPay thanh cong',
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Tao thanh toan VNPay that bai',
+    });
+  }
+};
+
+export const vnpayReturn = async (req: Request, res: Response) => {
+  try {
+    const result = await walletService.handleVnpayReturn(req.query as any);
+
+    return res.redirect(result.redirectUrl);
+  } catch {
+    return res.redirect(
+      process.env.FRONTEND_WALLET_FAILED_URL ||
+      'http://localhost:3000/wallet-test?topup=failed'
+    );
   }
 };
