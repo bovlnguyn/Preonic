@@ -1,12 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiShield } from 'react-icons/fi';
+import { FiShield, FiGift, FiClock, FiActivity, FiCheck } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import ProgressBar from '../components/ProgressBar';
 import EmptyState from '../components/EmptyState';
 import escrowService from '../../../services/escrow.service';
 import { ESCROW_STATUS_LABEL } from '../../../constants/escrow';
 import { formatMoney } from '../utils';
+import './FarmerEscrow.css';
+
+const TABS = [
+  { key: 'overview', label: 'Tổng quan' },
+  { key: 'active', label: 'Đang hoạt động' },
+  { key: 'completed', label: 'Hoàn tất' },
+  { key: 'all', label: 'Tất cả' },
+];
+
+const PROCESS_STEPS = [
+  { num: 1, title: 'Ký hợp đồng', desc: 'Xác nhận điều khoản bao tiêu với doanh nghiệp' },
+  { num: 2, title: 'DN ký quỹ', desc: 'Doanh nghiệp nạp tiền ký quỹ vào PreOnic' },
+  { num: 3, title: 'Giao hàng', desc: 'Bạn xác nhận đã giao hàng theo đúng thỏa thuận' },
+  { num: 4, title: 'DN kiểm tra', desc: 'Doanh nghiệp kiểm tra chất lượng, xác nhận đạt' },
+  { num: 5, title: 'Nhận tiền', desc: 'Tiền tự động chuyển vào tài khoản của bạn' },
+];
+
+const PROTECTION_POINTS = [
+  'Tiền đã được doanh nghiệp ký quỹ trước — đảm bảo thanh toán',
+  'Giao hàng đúng cam kết = tự động nhận tiền theo mốc',
+  'Doanh nghiệp không thể tự rút tiền đã ký quỹ',
+  'Có tranh chấp? Admin PreOnic phân xử công bằng',
+];
 
 // Mốc tiếp theo chưa hoàn tất — hiển thị "đang chờ ở bước nào" trên thẻ tóm tắt.
 const currentMilestoneLabel = (escrow) => {
@@ -18,6 +41,7 @@ function FarmerEscrow() {
   const navigate = useNavigate();
   const [escrows, setEscrows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('overview');
 
   useEffect(() => {
     escrowService.list()
@@ -26,59 +50,153 @@ function FarmerEscrow() {
       .finally(() => setLoading(false));
   }, []);
 
+  const stats = useMemo(() => {
+    const received = escrows.reduce((sum, e) => sum + Number(e.releasedAmount || 0), 0);
+    const activeEscrows = escrows.filter((e) => e.status === 'active');
+    const pending = activeEscrows.reduce(
+      (sum, e) => sum + (Number(e.totalAmount || 0) - Number(e.releasedAmount || 0)),
+      0
+    );
+    return { received, pending, activeCount: activeEscrows.length };
+  }, [escrows]);
+
+  const filteredEscrows = useMemo(() => {
+    if (tab === 'active') return escrows.filter((e) => e.status === 'active');
+    if (tab === 'completed') return escrows.filter((e) => e.status === 'completed');
+    return escrows;
+  }, [escrows, tab]);
+
   return (
     <div className="farmer-stack">
-      <section className="farmer-card">
-        <SectionHeader
-          eyebrow="Thanh toán trung gian"
-          title="Quản lý ký quỹ và giải ngân theo mốc hợp đồng"
-          desc="Escrow giúp giảm rủi ro không thanh toán — tiền được doanh nghiệp ký quỹ trước và giải ngân dần theo tiến độ."
-        />
+      <div className="fe-breadcrumb">
+        <span onClick={() => navigate('/farmer')} style={{ cursor: 'pointer' }}>Trang chủ</span>
+        <span> › </span>
+        <span>Thanh toán trung gian</span>
+      </div>
 
-        {loading ? (
-          <div className="spinner-border text-success" role="status" />
-        ) : escrows.length === 0 ? (
-          <EmptyState
-            title="Chưa có ký quỹ nào"
-            desc="Ký quỹ sẽ xuất hiện tại đây sau khi doanh nghiệp nạp tiền cho hợp đồng đã ký."
-          />
-        ) : (
-          <div className="farmer-escrow-grid">
-            {escrows.map((item) => (
-              <article
-                className="farmer-escrow-card"
-                key={item.id}
-                onClick={() => navigate(`/farmer/contracts/${item.contractId}`)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="farmer-escrow-card__icon"><FiShield /></div>
-                <div className="farmer-escrow-card__top">
-                  <div>
-                    <span>{item.contractCode}</span>
-                    <h3>{item.partnerName}</h3>
-                  </div>
-                  <span className={`farmer-badge farmer-badge--${item.status === 'completed' ? 'success' : item.status === 'active' ? 'info' : 'neutral'}`}>
-                    {ESCROW_STATUS_LABEL[item.status] || item.status}
-                  </span>
-                </div>
-                <p>{item.productName} — {currentMilestoneLabel(item)}</p>
-                <div className="farmer-escrow-card__money">
-                  <div>
-                    <span>Tổng ký quỹ</span>
-                    <strong>{formatMoney(item.totalAmount)}</strong>
-                  </div>
-                  <div>
-                    <span>Đã giải ngân</span>
-                    <strong>{formatMoney(item.releasedAmount)}</strong>
-                  </div>
-                </div>
-                <ProgressBar value={item.progress?.percentReleased || 0} />
-                <small>Đã giải ngân {item.progress?.percentReleased || 0}% · {item.progress?.completedMilestones || 0}/{item.progress?.totalMilestones || 5} mốc</small>
-              </article>
-            ))}
+      <SectionHeader
+        title="Thanh toán trung gian"
+        desc="Theo dõi toàn bộ giao dịch ký quỹ và các mốc giải ngân"
+      />
+
+      {loading ? (
+        <div className="spinner-border text-success" role="status" />
+      ) : (
+        <>
+          <div className="fe-stats-row">
+            <div className="fe-stat-card">
+              <span className="fe-stat-card__icon fe-stat-card__icon--green"><FiGift /></span>
+              <div>
+                <label>Đã nhận</label>
+                <strong>{formatMoney(stats.received)}</strong>
+                <span>Tổng giải ngân</span>
+              </div>
+            </div>
+            <div className="fe-stat-card">
+              <span className="fe-stat-card__icon fe-stat-card__icon--gold"><FiClock /></span>
+              <div>
+                <label>Chờ giải ngân</label>
+                <strong>{formatMoney(stats.pending)}</strong>
+                <span>Đang giữ trong escrow</span>
+              </div>
+            </div>
+            <div className="fe-stat-card">
+              <span className="fe-stat-card__icon fe-stat-card__icon--blue"><FiActivity /></span>
+              <div>
+                <label>Escrow hoạt động</label>
+                <strong>{stats.activeCount}</strong>
+                <span>giao dịch</span>
+              </div>
+            </div>
           </div>
-        )}
-      </section>
+
+          <nav className="fe-tabs">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className={tab === t.key ? 'active' : ''}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+
+          {tab === 'overview' ? (
+            <>
+              <section className="farmer-card">
+                <h3 className="fe-section-title">Quy trình nhận thanh toán</h3>
+                <div className="fe-process">
+                  {PROCESS_STEPS.map((step, idx) => (
+                    <React.Fragment key={step.num}>
+                      <div className="fe-process__step">
+                        <span className="fe-process__circle">{step.num}</span>
+                        <strong>{step.title}</strong>
+                        <p>{step.desc}</p>
+                      </div>
+                      {idx < PROCESS_STEPS.length - 1 && <span className="fe-process__line" />}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </section>
+
+              <section className="farmer-card fe-protect-card">
+                <h3><FiShield size={16} /> Bảo vệ quyền lợi nông dân</h3>
+                <ul>
+                  {PROTECTION_POINTS.map((point) => (
+                    <li key={point}><FiCheck size={13} /> {point}</li>
+                  ))}
+                </ul>
+              </section>
+            </>
+          ) : filteredEscrows.length === 0 ? (
+            <section className="farmer-card">
+              <EmptyState
+                title="Chưa có ký quỹ nào"
+                desc="Ký quỹ sẽ xuất hiện tại đây sau khi doanh nghiệp nạp tiền cho hợp đồng đã ký."
+              />
+            </section>
+          ) : (
+            <section className="farmer-card">
+              <div className="farmer-escrow-grid">
+                {filteredEscrows.map((item) => (
+                  <article
+                    className="farmer-escrow-card"
+                    key={item.id}
+                    onClick={() => navigate(`/farmer/contracts/${item.contractId}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="farmer-escrow-card__icon"><FiShield /></div>
+                    <div className="farmer-escrow-card__top">
+                      <div>
+                        <span>{item.contractCode}</span>
+                        <h3>{item.partnerName}</h3>
+                      </div>
+                      <span className={`farmer-badge farmer-badge--${item.status === 'completed' ? 'success' : item.status === 'active' ? 'info' : 'neutral'}`}>
+                        {ESCROW_STATUS_LABEL[item.status] || item.status}
+                      </span>
+                    </div>
+                    <p>{item.productName} — {currentMilestoneLabel(item)}</p>
+                    <div className="farmer-escrow-card__money">
+                      <div>
+                        <span>Tổng ký quỹ</span>
+                        <strong>{formatMoney(item.totalAmount)}</strong>
+                      </div>
+                      <div>
+                        <span>Đã giải ngân</span>
+                        <strong>{formatMoney(item.releasedAmount)}</strong>
+                      </div>
+                    </div>
+                    <ProgressBar value={item.progress?.percentReleased || 0} />
+                    <small>Đã giải ngân {item.progress?.percentReleased || 0}% · {item.progress?.completedMilestones || 0}/{item.progress?.totalMilestones || 5} mốc</small>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }
