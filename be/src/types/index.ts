@@ -28,3 +28,26 @@ export interface ApiResponse<T = any> {
   message?: string;
   data?: T;
 }
+
+// ── Dữ liệu thời tiết hiện tại (chuẩn hoá từ các provider) ──
+export interface WeatherData {
+  temp: number;
+  humidity: number;
+  windSpeed: number;
+  rain1h: number;
+  rain24h: number;
+  description: string;
+  icon: string;
+}
+
+export type WeatherAlertType = 'extreme_heat' | 'extreme_cold' | 'heavy_rain' | 'strong_wind' | 'drought';
+export type WeatherAlertSeverity = 'warning' | 'critical';
+
+export interface WeatherThresholds {
+  extremeHeatTemp: number;
+  extremeColdTemp: number;
+  heavyRainMm: number;
+  strongWindKmh: number;
+  droughtMm: number;
+  droughtDays: number;
+}
