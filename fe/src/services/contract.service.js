@@ -42,6 +42,18 @@ const contractService = {
   },
 
   /**
+   * Submit a draft contract to the farmer (enterprise only) — draft -> pending
+   */
+  submit: async (id) => {
+    try {
+      const response = await api.post(`/contracts/${id}/submit`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Gửi đề xuất hợp đồng thất bại' };
+    }
+  },
+
+  /**
    * Request OTP for signing (enterprise only)
    */
   requestSignOtp: async (id) => {

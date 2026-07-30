@@ -5,14 +5,17 @@ import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
 import EmptyState    from '../components/EmptyState';
 import contractService from '../../../services/contract.service';
-import { CONTRACT_STATUS_LABEL } from '../../../constants/contract';
+import { resolveContractStatusLabel } from '../../../constants/contract';
 import { formatDate, formatMoney } from '../utils';
 
 const TABS = [
   { key: 'all',       label: 'Tất cả' },
-  { key: 'pending',   label: 'Chờ nông dân xác nhận' },
+  { key: 'draft',     label: 'Nháp' },
+  { key: 'pending',   label: 'Chờ ký xác nhận' },
+  { key: 'approved',  label: 'Đã ký — chờ ký quỹ' },
   { key: 'active',    label: 'Đang thực hiện' },
   { key: 'completed', label: 'Hoàn thành' },
+  { key: 'disputed',  label: 'Tranh chấp' },
   { key: 'cancelled', label: 'Đã hủy' },
 ];
 
@@ -86,7 +89,7 @@ function EnterpriseContracts() {
                     <td>{c.quantity} {c.unit}</td>
                     <td>{formatMoney(c.totalValue)}</td>
                     <td>{formatDate(c.deliveryDate)}</td>
-                    <td><StatusBadge status={CONTRACT_STATUS_LABEL[c.status] || c.status} /></td>
+                    <td><StatusBadge status={resolveContractStatusLabel(c)} /></td>
                     <td>
                       <div className="ent-action-group">
                         <button

@@ -42,8 +42,8 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
     throw makeError('Ban khong co quyen nap ky quy cho hop dong nay', 403);
   }
 
-  if (contract.status !== 'active') {
-    throw makeError('Hop dong chua duoc ky du hai ben, khong the nap ky quy', 400);
+  if (contract.status !== 'approved') {
+    throw makeError('Hop dong chua duoc ky du hai ben hoac chua o trang thai cho khoa ky quy', 400);
   }
 
   if (contract.escrowStatus && contract.escrowStatus !== 'none') {
@@ -139,6 +139,7 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
       );
     }
 
+    contract.status = 'active';
     contract.escrowStatus = 'funded';
     contract.paidAmount = amount;
     contract.remainingAmount = Number(contract.totalValue) - amount;
