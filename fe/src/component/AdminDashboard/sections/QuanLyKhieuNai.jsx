@@ -50,7 +50,7 @@ export default function QuanLyKhieuNai() {
   useEffect(() => { load(1); }, [load]);
 
   const openDetail = async (id) => {
-    setSelectedDispute({ _id: id, loading: true });
+    setSelectedDispute({ id, loading: true });
     try {
       const res = await adminService.getDisputeDetail(id);
       setSelectedDispute(res?.data?.dispute);
@@ -64,7 +64,7 @@ export default function QuanLyKhieuNai() {
     if (!selectedDispute) return;
     setResolving(true);
     try {
-      await adminService.resolveDispute(selectedDispute._id, resolution, adminNotes);
+      await adminService.resolveDispute(selectedDispute.id, resolution, adminNotes);
       toast.success("Đã giải quyết khiếu nại thành công!");
       setResolveModal(false);
       setSelectedDispute(null);
@@ -122,7 +122,7 @@ export default function QuanLyKhieuNai() {
                     const meta = DISPUTE_STATUS_META[d.status] || { label: d.status, cls: "adm-badge-gray" };
                     const contract = d.contractId;
                     return (
-                      <tr key={d._id}>
+                      <tr key={d.id}>
                         <td>
                           <div style={{ fontWeight: 700, color: "#4f46e5", fontSize: 12 }}>
                             {contract?.contractCode || "—"}
@@ -143,7 +143,7 @@ export default function QuanLyKhieuNai() {
                         <td><span className={`adm-badge ${meta.cls}`}>{meta.label}</span></td>
                         <td style={{ color: "#64748b", fontSize: 12 }}>{fmtDate(d.createdAt)}</td>
                         <td>
-                          <button className="adm-btn adm-btn-outline" onClick={() => openDetail(d._id)}>Xem</button>
+                          <button className="adm-btn adm-btn-outline" onClick={() => openDetail(d.id)}>Xem</button>
                         </td>
                       </tr>
                     );

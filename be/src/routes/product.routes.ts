@@ -5,7 +5,7 @@ import {
   create, update, remove,
   getReviews, addReview,
 } from '../controller/product.controller';
-import { protect, requireCompleteProfile } from '../middlewares/auth.middlewares';
+import { protect, requireCompleteProfile, restrictTo } from '../middlewares/auth.middlewares';
 import { uploadProductFiles } from '../middlewares/uploads.middlewares';
 import { validateCreateProduct } from '../middlewares/validation';
 
@@ -53,6 +53,7 @@ router.delete(
 router.post(
   '/:id/reviews',
   protect as RequestHandler,
+  restrictTo('enterprise') as RequestHandler,
   addReview as RequestHandler
 );
 

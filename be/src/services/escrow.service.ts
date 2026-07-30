@@ -1,3 +1,4 @@
+import { LessThanOrEqual, MoreThan } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Contract } from '../models/Contract.entity';
 import { User } from '../models/User.entity';
@@ -10,6 +11,8 @@ import { buildMilestones, getMilestoneRequiredRole, MILESTONE_CONFIG } from '../
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const userRepo = () => AppDataSource.getRepository(User);
 const escrowRepo = () => AppDataSource.getRepository(Escrow);
+const milestoneRepo = () => AppDataSource.getRepository(EscrowMilestone);
+const notificationRepo = () => AppDataSource.getRepository(Notification);
 
 const makeError = (message: string, statusCode = 400) => {
   const err: any = new Error(message);
@@ -225,14 +228,19 @@ export const confirmMilestone = async (
   if (!milestone) throw makeError('Khong tim thay moc thanh toan', 404);
 
   const requiredRole = getMilestoneRequiredRole(step);
-  if (!requiredRole || requiredRole === 'system') {
-    throw makeError('Moc nay do he thong tu dong xu ly, khong the xac nhan thu cong', 400);
+  if (!requiredRole) {
+    throw makeError('Moc thanh toan khong hop le', 400);
   }
-  if (requiredRole === 'farmer' && !isFarmer) {
-    throw makeError('Moc nay can nong dan xac nhan', 403);
-  }
-  if (requiredRole === 'enterprise' && !isEnterprise) {
-    throw makeError('Moc nay can doanh nghiep xac nhan', 403);
+  // Moc cuoi (Hoan tat) can CA HAI ben bam xac nhan moi giai ngan — con lai
+  // (step 1-4) chi can dung mot ben (nguoi duoc chi dinh) xac nhan la xong ngay.
+  const requiresBoth = requiredRole === 'both';
+  if (!requiresBoth) {
+    if (requiredRole === 'farmer' && !isFarmer) {
+      throw makeError('Moc nay can nong dan xac nhan', 403);
+    }
+    if (requiredRole === 'enterprise' && !isEnterprise) {
+      throw makeError('Moc nay can doanh nghiep xac nhan', 403);
+    }
   }
 
   if (milestone.status === 'completed') {
@@ -240,6 +248,12 @@ export const confirmMilestone = async (
   }
   if (milestone.status === 'disputed') {
     throw makeError('Moc dang trong tranh chap, khong the xac nhan', 400);
+  }
+  if (isFarmer && milestone.farmerConfirmed) {
+    throw makeError('Ban da xac nhan moc nay roi, dang cho ben con lai xac nhan', 400);
+  }
+  if (isEnterprise && milestone.enterpriseConfirmed) {
+    throw makeError('Ban da xac nhan moc nay roi, dang cho ben con lai xac nhan', 400);
   }
 
   if (step > 1) {
@@ -249,7 +263,13 @@ export const confirmMilestone = async (
     }
   }
 
-  const releaseAmount = Number(milestone.releaseAmount || 0);
+  // Voi moc "ca hai ben": chi thuc su hoan tat + giai ngan khi ben con lai
+  // da xac nhan tu truoc; neu day la nguoi dau tien xac nhan thi chi ghi
+  // nhan phan cua ho va cho ben kia.
+  const otherSideAlreadyConfirmed = isFarmer ? milestone.enterpriseConfirmed : milestone.farmerConfirmed;
+  const willComplete = !requiresBoth || otherSideAlreadyConfirmed;
+
+  const releaseAmount = willComplete ? Number(milestone.releaseAmount || 0) : 0;
   const contractCode = escrow.contract?.contractCode ?? '';
 
   const escrowId = await AppDataSource.transaction(async (manager) => {
@@ -258,6 +278,7 @@ export const confirmMilestone = async (
     const txUserRepo = manager.getRepository(User);
     const txTransactionRepo = manager.getRepository(EscrowTransaction);
     const txNotificationRepo = manager.getRepository(Notification);
+    const txContractRepo = manager.getRepository(Contract);
 
     const now = new Date();
     if (isFarmer) {
@@ -267,8 +288,12 @@ export const confirmMilestone = async (
       milestone.enterpriseConfirmed = true;
       milestone.enterpriseConfirmedAt = now;
     }
-    milestone.status = 'completed';
-    milestone.completedAt = now;
+    if (willComplete) {
+      milestone.status = 'completed';
+      milestone.completedAt = now;
+    } else {
+      milestone.status = 'waiting_confirmation';
+    }
     if (dto.evidence) milestone.evidence = dto.evidence;
     await txMilestoneRepo.save(milestone);
 
@@ -281,6 +306,19 @@ export const confirmMilestone = async (
       escrow.releasedAmount = Number(escrow.releasedAmount) + releaseAmount;
       if (escrow.releasedAmount >= Number(escrow.depositedAmount)) {
         escrow.status = 'completed';
+
+        // Da giai ngan het ky quy (thuong la sau khi ca hai ben xac nhan moc 5 "Hoan tat")
+        // -- hop dong chinh thuc chuyen sang trang thai 'completed'.
+        const finishedContract = escrow.contract;
+        if (finishedContract) {
+          finishedContract.status = 'completed';
+          finishedContract.completedAt = now;
+          finishedContract.escrowStatus = 'released';
+          finishedContract.paidAmount = Number(escrow.releasedAmount);
+          finishedContract.remainingAmount = 0;
+          finishedContract.updatedBy = userId;
+          await txContractRepo.save(finishedContract);
+        }
       }
       await txEscrowRepo.save(escrow);
 
@@ -303,11 +341,12 @@ export const confirmMilestone = async (
       txNotificationRepo.create({
         userId: partnerId,
         type: 'milestone_confirmed',
-        title: `Da xac nhan moc: ${milestone.name}`,
-        message:
-          releaseAmount > 0
-            ? `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). He thong da giai ngan ${releaseAmount.toLocaleString('vi-VN')} VND cho nong dan.`
-            : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}).`,
+        title: willComplete ? `Da xac nhan moc: ${milestone.name}` : `Cho ban xac nhan: ${milestone.name}`,
+        message: willComplete
+          ? (releaseAmount > 0
+              ? `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). He thong da giai ngan ${releaseAmount.toLocaleString('vi-VN')} VND cho nong dan.`
+              : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}).`)
+          : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). Vui long xac nhan de hoan tat va giai ngan so du con lai.`,
         relatedId: escrow.contractId,
         relatedModel: 'Contract',
         severity: 'info',
@@ -316,8 +355,84 @@ export const confirmMilestone = async (
       })
     );
 
+    if (escrow.status === 'completed') {
+      await txNotificationRepo.save(
+        [escrow.farmerId, escrow.enterpriseId].map((uid) =>
+          txNotificationRepo.create({
+            userId: uid,
+            type: 'contract_completed',
+            title: 'Hop dong da hoan tat',
+            message: `Hop dong ${contractCode} da giai ngan het ky quy va chuyen sang trang thai Hoan tat.`,
+            relatedId: escrow.contractId,
+            relatedModel: 'Contract',
+            severity: 'info',
+            isRead: false,
+            emailSent: false,
+          })
+        )
+      );
+    }
+
     return escrow.id;
   });
 
   return withEscrowRelations(escrowId);
+};
+
+const QUALITY_CHECK_REMINDER_DELAY_MS = 2 * 24 * 60 * 60 * 1000; // 2 ngay ke tu khi giao hang
+const QUALITY_CHECK_REMINDER_DEDUPE_MS = 22 * 60 * 60 * 1000; // khong nhac lai trong 22h
+
+// Nong dan da xac nhan "Giao hang" (moc 3) tu 2 ngay truoc nhung doanh nghiep
+// van chua xac nhan "Kiem tra chat luong" (moc 4) — nhac doanh nghiep xu ly,
+// vi moc 4 la dieu kien de he thong tu dong giai ngan not con lai (moc 5).
+export const remindPendingQualityChecks = async (): Promise<number> => {
+  const cutoff = new Date(Date.now() - QUALITY_CHECK_REMINDER_DELAY_MS);
+
+  const shippedMilestones = await milestoneRepo().find({
+    where: { step: 3, status: 'completed', completedAt: LessThanOrEqual(cutoff) },
+  });
+
+  let notified = 0;
+
+  for (const shipped of shippedMilestones) {
+    const escrow = await escrowRepo().findOne({
+      where: { id: shipped.escrowId },
+      relations: ['milestones', 'contract'],
+    });
+    if (!escrow || escrow.status !== 'active') continue;
+
+    const qualityCheck = escrow.milestones.find((m) => m.step === 4);
+    if (!qualityCheck || qualityCheck.status !== 'pending') continue;
+
+    const recentReminder = await notificationRepo().findOne({
+      where: {
+        userId: escrow.enterpriseId,
+        type: 'shipping_reminder',
+        relatedId: escrow.contractId,
+        createdAt: MoreThan(new Date(Date.now() - QUALITY_CHECK_REMINDER_DEDUPE_MS)),
+      },
+    });
+    if (recentReminder) continue;
+
+    const contractCode = escrow.contract?.contractCode ?? '';
+    const daysSince = Math.floor((Date.now() - shipped.completedAt.getTime()) / (24 * 60 * 60 * 1000));
+
+    await notificationRepo().save(
+      notificationRepo().create({
+        userId: escrow.enterpriseId,
+        type: 'shipping_reminder',
+        title: 'Hang da giao — can kiem tra chat luong',
+        message: `Nong dan da xac nhan giao hang cho hop dong ${contractCode} tu ${daysSince} ngay truoc. Vui long kiem tra va xac nhan chat luong de he thong giai ngan phan con lai.`,
+        relatedId: escrow.contractId,
+        relatedModel: 'Contract',
+        severity: 'warning',
+        isRead: false,
+        emailSent: false,
+      })
+    );
+
+    notified++;
+  }
+
+  return notified;
 };

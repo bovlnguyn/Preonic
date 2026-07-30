@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { FiShield, FiCheck, FiClock, FiAlertTriangle } from 'react-icons/fi';
+import { FiShield, FiCheck, FiClock, FiAlertTriangle, FiX, FiPaperclip } from 'react-icons/fi';
 import escrowService from '../../services/escrow.service';
+import disputeService from '../../services/dispute.service';
 import { useToast } from '../../contexts/ToastContext';
 import { ESCROW_STATUS_LABEL, MILESTONE_STATUS_LABEL, MILESTONE_ROLE_LABEL } from '../../constants/escrow';
 import './EscrowPanel.css';
@@ -10,12 +11,20 @@ const fmtMoney = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
 // Nong dan xac nhan step 3 (Giao hang) co the kem thong tin van chuyen
 const EVIDENCE_STEPS = [3];
 
-// Mot moc co the xac nhan neu: escrow dang active, dung luot cua vai tro nay,
-// chua hoan tat/tranh chap, va moc truoc do (neu co) da hoan tat.
+const DISPUTE_REASON_MIN = 10;
+const DISPUTE_REASON_MAX = 2000;
+const DISPUTE_MAX_FILES = 10;
+const DISPUTE_ACCEPTED_TYPES = 'image/jpeg,image/png,application/pdf';
+
+// Mot moc co the xac nhan neu: escrow dang active, dung luot cua vai tro nay
+// (hoac moc can "ca hai ben" nhu moc Hoan tat), chua hoan tat/tranh chap,
+// nguoi dung chua tung xac nhan phan cua minh, va moc truoc do (neu co) da hoan tat.
 const canConfirmMilestone = (escrow, milestone, index, userRole) => {
   if (!escrow || escrow.status !== 'active') return false;
   if (milestone.status === 'completed' || milestone.status === 'disputed') return false;
-  if (milestone.requiredBy !== userRole) return false;
+  if (milestone.requiredBy !== userRole && milestone.requiredBy !== 'both') return false;
+  if (userRole === 'farmer' && milestone.farmerConfirmed) return false;
+  if (userRole === 'enterprise' && milestone.enterpriseConfirmed) return false;
   if (index > 0) {
     const previous = escrow.milestones[index - 1];
     if (!previous || previous.status !== 'completed') return false;
@@ -23,10 +32,38 @@ const canConfirmMilestone = (escrow, milestone, index, userRole) => {
   return true;
 };
 
-function MilestoneItem({ escrow, milestone, index, userRole, onConfirm, confirmingStep }) {
+// Bat ky ben nao trong hop dong cung co the bao tranh chap mot moc chua hoan tat
+// (khong gioi han theo requiredBy nhu confirm), mien la moc do chua xong va chua
+// tung bi tranh chap truoc do.
+const canDisputeMilestone = (escrow, milestone) => {
+  if (!escrow || !['active', 'disputed'].includes(escrow.status)) return false;
+  return milestone.status === 'pending' || milestone.status === 'waiting_confirmation';
+};
+
+function MilestoneItem({ escrow, milestone, index, userRole, onConfirm, confirmingStep, onDispute, disputingStep }) {
   const canConfirm = canConfirmMilestone(escrow, milestone, index, userRole);
+  const canDispute = canDisputeMilestone(escrow, milestone);
   const [evidence, setEvidence] = useState('');
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [files, setFiles] = useState([]);
   const isDone = milestone.status === 'completed';
+  const isSubmittingDispute = disputingStep === milestone.step;
+
+  const closeDisputeForm = () => {
+    setDisputeOpen(false);
+    setReason('');
+    setFiles([]);
+  };
+
+  const submitDispute = async () => {
+    const trimmed = reason.trim();
+    if (trimmed.length < DISPUTE_REASON_MIN) {
+      return;
+    }
+    const ok = await onDispute(milestone.step, trimmed, files);
+    if (ok) closeDisputeForm();
+  };
 
   return (
     <li className={`esc-milestone esc-milestone--${milestone.status}`}>
@@ -43,7 +80,7 @@ function MilestoneItem({ escrow, milestone, index, userRole, onConfirm, confirmi
         <p className="esc-milestone__desc">{milestone.description}</p>
 
         <div className="esc-milestone__meta">
-          {milestone.requiredBy && milestone.requiredBy !== 'system' && (
+          {milestone.requiredBy && (
             <span><FiClock size={12} /> Người xác nhận: {MILESTONE_ROLE_LABEL[milestone.requiredBy]}</span>
           )}
           {Number(milestone.releaseAmount) > 0 && (
@@ -64,9 +101,9 @@ function MilestoneItem({ escrow, milestone, index, userRole, onConfirm, confirmi
           <p className="esc-milestone__evidence">Minh chứng: {milestone.evidence}</p>
         )}
 
-        {canConfirm && (
+        {(canConfirm || canDispute) && !disputeOpen && (
           <div className="esc-milestone__action">
-            {EVIDENCE_STEPS.includes(milestone.step) && (
+            {canConfirm && EVIDENCE_STEPS.includes(milestone.step) && (
               <input
                 type="text"
                 className="esc-input"
@@ -75,15 +112,66 @@ function MilestoneItem({ escrow, milestone, index, userRole, onConfirm, confirmi
                 onChange={(e) => setEvidence(e.target.value)}
               />
             )}
-            <button
-              type="button"
-              className="esc-btn esc-btn--primary esc-btn--sm"
-              onClick={() => onConfirm(milestone.step, evidence)}
-              disabled={confirmingStep === milestone.step}
-            >
-              <FiCheck size={13} />
-              {confirmingStep === milestone.step ? 'Đang xử lý...' : 'Xác nhận hoàn thành'}
-            </button>
+            {canConfirm && (
+              <button
+                type="button"
+                className="esc-btn esc-btn--primary esc-btn--sm"
+                onClick={() => onConfirm(milestone.step, evidence)}
+                disabled={confirmingStep === milestone.step}
+              >
+                <FiCheck size={13} />
+                {confirmingStep === milestone.step ? 'Đang xử lý...' : 'Xác nhận hoàn thành'}
+              </button>
+            )}
+            {canDispute && (
+              <button
+                type="button"
+                className="esc-btn esc-btn--outline esc-btn--sm"
+                onClick={() => setDisputeOpen(true)}
+              >
+                <FiAlertTriangle size={13} /> Báo tranh chấp
+              </button>
+            )}
+          </div>
+        )}
+
+        {disputeOpen && (
+          <div className="esc-dispute-form">
+            <textarea
+              className="esc-textarea"
+              placeholder="Mô tả chi tiết vấn đề (đối tác không thực hiện đúng cam kết ở mốc này)... (tối thiểu 10 ký tự)"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={DISPUTE_REASON_MAX}
+            />
+            <span className="esc-dispute-form__hint">{reason.trim().length}/{DISPUTE_REASON_MAX} ký tự (tối thiểu {DISPUTE_REASON_MIN})</span>
+
+            <label className="esc-dispute-form__upload">
+              <FiPaperclip size={13} />
+              {files.length > 0 ? `${files.length} tệp đã chọn` : 'Đính kèm bằng chứng (ảnh JPG/PNG hoặc PDF, tối đa 5MB/tệp)'}
+              <input
+                type="file"
+                accept={DISPUTE_ACCEPTED_TYPES}
+                multiple
+                hidden
+                onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, DISPUTE_MAX_FILES))}
+              />
+            </label>
+
+            <div className="esc-dispute-form__actions">
+              <button
+                type="button"
+                className="esc-btn esc-btn--outline esc-btn--sm"
+                onClick={submitDispute}
+                disabled={reason.trim().length < DISPUTE_REASON_MIN || isSubmittingDispute}
+              >
+                <FiAlertTriangle size={13} />
+                {isSubmittingDispute ? 'Đang gửi...' : 'Gửi tranh chấp'}
+              </button>
+              <button type="button" className="esc-btn esc-btn--sm" onClick={closeDisputeForm} disabled={isSubmittingDispute}>
+                <FiX size={13} /> Hủy
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -95,6 +183,7 @@ function MilestoneItem({ escrow, milestone, index, userRole, onConfirm, confirmi
  * Panel ky quy + moc thanh toan, gan vao trang chi tiet hop dong.
  * - Enterprise: nap ky quy khi hop dong active va chua co escrow.
  * - Farmer/Enterprise: xac nhan tung moc theo dung vai tro (requiredBy tu BE).
+ * - Ca hai ben: bao tranh chap kem mo ta + bang chung cho moc chua hoan tat.
  */
 function EscrowPanel({ contract, userRole }) {
   const toast = useToast();
@@ -102,6 +191,7 @@ function EscrowPanel({ contract, userRole }) {
   const [loading, setLoading] = useState(true);
   const [depositing, setDepositing] = useState(false);
   const [confirmingStep, setConfirmingStep] = useState(null);
+  const [disputingStep, setDisputingStep] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -136,6 +226,21 @@ function EscrowPanel({ contract, userRole }) {
       toast.error(err?.message || 'Xác nhận mốc thanh toán thất bại.');
     } finally {
       setConfirmingStep(null);
+    }
+  };
+
+  const handleDispute = async (step, reason, files) => {
+    setDisputingStep(step);
+    try {
+      await disputeService.create({ contractId: contract.id, milestoneStep: step, reason }, files);
+      toast.success('Đã gửi tranh chấp. Đối tác sẽ nhận được thông báo và quản trị viên sẽ xem xét.');
+      load();
+      return true;
+    } catch (err) {
+      toast.error(err?.message || 'Gửi tranh chấp thất bại, vui lòng thử lại.');
+      return false;
+    } finally {
+      setDisputingStep(null);
     }
   };
 
@@ -210,6 +315,8 @@ function EscrowPanel({ contract, userRole }) {
                 userRole={userRole}
                 onConfirm={handleConfirm}
                 confirmingStep={confirmingStep}
+                onDispute={handleDispute}
+                disputingStep={disputingStep}
               />
             ))}
           </ol>

@@ -32,7 +32,7 @@ export default function QuanLyHopDong() {
   useEffect(() => { load(1); }, [load]);
 
   const openDetail = async (contractId) => {
-    setSelectedContract({ _id: contractId, loading: true });
+    setSelectedContract({ id: contractId, loading: true });
     try {
       const res = await adminService.getContractDetail(contractId);
       setSelectedContract({ ...res?.data?.contract, dispute: res?.data?.dispute });
@@ -103,7 +103,7 @@ export default function QuanLyHopDong() {
                   {contracts.map(c => {
                     const meta = getContractStatusMeta(c.status);
                     return (
-                      <tr key={c._id}>
+                      <tr key={c.id}>
                         <td><span style={{ fontWeight: 700, color: "#4f46e5", fontSize: 12 }}>{c.contractCode}</span></td>
                         <td style={{ color: "#334155" }}>{c.farmerName}</td>
                         <td style={{ color: "#334155" }}>{c.enterpriseName}</td>
@@ -116,7 +116,7 @@ export default function QuanLyHopDong() {
                         </td>
                         <td style={{ color: "#64748b", fontSize: 12 }}>{fmtDate(c.createdAt)}</td>
                         <td>
-                          <button className="adm-btn adm-btn-outline" onClick={() => openDetail(c._id)}>Xem</button>
+                          <button className="adm-btn adm-btn-outline" onClick={() => openDetail(c.id)}>Xem</button>
                         </td>
                       </tr>
                     );

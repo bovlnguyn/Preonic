@@ -29,8 +29,10 @@ const WALLET_TRANSACTION_TYPES = [
 
 const normalizeTransactionType = (type: string) => {
   if (type === 'topup') return 'Nạp tiền';
-  if (type === 'escrow_deposit') return 'Đặt cọc / ký quỹ';
-  if (type === 'escrow_release') return 'Giải ngân';
+  // EscrowTransaction.type thuc te la 'deposit'/'release' (xem escrow.service.ts),
+  // khong phai 'escrow_deposit'/'escrow_release' — giu ca hai de tuong thich nguoc.
+  if (type === 'deposit' || type === 'escrow_deposit') return 'Đặt cọc / ký quỹ';
+  if (type === 'release' || type === 'escrow_release') return 'Giải ngân';
   if (type === 'refund') return 'Hoàn tiền';
   return type;
 };
@@ -160,13 +162,15 @@ export const getWalletTransactions = async (
 
 };
 
+const DEMO_TOPUP_ROLES = ['farmer', 'enterprise'];
+
 export const demoTopupWallet = async (
   userId: string,
   role: string,
   dto: { amount: number; note?: string }
 ) => {
-  if (role !== 'enterprise') {
-    throw makeError('Chi doanh nghiep moi co the nap tien demo', 403);
+  if (!DEMO_TOPUP_ROLES.includes(role)) {
+    throw makeError('Vai tro nay khong the nap tien demo', 403);
   }
 
   const amount = Number(dto.amount);
@@ -192,8 +196,8 @@ export const demoTopupWallet = async (
     throw makeError('Khong tim thay nguoi dung', 404);
   }
 
-  if (user.role !== 'enterprise') {
-    throw makeError('Chi doanh nghiep moi co the nap tien demo', 403);
+  if (!DEMO_TOPUP_ROLES.includes(user.role)) {
+    throw makeError('Vai tro nay khong the nap tien demo', 403);
   }
 
   const balanceBefore = Number(user.virtualBalance || 0);

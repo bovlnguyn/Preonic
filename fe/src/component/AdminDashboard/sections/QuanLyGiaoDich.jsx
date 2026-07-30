@@ -136,7 +136,7 @@ export default function QuanLyGiaoDich() {
                     const tm = TYPE_META[t.type] || { label: t.type, cls: "adm-badge-gray" };
                     const sm = STATUS_META[t.status] || { label: t.status, cls: "adm-badge-gray" };
                     return (
-                      <tr key={t._id}>
+                      <tr key={t.id}>
                         <td>
                           <span className={`adm-badge ${tm.cls}`}>
                             {tm.label}

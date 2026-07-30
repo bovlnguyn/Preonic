@@ -7,6 +7,7 @@ import connectDB, { isDatabaseConnected } from './config/database';
 import { createLogger } from './utils/logger';
 import { startContractExpiryCron } from './jobs/contract-cron';
 import { startWeatherCron } from './jobs/weather-cron';
+import { startShippingCron } from './jobs/shipping-cron';
 
 const log  = createLogger('Server');
 const PORT = Number(process.env.PORT ?? 8080);
@@ -27,6 +28,7 @@ connectDB(() => {
   // Cron jobs — chi chay sau khi DB da ket noi thanh cong
   startContractExpiryCron();
   startWeatherCron();
+  startShippingCron();
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
