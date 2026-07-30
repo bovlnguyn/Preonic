@@ -1,6 +1,7 @@
 import { Router, RequestHandler } from 'express';
 import {
   createContract,
+  submitContract,
   listContracts,
   getContract,
   signContract,
@@ -22,6 +23,13 @@ router.post(
 
 router.get('/', protect as RequestHandler, listContracts as RequestHandler);
 router.get('/:id', protect as RequestHandler, getContract as RequestHandler);
+
+router.post(
+  '/:id/submit',
+  protect as RequestHandler,
+  restrictTo('enterprise') as RequestHandler,
+  submitContract as RequestHandler
+);
 
 router.post('/:id/cancel', protect as RequestHandler, cancelContract as RequestHandler);
 router.post('/:id/confirm-cancel', protect as RequestHandler, confirmCancelContract as RequestHandler);

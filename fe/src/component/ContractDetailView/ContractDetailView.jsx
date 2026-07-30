@@ -5,7 +5,7 @@ import contractService from '../../services/contract.service';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useMessagingWidget } from '../../contexts/MessagingWidgetContext';
-import { CONTRACT_STATUS_LABEL, PAYMENT_TERMS_LABEL } from '../../constants/contract';
+import { PAYMENT_TERMS_LABEL, resolveContractStatusLabel } from '../../constants/contract';
 import ContractFlow from '../ContractFlow/ContractFlow';
 import EscrowPanel from '../EscrowPanel/EscrowPanel';
 import './ContractDetailView.css';
@@ -18,7 +18,9 @@ const FLOW_STEPS = [
 ];
 
 const TERMINAL_STATUSES = ['cancelled', 'disputed'];
-const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved', 'active'];
+// 'active' khong nam trong day: mot khi hop dong active la escrow da funded,
+// huy truc tiep bi BE chan (phai xu ly qua dispute de tien duoc giai quyet dung).
+const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved'];
 
 // Nong dan phai ky truoc, den luot doanh nghiep ky sau khi kich hoat hop dong
 const resolveFlowProgress = (contract) => {
@@ -34,16 +36,6 @@ const resolveFlowProgress = (contract) => {
   if (contract.signedByFarmer)
     return { currentIndex: 2, cancelled: false };
   return { currentIndex: 1, cancelled: false };
-};
-
-const resolveStatusLabel = (contract) => {
-  if (contract.status === 'cancel_pending') return 'Đang chờ xác nhận hủy';
-  if (contract.status === 'pending' || contract.status === 'draft') {
-    if (contract.signedByFarmer && !contract.signedByEnterprise) return 'Chờ doanh nghiệp ký';
-    if (!contract.signedByFarmer && contract.signedByEnterprise)  return 'Chờ nông dân xác nhận';
-    if (!contract.signedByFarmer && !contract.signedByEnterprise) return 'Chờ ký xác nhận';
-  }
-  return CONTRACT_STATUS_LABEL[contract.status] || contract.status;
 };
 
 const fmtMoney = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
@@ -152,6 +144,20 @@ export default function ContractDetailView() {
 
   useEffect(load, [id]);
 
+  // Gửi đề xuất (draft) cho nông dân
+  const handleSubmit = async () => {
+    setActing(true);
+    try {
+      await contractService.submit(id);
+      toast.success('Đã gửi đề xuất hợp đồng cho nông dân');
+      load();
+    } catch (err) {
+      toast.error(err?.message || 'Gửi đề xuất hợp đồng thất bại, vui lòng thử lại.');
+    } finally {
+      setActing(false);
+    }
+  };
+
   // Ký xác nhận
   const handleSign = async () => {
     setActing(true);
@@ -248,11 +254,15 @@ export default function ContractDetailView() {
   // Doanh nghiep chi duoc ky sau khi nong dan da ky (khop guard o BE contract.service.ts#signContract)
   const waitingOnFarmer = !isFarmer && !contract.signedByFarmer;
 
-  // Có thể ký nếu chưa ký, HĐ chưa kết thúc, và (là nông dân hoặc nông dân đã ký)
-  const canSign = !mySigned && !isTerminal && contract.status !== 'cancel_pending' && !waitingOnFarmer;
+  // Enterprise: hop dong con la ban nhap, chua gui cho nong dan
+  const canSubmit = !isFarmer && contract.status === 'draft';
 
-  // Có thể hủy nếu HĐ đang trong trạng thái cho phép và chưa ai gửi yêu cầu hủy
-  const canCancel = contract.status === 'active';
+  // Có thể ký nếu chưa ký, HĐ chưa kết thúc, chưa gửi (draft), và (là nông dân hoặc nông dân đã ký)
+  const canSign = !mySigned && !isTerminal && contract.status !== 'cancel_pending'
+    && contract.status !== 'draft' && !waitingOnFarmer;
+
+  // Có thể hủy nếu HĐ đang trong trạng thái cho phép trực tiếp (chưa phát sinh ký quỹ)
+  const canCancel = CAN_CANCEL_STATUSES.includes(contract.status);
 
   // Bên bị yêu cầu hủy: cancel_pending và mình không phải người gửi yêu cầu
   const isCancelRequester = contract.cancelRequestedBy === user?.id;
@@ -287,7 +297,7 @@ export default function ContractDetailView() {
             <p>Số: {contract.contractCode}</p>
           </div>
           <span className={`cdv-badge cdv-badge--${contract.status}`}>
-            {resolveStatusLabel(contract)}
+            {resolveContractStatusLabel(contract)}
           </span>
         </div>
 
@@ -348,8 +358,8 @@ export default function ContractDetailView() {
           </div>
         )}
 
-        {/* Doanh nghiệp: chờ nông dân xác nhận trước khi được ký */}
-        {waitingOnFarmer && !isTerminal && contract.status !== 'cancel_pending' && (
+        {/* Doanh nghiệp: chờ nông dân xác nhận trước khi được ký (chỉ khi đã gửi) */}
+        {waitingOnFarmer && !isTerminal && contract.status !== 'cancel_pending' && contract.status !== 'draft' && (
           <div className="cdv-note cdv-note--info">
             Đang chờ nông dân xác nhận đề xuất. Bạn sẽ có thể ký chính thức sau khi nông dân đồng ý.
           </div>
@@ -367,6 +377,13 @@ export default function ContractDetailView() {
 
         {/* ── Khu vực hành động ── */}
         <div className="cdv-actions">
+
+          {/* Enterprise: gửi bản nháp cho nông dân */}
+          {canSubmit && (
+            <button className="cdv-btn cdv-btn--primary" onClick={handleSubmit} disabled={acting}>
+              <FiCheck size={14} /> {acting ? 'Đang xử lý...' : 'Gửi cho nông dân'}
+            </button>
+          )}
 
           {/* Ký xác nhận + từ chối ký (farmer chưa ký) */}
           {canSign && !showSignReject && (
