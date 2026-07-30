@@ -110,6 +110,26 @@ export const createContract = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const submitContract = async (req: AuthRequest, res: Response) => {
+  try {
+    const contract = await contractService.submitContractProposal(
+      req.params.id,
+      req.user!.id
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Gui de xuat hop dong thanh cong',
+      data: { contract: formatContract(contract) },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Gui de xuat hop dong that bai',
+    });
+  }
+};
+
 export const listContracts = async (req: AuthRequest, res: Response) => {
   try {
     const result = await contractService.listContractsForUser(

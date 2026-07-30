@@ -93,17 +93,21 @@ export const CONTRACT_STATUS = {
   PENDING: 'pending',
   APPROVED: 'approved',
   ACTIVE: 'active',
+  CANCEL_PENDING: 'cancel_pending',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
+  DISPUTED: 'disputed',
 };
 
 export const CONTRACT_STATUS_META = {
-  [CONTRACT_STATUS.DRAFT]: { label: 'Bản nháp', color: '#9ca3af' },
-  [CONTRACT_STATUS.PENDING]: { label: 'Chờ duyệt', color: '#f59e0b' },
-  [CONTRACT_STATUS.APPROVED]: { label: 'Đã phê duyệt', color: '#0ea5e9' },
-  [CONTRACT_STATUS.ACTIVE]: { label: 'Đang chạy', color: '#1d4ed8' },
-  [CONTRACT_STATUS.COMPLETED]: { label: 'Hoàn thành', color: '#16a34a' },
+  [CONTRACT_STATUS.DRAFT]: { label: 'Nháp — chưa gửi', color: '#9ca3af' },
+  [CONTRACT_STATUS.PENDING]: { label: 'Chờ ký xác nhận', color: '#f59e0b' },
+  [CONTRACT_STATUS.APPROVED]: { label: 'Đã ký — chờ khóa ký quỹ', color: '#0ea5e9' },
+  [CONTRACT_STATUS.ACTIVE]: { label: 'Đang hiệu lực', color: '#1d4ed8' },
+  [CONTRACT_STATUS.CANCEL_PENDING]: { label: 'Đang chờ xác nhận hủy', color: '#f97316' },
+  [CONTRACT_STATUS.COMPLETED]: { label: 'Hoàn tất', color: '#16a34a' },
   [CONTRACT_STATUS.CANCELLED]: { label: 'Đã hủy', color: '#ef4444' },
+  [CONTRACT_STATUS.DISPUTED]: { label: 'Tranh chấp', color: '#dc2626' },
 };
 
 export const getContractStatusMeta = (status) =>

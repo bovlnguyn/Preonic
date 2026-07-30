@@ -181,7 +181,7 @@ function MilestoneItem({ escrow, milestone, index, userRole, onConfirm, confirmi
 
 /**
  * Panel ky quy + moc thanh toan, gan vao trang chi tiet hop dong.
- * - Enterprise: nap ky quy khi hop dong active va chua co escrow.
+ * - Enterprise: nap ky quy khi hop dong approved (da ky du 2 ben) va chua co escrow.
  * - Farmer/Enterprise: xac nhan tung moc theo dung vai tro (requiredBy tu BE).
  * - Ca hai ben: bao tranh chap kem mo ta + bang chung cho moc chua hoan tat.
  */
@@ -244,8 +244,8 @@ function EscrowPanel({ contract, userRole }) {
     }
   };
 
-  // Ky quy chi lien quan khi hop dong da active (ca 2 ben da ky)
-  if (contract.status !== 'active' && !escrow) {
+  // Ky quy chi lien quan khi hop dong da approved (ca 2 ben da ky, cho khoa ky quy) tro len
+  if (contract.status !== 'approved' && contract.status !== 'active' && !escrow) {
     if (loading) return null;
     return null;
   }
@@ -265,9 +265,9 @@ function EscrowPanel({ contract, userRole }) {
         <div className="esc-loading"><div className="spinner-border text-success" role="status" /></div>
       )}
 
-      {!loading && !escrow && contract.status === 'active' && (
+      {!loading && !escrow && contract.status === 'approved' && (
         <div className="esc-empty">
-          <p>Hợp đồng đã có hiệu lực nhưng chưa được nạp ký quỹ.</p>
+          <p>Hợp đồng đã ký đủ hai bên, đang chờ nạp ký quỹ.</p>
           {userRole === 'enterprise' ? (
             <button type="button" className="esc-btn esc-btn--primary" onClick={handleDeposit} disabled={depositing}>
               <FiShield size={14} /> {depositing ? 'Đang xử lý...' : `Nạp ký quỹ ${fmtMoney(contract.totalValue)}`}

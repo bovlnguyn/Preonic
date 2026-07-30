@@ -4,14 +4,27 @@
  */
 
 export const CONTRACT_STATUS_LABEL = {
-  draft: 'Nháp',
-  pending: 'Chờ nông dân xác nhận',
-  approved: 'Đã duyệt',
+  draft: 'Nháp — chưa gửi cho nông dân',
+  pending: 'Chờ ký xác nhận',
+  approved: 'Đã ký đủ hai bên — chờ khóa ký quỹ',
   active: 'Đang hiệu lực',
   cancel_pending: 'Đang chờ xác nhận hủy',
   completed: 'Hoàn tất',
   cancelled: 'Đã hủy',
   disputed: 'Tranh chấp',
+};
+
+/**
+ * Nhan hien thi theo dung goc nhin nguoi xem (ai da ky, ai chua) — dung cho ca
+ * trang danh sach va trang chi tiet de tranh nhan lan (vd: Enterprise van thay
+ * "Cho nong dan xac nhan" du Farmer da ky roi).
+ */
+export const resolveContractStatusLabel = (contract) => {
+  if (!contract) return '';
+  if (contract.status === 'pending') {
+    return contract.signedByFarmer ? 'Chờ doanh nghiệp ký' : 'Chờ nông dân xác nhận';
+  }
+  return CONTRACT_STATUS_LABEL[contract.status] || contract.status;
 };
 
 export const PAYMENT_TERMS_LABEL = {
