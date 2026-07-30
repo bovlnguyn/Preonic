@@ -34,9 +34,9 @@ const ROLE_CONFIG = {
   guest: {
     home: "/",
     products: "/products",
-    solutions: "/",
-    contact: "/register",
-    ai: "/auth",
+    solutions: "/solutions",
+    contact: "/contact",
+    ai: "/ai-agriculture",
     dashboard: null,
   },
 };
@@ -70,9 +70,7 @@ function Footer() {
             : "Danh sách sản phẩm",
       path: config.products,
     },
-    ...(role !== "guest"
-      ? [{ label: "Giải pháp", path: config.solutions }]
-      : []),
+    { label: "Giải pháp", path: config.solutions },
     ...(config.dashboard
       ? [{ label: "Dashboard", path: config.dashboard }]
       : []),
@@ -84,6 +82,8 @@ function Footer() {
           { label: "Đăng nhập", path: "/auth" },
           { label: "Đăng ký tài khoản", path: "/register" },
           { label: "Khám phá sản phẩm", path: "/products" },
+          { label: "Liên hệ hỗ trợ", path: config.contact },
+          { label: "AI nông nghiệp", path: config.ai },
         ]
       : [
           { label: "Hồ sơ cá nhân", path: "/profile" },

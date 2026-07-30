@@ -70,9 +70,9 @@ export const COMPANY = {
   FULL_NAME: 'Công ty TNHH PreOnic Việt Nam',
   DESCRIPTION: 'Nền tảng kết nối nông nghiệp bền vững hàng đầu Việt Nam',
   EMAIL: 'contact@preonic.vn',
-  SUPPORT_EMAIL: 'support@preonic.vn',
-  HOTLINE: '1900 xxxx',
-  ADDRESS: 'Hà Nội, Việt Nam',
+  SUPPORT_EMAIL: 'echphanvan@gmail.com',
+  HOTLINE: '0349 940 617',
+  ADDRESS: 'Đà Nẵng, Việt Nam',
   COPYRIGHT_YEAR: 2026,
   COMMISSION_RATE: 3, // % hoa hồng trung gian — phải khớp với CONTRACT_CONFIG.COMMISSION_RATE trong be/src/constants/index.ts
 };

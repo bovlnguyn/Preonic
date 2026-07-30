@@ -13,6 +13,9 @@ import VerifyEmail from '../component/VerifyEmail/VerifyEmail';
 
 import ProductList from '../pages/ProductList';
 import ProductDetail from '../component/ProductDetail/ProductDetail';
+import Solutions from '../component/Solutions/Solutions';
+import Contact from '../component/Contact/Contact';
+import AIAgriculture from '../component/AIAgriculture/AIAgriculture';
 
 // Hồ sơ cá nhân — dùng chung Farmer/Enterprise, đứng ngoài layout dashboard
 import Profile from '../component/Profile/Profile';
@@ -33,7 +36,9 @@ const publicRoutes = [
 
   { path: '/products', element: <ProductList /> },
   { path: '/products/:id', element: <ProductDetail /> },
-
+  { path: '/solutions', element: <Solutions /> },
+  { path: '/contact', element: <Contact /> },
+  { path: '/ai-agriculture', element: <AIAgriculture /> },
 
 
   {
