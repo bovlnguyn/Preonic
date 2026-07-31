@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FiUser, FiPhone, FiMapPin, FiCamera, FiMail,
   FiHome, FiBriefcase, FiHash, FiSave, FiStar, FiArrowLeft,
-  FiLock, FiEye, FiEyeOff,
+  FiLock, FiEye, FiEyeOff, FiShield, FiCheck, FiX,
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -63,6 +63,7 @@ function Profile() {
 
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
   const [pwErrors, setPwErrors] = useState({});
+  const [pwTouched, setPwTouched] = useState({});
   const [pwApiError, setPwApiError] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
@@ -162,23 +163,115 @@ function Profile() {
     }
   };
 
-  const handlePasswordChange = (e) => {
-    const { name, value } = e.target;
-    setPwForm((prev) => ({ ...prev, [name]: value }));
-    if (pwErrors[name]) setPwErrors((prev) => ({ ...prev, [name]: '' }));
-  };
-
   const isGoogleAccount = user?.authProvider === 'google';
 
+  const getPasswordChecks = (passwordForm = pwForm) => {
+    const currentPassword = passwordForm.currentPassword || '';
+    const newPassword = passwordForm.newPassword || '';
+
+    return {
+      minLength: newPassword.length >= 8,
+      hasLetter: /[A-Za-z]/.test(newPassword),
+      hasNumber: /\d/.test(newPassword),
+      hasSpecialCharacter: /[^A-Za-z0-9\s]/.test(newPassword),
+      hasNoWhitespace: newPassword.length > 0 && !/\s/.test(newPassword),
+      differsFromCurrent:
+        isGoogleAccount ||
+        !currentPassword ||
+        !newPassword ||
+        newPassword !== currentPassword,
+    };
+  };
+
+  const getPasswordErrors = (passwordForm = pwForm) => {
+    const passwordErrors = {};
+    const { currentPassword, newPassword, confirmNewPassword } = passwordForm;
+    const checks = getPasswordChecks(passwordForm);
+
+    if (!isGoogleAccount && !currentPassword) {
+      passwordErrors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
+    }
+
+    if (!newPassword) {
+      passwordErrors.newPassword = 'Vui lòng nhập mật khẩu mới';
+    } else if (!checks.minLength) {
+      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất 8 ký tự';
+    } else if (!checks.hasLetter) {
+      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất một chữ cái';
+    } else if (!checks.hasNumber) {
+      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất một chữ số';
+    } else if (!checks.hasSpecialCharacter) {
+      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất một ký tự đặc biệt';
+    } else if (!checks.hasNoWhitespace) {
+      passwordErrors.newPassword = 'Mật khẩu mới không được chứa khoảng trắng';
+    } else if (!checks.differsFromCurrent) {
+      passwordErrors.newPassword = 'Mật khẩu mới không được trùng với mật khẩu hiện tại';
+    }
+
+    if (!confirmNewPassword) {
+      passwordErrors.confirmNewPassword = 'Vui lòng xác nhận mật khẩu mới';
+    } else if (newPassword !== confirmNewPassword) {
+      passwordErrors.confirmNewPassword = 'Mật khẩu xác nhận không khớp';
+    }
+
+    return passwordErrors;
+  };
+
+  const getVisiblePasswordErrors = (passwordForm, touchedFields) => {
+    const allErrors = getPasswordErrors(passwordForm);
+
+    return Object.keys(allErrors).reduce((visibleErrors, fieldName) => {
+      if (touchedFields[fieldName]) {
+        visibleErrors[fieldName] = allErrors[fieldName];
+      }
+      return visibleErrors;
+    }, {});
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    const nextForm = { ...pwForm, [name]: value };
+    const nextTouched = { ...pwTouched, [name]: true };
+
+    // Khi mật khẩu mới thay đổi, kiểm tra lại ô xác nhận nếu người dùng đã nhập ô này.
+    if (name === 'newPassword' && pwForm.confirmNewPassword) {
+      nextTouched.confirmNewPassword = true;
+    }
+
+    setPwForm(nextForm);
+    setPwTouched(nextTouched);
+    setPwErrors(getVisiblePasswordErrors(nextForm, nextTouched));
+    setPwApiError('');
+  };
+
+  const handlePasswordBlur = (e) => {
+    const { name } = e.target;
+    const nextTouched = { ...pwTouched, [name]: true };
+
+    setPwTouched(nextTouched);
+    setPwErrors(getVisiblePasswordErrors(pwForm, nextTouched));
+  };
+
   const validatePassword = () => {
-    const e = {};
-    if (!isGoogleAccount && !pwForm.currentPassword) e.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
-    if (!pwForm.newPassword) e.newPassword = 'Vui lòng nhập mật khẩu mới';
-    else if (pwForm.newPassword.length < 6) e.newPassword = 'Mật khẩu mới phải có ít nhất 6 ký tự';
-    if (!pwForm.confirmNewPassword) e.confirmNewPassword = 'Vui lòng xác nhận mật khẩu mới';
-    else if (pwForm.newPassword !== pwForm.confirmNewPassword) e.confirmNewPassword = 'Mật khẩu xác nhận không khớp';
-    setPwErrors(e);
-    return Object.keys(e).length === 0;
+    const touchedFields = {
+      currentPassword: !isGoogleAccount,
+      newPassword: true,
+      confirmNewPassword: true,
+    };
+    const passwordErrors = getPasswordErrors(pwForm);
+
+    setPwTouched(touchedFields);
+    setPwErrors(passwordErrors);
+
+    return Object.keys(passwordErrors).length === 0;
+  };
+
+  const passwordChecks = getPasswordChecks();
+  const hasNewPassword = pwForm.newPassword.length > 0;
+
+  const getRuleClassName = (isValid, isNeutral = !hasNewPassword) => {
+    if (isNeutral) return 'profile-password-rule profile-password-rule--neutral';
+    return `profile-password-rule ${isValid ? 'profile-password-rule--valid' : 'profile-password-rule--invalid'}`;
   };
 
   const handlePasswordSubmit = async (e) => {
@@ -194,6 +287,11 @@ function Profile() {
         updateUser({ ...user, authProvider: result.data.authProvider });
       }
       setPwForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+      setPwErrors({});
+      setPwTouched({});
+      setShowCurrent(false);
+      setShowNew(false);
+      setShowConfirm(false);
       toast.success('Đổi mật khẩu thành công');
     } catch (err) {
       setPwApiError(err?.message || 'Đổi mật khẩu thất bại. Vui lòng thử lại.');
@@ -416,115 +514,231 @@ function Profile() {
       </form>
 
       <form className="profile-card profile-password-card" onSubmit={handlePasswordSubmit} noValidate>
-        <h2>Đổi mật khẩu</h2>
-        <p className="profile-password-hint">
-          {isGoogleAccount
-            ? 'Tài khoản đăng nhập bằng Google chưa có mật khẩu do bạn tự đặt — hãy đặt mật khẩu lần đầu để có thể đăng nhập bằng email/mật khẩu.'
-            : 'Dùng mật khẩu mạnh, tối thiểu 6 ký tự, không trùng mật khẩu cũ.'}
-        </p>
+        <div className="profile-password-header">
+          <div className="profile-password-header__icon" aria-hidden="true">
+            <FiShield />
+          </div>
+          <div>
+            <h2>Đổi mật khẩu</h2>
+            <p className="profile-password-hint">
+              {isGoogleAccount
+                ? 'Thiết lập mật khẩu để có thể đăng nhập bằng email bên cạnh tài khoản Google.'
+                : 'Mật khẩu mới cần đủ mạnh và không được trùng với mật khẩu hiện tại.'}
+            </p>
+          </div>
+        </div>
 
         {pwApiError && (
           <div className="profile-alert profile-alert--error">{pwApiError}</div>
         )}
 
-        {isGoogleAccount ? (
-          <div className="profile-field">
-            <label>Mật khẩu mới</label>
-            <div className={`profile-input-icon ${pwErrors.newPassword ? 'profile-input-icon--invalid' : ''}`}>
-              <FiLock />
-              <input
-                type={showNew ? 'text' : 'password'}
-                name="newPassword"
-                autoComplete="new-password"
-                value={pwForm.newPassword}
-                onChange={handlePasswordChange}
-                placeholder="Tối thiểu 6 ký tự"
-              />
-              <button
-                type="button" className="profile-input-icon__toggle"
-                onClick={() => setShowNew((s) => !s)}
-                aria-label="Hiện/ẩn mật khẩu mới"
-              >
-                {showNew ? <FiEyeOff /> : <FiEye />}
-              </button>
-            </div>
-            {pwErrors.newPassword && <div className="profile-field-error">{pwErrors.newPassword}</div>}
-          </div>
-        ) : (
-          <div className="profile-row">
-            <div className="profile-field">
-              <label>Mật khẩu hiện tại</label>
-              <div className={`profile-input-icon ${pwErrors.currentPassword ? 'profile-input-icon--invalid' : ''}`}>
-                <FiLock />
-                <input
-                  type={showCurrent ? 'text' : 'password'}
-                  name="currentPassword"
-                  autoComplete="current-password"
-                  value={pwForm.currentPassword}
-                  onChange={handlePasswordChange}
-                  placeholder="Nhập mật khẩu hiện tại"
-                />
-                <button
-                  type="button" className="profile-input-icon__toggle"
-                  onClick={() => setShowCurrent((s) => !s)}
-                  aria-label="Hiện/ẩn mật khẩu hiện tại"
-                >
-                  {showCurrent ? <FiEyeOff /> : <FiEye />}
-                </button>
-              </div>
-              {pwErrors.currentPassword && <div className="profile-field-error">{pwErrors.currentPassword}</div>}
-            </div>
-
-            <div className="profile-field">
-              <label>Mật khẩu mới</label>
+        <div className="profile-password-fields">
+          {isGoogleAccount ? (
+            <div className="profile-field profile-password-field--new">
+              <label htmlFor="profile-new-password">Mật khẩu mới</label>
               <div className={`profile-input-icon ${pwErrors.newPassword ? 'profile-input-icon--invalid' : ''}`}>
                 <FiLock />
                 <input
+                  id="profile-new-password"
                   type={showNew ? 'text' : 'password'}
                   name="newPassword"
                   autoComplete="new-password"
                   value={pwForm.newPassword}
                   onChange={handlePasswordChange}
-                  placeholder="Tối thiểu 6 ký tự"
+                  onBlur={handlePasswordBlur}
+                  placeholder="Nhập mật khẩu mới"
+                  aria-invalid={Boolean(pwErrors.newPassword)}
+                  aria-describedby="profile-password-rules profile-new-password-error"
                 />
                 <button
-                  type="button" className="profile-input-icon__toggle"
+                  type="button"
+                  className="profile-input-icon__toggle"
                   onClick={() => setShowNew((s) => !s)}
-                  aria-label="Hiện/ẩn mật khẩu mới"
+                  aria-label={showNew ? 'Ẩn mật khẩu mới' : 'Hiện mật khẩu mới'}
                 >
                   {showNew ? <FiEyeOff /> : <FiEye />}
                 </button>
               </div>
-              {pwErrors.newPassword && <div className="profile-field-error">{pwErrors.newPassword}</div>}
+              {pwErrors.newPassword && (
+                <div id="profile-new-password-error" className="profile-field-error" role="alert">
+                  {pwErrors.newPassword}
+                </div>
+              )}
+              <div id="profile-password-rules" className="profile-password-rules" aria-live="polite">
+                <p className="profile-password-rules__title">Mật khẩu cần đáp ứng:</p>
+                <div className="profile-password-rules__grid">
+                  <div className={getRuleClassName(passwordChecks.minLength)}>
+                    <span>{passwordChecks.minLength ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                    Ít nhất 8 ký tự
+                  </div>
+                  <div className={getRuleClassName(passwordChecks.hasLetter)}>
+                    <span>{passwordChecks.hasLetter ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                    Có ít nhất một chữ cái
+                  </div>
+                  <div className={getRuleClassName(passwordChecks.hasNumber)}>
+                    <span>{passwordChecks.hasNumber ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                    Có ít nhất một chữ số
+                  </div>
+                  <div className={getRuleClassName(passwordChecks.hasSpecialCharacter)}>
+                    <span>{passwordChecks.hasSpecialCharacter ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                    Có ít nhất một ký tự đặc biệt
+                  </div>
+                  <div className={getRuleClassName(passwordChecks.hasNoWhitespace)}>
+                    <span>{passwordChecks.hasNoWhitespace ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                    Không chứa khoảng trắng
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="profile-password-row">
+              <div className="profile-field">
+                <label htmlFor="profile-current-password">Mật khẩu hiện tại</label>
+                <div className={`profile-input-icon ${pwErrors.currentPassword ? 'profile-input-icon--invalid' : ''}`}>
+                  <FiLock />
+                  <input
+                    id="profile-current-password"
+                    type={showCurrent ? 'text' : 'password'}
+                    name="currentPassword"
+                    autoComplete="current-password"
+                    value={pwForm.currentPassword}
+                    onChange={handlePasswordChange}
+                    onBlur={handlePasswordBlur}
+                    placeholder="Nhập mật khẩu hiện tại"
+                    aria-invalid={Boolean(pwErrors.currentPassword)}
+                    aria-describedby="profile-current-password-error"
+                  />
+                  <button
+                    type="button"
+                    className="profile-input-icon__toggle"
+                    onClick={() => setShowCurrent((s) => !s)}
+                    aria-label={showCurrent ? 'Ẩn mật khẩu hiện tại' : 'Hiện mật khẩu hiện tại'}
+                  >
+                    {showCurrent ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
+                {pwErrors.currentPassword && (
+                  <div id="profile-current-password-error" className="profile-field-error" role="alert">
+                    {pwErrors.currentPassword}
+                  </div>
+                )}
+              </div>
 
-        <div className="profile-field">
-          <label>Xác nhận mật khẩu mới</label>
-          <div className={`profile-input-icon ${pwErrors.confirmNewPassword ? 'profile-input-icon--invalid' : ''}`}>
-            <FiLock />
-            <input
-              type={showConfirm ? 'text' : 'password'}
-              name="confirmNewPassword"
-              autoComplete="new-password"
-              value={pwForm.confirmNewPassword}
-              onChange={handlePasswordChange}
-              placeholder="Nhập lại mật khẩu mới"
-            />
-            <button
-              type="button" className="profile-input-icon__toggle"
-              onClick={() => setShowConfirm((s) => !s)}
-              aria-label="Hiện/ẩn xác nhận mật khẩu mới"
-            >
-              {showConfirm ? <FiEyeOff /> : <FiEye />}
-            </button>
+              <div className="profile-field profile-password-field--new">
+                <label htmlFor="profile-new-password">Mật khẩu mới</label>
+                <div className={`profile-input-icon ${pwErrors.newPassword ? 'profile-input-icon--invalid' : ''}`}>
+                  <FiLock />
+                  <input
+                    id="profile-new-password"
+                    type={showNew ? 'text' : 'password'}
+                    name="newPassword"
+                    autoComplete="new-password"
+                    value={pwForm.newPassword}
+                    onChange={handlePasswordChange}
+                    onBlur={handlePasswordBlur}
+                    placeholder="Nhập mật khẩu mới"
+                    aria-invalid={Boolean(pwErrors.newPassword)}
+                    aria-describedby="profile-password-rules profile-new-password-error"
+                  />
+                  <button
+                    type="button"
+                    className="profile-input-icon__toggle"
+                    onClick={() => setShowNew((s) => !s)}
+                    aria-label={showNew ? 'Ẩn mật khẩu mới' : 'Hiện mật khẩu mới'}
+                  >
+                    {showNew ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
+                {pwErrors.newPassword && (
+                  <div id="profile-new-password-error" className="profile-field-error" role="alert">
+                    {pwErrors.newPassword}
+                  </div>
+                )}
+
+                <div id="profile-password-rules" className="profile-password-rules" aria-live="polite">
+                  <p className="profile-password-rules__title">Mật khẩu cần đáp ứng:</p>
+                  <div className="profile-password-rules__grid">
+                    <div className={getRuleClassName(passwordChecks.minLength)}>
+                      <span>{passwordChecks.minLength ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                      Ít nhất 8 ký tự
+                    </div>
+                    <div className={getRuleClassName(passwordChecks.hasLetter)}>
+                      <span>{passwordChecks.hasLetter ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                      Có ít nhất một chữ cái
+                    </div>
+                    <div className={getRuleClassName(passwordChecks.hasNumber)}>
+                      <span>{passwordChecks.hasNumber ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                      Có ít nhất một chữ số
+                    </div>
+                    <div className={getRuleClassName(passwordChecks.hasSpecialCharacter)}>
+                      <span>{passwordChecks.hasSpecialCharacter ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                      Có ít nhất một ký tự đặc biệt
+                    </div>
+                    <div className={getRuleClassName(passwordChecks.hasNoWhitespace)}>
+                      <span>{passwordChecks.hasNoWhitespace ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
+                      Không chứa khoảng trắng
+                    </div>
+                    <div
+                      className={getRuleClassName(
+                        passwordChecks.differsFromCurrent,
+                        !pwForm.currentPassword || !pwForm.newPassword,
+                      )}
+                    >
+                      <span>
+                        {!pwForm.currentPassword || !pwForm.newPassword
+                          ? '•'
+                          : passwordChecks.differsFromCurrent
+                            ? <FiCheck />
+                            : <FiX />}
+                      </span>
+                      Không trùng mật khẩu hiện tại
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="profile-field profile-password-confirm">
+            <label htmlFor="profile-confirm-password">Xác nhận mật khẩu mới</label>
+            <div className={`profile-input-icon ${pwErrors.confirmNewPassword ? 'profile-input-icon--invalid' : ''}`}>
+              <FiLock />
+              <input
+                id="profile-confirm-password"
+                type={showConfirm ? 'text' : 'password'}
+                name="confirmNewPassword"
+                autoComplete="new-password"
+                value={pwForm.confirmNewPassword}
+                onChange={handlePasswordChange}
+                onBlur={handlePasswordBlur}
+                placeholder="Nhập lại mật khẩu mới"
+                aria-invalid={Boolean(pwErrors.confirmNewPassword)}
+                aria-describedby="profile-confirm-password-error"
+              />
+              <button
+                type="button"
+                className="profile-input-icon__toggle"
+                onClick={() => setShowConfirm((s) => !s)}
+                aria-label={showConfirm ? 'Ẩn xác nhận mật khẩu mới' : 'Hiện xác nhận mật khẩu mới'}
+              >
+                {showConfirm ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
+            {pwErrors.confirmNewPassword && (
+              <div id="profile-confirm-password-error" className="profile-field-error" role="alert">
+                {pwErrors.confirmNewPassword}
+              </div>
+            )}
+            {pwForm.confirmNewPassword && !pwErrors.confirmNewPassword && (
+              <div className="profile-field-success">
+                <FiCheck /> Mật khẩu xác nhận đã khớp
+              </div>
+            )}
           </div>
-          {pwErrors.confirmNewPassword && <div className="profile-field-error">{pwErrors.confirmNewPassword}</div>}
         </div>
 
-        <div className="profile-actions">
-          <button type="submit" className="profile-submit" disabled={pwSaving}>
+        <div className="profile-actions profile-password-actions">
+          <button type="submit" className="profile-submit profile-password-submit" disabled={pwSaving}>
             {pwSaving
               ? <><span className="spinner-border spinner-border-sm me-2" />Đang lưu...</>
               : <><FiLock /> Đổi mật khẩu</>}
