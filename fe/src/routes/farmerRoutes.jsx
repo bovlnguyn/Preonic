@@ -23,6 +23,7 @@ import FarmerEditProduct from '../component/FarmerDashboard/pages/FarmerEditProd
 
 // Dùng chung Farmer/Enterprise
 import ContractDetailView from '../component/ContractDetailView/ContractDetailView';
+import ProductDetail from '../component/ProductDetail/ProductDetail';
 
 const forFarmer = (element) => (
   <ProtectedRoute allowedRoles={['farmer']}>{element}</ProtectedRoute>
@@ -43,6 +44,7 @@ const farmerRoutes = [
     children: [
       { index: true, element: <FarmerOverview /> },
       { path: 'crops', element: <FarmerCrops /> },
+      { path: 'crops/:id', element: <ProductDetail context="farmer" /> },
       { path: 'contracts', element: <FarmerContracts /> },
       { path: 'contracts/:id', element: <ContractDetailView /> },
       { path: 'orders', element: <FarmerOrders /> },

@@ -206,7 +206,7 @@ function EnterpriseProducts() {
 
                       <div className="ep-actions">
                         <button type="button" onClick={() => navigate(`/enterprise/contracts/create?product=${item.id}`)}>Gửi đề xuất hợp đồng</button>
-                        <button type="button" className="ghost" onClick={() => navigate(`/products/${item.id}`)}>Xem nhà cung cấp <FiArrowRight /></button>
+                        <button type="button" className="ghost" onClick={() => navigate(`/enterprise-products/${item.id}`)}>Xem nhà cung cấp <FiArrowRight /></button>
                       </div>
                     </div>
                   </motion.article>
