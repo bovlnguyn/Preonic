@@ -54,7 +54,7 @@ router.get('/verify-email/:token', verifyEmail as RequestHandler);
 router.get  ('/me',     protect as RequestHandler, getMe as RequestHandler);
 router.patch('/me',     protect as RequestHandler, uploadAvatar, validateUpdateProfile, updateProfile as RequestHandler);
 router.put  ('/update-password', protect as RequestHandler, validateUpdatePassword, updatePassword as RequestHandler);
-router.post ('/logout', protect as RequestHandler, logout as RequestHandler);
+router.post ('/logout', logout as RequestHandler);
 // Google OAuth routes
 router.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'], session: false })

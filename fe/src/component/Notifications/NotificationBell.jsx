@@ -32,6 +32,7 @@ function NotificationBell({ triggerClassName = 'notif-bell__trigger' }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const containerRef = useRef(null);
+  const unreadRequestRef = useRef(false);
 
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -39,11 +40,16 @@ function NotificationBell({ triggerClassName = 'notif-bell__trigger' }) {
   const [loading, setLoading] = useState(false);
 
   const fetchUnreadCount = useCallback(async () => {
+    if (document.hidden || !navigator.onLine || unreadRequestRef.current) return;
+
+    unreadRequestRef.current = true;
     try {
       const res = await notificationService.getUnreadCount();
       setUnreadCount(res?.data?.unreadCount ?? 0);
     } catch {
-      // Bo qua loi polling ngam, khong lam phien nguoi dung
+      // Giữ số hiện tại khi mạng/DB gián đoạn, không biến thành 0 giả.
+    } finally {
+      unreadRequestRef.current = false;
     }
   }, []);
 
@@ -63,7 +69,18 @@ function NotificationBell({ triggerClassName = 'notif-bell__trigger' }) {
   useEffect(() => {
     fetchUnreadCount();
     const timer = setInterval(fetchUnreadCount, POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
+    const refreshWhenVisible = () => {
+      if (!document.hidden) fetchUnreadCount();
+    };
+
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('online', fetchUnreadCount);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('online', fetchUnreadCount);
+    };
   }, [fetchUnreadCount]);
 
   useEffect(() => {

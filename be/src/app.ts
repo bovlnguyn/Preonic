@@ -21,7 +21,7 @@ import notificationRoutes from './routes/notification.routes';
 import messagingRoutes from './routes/messaging.routes';
 import partnerRatingRoutes from './routes/partner-rating.routes';
 // Import Config/Utils
-import { isDatabaseConnected } from './config/database';
+import { isDatabaseConnected, isDatabaseUnavailableError, markDatabaseUnhealthy } from './config/database';
 import { createLogger } from './utils/logger';
 import { logError } from './services/systemLog.service';
 
@@ -79,15 +79,20 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // 2. DB HEALTH GUARD
 // ══════════════════════════════════════════════════════
 app.use(`${API_PREFIX}`, (req: Request, res: Response, next: NextFunction) => {
-  if (req.path.startsWith('/weather')) {
-    return next();
-  }
+  // Weather không phụ thuộc SQL. Logout phải luôn hoạt động để người dùng có thể
+  // xóa phiên phía trình duyệt ngay cả khi Azure SQL đang gián đoạn.
+  const bypassDatabaseGuard =
+    req.path.startsWith('/weather') || req.path === '/auth/logout';
+
+  if (bypassDatabaseGuard) return next();
 
   if (!isDatabaseConnected()) {
+    res.setHeader('Retry-After', '5');
     return res.status(503).json({
       success: false,
       status: 'error',
-      message: 'Database is temporarily unavailable. Please try again later.',
+      code: 'DATABASE_UNAVAILABLE',
+      message: 'Kết nối dữ liệu đang tạm thời gián đoạn. Dữ liệu của bạn không bị xóa, vui lòng thử lại sau.',
     });
   }
   next();
@@ -164,8 +169,16 @@ app.use((_req: Request, res: Response) => {
 
 // Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  const status = err.statusCode ?? err.status ?? 500;
-  const message = err.message ?? 'Internal Server Error';
+  const databaseUnavailable = isDatabaseUnavailableError(err);
+  const status = databaseUnavailable ? 503 : (err.statusCode ?? err.status ?? 500);
+  const message = databaseUnavailable
+    ? 'Kết nối dữ liệu đang tạm thời gián đoạn. Dữ liệu của bạn không bị xóa, vui lòng thử lại sau.'
+    : (err.message ?? 'Internal Server Error');
+
+  if (databaseUnavailable) {
+    markDatabaseUnhealthy(err);
+    res.setHeader('Retry-After', '5');
+  }
 
   log.error(`[${status}] ${message}`);
   res.locals.apiError = err;
@@ -173,6 +186,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({
     success: false,
     status: 'error',
+    ...(databaseUnavailable && { code: 'DATABASE_UNAVAILABLE' }),
     message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });

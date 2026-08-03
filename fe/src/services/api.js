@@ -6,17 +6,98 @@ const AUTH_REDIRECT_PATH = '/auth';
 const PROFILE_REDIRECT_PATH = '/profile';
 const UNAUTHORIZED_STATUS = 401;
 const FORBIDDEN_STATUS = 403;
+const SERVICE_UNAVAILABLE_STATUS = 503;
 const PROFILE_INCOMPLETE_CODE = 'PROFILE_INCOMPLETE';
+const DATABASE_UNAVAILABLE_CODE = 'DATABASE_UNAVAILABLE';
+
+export const SERVICE_STATUS_EVENT = 'preonic:service-status';
+
+const GET_CACHE_TTL_MS = 10 * 60 * 1000;
+const GET_CACHE_MAX_ENTRIES = 80;
+const responseCache = new Map();
+
+const isGetRequest = (config) => (config?.method || 'get').toLowerCase() === 'get';
+const isMutationRequest = (config) =>
+  ['post', 'put', 'patch', 'delete'].includes((config?.method || '').toLowerCase());
+
+const shouldCacheRequest = (config) => {
+  const url = config?.url || '';
+  return (
+    isGetRequest(config) &&
+    !url.includes('/auth/') &&
+    !url.includes('/notifications') &&
+    !url.includes('/messaging')
+  );
+};
+
+const getCacheKey = (config) => {
+  if (!shouldCacheRequest(config)) return null;
+  const params = config?.params || {};
+  const normalizedParams = Object.keys(params)
+    .sort()
+    .reduce((result, key) => {
+      result[key] = params[key];
+      return result;
+    }, {});
+  return `${config?.url || ''}::${JSON.stringify(normalizedParams)}`;
+};
+
+const writeResponseCache = (response) => {
+  const key = getCacheKey(response?.config);
+  if (!key) return;
+
+  if (responseCache.size >= GET_CACHE_MAX_ENTRIES) {
+    const oldestKey = responseCache.keys().next().value;
+    if (oldestKey) responseCache.delete(oldestKey);
+  }
+
+  responseCache.set(key, {
+    savedAt: Date.now(),
+    response: {
+      ...response,
+      data: response.data,
+      __fromPreonicCache: true,
+    },
+  });
+};
+
+const readResponseCache = (config) => {
+  const key = getCacheKey(config);
+  if (!key) return null;
+
+  const cached = responseCache.get(key);
+  if (!cached) return null;
+
+  if (Date.now() - cached.savedAt > GET_CACHE_TTL_MS) {
+    responseCache.delete(key);
+    return null;
+  }
+
+  return {
+    ...cached.response,
+    config,
+    __fromPreonicCache: true,
+  };
+};
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  timeout: 20_000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
 
-// Tách các bước nhỏ thành helper để interceptor dễ đọc và dễ bảo trì hơn.
+const emitServiceStatus = (available, message = '') => {
+  window.dispatchEvent(
+    new CustomEvent(SERVICE_STATUS_EVENT, {
+      detail: { available, message },
+    })
+  );
+};
+
 const attachAccessToken = (config) => {
+  if (config?.skipAuthToken) return config;
+
   const accessToken = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
   if (accessToken) {
     config.headers = config.headers || {};
@@ -26,75 +107,156 @@ const attachAccessToken = (config) => {
   return config;
 };
 
-const clearStoredAuth = () => {
+export const clearStoredAuth = () => {
   sessionStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
   sessionStorage.removeItem(STORAGE_KEYS.USER);
+
+  // Dọn dữ liệu auth cũ do phiên bản trước từng ghi nhầm vào localStorage.
+  localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+  localStorage.removeItem(STORAGE_KEYS.USER);
+  responseCache.clear();
 };
 
+let authRedirectInProgress = false;
 const redirectToLogin = () => {
-  if (window.location.pathname !== AUTH_REDIRECT_PATH) {
-    window.location.href = AUTH_REDIRECT_PATH;
-  }
+  if (authRedirectInProgress || window.location.pathname === AUTH_REDIRECT_PATH) return;
+  authRedirectInProgress = true;
+  window.location.assign(AUTH_REDIRECT_PATH);
 };
 
-// Shared promise to prevent concurrent refresh attempts (token rotation would invalidate the second call)
-let _refreshing = null;
-
+let refreshingPromise = null;
 const refreshAccessToken = () => {
-  if (_refreshing) return _refreshing;
-  _refreshing = axios
-    .post(`${API_URL}/auth/refresh-token`, {}, { withCredentials: true })
+  if (refreshingPromise) return refreshingPromise;
+
+  refreshingPromise = axios
+    .post(
+      `${API_URL}/auth/refresh-token`,
+      {},
+      {
+        withCredentials: true,
+        timeout: 15_000,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
     .then((response) => {
       const { accessToken } = response.data?.data || {};
       if (!accessToken) throw new Error('Không nhận được access token mới từ máy chủ');
       sessionStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
       return accessToken;
     })
-    .finally(() => { _refreshing = null; });
-  return _refreshing;
+    .finally(() => {
+      refreshingPromise = null;
+    });
+
+  return refreshingPromise;
 };
 
-// Attach access token to every request
-api.interceptors.request.use(
-  attachAccessToken,
-  (error) => Promise.reject(error)
-);
+const isTransientServiceError = (error) => {
+  const status = error.response?.status;
+  const code = error.response?.data?.code;
 
-// Handle 401 errors with automatic token refresh
+  return (
+    !error.response ||
+    status === SERVICE_UNAVAILABLE_STATUS ||
+    code === DATABASE_UNAVAILABLE_CODE
+  );
+};
+
+const isLogoutRequest = (config) => config?.url?.includes('/auth/logout');
+const isDatabaseIndependentRequest = (config) =>
+  config?.url?.includes('/auth/logout') || config?.url?.includes('/weather');
+const isAuthEntryRequest = (config) => {
+  const url = config?.url || '';
+  return [
+    '/auth/login',
+    '/auth/register',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/google',
+    '/auth/google-register',
+    '/auth/verify-email',
+  ].some((path) => url.includes(path));
+};
+
+api.interceptors.request.use(attachAccessToken, (error) => Promise.reject(error));
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (shouldCacheRequest(response.config)) writeResponseCache(response);
+    if (isMutationRequest(response.config)) responseCache.clear();
+    if (!isDatabaseIndependentRequest(response.config)) emitServiceStatus(true);
+    return response;
+  },
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
+    const status = error.response?.status;
 
-    const isUnauthorized = error.response?.status === UNAUTHORIZED_STATUS;
-    const hasNotRetried = !originalRequest?._retry;
-    const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh-token');
+    if (isTransientServiceError(error)) {
+      const cachedResponse = readResponseCache(originalRequest);
+      const cachedMessage = cachedResponse
+        ? 'Kết nối dữ liệu đang gián đoạn. Hệ thống đang giữ và hiển thị dữ liệu gần nhất.'
+        : 'Kết nối dữ liệu đang tạm thời gián đoạn. Dữ liệu của bạn không bị xóa.';
 
-    // BE trả 403 + code PROFILE_INCOMPLETE → đẩy user về trang hồ sơ để bổ sung.
+      emitServiceStatus(
+        false,
+        error.response?.data?.message || cachedMessage
+      );
+
+      // Với GET đã tải thành công trước đó, trả dữ liệu gần nhất thay vì làm UI
+      // chuyển thành danh sách rỗng. Không áp dụng cho thao tác ghi dữ liệu.
+      if (cachedResponse) return cachedResponse;
+      return Promise.reject(error);
+    }
+
     if (
-      error.response?.status === FORBIDDEN_STATUS &&
+      status === FORBIDDEN_STATUS &&
       error.response?.data?.code === PROFILE_INCOMPLETE_CODE &&
       window.location.pathname !== PROFILE_REDIRECT_PATH
     ) {
-      window.location.href = `${PROFILE_REDIRECT_PATH}?incomplete=1`;
+      window.location.assign(`${PROFILE_REDIRECT_PATH}?incomplete=1`);
+      return Promise.reject(error);
     }
 
-    if (isUnauthorized && hasNotRetried && !isRefreshRequest) {
-      originalRequest._retry = true;
+    const canAttemptRefresh =
+      status === UNAUTHORIZED_STATUS &&
+      !originalRequest._retry &&
+      !originalRequest.skipAuthRefresh &&
+      !isLogoutRequest(originalRequest) &&
+      !isAuthEntryRequest(originalRequest) &&
+      !originalRequest.url?.includes('/auth/refresh-token');
 
-      try {
-        const accessToken = await refreshAccessToken();
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        return api(originalRequest);
-      } catch {
+    if (!canAttemptRefresh) return Promise.reject(error);
+
+    originalRequest._retry = true;
+
+    try {
+      const accessToken = await refreshAccessToken();
+      originalRequest.headers = originalRequest.headers || {};
+      originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+      return api(originalRequest);
+    } catch (refreshError) {
+      // 503/network khi refresh chỉ có nghĩa DB/mạng đang gián đoạn. Tuyệt đối
+      // không xóa phiên trong trường hợp này.
+      if (isTransientServiceError(refreshError)) {
+        emitServiceStatus(
+          false,
+          refreshError.response?.data?.message ||
+            'Không thể kết nối máy chủ để làm mới phiên. Phiên hiện tại vẫn được giữ.'
+        );
+        return Promise.reject(refreshError);
+      }
+
+      // Chỉ xóa phiên khi refresh token thực sự bị máy chủ từ chối.
+      if (
+        refreshError.response?.status === UNAUTHORIZED_STATUS ||
+        refreshError.response?.status === FORBIDDEN_STATUS
+      ) {
         clearStoredAuth();
         redirectToLogin();
-        return Promise.reject(error);
       }
-    }
 
-    return Promise.reject(error);
+      return Promise.reject(refreshError);
+    }
   }
 );
 

@@ -6,14 +6,16 @@ const { ACCESS_TOKEN, USER } = STORAGE_KEYS;
 
 // ===== HELPERS =====
 
-/** Save auth data to localStorage after successful auth */
+/** Save auth data to sessionStorage after successful auth */
 const persistAuth = (data) => {
-  if (data?.accessToken) localStorage.setItem(ACCESS_TOKEN, data.accessToken);
-  if (data?.user) localStorage.setItem(USER, JSON.stringify(data.user));
+  if (data?.accessToken) sessionStorage.setItem(ACCESS_TOKEN, data.accessToken);
+  if (data?.user) sessionStorage.setItem(USER, JSON.stringify(data.user));
 };
 
-/** Clear all auth data from localStorage */
+/** Clear all auth data from sessionStorage */
 const clearAuth = () => {
+  sessionStorage.removeItem(ACCESS_TOKEN);
+  sessionStorage.removeItem(USER);
   localStorage.removeItem(ACCESS_TOKEN);
   localStorage.removeItem(USER);
 };
@@ -72,12 +74,17 @@ const authService = {
    * @returns {Promise}
    */
   logout: async () => {
+    // Xóa phiên cục bộ trước để nút đăng xuất phản hồi tức thì, kể cả DB bị rớt.
+    clearAuth();
+
     try {
-      await api.post('/auth/logout');
+      await api.post('/auth/logout', {}, {
+        skipAuthRefresh: true,
+        skipAuthToken: true,
+        timeout: 4_000,
+      });
     } catch {
-      // Silently fail - we clear local data regardless
-    } finally {
-      clearAuth();
+      // Cookie phía server sẽ được xóa khi kết nối lại; phía trình duyệt đã logout.
     }
   },
 
@@ -89,7 +96,7 @@ const authService = {
     try {
       const response = await api.post('/auth/refresh-token');
       if (response.data.success) {
-        localStorage.setItem(ACCESS_TOKEN, response.data.data.accessToken);
+        sessionStorage.setItem(ACCESS_TOKEN, response.data.data.accessToken);
       }
       return response.data;
     } catch (error) {
@@ -174,7 +181,7 @@ const authService = {
     try {
       const response = await api.get('/auth/me');
       if (response.data.success) {
-        localStorage.setItem(USER, JSON.stringify(response.data.data.user));
+        sessionStorage.setItem(USER, JSON.stringify(response.data.data.user));
       }
       return response.data;
     } catch (error) {
@@ -205,7 +212,7 @@ const authService = {
 
       const response = await api.patch('/auth/me', payload, config);
       if (response.data.success) {
-        localStorage.setItem(USER, JSON.stringify(response.data.data.user));
+        sessionStorage.setItem(USER, JSON.stringify(response.data.data.user));
       }
       return response.data;
     } catch (error) {
@@ -228,12 +235,12 @@ const authService = {
   },
 
   /**
-   * Get current user from localStorage
+   * Get current user from sessionStorage
    * @returns {Object|null}
    */
   getCurrentUser: () => {
     try {
-      const userString = localStorage.getItem(USER);
+      const userString = sessionStorage.getItem(USER);
       return userString ? JSON.parse(userString) : null;
     } catch {
       return null;
@@ -257,9 +264,9 @@ const authService = {
     }
   },
 
-  isLoggedIn: () => !!localStorage.getItem(ACCESS_TOKEN),
+  isLoggedIn: () => !!sessionStorage.getItem(ACCESS_TOKEN),
 
-  getAccessToken: () => localStorage.getItem(ACCESS_TOKEN),
+  getAccessToken: () => sessionStorage.getItem(ACCESS_TOKEN),
   googleRegister: async (data) => {
   try {
     const response = await api.post('/auth/google-register', data);
