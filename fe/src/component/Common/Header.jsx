@@ -106,7 +106,17 @@ function Header() {
 
   const isActive = (itemPath) => {
     if (itemPath === "/") return location.pathname === "/";
-    return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
+
+    const isLegacyEnterpriseProductDetail =
+      role === "enterprise" &&
+      itemPath === "/enterprise-products" &&
+      location.pathname.startsWith("/products/");
+
+    return (
+      isLegacyEnterpriseProductDetail ||
+      location.pathname === itemPath ||
+      location.pathname.startsWith(`${itemPath}/`)
+    );
   };
 
   return (
