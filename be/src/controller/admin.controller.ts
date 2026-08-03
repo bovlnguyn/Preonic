@@ -149,17 +149,19 @@ export const getContractDetail = async (req: Request, res: Response) => {
 
 export const getDisputes = async (req: Request, res: Response) => {
   try {
-    const { page, limit, status } = req.query;
+    const { page, limit, status, search } = req.query;
     const result = await adminService.getDisputes({
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       status: status as string,
+      search: search as string,
     });
 
     res.status(200).json({
       success: true,
       data: result.disputes.map(formatDisputeForAdmin),
       pagination: result.pagination,
+      stats: result.stats,
     });
   } catch (err: any) {
     res.status(err.statusCode || 500).json({

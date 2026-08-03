@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiMapPin, FiTruck } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
@@ -11,6 +12,7 @@ import { formatDate } from '../utils';
 const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
 
 function EnterpriseOrders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +33,7 @@ function EnterpriseOrders() {
           const activeMilestone = getActiveMilestone(escrow);
           return {
             id: c.contractCode,
+            contractId: c.id,
             farmer: c.farmer?.name,
             product: c.product?.name,
             quantity: `${c.quantity} ${c.unit || ''}`.trim(),
@@ -66,7 +69,12 @@ function EnterpriseOrders() {
         ) : (
           <div className="ent-order-list">
             {orders.map((o) => (
-              <article className="ent-order-card" key={o.id}>
+              <article
+                className="ent-order-card"
+                key={o.id}
+                onClick={() => navigate(`/enterprise/contracts/${o.contractId}`)}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="ent-order-card__icon"><FiTruck /></div>
                 <div className="ent-order-card__body">
                   <div className="ent-order-card__head">

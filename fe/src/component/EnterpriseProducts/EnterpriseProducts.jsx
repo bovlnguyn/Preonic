@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FiArrowRight,
   FiCheckCircle,
+  FiChevronLeft,
+  FiChevronRight,
   FiFilter,
   FiMapPin,
   FiPackage,
@@ -14,128 +16,78 @@ import {
 } from "react-icons/fi";
 import Header from "../Common/Header";
 import Footer from "../Common/Footer";
+import productService, { resolveImageUrl } from "../../services/product.service";
+import {
+  CATEGORY_LABEL,
+  REGION_LABEL,
+  TYPE_LABEL,
+  CATEGORY_OPTIONS,
+  REGION_OPTIONS,
+} from "../../constants/product";
 import "./EnterpriseProducts.css";
 
-const supplies = [
-  {
-    id: 1,
-    name: "Sầu riêng Ri6 loại 1",
-    farmer: "HTX Nông sản Krông Pắk",
-    region: "Đắk Lắk",
-    category: "Trái cây",
-    harvest: "Tháng 8 - 9",
-    volume: "35 tấn",
-    price: 72000,
-    unit: "kg",
-    certificate: "VietGAP",
-    rating: 4.9,
-    delivery: "7 ngày",
-    match: 96,
-    status: "Sẵn sàng ký HĐ",
-  },
-  {
-    id: 2,
-    name: "Xoài cát Hòa Lộc",
-    farmer: "Vườn Minh Tâm",
-    region: "Đồng Tháp",
-    category: "Trái cây",
-    harvest: "Tháng 6 - 7",
-    volume: "18 tấn",
-    price: 38000,
-    unit: "kg",
-    certificate: "GlobalG.A.P",
-    rating: 4.8,
-    delivery: "5 ngày",
-    match: 88,
-    status: "Đang nhận đặt cọc",
-  },
-  {
-    id: 3,
-    name: "Cà phê Robusta nhân xanh",
-    farmer: "Trang trại Lâm Hà",
-    region: "Lâm Đồng",
-    category: "Công nghiệp",
-    harvest: "Tháng 11 - 12",
-    volume: "50 tấn",
-    price: 62500,
-    unit: "kg",
-    certificate: "Organic",
-    rating: 4.7,
-    delivery: "10 ngày",
-    match: 91,
-    status: "Ưu tiên doanh nghiệp",
-  },
-  {
-    id: 4,
-    name: "Gạo ST25 vụ Hè Thu",
-    farmer: "HTX Đồng Xanh",
-    region: "Sóc Trăng",
-    category: "Lúa gạo",
-    harvest: "Tháng 7 - 8",
-    volume: "120 tấn",
-    price: 18500,
-    unit: "kg",
-    certificate: "OCOP 4 sao",
-    rating: 4.85,
-    delivery: "12 ngày",
-    match: 94,
-    status: "Có thể bao tiêu",
-  },
-  {
-    id: 5,
-    name: "Thanh long ruột đỏ",
-    farmer: "Nông hộ Phước An",
-    region: "Bình Thuận",
-    category: "Trái cây",
-    harvest: "Quanh năm",
-    volume: "26 tấn",
-    price: 21000,
-    unit: "kg",
-    certificate: "VietGAP",
-    rating: 4.6,
-    delivery: "4 ngày",
-    match: 84,
-    status: "Cần xác nhận lịch giao",
-  },
-  {
-    id: 6,
-    name: "Rau thủy canh hỗn hợp",
-    farmer: "Farm Green House",
-    region: "Đà Lạt",
-    category: "Rau củ",
-    harvest: "Hàng tuần",
-    volume: "8 tấn",
-    price: 27000,
-    unit: "kg",
-    certificate: "An toàn sinh học",
-    rating: 4.75,
-    delivery: "48 giờ",
-    match: 89,
-    status: "Giao nhanh nội vùng",
-  },
-];
-
-const categories = ["Tất cả", "Trái cây", "Lúa gạo", "Rau củ", "Công nghiệp"];
-const regions = ["Tất cả", "Đắk Lắk", "Đồng Tháp", "Lâm Đồng", "Sóc Trăng", "Bình Thuận", "Đà Lạt"];
+const PAGE_SIZE = 6;
+const SEARCH_DEBOUNCE_MS = 350;
 
 function formatPrice(value) {
   return new Intl.NumberFormat("vi-VN").format(value);
 }
 
+function formatPriceRange(item) {
+  if (item.priceMin && item.priceMax) {
+    return `${formatPrice(item.priceMin)} – ${formatPrice(item.priceMax)}đ/${item.priceUnit || item.unit}`;
+  }
+  if (item.priceMin) {
+    return `${formatPrice(item.priceMin)}đ/${item.priceUnit || item.unit}`;
+  }
+  return "Liên hệ để biết giá";
+}
+
+function formatHarvest(item) {
+  if (item.expectedDate) {
+    return new Date(item.expectedDate).toLocaleDateString("vi-VN");
+  }
+  return "Chưa cập nhật";
+}
+
 function EnterpriseProducts() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
-  const [category, setCategory] = useState("Tất cả");
-  const [region, setRegion] = useState("Tất cả");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [region, setRegion] = useState("");
+  const [page, setPage] = useState(1);
 
-  const filteredSupplies = useMemo(() => {
-    return supplies.filter((item) => {
-      const matchesKeyword = `${item.name} ${item.farmer} ${item.region}`.toLowerCase().includes(keyword.toLowerCase());
-      const matchesCategory = category === "Tất cả" || item.category === category;
-      const matchesRegion = region === "Tất cả" || item.region === region;
-      return matchesKeyword && matchesCategory && matchesRegion;
-    });
-  }, [keyword, category, region]);
+  const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSearch(keyword);
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [keyword]);
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    productService
+      .getProducts({ category, region, search, page, limit: PAGE_SIZE })
+      .then((res) => {
+        setProducts(res?.data || []);
+        setPagination(res?.pagination || { page: 1, total: 0, totalPages: 1 });
+      })
+      .catch(() => setError("Không thể tải danh sách nguồn cung."))
+      .finally(() => setLoading(false));
+  }, [category, region, search, page]);
+
+  const handleFilterChange = (setter) => (e) => {
+    setter(e.target.value);
+    setPage(1);
+  };
 
   return (
     <div className="enterprise-products-page">
@@ -148,12 +100,12 @@ function EnterpriseProducts() {
               <span className="ep-eyebrow"><FiPackage /> Enterprise supply marketplace</span>
               <h1>Tìm nguồn cung nông sản phù hợp để thu mua và ký hợp đồng.</h1>
               <p>
-                Trang này mô phỏng danh sách nguồn cung dành cho doanh nghiệp. Sau này backend có thể nối vào API sản phẩm để lọc theo mùa vụ, vùng miền, chứng chỉ và sản lượng thực tế.
+                Danh sách nguồn cung thực tế từ nông dân trên PreOnic. Lọc theo danh mục, vùng miền và từ khóa để tìm nhà cung cấp phù hợp nhu cầu thu mua của doanh nghiệp bạn.
               </p>
             </motion.div>
 
             <motion.div className="ep-hero__panel" initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.55, delay: 0.12 }}>
-              <strong>{filteredSupplies.length}</strong>
+              <strong>{pagination.total}</strong>
               <span>nguồn cung đang khớp bộ lọc</span>
               <div className="ep-hero__badges">
                 <em><FiShield /> Escrow ready</em>
@@ -176,14 +128,20 @@ function EnterpriseProducts() {
           <div className="ep-select-group">
             <label>
               <FiFilter /> Danh mục
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                {categories.map((item) => <option key={item}>{item}</option>)}
+              <select value={category} onChange={handleFilterChange(setCategory)}>
+                <option value="">Tất cả</option>
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </label>
             <label>
               <FiMapPin /> Khu vực
-              <select value={region} onChange={(e) => setRegion(e.target.value)}>
-                {regions.map((item) => <option key={item}>{item}</option>)}
+              <select value={region} onChange={handleFilterChange(setRegion)}>
+                <option value="">Tất cả</option>
+                {REGION_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </label>
           </div>
@@ -191,51 +149,82 @@ function EnterpriseProducts() {
 
         <section className="ep-container ep-content-grid">
           <div className="ep-list">
-            {filteredSupplies.map((item, index) => (
-              <motion.article
-                className="ep-product-card"
-                key={item.id}
-                initial={{ opacity: 0, y: 22 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.45, delay: index * 0.04 }}
-              >
-                <div className="ep-product-card__image">
-                  <FiPackage />
-                  <span>{item.category}</span>
-                </div>
-
-                <div className="ep-product-card__body">
-                  <div className="ep-product-card__top">
-                    <div>
-                      <h3>{item.name}</h3>
-                      <p><FiMapPin /> {item.region} · {item.farmer}</p>
+            {loading ? (
+              <div className="ep-empty">Đang tải danh sách nguồn cung...</div>
+            ) : error ? (
+              <div className="ep-empty">{error}</div>
+            ) : products.length === 0 ? (
+              <div className="ep-empty">Không tìm thấy nguồn cung phù hợp.</div>
+            ) : (
+              products.map((item, index) => {
+                const image = resolveImageUrl(item.image);
+                return (
+                  <motion.article
+                    className="ep-product-card"
+                    key={item.id}
+                    initial={{ opacity: 0, y: 22 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{ duration: 0.45, delay: index * 0.04 }}
+                  >
+                    <div className="ep-product-card__image">
+                      {image ? (
+                        <img src={image} alt={item.name} />
+                      ) : (
+                        <>
+                          <FiPackage />
+                          <span>{CATEGORY_LABEL[item.category] || item.category}</span>
+                        </>
+                      )}
                     </div>
-                    <strong>{formatPrice(item.price)}đ/{item.unit}</strong>
-                  </div>
 
-                  <div className="ep-meta-grid">
-                    <span>Sản lượng <b>{item.volume}</b></span>
-                    <span>Mùa vụ <b>{item.harvest}</b></span>
-                    <span>Chứng chỉ <b>{item.certificate}</b></span>
-                    <span>Giao hàng <b>{item.delivery}</b></span>
-                  </div>
+                    <div className="ep-product-card__body">
+                      <div className="ep-product-card__top">
+                        <div>
+                          <h3>{item.name}</h3>
+                          <p><FiMapPin /> {REGION_LABEL[item.region] || item.region} · {item.sellerName || item.farm || "Chưa cập nhật"}</p>
+                        </div>
+                        <strong>{formatPriceRange(item)}</strong>
+                      </div>
 
-                  <div className="ep-product-card__bottom">
-                    <div className="ep-rating"><FiStar /> {item.rating} · {item.status}</div>
-                    <div className="ep-match">
-                      <span>Độ phù hợp {item.match}%</span>
-                      <div><i style={{ width: `${item.match}%` }} /></div>
+                      <div className="ep-meta-grid">
+                        <span>Sản lượng <b>{item.totalQuantity ? `${formatPrice(item.totalQuantity)} ${item.unit || ""}` : "Chưa cập nhật"}</b></span>
+                        <span>Thu hoạch dự kiến <b>{formatHarvest(item)}</b></span>
+                        <span>Loại <b>{TYPE_LABEL[item.type] || item.type}</b></span>
+                        <span>Danh mục <b>{CATEGORY_LABEL[item.category] || item.category}</b></span>
+                      </div>
+
+                      <div className="ep-product-card__bottom">
+                        <div className="ep-rating"><FiStar /> {item.rating > 0 ? item.rating : "Chưa có đánh giá"} · {item.badge || "Đang chào bán"}</div>
+                        {item.rating > 0 && (
+                          <div className="ep-match">
+                            <span>Đánh giá chất lượng {Math.round((item.rating / 5) * 100)}%</span>
+                            <div><i style={{ width: `${(item.rating / 5) * 100}%` }} /></div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="ep-actions">
+                        <button type="button" onClick={() => navigate(`/enterprise/contracts/create?product=${item.id}`)}>Gửi đề xuất hợp đồng</button>
+                        <button type="button" className="ghost" onClick={() => navigate(`/products/${item.id}`)}>Xem nhà cung cấp <FiArrowRight /></button>
+                      </div>
                     </div>
-                  </div>
+                  </motion.article>
+                );
+              })
+            )}
 
-                  <div className="ep-actions">
-                    <button type="button" onClick={() => navigate("/enterprise/contracts")}>Gửi đề xuất hợp đồng</button>
-                    <button type="button" className="ghost" onClick={() => navigate("/enterprise/suppliers")}>Xem nhà cung cấp <FiArrowRight /></button>
-                  </div>
-                </div>
-              </motion.article>
-            ))}
+            {pagination.totalPages > 1 && (
+              <div className="ep-pagination">
+                <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  <FiChevronLeft />
+                </button>
+                <span>Trang {page} / {pagination.totalPages}</span>
+                <button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+                  <FiChevronRight />
+                </button>
+              </div>
+            )}
           </div>
 
           <aside className="ep-side-panel">
