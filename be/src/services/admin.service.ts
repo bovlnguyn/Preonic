@@ -290,7 +290,7 @@ export interface AdminDisputeFilters {
   limit?: number;
 }
 
-const DISPUTE_STATUSES = ['open', 'under_review', 'resolved_farmer', 'resolved_enterprise', 'closed'];
+const DISPUTE_STATUSES = ['open', 'under_review', 'resolved', 'closed'];
 
 export const getDisputes = async (filters: AdminDisputeFilters = {}) => {
   const page = Number(filters.page) || 1;
@@ -469,7 +469,7 @@ export const resolveDispute = async (
       }
     }
 
-    dispute.status = resolution === 'farmer' ? 'resolved_farmer' : 'resolved_enterprise';
+    dispute.status = 'resolved';
     dispute.resolution = resolution;
     dispute.adminNotes = adminNotes?.trim() || dispute.adminNotes;
     dispute.resolvedAt = now;

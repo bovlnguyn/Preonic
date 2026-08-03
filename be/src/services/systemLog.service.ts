@@ -1,9 +1,12 @@
+import { LessThan } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { SystemLog } from '../models/SystemLog.entity';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('SystemLog');
 const repo = () => AppDataSource.getRepository(SystemLog);
+
+export const SYSTEM_LOG_RETENTION_DAYS = 30;
 
 export type LogCategory = 'auth' | 'contract' | 'escrow' | 'dispute' | 'payment' | 'cron' | 'api';
 
@@ -122,4 +125,13 @@ export const getSystemLogs = async (filters: SystemLogFilters = {}) => {
 
 export const getSystemLogById = async (id: number) => {
   return repo().findOne({ where: { id }, relations: ['user'] });
+};
+
+// ══════════════════════════════════════════
+// Dọn dẹp log cũ — chạy định kỳ qua cron (xem jobs/systemlog-cron.ts)
+// ══════════════════════════════════════════
+export const cleanupOldSystemLogs = async (): Promise<number> => {
+  const cutoff = new Date(Date.now() - SYSTEM_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  const result = await repo().delete({ createdAt: LessThan(cutoff) });
+  return result.affected ?? 0;
 };

@@ -5,19 +5,27 @@ import { formatMoney } from "../../../hooks/useApiData";
 import { useToast } from "../../../contexts/ToastContext";
 
 const DISPUTE_STATUS_META = {
-  open:                { label: "Mới mở",       cls: "adm-badge-red",    color: "#dc2626" },
-  under_review:        { label: "Đang xem xét", cls: "adm-badge-yellow", color: "#d97706" },
-  resolved_farmer:     { label: "Giải quyết → Nông dân",     cls: "adm-badge-green", color: "#16a34a" },
-  resolved_enterprise: { label: "Giải quyết → Doanh nghiệp", cls: "adm-badge-blue",  color: "#2563eb" },
-  closed:              { label: "Đã đóng",      cls: "adm-badge-gray",   color: "#94a3b8" },
+  open:         { label: "Mới mở",       cls: "adm-badge-red",    color: "#dc2626" },
+  under_review: { label: "Đang xem xét", cls: "adm-badge-yellow", color: "#d97706" },
+  resolved:     { label: "Đã giải quyết", cls: "adm-badge-green", color: "#16a34a" },
+  closed:       { label: "Đã đóng",      cls: "adm-badge-gray",   color: "#94a3b8" },
+};
+
+// Trạng thái "resolved" dùng chung cho cả 2 phán quyết — phân biệt qua field `resolution`.
+const getDisputeStatusMeta = (dispute) => {
+  if (dispute.status === "resolved") {
+    return dispute.resolution === "farmer"
+      ? { label: "Giải quyết → Nông dân", cls: "adm-badge-green", color: "#16a34a" }
+      : { label: "Giải quyết → Doanh nghiệp", cls: "adm-badge-blue", color: "#2563eb" };
+  }
+  return DISPUTE_STATUS_META[dispute.status] || { label: dispute.status, cls: "adm-badge-gray", color: "#94a3b8" };
 };
 
 const STATUS_OPTIONS = [
   { val: "", label: "Tất cả trạng thái" },
   { val: "open", label: "Mới mở" },
   { val: "under_review", label: "Đang xem xét" },
-  { val: "resolved_farmer", label: "Giải quyết (Farmer)" },
-  { val: "resolved_enterprise", label: "Giải quyết (Enterprise)" },
+  { val: "resolved", label: "Đã giải quyết" },
   { val: "closed", label: "Đã đóng" },
 ];
 
@@ -106,9 +114,7 @@ export default function QuanLyKhieuNai() {
       {stats && (
         <div className="adm-kpis">
           {DISPUTE_KPIS.map(k => {
-            const val = k.key === "resolved"
-              ? (stats.resolved_farmer || 0) + (stats.resolved_enterprise || 0)
-              : (stats[k.key] || 0);
+            const val = stats[k.key] || 0;
             return (
               <div className="adm-kpi" key={k.key} style={{ "--kpi-color": k.color }}>
                 <div className="adm-kpi-icon" style={{ background: k.bg, color: k.color, fontSize: 12, fontWeight: 700 }}>{k.abbr}</div>
@@ -160,7 +166,7 @@ export default function QuanLyKhieuNai() {
                 </thead>
                 <tbody>
                   {disputes.map(d => {
-                    const meta = DISPUTE_STATUS_META[d.status] || { label: d.status, cls: "adm-badge-gray", color: "#94a3b8" };
+                    const meta = getDisputeStatusMeta(d);
                     const contract = d.contractId;
                     return (
                       <tr key={d.id} style={{ borderLeft: `3px solid ${meta.color}` }}>
@@ -219,7 +225,7 @@ export default function QuanLyKhieuNai() {
                 <>
                   {/* Status */}
                   {(() => {
-                    const m = DISPUTE_STATUS_META[selectedDispute.status] || { label: selectedDispute.status, cls: "adm-badge-gray" };
+                    const m = getDisputeStatusMeta(selectedDispute);
                     return <div style={{ marginBottom: 16 }}><span className={`adm-badge ${m.cls}`} style={{ fontSize: 13, padding: "5px 14px" }}>{m.label}</span></div>;
                   })()}
 
