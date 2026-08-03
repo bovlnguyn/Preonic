@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -17,6 +17,10 @@ import {
 import Header from "../Common/Header";
 import Footer from "../Common/Footer";
 import { useAuth } from "../../contexts/AuthContext";
+import productService from "../../services/product.service";
+import contractService from "../../services/contract.service";
+import supplierService from "../../services/supplier.service";
+import { REGION_LABEL } from "../../constants/product";
 import "./EnterpriseHome.css";
 
 const fadeUp = {
@@ -32,40 +36,6 @@ const stagger = {
     },
   },
 };
-
-const procurementStats = [
-  { label: "Nguồn cung phù hợp", value: "24", icon: FiPackage, tone: "blue" },
-  { label: "Đề xuất hợp đồng", value: "08", icon: FiFileText, tone: "green" },
-  { label: "Tỷ lệ giao đúng hạn", value: "96%", icon: FiTruck, tone: "gold" },
-  { label: "Đối tác uy tín", value: "18", icon: FiUsers, tone: "cyan" },
-];
-
-const featuredSupplies = [
-  {
-    crop: "Sầu riêng Ri6",
-    region: "Đắk Lắk",
-    volume: "35 tấn",
-    price: "72.000đ/kg",
-    quality: "VietGAP",
-    progress: 82,
-  },
-  {
-    crop: "Xoài cát Hòa Lộc",
-    region: "Đồng Tháp",
-    volume: "18 tấn",
-    price: "38.000đ/kg",
-    quality: "GlobalG.A.P",
-    progress: 68,
-  },
-  {
-    crop: "Cà phê Robusta",
-    region: "Lâm Đồng",
-    volume: "50 tấn",
-    price: "62.500đ/kg",
-    quality: "Organic",
-    progress: 91,
-  },
-];
 
 const workflow = [
   {
@@ -96,10 +66,70 @@ function getFirstName(fullName) {
   return parts.slice(-2).join(" ") || fullName;
 }
 
+function formatPrice(value) {
+  return new Intl.NumberFormat("vi-VN").format(value);
+}
+
+function formatSupplyPrice(item) {
+  if (item.priceMin && item.priceMax) {
+    return `${formatPrice(item.priceMin)} – ${formatPrice(item.priceMax)}đ/${item.priceUnit || item.unit}`;
+  }
+  if (item.priceMin) return `${formatPrice(item.priceMin)}đ/${item.priceUnit || item.unit}`;
+  return "Liên hệ";
+}
+
+function onTimeDeliveryRate(contracts) {
+  const completed = contracts.filter((c) => c.status === "completed" && c.deliveryDate && c.completedAt);
+  if (completed.length === 0) return null;
+  const onTime = completed.filter((c) => new Date(c.completedAt) <= new Date(c.deliveryDate));
+  return Math.round((onTime.length / completed.length) * 100);
+}
+
 function EnterpriseHome() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const displayName = getFirstName(user?.fullName || user?.name || user?.email);
+
+  const [totalSupplies, setTotalSupplies] = useState(null);
+  const [featuredSupplies, setFeaturedSupplies] = useState([]);
+  const [contractCount, setContractCount] = useState(null);
+  const [onTimeRate, setOnTimeRate] = useState(null);
+  const [supplierCount, setSupplierCount] = useState(null);
+
+  useEffect(() => {
+    productService
+      .getProducts({ sort: "rating", limit: 3 })
+      .then((res) => {
+        setFeaturedSupplies(res?.data || []);
+        setTotalSupplies(res?.pagination?.total ?? 0);
+      })
+      .catch(() => {});
+
+    contractService
+      .list()
+      .then((res) => {
+        const list = res?.data?.contracts;
+        const contracts = Array.isArray(list) ? list : [];
+        setContractCount(contracts.length);
+        setOnTimeRate(onTimeDeliveryRate(contracts));
+      })
+      .catch(() => {});
+
+    supplierService
+      .list()
+      .then((res) => {
+        const list = res?.data?.suppliers;
+        setSupplierCount(Array.isArray(list) ? list.length : 0);
+      })
+      .catch(() => {});
+  }, []);
+
+  const procurementStats = [
+    { label: "Nguồn cung phù hợp", value: totalSupplies != null ? String(totalSupplies) : "--", icon: FiPackage, tone: "blue" },
+    { label: "Đề xuất hợp đồng", value: contractCount != null ? String(contractCount) : "--", icon: FiFileText, tone: "green" },
+    { label: "Tỷ lệ giao đúng hạn", value: onTimeRate != null ? `${onTimeRate}%` : "--", icon: FiTruck, tone: "gold" },
+    { label: "Đối tác uy tín", value: supplierCount != null ? String(supplierCount) : "--", icon: FiUsers, tone: "cyan" },
+  ];
 
   return (
     <div className="enterprise-home-page">
@@ -155,7 +185,7 @@ function EnterpriseHome() {
               <div className="eh-procurement-card__main">
                 <div>
                   <span>Nguồn cung đang khớp</span>
-                  <strong>24 sản phẩm</strong>
+                  <strong>{totalSupplies != null ? totalSupplies : "--"} sản phẩm</strong>
                 </div>
                 <div className="eh-bars" aria-hidden="true">
                   <span />
@@ -192,33 +222,36 @@ function EnterpriseHome() {
             <motion.span className="eh-kicker" variants={fadeUp}>Nguồn cung nổi bật</motion.span>
             <motion.h2 variants={fadeUp}>Theo dõi nhanh các lô hàng có khả năng ký hợp đồng.</motion.h2>
             <motion.p variants={fadeUp}>
-              Dữ liệu dưới đây đang là mock data để hiển thị giao diện. Khi backend hoàn thiện,
-              phần này có thể lấy từ API danh sách sản phẩm, hợp đồng và hồ sơ farmer.
+              Danh sách nguồn cung có rating cao nhất trên PreOnic, cập nhật trực tiếp từ hồ sơ nông dân.
             </motion.p>
           </motion.div>
 
           <motion.div className="eh-supply-list" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={stagger}>
-            {featuredSupplies.map((item) => (
-              <motion.article className="eh-supply-card" key={item.crop} variants={fadeUp}>
-                <div className="eh-supply-card__top">
-                  <div>
-                    <h3>{item.crop}</h3>
-                    <span><FiMapPin /> {item.region}</span>
+            {featuredSupplies.length === 0 ? (
+              <motion.p variants={fadeUp} className="eh-supply-empty">Chưa có nguồn cung nào phù hợp.</motion.p>
+            ) : (
+              featuredSupplies.map((item) => (
+                <motion.article className="eh-supply-card" key={item.id} variants={fadeUp}>
+                  <div className="eh-supply-card__top">
+                    <div>
+                      <h3>{item.name}</h3>
+                      <span><FiMapPin /> {REGION_LABEL[item.region] || item.region}</span>
+                    </div>
+                    <strong>{formatSupplyPrice(item)}</strong>
                   </div>
-                  <strong>{item.price}</strong>
-                </div>
-                <div className="eh-supply-card__meta">
-                  <span>Sản lượng: <b>{item.volume}</b></span>
-                  <span>Chứng chỉ: <b>{item.quality}</b></span>
-                </div>
-                <div className="eh-progress">
-                  <span style={{ width: `${item.progress}%` }} />
-                </div>
-                <button type="button" onClick={() => navigate("/enterprise-products")}>
-                  Kiểm tra nguồn cung <FiArrowRight />
-                </button>
-              </motion.article>
-            ))}
+                  <div className="eh-supply-card__meta">
+                    <span>Sản lượng: <b>{item.totalQuantity ? `${formatPrice(item.totalQuantity)} ${item.unit || ""}` : "Chưa cập nhật"}</b></span>
+                    <span>Nông dân: <b>{item.sellerName || "Chưa cập nhật"}</b></span>
+                  </div>
+                  <div className="eh-progress">
+                    <span style={{ width: `${item.rating > 0 ? (item.rating / 5) * 100 : 0}%` }} />
+                  </div>
+                  <button type="button" onClick={() => navigate("/enterprise-products")}>
+                    Kiểm tra nguồn cung <FiArrowRight />
+                  </button>
+                </motion.article>
+              ))
+            )}
           </motion.div>
         </section>
 

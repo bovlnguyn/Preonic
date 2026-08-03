@@ -23,6 +23,7 @@ import partnerRatingRoutes from './routes/partner-rating.routes';
 // Import Config/Utils
 import { isDatabaseConnected } from './config/database';
 import { createLogger } from './utils/logger';
+import { logError } from './services/systemLog.service';
 
 const log = createLogger('App');
 const API_PREFIX = process.env.API_PREFIX ?? '/api/v1';
@@ -93,6 +94,31 @@ app.use(`${API_PREFIX}`, (req: Request, res: Response, next: NextFunction) => {
 });
 
 // ══════════════════════════════════════════════════════
+// 2b. API ERROR LOGGING — bọc res.json để tự động ghi mọi response lỗi 5xx
+// vào bảng SystemLogs, không cần sửa từng controller. res.locals.apiError
+// (nếu có, gán bởi Global Error Handler bên dưới) cung cấp stack trace đầy đủ.
+// ══════════════════════════════════════════════════════
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const originalJson = res.json.bind(res);
+  res.json = ((body?: any) => {
+    if (res.statusCode >= 500) {
+      const err = res.locals.apiError;
+      logError({
+        category: 'api',
+        action: `${req.method} ${req.baseUrl}${req.route?.path || req.path}`,
+        message: body?.message || err?.message || 'Loi API khong xac dinh',
+        userId: (req as any).user?.id,
+        metadata: { statusCode: res.statusCode, url: req.originalUrl },
+        ipAddress: req.ip,
+        error: err,
+      });
+    }
+    return originalJson(body);
+  }) as typeof res.json;
+  next();
+});
+
+// ══════════════════════════════════════════════════════
 // 3. ROUTES
 // ══════════════════════════════════════════════════════
 app.get('/health', (_req: Request, res: Response) => {
@@ -142,7 +168,8 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const message = err.message ?? 'Internal Server Error';
 
   log.error(`[${status}] ${message}`);
-  
+  res.locals.apiError = err;
+
   res.status(status).json({
     success: false,
     status: 'error',

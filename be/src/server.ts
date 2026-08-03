@@ -8,6 +8,7 @@ import { createLogger } from './utils/logger';
 import { startContractExpiryCron } from './jobs/contract-cron';
 import { startWeatherCron } from './jobs/weather-cron';
 import { startShippingCron } from './jobs/shipping-cron';
+import { startSystemLogCleanupCron } from './jobs/systemlog-cron';
 
 const log  = createLogger('Server');
 const PORT = Number(process.env.PORT ?? 8080);
@@ -29,6 +30,7 @@ connectDB(() => {
   startContractExpiryCron();
   startWeatherCron();
   startShippingCron();
+  startSystemLogCleanupCron();
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {

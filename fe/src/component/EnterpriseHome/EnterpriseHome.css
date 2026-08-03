@@ -325,6 +325,15 @@
   gap: 18px;
 }
 
+.eh-supply-empty {
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+  font-weight: 700;
+  border-radius: 26px;
+  background: #fff;
+}
+
 .eh-supply-card {
   padding: 22px;
   border-radius: 26px;

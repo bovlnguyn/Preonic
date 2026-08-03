@@ -7,6 +7,7 @@ import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { EscrowTransaction } from '../models/EscrowTransaction.entity';
 import { Notification } from '../models/Notification.entity';
 import { buildMilestones, getMilestoneRequiredRole, MILESTONE_CONFIG } from '../utils/milestone.util';
+import { logAction, logError } from './systemLog.service';
 
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -66,7 +67,9 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
     throw makeError('So du khong du de nap ky quy hop dong', 400);
   }
 
-  const escrowId = await AppDataSource.transaction(async (manager) => {
+  let escrowId: string;
+  try {
+    escrowId = await AppDataSource.transaction(async (manager) => {
     const txUserRepo = manager.getRepository(User);
     const txContractRepo = manager.getRepository(Contract);
     const txEscrowRepo = manager.getRepository(Escrow);
@@ -161,6 +164,29 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
     );
 
     return escrow.id;
+    });
+  } catch (err: any) {
+    logError({
+      category: 'payment',
+      action: 'escrow_deposit_failed',
+      message: `Loi nap ky quy hop dong ${contract.contractCode}: ${err.message || err}`,
+      userId: enterpriseId,
+      targetType: 'Contract',
+      targetId: contract.id,
+      metadata: { contractCode: contract.contractCode, amount },
+      error: err,
+    });
+    throw err;
+  }
+
+  logAction({
+    category: 'escrow',
+    action: 'escrow_deposit',
+    message: `${enterprise.fullName || enterprise.email} da nap ky quy ${amount.toLocaleString('vi-VN')} VND cho hop dong ${contract.contractCode}`,
+    userId: enterpriseId,
+    targetType: 'Escrow',
+    targetId: escrowId,
+    metadata: { contractCode: contract.contractCode, amount },
   });
 
   return withEscrowRelations(escrowId);
@@ -273,7 +299,9 @@ export const confirmMilestone = async (
   const releaseAmount = willComplete ? Number(milestone.releaseAmount || 0) : 0;
   const contractCode = escrow.contract?.contractCode ?? '';
 
-  const escrowId = await AppDataSource.transaction(async (manager) => {
+  let escrowId: string;
+  try {
+    escrowId = await AppDataSource.transaction(async (manager) => {
     const txMilestoneRepo = manager.getRepository(EscrowMilestone);
     const txEscrowRepo = manager.getRepository(Escrow);
     const txUserRepo = manager.getRepository(User);
@@ -375,7 +403,32 @@ export const confirmMilestone = async (
     }
 
     return escrow.id;
-  });
+    });
+  } catch (err: any) {
+    logError({
+      category: 'payment',
+      action: 'escrow_release_failed',
+      message: `Loi giai ngan moc ${step} hop dong ${contractCode}: ${err.message || err}`,
+      userId,
+      targetType: 'Contract',
+      targetId: contractId,
+      metadata: { step, releaseAmount },
+      error: err,
+    });
+    throw err;
+  }
+
+  if (releaseAmount > 0) {
+    logAction({
+      category: 'escrow',
+      action: 'escrow_release',
+      message: `Giai ngan moc ${step} (${releaseAmount.toLocaleString('vi-VN')} VND) cho hop dong ${contractCode}`,
+      userId,
+      targetType: 'Escrow',
+      targetId: escrowId,
+      metadata: { contractCode, step, releaseAmount },
+    });
+  }
 
   return withEscrowRelations(escrowId);
 };

@@ -73,6 +73,7 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1000);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [reviews, setReviews] = useState([]);
+  const [reviewEligibility, setReviewEligibility] = useState(null);
   const [myRating, setMyRating] = useState(5);
   const [myReviewText, setMyReviewText] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -162,6 +163,23 @@ const ProductDetail = () => {
     loadReviews();
   }, [id]);
 
+  // Check whether the current enterprise has purchased this product and may review it
+  useEffect(() => {
+    if (!id || !isEnterprise) {
+      setReviewEligibility(null);
+      return;
+    }
+    const loadEligibility = async () => {
+      try {
+        const res = await productService.getReviewEligibility(id);
+        setReviewEligibility(res?.data || null);
+      } catch {
+        setReviewEligibility(null);
+      }
+    };
+    loadEligibility();
+  }, [id, isEnterprise]);
+
   if (!product) return null;
 
   const region = REGIONS[product.region.toUpperCase()] || REGIONS.SOUTH;
@@ -176,9 +194,12 @@ const ProductDetail = () => {
     return { star, count, percent: reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0 };
   });
 
-  const alreadyReviewed = reviews.some(
+  const localAlreadyReviewed = reviews.some(
     r => r.reviewerId === user?.id || r.reviewerId === user?._id
   );
+  const alreadyReviewed = reviewEligibility ? reviewEligibility.alreadyReviewed : localAlreadyReviewed;
+  const hasPurchased = reviewEligibility ? reviewEligibility.hasPurchased : false;
+  const canReview = reviewEligibility ? reviewEligibility.canReview : false;
 
   const handleSubmitReview = async () => {
     if (!myReviewText.trim()) {
@@ -199,6 +220,7 @@ const ProductDetail = () => {
           rating: res.data.review.rating,
           reviewCount: (prev.reviewCount || 0) + 1,
         }));
+        setReviewEligibility(prev => ({ ...prev, canReview: false, alreadyReviewed: true }));
       }
     } catch (err) {
       toast.error(err?.response?.data?.message || "Không thể gửi đánh giá. Vui lòng thử lại.");
@@ -499,8 +521,8 @@ const ProductDetail = () => {
             <p className="pd-no-reviews">Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sản phẩm này!</p>
           )}
 
-          {/* Review submission form — Enterprise users only */}
-          {isEnterprise && !alreadyReviewed && (
+          {/* Review submission form — only Enterprise accounts that have purchased this product */}
+          {isEnterprise && canReview && (
             <div className="pd-review-form">
               <h4>Viết đánh giá của bạn</h4>
               <div className="review-star-select">
@@ -532,6 +554,12 @@ const ProductDetail = () => {
 
           {isEnterprise && alreadyReviewed && (
             <p className="pd-already-reviewed">Bạn đã đánh giá sản phẩm này rồi.</p>
+          )}
+
+          {isEnterprise && reviewEligibility && !hasPurchased && !alreadyReviewed && (
+            <p className="pd-already-reviewed">
+              Bạn cần mua và nhận hàng sản phẩm này (hoàn tất mốc Kiểm tra chất lượng ở một hợp đồng) trước khi có thể đánh giá.
+            </p>
           )}
 
           {/* Reviews list */}
