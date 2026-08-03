@@ -193,10 +193,10 @@ function FloatingChatWidget() {
   return (
     <div className="fcw-root">
       {isOpen && (
-        <div className="fcw-panel">
+        <div className={`fcw-panel${user?.role === 'farmer' ? ' fcw-panel--farmer' : ''}`}>
           {!activeConversation ? (
             <>
-              <div className="fcw-header">
+              <div className={`fcw-header${user?.role === 'farmer' ? ' fcw-header--farmer' : ''}`}>
                 <span>Tin nhắn</span>
                 <button type="button" className="fcw-icon-btn" onClick={closeWidget} aria-label="Đóng">
                   <FiX />
@@ -240,7 +240,7 @@ function FloatingChatWidget() {
             </>
           ) : (
             <>
-              <div className="fcw-header">
+              <div className={`fcw-header${user?.role === 'farmer' ? ' fcw-header--farmer' : ''}`}>
                 <button type="button" className="fcw-icon-btn" onClick={backToList} aria-label="Quay lại">
                   <FiArrowLeft />
                 </button>
@@ -263,8 +263,8 @@ function FloatingChatWidget() {
                     const isMine = message.sender?.id === user?.id;
                     return (
                       <div key={message.id} className={`fcw-bubble-row ${isMine ? 'mine' : ''}`}>
-                        <div className="fcw-bubble">
-                          <p>{message.text}</p>
+                        <div className="fcw-msg-bubble">
+                             <p>{message.text}</p>
                         </div>
                         <time className="fcw-bubble-time">{formatMessageTime(message.createdAt)}</time>
                       </div>
@@ -291,7 +291,11 @@ function FloatingChatWidget() {
         </div>
       )}
 
-      <button type="button" className="fcw-bubble" onClick={toggleWidget} aria-label="Tin nhắn">
+      <button
+        type="button"
+        className={`fcw-bubble${user?.role === 'farmer' ? ' fcw-bubble--farmer' : ''}`}
+        onClick={toggleWidget}
+        aria-label="Tin nhắn">
         <FiMessageCircle size={24} />
         {totalUnread > 0 && <span className="fcw-bubble__badge">{totalUnread > 99 ? '99+' : totalUnread}</span>}
       </button>
