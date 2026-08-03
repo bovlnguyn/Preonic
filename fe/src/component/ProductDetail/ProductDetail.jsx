@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FiArrowLeft,
@@ -116,6 +116,13 @@ const toUiProductDetail = (product) => ({
   },
 });
 
+const resolveNavigationContext = (pathname, fallbackContext) => {
+  if (pathname.startsWith("/enterprise-products/")) return "enterprise-site";
+  if (pathname.startsWith("/enterprise/products/")) return ROLE.ENTERPRISE;
+  if (pathname.startsWith("/farmer/crops/")) return ROLE.FARMER;
+  return fallbackContext;
+};
+
 const getNavigationConfig = (context) => {
   if (context === "enterprise-site") {
     return {
@@ -167,17 +174,24 @@ const getNavigationConfig = (context) => {
 const ProductDetail = ({ context = "public" }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const { user, loading: authLoading } = useAuth();
   const { openChatWith } = useMessagingWidget();
-  const navigation = useMemo(() => getNavigationConfig(context), [context]);
+  const navigationContext = useMemo(
+    () => resolveNavigationContext(location.pathname, context),
+    [context, location.pathname]
+  );
+  const navigation = useMemo(
+    () => getNavigationConfig(navigationContext),
+    [navigationContext]
+  );
 
   const [product, setProduct] = useState(null);
   const [similar, setSimilar] = useState([]);
   const [quantity, setQuantity] = useState(1000);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [reviews, setReviews] = useState([]);
-  const [reviewEligibility, setReviewEligibility] = useState(null);
   const [myRating, setMyRating] = useState(5);
   const [myReviewText, setMyReviewText] = useState("");
   const [loadingProduct, setLoadingProduct] = useState(true);
@@ -191,6 +205,14 @@ const ProductDetail = ({ context = "public" }) => {
   const isFarmer = role === ROLE.FARMER;
   const currentUserId = normalizeIdentity(user);
   const isOwner = Boolean(isFarmer && product?.createdBy && currentUserId === product.createdBy);
+
+  useEffect(() => {
+    if (authLoading || !user || context !== "public") return;
+
+    if (user.role === ROLE.ENTERPRISE && location.pathname.startsWith("/products/")) {
+      navigate(`/enterprise-products/${id}`, { replace: true });
+    }
+  }, [authLoading, context, id, location.pathname, navigate, user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -317,22 +339,9 @@ const ProductDetail = ({ context = "public" }) => {
     };
   });
 
-const localAlreadyReviewed = reviews.some(
-  (review) =>
-    normalizeIdentity(review.reviewerId) === currentUserId
-);
-
-const alreadyReviewed = reviewEligibility
-  ? reviewEligibility.alreadyReviewed
-  : localAlreadyReviewed;
-
-const hasPurchased = reviewEligibility
-  ? reviewEligibility.hasPurchased
-  : false;
-
-const canReview = reviewEligibility
-  ? reviewEligibility.canReview
-  : false;
+  const alreadyReviewed = reviews.some(
+    (review) => normalizeIdentity(review.reviewerId) === currentUserId
+  );
 
   const handleSubmitReview = async () => {
     if (!myReviewText.trim()) {
@@ -473,7 +482,7 @@ const canReview = reviewEligibility
           </section>
         ) : (
           <>
-            <section className="pd-hero-grid">
+            <section className="pd-product-layout">
               <motion.div
                 className="pd-media-card"
                 initial={{ scale: 0.98, opacity: 0 }}
@@ -700,10 +709,41 @@ const canReview = reviewEligibility
                   </div>
                 )}
               </motion.aside>
+
+              <article className="pd-section-card pd-section-card--commitments">
+                <div className="pd-section-heading">
+                  <span><FiShield /></span>
+                  <div>
+                    <small>Cam kết giao dịch</small>
+                    <h2>Minh bạch và an toàn</h2>
+                  </div>
+                </div>
+                <div className="pd-commitment-list">
+                  {product.commitments.map((commitment, index) => (
+                    <motion.div
+                      key={`${commitment}-${index}`}
+                      initial={{ opacity: 0, x: 12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.06 }}
+                    >
+                      <FiCheckCircle />
+                      <p>{commitment}</p>
+                    </motion.div>
+                  ))}
+                </div>
+                <div className="pd-guarantee-card">
+                  <FiAward />
+                  <div>
+                    <strong>Bảo đảm bởi PreOnic</strong>
+                    <p>
+                      Hợp đồng và thanh toán được quản lý qua hệ thống ký quỹ, giúp hai bên theo dõi rõ nghĩa vụ và tiến độ thực hiện.
+                    </p>
+                  </div>
+                </div>
+              </article>
             </section>
 
-            <section className="pd-content-grid">
-              <article className="pd-section-card pd-section-card--description">
+            <article className="pd-section-card pd-section-card--description">
                 <div className="pd-section-heading">
                   <span><FiFileText /></span>
                   <div>
@@ -743,40 +783,7 @@ const canReview = reviewEligibility
                     )}
                   </div>
                 </div>
-              </article>
-
-              <article className="pd-section-card pd-section-card--commitments">
-                <div className="pd-section-heading">
-                  <span><FiShield /></span>
-                  <div>
-                    <small>Cam kết giao dịch</small>
-                    <h2>Minh bạch và an toàn</h2>
-                  </div>
-                </div>
-                <div className="pd-commitment-list">
-                  {product.commitments.map((commitment, index) => (
-                    <motion.div
-                      key={`${commitment}-${index}`}
-                      initial={{ opacity: 0, x: 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.06 }}
-                    >
-                      <FiCheckCircle />
-                      <p>{commitment}</p>
-                    </motion.div>
-                  ))}
-                </div>
-                <div className="pd-guarantee-card">
-                  <FiAward />
-                  <div>
-                    <strong>Bảo đảm bởi PreOnic</strong>
-                    <p>
-                      Hợp đồng và thanh toán được quản lý qua hệ thống ký quỹ, giúp hai bên theo dõi rõ nghĩa vụ và tiến độ thực hiện.
-                    </p>
-                  </div>
-                </div>
-              </article>
-            </section>
+            </article>
 
             <section className="pd-section-card pd-review-section">
               <div className="pd-section-heading pd-section-heading--between">

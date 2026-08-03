@@ -160,11 +160,14 @@
   to { transform: rotate(360deg); }
 }
 
-.pd-hero-grid {
+.pd-product-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.32fr) minmax(340px, 0.88fr);
+  grid-template-areas:
+    "media purchase"
+    "commitments purchase";
   gap: 22px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .pd-media-card,
@@ -177,12 +180,13 @@
 }
 
 .pd-media-card {
+  grid-area: media;
   overflow: hidden;
 }
 
 .pd-image-wrap {
   position: relative;
-  height: clamp(390px, 46vw, 560px);
+  height: clamp(360px, 34vw, 480px);
   overflow: hidden;
   background: var(--pd-primary-soft);
 }
@@ -302,8 +306,8 @@
 }
 
 .pd-purchase-card {
-  position: sticky;
-  top: 108px;
+  grid-area: purchase;
+  height: 100%;
   padding: clamp(22px, 3vw, 30px);
 }
 
@@ -744,10 +748,13 @@
   grid-template-columns: 46px minmax(0, 1fr);
 }
 
-.pd-content-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
-  gap: 22px;
+.pd-section-card--commitments {
+  grid-area: commitments;
+  min-height: 0;
+}
+
+.pd-section-card--description {
+  width: 100%;
   margin-top: 22px;
 }
 
@@ -856,13 +863,16 @@
 
 .pd-commitment-list {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
 .pd-commitment-list > div {
+  min-width: 0;
   display: flex;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 9px;
   padding: 13px;
   border: 1px solid var(--pd-border);
   border-radius: 14px;
@@ -1278,21 +1288,8 @@
 }
 
 @media (max-width: 1120px) {
-  .pd-hero-grid {
+  .pd-product-layout {
     grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
-  }
-
-  .pd-summary-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .pd-summary-strip > div {
-    border-right: 0;
-    border-bottom: 1px solid var(--pd-border);
-  }
-
-  .pd-summary-strip > div:last-child {
-    border-bottom: 0;
   }
 
   .pd-similar-grid {
@@ -1310,13 +1307,12 @@
     justify-content: flex-start;
   }
 
-  .pd-hero-grid,
-  .pd-content-grid {
+  .pd-product-layout {
     grid-template-columns: 1fr;
-  }
-
-  .pd-purchase-card {
-    position: static;
+    grid-template-areas:
+      "media"
+      "commitments"
+      "purchase";
   }
 
   .pd-summary-strip {
@@ -1388,7 +1384,8 @@
   }
 
   .pd-availability-grid,
-  .pd-owner-actions > div {
+  .pd-owner-actions > div,
+  .pd-commitment-list {
     grid-template-columns: 1fr;
   }
 
