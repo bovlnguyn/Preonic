@@ -317,12 +317,22 @@ const ProductDetail = ({ context = "public" }) => {
     };
   });
 
-  const alreadyReviewed = reviews.some(
-    (review) => normalizeIdentity(review.reviewerId) === currentUserId
-  );
-  const alreadyReviewed = reviewEligibility ? reviewEligibility.alreadyReviewed : localAlreadyReviewed;
-  const hasPurchased = reviewEligibility ? reviewEligibility.hasPurchased : false;
-  const canReview = reviewEligibility ? reviewEligibility.canReview : false;
+const localAlreadyReviewed = reviews.some(
+  (review) =>
+    normalizeIdentity(review.reviewerId) === currentUserId
+);
+
+const alreadyReviewed = reviewEligibility
+  ? reviewEligibility.alreadyReviewed
+  : localAlreadyReviewed;
+
+const hasPurchased = reviewEligibility
+  ? reviewEligibility.hasPurchased
+  : false;
+
+const canReview = reviewEligibility
+  ? reviewEligibility.canReview
+  : false;
 
   const handleSubmitReview = async () => {
     if (!myReviewText.trim()) {
