@@ -3,6 +3,7 @@ import * as authService from '../services/auth.service';
 import { AuthRequest } from '../types';
 import { sendResetPasswordEmail } from '../services/email.service';
 import * as emailService from '../services/email.service';
+import { logAction, logError } from '../services/systemLog.service';
 // ── Cookie options cho refresh token ──
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -55,6 +56,16 @@ export const login = async (req: Request, res: Response) => {
     const { emailOrPhone, password } = req.body;
     const { user, accessToken, refreshToken } = await authService.login(emailOrPhone, password);
 
+    logAction({
+      category: 'auth',
+      action: 'login_success',
+      message: `${user?.email || emailOrPhone} đăng nhập thành công`,
+      userId: user?.id,
+      targetType: 'User',
+      targetId: user?.id,
+      ipAddress: req.ip,
+    });
+
     // Lưu refreshToken vào httpOnly cookie
     res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
 
@@ -64,6 +75,15 @@ export const login = async (req: Request, res: Response) => {
       data: { user, accessToken },
     });
   } catch (err: any) {
+    logError({
+      category: 'auth',
+      action: 'login_failed',
+      level: 'warn',
+      message: `Đăng nhập thất bại (${req.body?.emailOrPhone}): ${err.message || 'lỗi không xác định'}`,
+      metadata: { emailOrPhone: req.body?.emailOrPhone },
+      ipAddress: req.ip,
+      error: err,
+    });
     res.status(err.statusCode || 500).json({
       success: false,
       message: err.message || 'Đăng nhập thất bại',

@@ -85,6 +85,17 @@ const adminService = {
     return response.data;
   },
 
+  // ── System Logs ──
+  getSystemLogs: async (params = {}) => {
+    const response = await api.get('/admin/system-logs', { params });
+    return response.data;
+  },
+
+  getSystemLogDetail: async (id) => {
+    const response = await api.get(`/admin/system-logs/${id}`);
+    return response.data;
+  },
+
   // ── Withdrawals ──
   getWithdrawals: async (params = {}) => {
     await delay();
