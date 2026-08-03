@@ -170,7 +170,7 @@ function Profile() {
     const newPassword = passwordForm.newPassword || '';
 
     return {
-      minLength: newPassword.length >= 8,
+      minLength: newPassword.length >= 6,
       hasLetter: /[A-Za-z]/.test(newPassword),
       hasNumber: /\d/.test(newPassword),
       hasSpecialCharacter: /[^A-Za-z0-9\s]/.test(newPassword),
@@ -195,7 +195,7 @@ function Profile() {
     if (!newPassword) {
       passwordErrors.newPassword = 'Vui lòng nhập mật khẩu mới';
     } else if (!checks.minLength) {
-      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất 8 ký tự';
+      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất 6 ký tự';
     } else if (!checks.hasLetter) {
       passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất một chữ cái';
     } else if (!checks.hasNumber) {
@@ -569,7 +569,7 @@ function Profile() {
                 <div className="profile-password-rules__grid">
                   <div className={getRuleClassName(passwordChecks.minLength)}>
                     <span>{passwordChecks.minLength ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
-                    Ít nhất 8 ký tự
+                    Ít nhất 6 ký tự
                   </div>
                   <div className={getRuleClassName(passwordChecks.hasLetter)}>
                     <span>{passwordChecks.hasLetter ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
@@ -660,7 +660,7 @@ function Profile() {
                   <div className="profile-password-rules__grid">
                     <div className={getRuleClassName(passwordChecks.minLength)}>
                       <span>{passwordChecks.minLength ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
-                      Ít nhất 8 ký tự
+                      Ít nhất 6 ký tự
                     </div>
                     <div className={getRuleClassName(passwordChecks.hasLetter)}>
                       <span>{passwordChecks.hasLetter ? <FiCheck /> : hasNewPassword ? <FiX /> : '•'}</span>
