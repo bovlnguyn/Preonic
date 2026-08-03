@@ -1,5 +1,5 @@
 import { LessThan } from 'typeorm';
-import { AppDataSource } from '../config/database';
+import { AppDataSource, isDatabaseConnected, markDatabaseUnhealthy } from '../config/database';
 import { SystemLog } from '../models/SystemLog.entity';
 import { createLogger } from '../utils/logger';
 
@@ -30,9 +30,10 @@ export interface LogErrorParams extends LogActionParams {
 // chỉ console.error nếu chính việc ghi log thất bại. Không await ở nơi gọi.
 const write = async (entry: Partial<SystemLog>) => {
   try {
-    if (!AppDataSource?.isInitialized) return;
+    if (!isDatabaseConnected()) return;
     await repo().save(repo().create(entry));
   } catch (err: any) {
+    markDatabaseUnhealthy(err);
     log.error('Khong the ghi system log:', err?.message ?? err);
   }
 };

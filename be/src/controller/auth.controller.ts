@@ -4,12 +4,19 @@ import { AuthRequest } from '../types';
 import { sendResetPasswordEmail } from '../services/email.service';
 import * as emailService from '../services/email.service';
 import { logAction, logError } from '../services/systemLog.service';
+import { isDatabaseConnected } from '../config/database';
 // ── Cookie options cho refresh token ──
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure:   process.env.NODE_ENV === 'production',
+  secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
-  maxAge:   30 * 24 * 60 * 60 * 1000, // 30 ngày
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+};
+
+const COOKIE_CLEAR_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
 };
 
 // ══════════════════════════════════════════
@@ -114,20 +121,28 @@ export const googleRegister = async (req: Request, res: Response) => {
 // ══════════════════════════════════════════
 // ĐĂNG XUẤT
 // ══════════════════════════════════════════
-export const logout = async (req: AuthRequest, res: Response) => {
-  try {
-    if (req.user?.id) {
-      await authService.logout(req.user.id);
-    }
-    res.clearCookie('refreshToken');
-    res.status(200).json({
-      success: true,
-      message: 'Đăng xuất thành công',
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: 'Đăng xuất thất bại',
+export const logout = (req: Request, res: Response) => {
+  const refreshToken = req.cookies?.refreshToken;
+
+  // Xóa cookie và trả kết quả ngay. Logout không được phụ thuộc vào trạng thái DB.
+  res.clearCookie('refreshToken', COOKIE_CLEAR_OPTIONS);
+  res.status(200).json({
+    success: true,
+    message: 'Đăng xuất thành công',
+  });
+
+  // Thu hồi token trong DB theo kiểu best-effort. Khi DB đang gián đoạn, cookie
+  // phía client đã bị xóa nên người dùng vẫn đăng xuất bình thường.
+  if (refreshToken && isDatabaseConnected()) {
+    void authService.logoutByRefreshToken(refreshToken).catch((error: any) => {
+      logError({
+        category: 'auth',
+        action: 'logout_revoke_failed',
+        level: 'warn',
+        message: 'Không thể thu hồi refresh token khi đăng xuất',
+        ipAddress: req.ip,
+        error,
+      });
     });
   }
 };

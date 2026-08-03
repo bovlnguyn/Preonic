@@ -1,62 +1,60 @@
 import 'reflect-metadata';
 import dotenv from 'dotenv';
-dotenv.config(); // Load .env trước tất cả import khác
+dotenv.config();
 
 import app from './app';
-import connectDB, { isDatabaseConnected } from './config/database';
+import connectDB from './config/database';
 import { createLogger } from './utils/logger';
 import { startContractExpiryCron } from './jobs/contract-cron';
 import { startWeatherCron } from './jobs/weather-cron';
 import { startShippingCron } from './jobs/shipping-cron';
 import { startSystemLogCleanupCron } from './jobs/systemlog-cron';
 
-const log  = createLogger('Server');
+const log = createLogger('Server');
 const PORT = Number(process.env.PORT ?? 8080);
+let cronStarted = false;
 
-// ══════════════════════════════════════════════════════
-// Khởi động server
-// Giữ nguyên pattern: connectDB(onConnected) từ file gốc
-// ══════════════════════════════════════════════════════
-connectDB(() => {
-  // onConnected: SQL Server đã kết nối thành công → mới listen
-  const server = app.listen(PORT, () => {
-    log.info(`Server running on port ${PORT}`);
-    log.info(`Environment : ${process.env.NODE_ENV}`);
-    log.info(`API prefix  : ${process.env.API_PREFIX ?? '/api/v1'}`);
-    log.info(`Frontend URL: ${process.env.FRONTEND_URL}`);
-  });
+// Khởi động HTTP trước để /health và /auth/logout vẫn phản hồi ngay cả khi
+// Azure SQL đang gián đoạn. Các API cần dữ liệu sẽ được DB health guard trả 503.
+const server = app.listen(PORT, () => {
+  log.info(`Server running on port ${PORT}`);
+  log.info(`Environment : ${process.env.NODE_ENV}`);
+  log.info(`API prefix  : ${process.env.API_PREFIX ?? '/api/v1'}`);
+  log.info(`Frontend URL: ${process.env.FRONTEND_URL}`);
+});
 
-  // Cron jobs — chi chay sau khi DB da ket noi thanh cong
+void connectDB(() => {
+  if (cronStarted) return;
+  cronStarted = true;
+
   startContractExpiryCron();
   startWeatherCron();
   startShippingCron();
   startSystemLogCleanupCron();
-
-  // Graceful shutdown
-  const shutdown = async (signal: string) => {
-    log.info(`${signal} received — shutting down gracefully...`);
-    server.close(() => {
-      log.info('HTTP server closed');
-      process.exit(0);
-    });
-
-    // Force exit sau 10s nếu server không đóng được
-    setTimeout(() => {
-      log.error('Forced exit after timeout');
-      process.exit(1);
-    }, 10_000).unref();
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  // SIGINT đã được xử lý trong database.ts (đóng SQL connection)
+}).catch((error: any) => {
+  log.error('Database bootstrap failed:', error?.message ?? error);
 });
 
-// Unhandled errors — giống file gốc
+const shutdown = (signal: string) => {
+  log.info(`${signal} received — shutting down gracefully...`);
+  server.close(() => {
+    log.info('HTTP server closed');
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    log.error('Forced exit after timeout');
+    process.exit(1);
+  }, 10_000).unref();
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
 process.on('unhandledRejection', (reason: any) => {
   log.error('Unhandled Rejection:', reason?.message ?? reason);
 });
 
-process.on('uncaughtException', (err: Error) => {
-  log.error('Uncaught Exception:', err.message);
+process.on('uncaughtException', (error: Error) => {
+  log.error('Uncaught Exception:', error.message);
   process.exit(1);
 });

@@ -1,0 +1,78 @@
+.service-status-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 10050;
+  width: min(680px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  border-radius: 16px;
+  background: rgba(255, 251, 235, 0.97);
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.2);
+  color: #78350f;
+  backdrop-filter: blur(14px);
+}
+
+.service-status-banner__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #d97706;
+  font-size: 20px;
+}
+
+.service-status-banner__content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.service-status-banner__content strong {
+  font-size: 14px;
+  line-height: 1.3;
+  color: #7c2d12;
+}
+
+.service-status-banner__content span {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #92400e;
+}
+
+.service-status-banner__close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #92400e;
+  cursor: pointer;
+}
+
+.service-status-banner__close:hover {
+  background: rgba(245, 158, 11, 0.13);
+}
+
+@media (max-width: 640px) {
+  .service-status-banner {
+    bottom: 12px;
+    width: calc(100vw - 20px);
+    padding: 11px;
+    border-radius: 14px;
+  }
+
+  .service-status-banner__icon {
+    width: 34px;
+    height: 34px;
+  }
+}

@@ -1,6 +1,14 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "sourceMap": true
-  }
+    "types": ["node", "jest"],
+    "sourceMap": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/__tests__/**/*.ts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
 }
