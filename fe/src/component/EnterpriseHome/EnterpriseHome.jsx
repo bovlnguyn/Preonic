@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FiArrowRight,
   FiBarChart2,
   FiCheckCircle,
-  FiCreditCard,
   FiFileText,
   FiMapPin,
   FiPackage,
@@ -85,6 +84,13 @@ function onTimeDeliveryRate(contracts) {
   return Math.round((onTime.length / completed.length) * 100);
 }
 
+function getResponseList(response, nestedKey) {
+  if (Array.isArray(response?.data)) return response.data;
+  if (nestedKey && Array.isArray(response?.data?.[nestedKey])) return response.data[nestedKey];
+  if (nestedKey && Array.isArray(response?.[nestedKey])) return response[nestedKey];
+  return [];
+}
+
 function EnterpriseHome() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -92,37 +98,55 @@ function EnterpriseHome() {
 
   const [totalSupplies, setTotalSupplies] = useState(null);
   const [featuredSupplies, setFeaturedSupplies] = useState([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [featuredError, setFeaturedError] = useState("");
   const [contractCount, setContractCount] = useState(null);
   const [onTimeRate, setOnTimeRate] = useState(null);
   const [supplierCount, setSupplierCount] = useState(null);
 
+  const loadFeaturedSupplies = useCallback(async () => {
+    setFeaturedLoading(true);
+    setFeaturedError("");
+
+    try {
+      const res = await productService.getProducts({ sort: "rating", page: 1, limit: 3 });
+      const products = getResponseList(res, "products");
+
+      setFeaturedSupplies(products);
+      setTotalSupplies(Number(res?.pagination?.total ?? res?.total ?? products.length));
+    } catch (error) {
+      setFeaturedSupplies([]);
+      setFeaturedError(
+        error?.message || "Không thể tải nguồn cung nổi bật. Vui lòng thử lại."
+      );
+    } finally {
+      setFeaturedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    productService
-      .getProducts({ sort: "rating", limit: 3 })
-      .then((res) => {
-        setFeaturedSupplies(res?.data || []);
-        setTotalSupplies(res?.pagination?.total ?? 0);
-      })
-      .catch(() => {});
+    loadFeaturedSupplies();
 
     contractService
       .list()
       .then((res) => {
-        const list = res?.data?.contracts;
-        const contracts = Array.isArray(list) ? list : [];
+        const contracts = getResponseList(res, "contracts");
         setContractCount(contracts.length);
         setOnTimeRate(onTimeDeliveryRate(contracts));
       })
-      .catch(() => {});
+      .catch(() => {
+        setContractCount(0);
+        setOnTimeRate(null);
+      });
 
     supplierService
       .list()
       .then((res) => {
-        const list = res?.data?.suppliers;
-        setSupplierCount(Array.isArray(list) ? list.length : 0);
+        const suppliers = getResponseList(res, "suppliers");
+        setSupplierCount(suppliers.length);
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => setSupplierCount(0));
+  }, [loadFeaturedSupplies]);
 
   const procurementStats = [
     { label: "Nguồn cung phù hợp", value: totalSupplies != null ? String(totalSupplies) : "--", icon: FiPackage, tone: "blue" },
@@ -226,33 +250,65 @@ function EnterpriseHome() {
             </motion.p>
           </motion.div>
 
-          <motion.div className="eh-supply-list" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={stagger}>
-            {featuredSupplies.length === 0 ? (
-              <motion.p variants={fadeUp} className="eh-supply-empty">Chưa có nguồn cung nào phù hợp.</motion.p>
+          <div className="eh-supply-list" aria-live="polite">
+            {featuredLoading ? (
+              <div className="eh-supply-skeletons" aria-label="Đang tải nguồn cung nổi bật">
+                {[0, 1, 2].map((item) => (
+                  <div className="eh-supply-skeleton" key={item}>
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                ))}
+              </div>
+            ) : featuredError ? (
+              <div className="eh-supply-state eh-supply-state--error">
+                <FiPackage />
+                <h3>Chưa tải được nguồn cung</h3>
+                <p>{featuredError}</p>
+                <button type="button" onClick={loadFeaturedSupplies}>Thử tải lại</button>
+              </div>
+            ) : featuredSupplies.length === 0 ? (
+              <div className="eh-supply-state">
+                <FiPackage />
+                <h3>Chưa có nguồn cung phù hợp</h3>
+                <p>Các sản phẩm mới từ farmer sẽ được hiển thị tại đây ngay khi được đăng bán.</p>
+                <button type="button" onClick={() => navigate("/enterprise-products")}>Xem toàn bộ nguồn cung</button>
+              </div>
             ) : (
-              featuredSupplies.map((item) => (
-                <motion.article className="eh-supply-card" key={item.id} variants={fadeUp}>
+              featuredSupplies.map((item, index) => (
+                <motion.article
+                  className="eh-supply-card"
+                  key={item.id || `${item.name}-${index}`}
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.42, delay: index * 0.08 }}
+                >
                   <div className="eh-supply-card__top">
                     <div>
-                      <h3>{item.name}</h3>
-                      <span><FiMapPin /> {REGION_LABEL[item.region] || item.region}</span>
+                      <h3>{item.name || "Nông sản chưa đặt tên"}</h3>
+                      <span><FiMapPin /> {REGION_LABEL[item.region] || item.location || "Chưa cập nhật khu vực"}</span>
                     </div>
                     <strong>{formatSupplyPrice(item)}</strong>
                   </div>
                   <div className="eh-supply-card__meta">
                     <span>Sản lượng: <b>{item.totalQuantity ? `${formatPrice(item.totalQuantity)} ${item.unit || ""}` : "Chưa cập nhật"}</b></span>
-                    <span>Nông dân: <b>{item.sellerName || "Chưa cập nhật"}</b></span>
+                    <span>Nông dân: <b>{item.sellerName || item.farm || "Chưa cập nhật"}</b></span>
+                    <span>Đánh giá: <b>{Number(item.rating) > 0 ? `${Number(item.rating).toFixed(1)}/5` : "Chưa có"}</b></span>
                   </div>
-                  <div className="eh-progress">
-                    <span style={{ width: `${item.rating > 0 ? (item.rating / 5) * 100 : 0}%` }} />
+                  <div className="eh-progress" aria-label={`Mức đánh giá ${Number(item.rating) || 0} trên 5`}>
+                    <span style={{ width: `${Number(item.rating) > 0 ? Math.min((Number(item.rating) / 5) * 100, 100) : 0}%` }} />
                   </div>
-                  <button type="button" onClick={() => navigate("/enterprise-products")}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(item.id ? `/enterprise-products/${item.id}` : "/enterprise-products")}
+                  >
                     Kiểm tra nguồn cung <FiArrowRight />
                   </button>
                 </motion.article>
               ))
             )}
-          </motion.div>
+          </div>
         </section>
 
         <section className="eh-workflow-section">
