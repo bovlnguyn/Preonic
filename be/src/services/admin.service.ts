@@ -68,7 +68,7 @@ export const getUsers = async (filters: AdminUserFilters = {}) => {
     qb.andWhere('user.IsActive = :isActive', { isActive });
   }
 
-  qb.orderBy('user.CreatedAt', 'DESC');
+  qb.orderBy('user.createdAt', 'DESC');
   qb.skip((page - 1) * limit).take(limit);
 
   const [users, total] = await qb.getManyAndCount();
@@ -250,7 +250,7 @@ export const getContracts = async (filters: AdminContractFilters = {}) => {
     qb.andWhere('contract.Status = :status', { status: filters.status });
   }
 
-  qb.orderBy('contract.CreatedAt', 'DESC');
+  qb.orderBy('contract.createdAt', 'DESC');
   qb.skip((page - 1) * limit).take(limit);
 
   const [contracts, total] = await qb.getManyAndCount();
@@ -284,9 +284,12 @@ export const getContractDetail = async (contractId: string) => {
 // ════════════════════════════════════════
 export interface AdminDisputeFilters {
   status?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
+
+const DISPUTE_STATUSES = ['open', 'under_review', 'resolved_farmer', 'resolved_enterprise', 'closed'];
 
 export const getDisputes = async (filters: AdminDisputeFilters = {}) => {
   const page = Number(filters.page) || 1;
@@ -302,10 +305,33 @@ export const getDisputes = async (filters: AdminDisputeFilters = {}) => {
     qb.andWhere('dispute.Status = :status', { status: filters.status });
   }
 
-  qb.orderBy('dispute.CreatedAt', 'DESC');
+  if (filters.search) {
+    const search = `%${filters.search.trim()}%`;
+    qb.andWhere(
+      '(contract.ContractCode LIKE :search OR raisedByUser.FullName LIKE :search OR againstUser.FullName LIKE :search OR dispute.Reason LIKE :search)',
+      { search }
+    );
+  }
+
+  qb.orderBy('dispute.createdAt', 'DESC');
   qb.skip((page - 1) * limit).take(limit);
 
   const [disputes, total] = await qb.getManyAndCount();
+
+  const statusCountsRaw = await disputeRepo()
+    .createQueryBuilder('dispute')
+    .select('dispute.Status', 'status')
+    .addSelect('COUNT(*)', 'count')
+    .groupBy('dispute.Status')
+    .getRawMany();
+
+  const stats: Record<string, number> = Object.fromEntries(DISPUTE_STATUSES.map((s) => [s, 0]));
+  let totalAll = 0;
+  for (const row of statusCountsRaw) {
+    const count = Number(row.count);
+    stats[row.status] = count;
+    totalAll += count;
+  }
 
   return {
     disputes,
@@ -314,6 +340,7 @@ export const getDisputes = async (filters: AdminDisputeFilters = {}) => {
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
     },
+    stats: { ...stats, total: totalAll },
   };
 };
 
