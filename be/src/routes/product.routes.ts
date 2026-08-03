@@ -3,7 +3,7 @@ import { Router, RequestHandler } from 'express';
 import {
   getAll, getById,getSimilar,
   create, update, remove,
-  getReviews, addReview,
+  getReviews, addReview, getReviewEligibility,
 } from '../controller/product.controller';
 import { protect, requireCompleteProfile, restrictTo } from '../middlewares/auth.middlewares';
 import { uploadProductFiles } from '../middlewares/uploads.middlewares';
@@ -50,6 +50,12 @@ router.delete(
 );
 
 // ── Protected routes — Enterprise ──
+router.get(
+  '/:id/reviews/eligibility',
+  protect as RequestHandler,
+  getReviewEligibility as RequestHandler
+);
+
 router.post(
   '/:id/reviews',
   protect as RequestHandler,

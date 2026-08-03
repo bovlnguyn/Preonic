@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { createLogger } from '../utils/logger';
 import { expireUnsignedContracts } from '../services/contract.service';
+import { logError } from '../services/systemLog.service';
 
 const log = createLogger('ContractCron');
 
@@ -15,6 +16,12 @@ export const startContractExpiryCron = () => {
       }
     } catch (err: any) {
       log.error('Loi khi chay job huy hop dong qua han:', err?.message ?? err);
+      logError({
+        category: 'cron',
+        action: 'contract_expiry_cron_failed',
+        message: `Job huy hop dong qua han that bai: ${err?.message ?? err}`,
+        error: err,
+      });
     }
   });
 

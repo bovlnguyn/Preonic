@@ -427,6 +427,32 @@ export const getReviews = async (productId: string) => {
 };
 
 // ══════════════════════════════════════════
+// KIỂM TRA QUYỀN ĐÁNH GIÁ (enterprise đã nhận hàng, chưa từng đánh giá)
+// ══════════════════════════════════════════
+export const getReviewEligibility = async (
+  productId: string,
+  reviewerId: string,
+  reviewerRole: string
+) => {
+  if (reviewerRole !== 'enterprise') {
+    return { canReview: false, alreadyReviewed: false, hasPurchased: false };
+  }
+
+  const [existing, hasPurchased] = await Promise.all([
+    reviewRepo().findOne({ where: { productId, reviewerId } }),
+    hasReceivedGoods(productId, reviewerId),
+  ]);
+
+  const alreadyReviewed = Boolean(existing);
+
+  return {
+    canReview: hasPurchased && !alreadyReviewed,
+    alreadyReviewed,
+    hasPurchased,
+  };
+};
+
+// ══════════════════════════════════════════
 // THÊM REVIEW (enterprise, mỗi user 1 review/sản phẩm)
 // ══════════════════════════════════════════
 export const addReview = async (
