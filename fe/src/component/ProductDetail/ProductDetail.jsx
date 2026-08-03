@@ -455,21 +455,35 @@ const ProductDetail = ({ context = "public" }) => {
             <span>{navigation.backLabel}</span>
           </button>
 
-          <nav className="pd-breadcrumb" aria-label="Điều hướng trang chi tiết sản phẩm">
-            <button type="button" onClick={() => navigate(navigation.homeRoute)}>
-              {navigation.homeLabel}
-            </button>
-            <span>/</span>
-            <button type="button" onClick={() => navigate(navigation.listRoute)}>
-              {navigation.listLabel}
-            </button>
-            {product && (
-              <>
-                <span>/</span>
-                <strong>{product.name}</strong>
-              </>
-            )}
-          </nav>
+          {navigationContext !== "enterprise-site" && (
+  <nav
+    className="pd-breadcrumb"
+    aria-label="Điều hướng trang chi tiết sản phẩm"
+  >
+    <button
+      type="button"
+      onClick={() => navigate(navigation.homeRoute)}
+    >
+      {navigation.homeLabel}
+    </button>
+
+    <span>/</span>
+
+    <button
+      type="button"
+      onClick={() => navigate(navigation.listRoute)}
+    >
+      {navigation.listLabel}
+    </button>
+
+    {product && (
+      <>
+        <span>/</span>
+        <strong>{product.name}</strong>
+      </>
+    )}
+  </nav>
+)}
         </div>
 
         {loadingProduct || !product ? (
