@@ -5,6 +5,7 @@ import { Contract } from '../models/Contract.entity';
 import { Product } from '../models/Product.entity';
 import { User } from '../models/User.entity';
 import { Notification } from '../models/Notification.entity';
+import { logAction } from './systemLog.service';
 
 const toKg = (value: number, unit?: string | null) => value * (UNIT_TO_KG[unit || 'kg'] ?? 1);
 
@@ -198,6 +199,16 @@ export const createContractProposal = async (
   };
 
   const saved = await contractRepo().save(contractRepo().create(contractData));
+
+  logAction({
+    category: 'contract',
+    action: 'contract_created',
+    message: `${enterprise.fullName || enterprise.email} tao de xuat hop dong ${saved.contractCode} voi nong dan ${farmer.fullName || farmer.email}`,
+    userId: enterprise.id,
+    targetType: 'Contract',
+    targetId: saved.id,
+    metadata: { contractCode: saved.contractCode, totalValue },
+  });
 
   return contractRepo().findOne({
     where: { id: saved.id },
