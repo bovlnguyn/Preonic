@@ -93,7 +93,7 @@ export default function FarmerEditProduct() {
         note: form.note.trim() || undefined,
       });
       toast.success('Cập nhật sản phẩm thành công');
-      navigate(`/products/${id}`);
+      navigate(`/farmer/crops/${id}`);
     } catch (err) {
       const message = err.response?.data?.message || 'Cập nhật sản phẩm thất bại, vui lòng thử lại.';
       setError(message);
@@ -109,7 +109,7 @@ export default function FarmerEditProduct() {
         <img src={logo} alt="PreOnic" />
         <span>PreOnic</span>
       </div>
-      <button type="button" className="fep-topbar__close" onClick={() => navigate(`/products/${id}`)}>
+      <button type="button" className="fep-topbar__close" onClick={() => navigate(`/farmer/crops/${id}`)}>
         <FiArrowLeft size={14} /> Quay lại sản phẩm
       </button>
     </header>
@@ -379,7 +379,7 @@ export default function FarmerEditProduct() {
           <button
             type="button"
             className="fcp-nav__back"
-            onClick={() => navigate(`/products/${id}`)}
+            onClick={() => navigate(`/farmer/crops/${id}`)}
           >
             <FiArrowLeft size={14} /> Hủy
           </button>
