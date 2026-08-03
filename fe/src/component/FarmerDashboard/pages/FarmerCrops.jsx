@@ -79,11 +79,11 @@ function FarmerCrops() {
               <div className="farmer-product-grid">
                 {filtered.map(item => (
                   <article
-  className="farmer-product-card"
-  key={item.id}
-  onClick={() => navigate('/products/' + item.id)}
-  style={{ cursor: 'pointer' }}
->
+                    className="farmer-product-card"
+                    key={item.id}
+                    onClick={() => navigate('/farmer/crops/' + item.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className="farmer-product-card__top">
                       <span>{item.category}</span>
                       <StatusBadge status={item.isActive ? 'active' : 'inactive'} />

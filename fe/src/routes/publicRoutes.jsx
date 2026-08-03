@@ -35,7 +35,14 @@ const publicRoutes = [
   { path: '/verify-email', element: <VerifyEmail /> },
 
   { path: '/products', element: <ProductList /> },
-  { path: '/products/:id', element: <ProductDetail /> },
+  {
+    path: '/products/:id',
+    element: (
+      <ProtectedRoute allowedRoles={['farmer', 'enterprise']}>
+        <ProductDetail />
+      </ProtectedRoute>
+    ),
+  },
   { path: '/solutions', element: <Solutions /> },
   { path: '/contact', element: <Contact /> },
   { path: '/ai-agriculture', element: <AIAgriculture /> },
