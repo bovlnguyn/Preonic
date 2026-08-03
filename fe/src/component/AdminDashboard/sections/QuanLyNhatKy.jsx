@@ -81,7 +81,8 @@ export default function QuanLyNhatKy() {
         <div>
           <h1 className="adm-page-title">Nhật ký hệ thống</h1>
           <p className="adm-page-subtitle">
-            Theo dõi hành động quan trọng (đăng nhập, hợp đồng, ký quỹ, tranh chấp), lỗi hệ thống và hoạt động của từng người dùng
+            Theo dõi hành động quan trọng (đăng nhập, hợp đồng, ký quỹ, tranh chấp), lỗi hệ thống và hoạt động của từng người dùng.
+            Log được lưu trong 30 ngày, tự động xóa sau đó.
           </p>
         </div>
       </div>
