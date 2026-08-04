@@ -41,10 +41,16 @@ fe/build/
 fe/dist/
 
 # ═══════════════════════════════════════════════════════════
-# UPLOADS — file do người dùng upload (ảnh SP, chứng chỉ, avatar)
-# Backend lưu trực tiếp trên đĩa cục bộ (không có S3/Cloudinary),
-# nên các file này PHẢI được commit để cả nhóm đồng bộ khi pull code.
+# UPLOADS — ảnh upload mới đã chuyển sang Cloudinary (be/src/config/cloudinary.ts).
+# Các file cũ (đã commit trước khi có Cloudinary) vẫn giữ nguyên vì sản phẩm/
+# tài khoản tạo trước đó đang tham chiếu tới đường dẫn local này.
+# Ignore để chặn file MỚI phát sinh cục bộ (chạy code cũ, test thủ công...)
+# vô tình bị commit lại, tránh phình repo.
 # ═══════════════════════════════════════════════════════════
+uploads/products/*
+uploads/avatars/*
+uploads/disputes/*
+
 # ═══════════════════════════════════════════════════════════
 # LOGS
 # ═══════════════════════════════════════════════════════════
