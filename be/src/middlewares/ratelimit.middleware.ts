@@ -42,3 +42,16 @@ export const passwordResetLimiter = rateLimit({
     message: 'Quá nhiều yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau 1 giờ.',
   },
 });
+
+// Public AI: giới hạn theo IP để tránh liên tục tạo phiên khách mới và đốt quota API.
+export const publicAiLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: Number(process.env.PUBLIC_AI_IP_LIMIT_PER_HOUR || 60),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: 'PUBLIC_AI_RATE_LIMITED',
+    message: 'Bạn đã gửi quá nhiều câu hỏi trong thời gian ngắn. Vui lòng thử lại sau.',
+  },
+});
