@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiMapPin, FiTruck } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
@@ -11,6 +12,7 @@ import { formatDate } from '../utils';
 const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
 
 function FarmerOrders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +30,7 @@ function FarmerOrders() {
 
         setOrders(contracts.map((c) => ({
           id: c.contractCode,
+          contractId: c.id,
           buyer: c.enterprise?.name,
           product: c.product?.name,
           quantity: `${c.quantity} ${c.unit || ''}`.trim(),
@@ -59,7 +62,12 @@ function FarmerOrders() {
         ) : (
           <div className="farmer-order-list">
             {orders.map((item) => (
-              <article className="farmer-order-card" key={item.id}>
+              <article
+                className="farmer-order-card"
+                key={item.id}
+                onClick={() => navigate(`/farmer/contracts/${item.contractId}`)}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="farmer-order-card__icon"><FiTruck /></div>
                 <div className="farmer-order-card__body">
                   <div className="farmer-order-card__head">

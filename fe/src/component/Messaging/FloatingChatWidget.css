@@ -12,8 +12,8 @@
 
 .fcw-bubble {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border: none;
   border-radius: 50%;
   background: #2563eb;
@@ -21,13 +21,14 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.4);
-  transition: transform 0.15s ease, background 0.15s ease;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45), 0 2px 8px rgba(0,0,0,0.12);
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .fcw-bubble:hover {
   background: #1d4ed8;
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.55), 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .fcw-bubble__badge {
@@ -48,15 +49,15 @@
 }
 
 .fcw-panel {
-  width: min(350px, calc(100vw - 32px));
-  height: min(500px, calc(100vh - 120px));
+  width: min(380px, calc(100vw - 32px));
+  height: min(480px, calc(100vh - 120px));
   display: flex;
   flex-direction: column;
   background: #ffffff;
   color: #0f172a;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 18px;
-  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.24);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2), 0 4px 16px rgba(0,0,0,0.08);
   overflow: hidden;
 }
 
@@ -233,29 +234,27 @@
   align-items: flex-end;
 }
 
-.fcw-bubble {
-  /* width:fit-content ep bubble tu co theo noi dung (toi da max-width) thay vi
-     bi flexbox thu nho ve min-content (~do rong 1 tu) khi ket hop voi word-break */
+.fcw-msg-bubble {
   width: fit-content;
   max-width: 78%;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 14px;
   background: #ffffff;
-  color: #0f172a;
+  color: #0f172a; 
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
-.fcw-bubble-row.mine .fcw-bubble {
+.fcw-bubble-row.mine .fcw-msg-bubble {
   background: #2563eb;
   border-color: #2563eb;
   color: #ffffff;
 }
 
-.fcw-bubble p {
+.fcw-msg-bubble p {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 14.5px;
+  line-height: 1.5;
   color: inherit;
   white-space: pre-wrap;
   word-break: break-word;
@@ -345,4 +344,59 @@
   .fcw-panel {
     width: calc(100vw - 24px);
   }
+}
+
+/* Header xanh dương — Enterprise (mặc định) */
+.fcw-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  font-weight: 750;
+  color: #ffffff;
+  font-size: 14.5px;
+}
+
+/* Header xanh lá — Farmer */
+.fcw-header--farmer {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+/* Nút chat xanh lá — Farmer */
+.fcw-bubble--farmer {
+  background: #16a34a;
+  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.45), 0 2px 8px rgba(0,0,0,0.12);
+}
+.fcw-bubble--farmer:hover {
+  background: #15803d;
+  box-shadow: 0 14px 32px rgba(22, 163, 74, 0.55), 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Bubble tin nhắn của mình — Farmer */
+.fcw-bubble-row--farmer.mine .fcw-bubble {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+/* Input focus — Farmer */
+.fcw-panel--farmer .fcw-input input:focus {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+/* Send button — Farmer */
+.fcw-panel--farmer .fcw-input button {
+  background: #16a34a;
+}
+.fcw-panel--farmer .fcw-input button:hover:not(:disabled) {
+  background: #15803d;
+}
+
+/* Avatar — Farmer */
+.fcw-panel--farmer .fcw-avatar {
+  background: #16a34a;
 }

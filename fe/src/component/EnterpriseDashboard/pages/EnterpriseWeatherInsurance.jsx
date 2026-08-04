@@ -226,13 +226,15 @@ export default function EnterpriseWeatherContent() {
   };
 
   const markRead = async (id) => {
+    if (!id) return;
     try {
       await weatherService.markAlertAsRead(id);
-      setAlerts(prev => prev.map(a => a._id === id ? { ...a, isRead: true } : a));
+      setAlerts(prev => prev.map(a => (a._id === id || a.id === id ? { ...a, isRead: true } : a)));
     } catch { /* silent */ }
   };
 
   const markAllRead = async () => {
+    if (!alerts.some(a => !a.isRead)) return;
     try {
       await weatherService.markAllAlertsAsRead();
       setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
@@ -448,9 +450,9 @@ export default function EnterpriseWeatherContent() {
                 <div className="wa-list">
                   {alerts.map(a => (
                     <div
-                      key={a._id}
+                      key={a._id || a.id}
                       className={`wa-item ${a.severity === "critical" ? "weather-critical" : "weather-warning"} ${a.isRead ? "read" : "unread"}`}
-                      onClick={() => !a.isRead && markRead(a._id)}
+                      onClick={() => !a.isRead && markRead(a._id || a.id)}
                     >
                       <div className="wa-item-icon">
                         <span className={`alert-type-icon ${getAlertIconClass(a.alertType)}-icon`} />
@@ -468,6 +470,18 @@ export default function EnterpriseWeatherContent() {
                         <p className="wa-location">
                           {a.location?.province}{a.location?.district ? ` - ${a.location.district}` : ""}
                         </p>
+                      </div>
+                      <div className="wa-actions">
+                        <button
+                          className="wa-read-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!a.isRead) markRead(a._id || a.id);
+                          }}
+                          disabled={a.isRead}
+                        >
+                          {a.isRead ? "Đã đọc" : "Đánh dấu đã đọc"}
+                        </button>
                       </div>
                     </div>
                   ))}

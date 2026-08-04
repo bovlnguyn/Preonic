@@ -1,6 +1,33 @@
 import { Request, Response } from 'express';
 import * as adminService from '../services/admin.service';
+import * as systemLogService from '../services/systemLog.service';
 import { AuthRequest } from '../types';
+
+const safeParseJson = (raw: string | null) => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const formatSystemLogForAdmin = (item: any) => ({
+  id: item.id,
+  category: item.category,
+  action: item.action,
+  level: item.level,
+  message: item.message,
+  user: item.user
+    ? { id: item.user.id, fullName: item.user.fullName, email: item.user.email }
+    : null,
+  targetType: item.targetType,
+  targetId: item.targetId,
+  metadata: safeParseJson(item.metadata),
+  stackTrace: item.stackTrace,
+  ipAddress: item.ipAddress,
+  createdAt: item.createdAt,
+});
 
 const formatDisputeForAdmin = (dispute: any) => ({
   id: dispute.id,
@@ -149,17 +176,19 @@ export const getContractDetail = async (req: Request, res: Response) => {
 
 export const getDisputes = async (req: Request, res: Response) => {
   try {
-    const { page, limit, status } = req.query;
+    const { page, limit, status, search } = req.query;
     const result = await adminService.getDisputes({
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       status: status as string,
+      search: search as string,
     });
 
     res.status(200).json({
       success: true,
       data: result.disputes.map(formatDisputeForAdmin),
       pagination: result.pagination,
+      stats: result.stats,
     });
   } catch (err: any) {
     res.status(err.statusCode || 500).json({
@@ -186,7 +215,8 @@ export const resolveDispute = async (req: AuthRequest, res: Response) => {
     const dispute = await adminService.resolveDispute(
       req.params.id,
       req.body.resolution,
-      req.body.adminNotes
+      req.body.adminNotes,
+      req.user?.id
     );
     res.status(200).json({
       success: true,
@@ -221,6 +251,50 @@ export const getTransactions = async (req: Request, res: Response) => {
     res.status(err.statusCode || 500).json({
       success: false,
       message: err.message || 'Lấy danh sách giao dịch thất bại',
+    });
+  }
+};
+
+export const getSystemLogs = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, category, level, userId, from, to, search } = req.query;
+    const result = await systemLogService.getSystemLogs({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      category: category as string,
+      level: level as string,
+      userId: userId as string,
+      from: from as string,
+      to: to as string,
+      search: search as string,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result.logs.map(formatSystemLogForAdmin),
+      pagination: result.pagination,
+      stats: result.stats,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lấy nhật ký hệ thống thất bại',
+    });
+  }
+};
+
+export const getSystemLogDetail = async (req: Request, res: Response) => {
+  try {
+    const item = await systemLogService.getSystemLogById(Number(req.params.id));
+    if (!item) {
+      res.status(404).json({ success: false, message: 'Không tìm thấy log' });
+      return;
+    }
+    res.status(200).json({ success: true, data: formatSystemLogForAdmin(item) });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lấy chi tiết log thất bại',
     });
   }
 };

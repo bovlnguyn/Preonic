@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/database';
 import { User } from '../models/User.entity';
 import { PaymentTransaction } from '../models/PaymentTransaction.entity';
 import { EscrowTransaction } from '../models/EscrowTransaction.entity';
+import { logAction, logError } from './systemLog.service';
 import crypto from 'crypto';
 
 const userRepo = () => AppDataSource.getRepository(User);
@@ -204,29 +205,54 @@ export const demoTopupWallet = async (
   const balanceAfter = balanceBefore + amount;
   const orderCode = `TOPUP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  const savedTransaction = await AppDataSource.transaction(async (manager) => {
-    user.virtualBalance = balanceAfter;
-    await manager.getRepository(User).save(user);
+  let savedTransaction: PaymentTransaction;
+  try {
+    savedTransaction = await AppDataSource.transaction(async (manager) => {
+      user.virtualBalance = balanceAfter;
+      await manager.getRepository(User).save(user);
 
-    const transaction = manager.getRepository(PaymentTransaction).create({
+      const transaction = manager.getRepository(PaymentTransaction).create({
+        userId: user.id,
+        type: 'topup',
+        amount,
+        status: 'completed',
+        paymentMethod: 'demo',
+        gatewayRef: orderCode,
+        orderCode,
+        description: dto.note?.trim() || 'Nap tien demo vao vi ao',
+        balanceBefore,
+        balanceAfter,
+        metadata: JSON.stringify({
+          source: 'demo_topup',
+          createdBy: user.id,
+        }),
+        completedAt: new Date(),
+      } as Partial<PaymentTransaction>);
+
+      return manager.getRepository(PaymentTransaction).save(transaction);
+    });
+  } catch (err: any) {
+    logError({
+      category: 'payment',
+      action: 'wallet_topup_failed',
+      message: `Loi nap tien vi cho user ${user.email}: ${err.message || err}`,
       userId: user.id,
-      type: 'topup',
-      amount,
-      status: 'completed',
-      paymentMethod: 'demo',
-      gatewayRef: orderCode,
-      orderCode,
-      description: dto.note?.trim() || 'Nap tien demo vao vi ao',
-      balanceBefore,
-      balanceAfter,
-      metadata: JSON.stringify({
-        source: 'demo_topup',
-        createdBy: user.id,
-      }),
-      completedAt: new Date(),
-    } as Partial<PaymentTransaction>);
+      targetType: 'User',
+      targetId: user.id,
+      metadata: { amount, orderCode },
+      error: err,
+    });
+    throw err;
+  }
 
-    return manager.getRepository(PaymentTransaction).save(transaction);
+  logAction({
+    category: 'payment',
+    action: 'wallet_topup',
+    message: `${user.email} nap ${amount.toLocaleString('vi-VN')} VND vao vi (demo)`,
+    userId: user.id,
+    targetType: 'PaymentTransaction',
+    targetId: savedTransaction.id,
+    metadata: { amount, orderCode },
   });
 
   return {

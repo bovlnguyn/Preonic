@@ -34,9 +34,9 @@ const ROLE_CONFIG = {
   guest: {
     home: "/",
     products: "/products",
-    solutions: "/",
-    contact: "/register",
-    ai: "/auth",
+    solutions: "/solutions",
+    contact: "/contact",
+    ai: "/ai-agriculture",
     dashboard: null,
   },
 };
@@ -56,6 +56,7 @@ function FooterLink({ to, children }) {
 function Footer() {
   const { user } = useAuth();
   const role = user?.role || "guest";
+  const themeRole = role === "enterprise" ? "enterprise" : role === "farmer" ? "farmer" : "guest";
   const config = ROLE_CONFIG[role] || ROLE_CONFIG.guest;
   const year = new Date().getFullYear();
 
@@ -70,9 +71,7 @@ function Footer() {
             : "Danh sách sản phẩm",
       path: config.products,
     },
-    ...(role !== "guest"
-      ? [{ label: "Giải pháp", path: config.solutions }]
-      : []),
+    { label: "Giải pháp", path: config.solutions },
     ...(config.dashboard
       ? [{ label: "Dashboard", path: config.dashboard }]
       : []),
@@ -84,6 +83,8 @@ function Footer() {
           { label: "Đăng nhập", path: "/auth" },
           { label: "Đăng ký tài khoản", path: "/register" },
           { label: "Khám phá sản phẩm", path: "/products" },
+          { label: "Liên hệ hỗ trợ", path: config.contact },
+          { label: "AI nông nghiệp", path: config.ai },
         ]
       : [
           { label: "Hồ sơ cá nhân", path: "/profile" },
@@ -95,7 +96,7 @@ function Footer() {
         ];
 
   return (
-    <footer className="preonic-footer">
+    <footer className={`preonic-footer preonic-footer--${themeRole}`}>
       <div className="preonic-footer__ambient preonic-footer__ambient--one" />
       <div className="preonic-footer__ambient preonic-footer__ambient--two" />
 

@@ -62,6 +62,8 @@ function FloatingChatWidget() {
 
   const messagesEndRef = useRef(null);
   const startedPartnerRef = useRef(null);
+  const conversationRequestRef = useRef(false);
+  const messageRequestRef = useRef(false);
 
   const activeConversation = conversations.find((c) => c.id === activeId) || null;
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
@@ -69,25 +71,33 @@ function FloatingChatWidget() {
   const canUseChat = !authLoading && user && CHAT_ROLES.includes(user.role);
 
   const loadConversations = useCallback(async (options = {}) => {
+    if (document.hidden || !navigator.onLine || conversationRequestRef.current) return;
+
+    conversationRequestRef.current = true;
     if (!options.silent) setLoadingConversations(true);
     try {
       const res = await messagingService.listConversations();
       setConversations(res?.data?.conversations || []);
     } catch {
-      // Bo qua loi ngam khi poll
+      // Giữ dữ liệu hiện tại khi poll lỗi; không làm danh sách biến mất.
     } finally {
+      conversationRequestRef.current = false;
       if (!options.silent) setLoadingConversations(false);
     }
   }, []);
 
   const loadMessages = useCallback(async (conversationId, options = {}) => {
+    if (document.hidden || !navigator.onLine || messageRequestRef.current) return;
+
+    messageRequestRef.current = true;
     if (!options.silent) setLoadingMessages(true);
     try {
       const res = await messagingService.listMessages(conversationId, { limit: 50 });
       setMessages(res?.data?.messages || []);
     } catch {
-      if (!options.silent) setMessages([]);
+      // Giữ tin nhắn đã tải khi mạng/DB gián đoạn.
     } finally {
+      messageRequestRef.current = false;
       if (!options.silent) setLoadingMessages(false);
     }
   }, []);
@@ -108,11 +118,13 @@ function FloatingChatWidget() {
 
   // Luon theo doi tong so tin chua doc de hien badge tren bong bong, ke ca khi dong popup
   useEffect(() => {
-    if (!canUseChat) return undefined;
+    // Khi popup mở đã có poll riêng 20s; không chạy thêm poll unread 30s song song.
+    if (!canUseChat || isOpen) return undefined;
+
     loadConversations({ silent: true });
     const timer = setInterval(() => loadConversations({ silent: true }), UNREAD_POLL_MS);
     return () => clearInterval(timer);
-  }, [canUseChat, loadConversations]);
+  }, [canUseChat, isOpen, loadConversations]);
 
   // Khi mo popup: tai lai danh sach hoi thoai (khong silent de hien loading lan dau)
   useEffect(() => {
@@ -193,10 +205,10 @@ function FloatingChatWidget() {
   return (
     <div className="fcw-root">
       {isOpen && (
-        <div className="fcw-panel">
+        <div className={`fcw-panel${user?.role === 'farmer' ? ' fcw-panel--farmer' : ''}`}>
           {!activeConversation ? (
             <>
-              <div className="fcw-header">
+              <div className={`fcw-header${user?.role === 'farmer' ? ' fcw-header--farmer' : ''}`}>
                 <span>Tin nhắn</span>
                 <button type="button" className="fcw-icon-btn" onClick={closeWidget} aria-label="Đóng">
                   <FiX />
@@ -240,7 +252,7 @@ function FloatingChatWidget() {
             </>
           ) : (
             <>
-              <div className="fcw-header">
+              <div className={`fcw-header${user?.role === 'farmer' ? ' fcw-header--farmer' : ''}`}>
                 <button type="button" className="fcw-icon-btn" onClick={backToList} aria-label="Quay lại">
                   <FiArrowLeft />
                 </button>
@@ -263,8 +275,8 @@ function FloatingChatWidget() {
                     const isMine = message.sender?.id === user?.id;
                     return (
                       <div key={message.id} className={`fcw-bubble-row ${isMine ? 'mine' : ''}`}>
-                        <div className="fcw-bubble">
-                          <p>{message.text}</p>
+                        <div className="fcw-msg-bubble">
+                             <p>{message.text}</p>
                         </div>
                         <time className="fcw-bubble-time">{formatMessageTime(message.createdAt)}</time>
                       </div>
@@ -291,7 +303,11 @@ function FloatingChatWidget() {
         </div>
       )}
 
-      <button type="button" className="fcw-bubble" onClick={toggleWidget} aria-label="Tin nhắn">
+      <button
+        type="button"
+        className={`fcw-bubble${user?.role === 'farmer' ? ' fcw-bubble--farmer' : ''}`}
+        onClick={toggleWidget}
+        aria-label="Tin nhắn">
         <FiMessageCircle size={24} />
         {totalUnread > 0 && <span className="fcw-bubble__badge">{totalUnread > 99 ? '99+' : totalUnread}</span>}
       </button>

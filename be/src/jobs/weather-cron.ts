@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { runWeatherCheckForAllUsers, cleanupOldAlerts } from '../services/weather.service';
 import { WEATHER_CRON_SCHEDULE } from '../constants';
 import { createLogger } from '../utils/logger';
+import { logError } from '../services/systemLog.service';
 
 const log = createLogger('WeatherCron');
 
@@ -21,8 +22,14 @@ export async function runWeatherCronJob(): Promise<void> {
     }
 
     log.info(`Completed at ${new Date().toISOString()}`);
-  } catch (error) {
+  } catch (error: any) {
     log.error('Weather cron failed', error);
+    logError({
+      category: 'cron',
+      action: 'weather_cron_failed',
+      message: `Weather cron that bai: ${error?.message ?? error}`,
+      error,
+    });
   }
 }
 

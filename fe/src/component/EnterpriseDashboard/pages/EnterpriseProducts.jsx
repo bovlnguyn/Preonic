@@ -142,7 +142,7 @@ function EnterpriseProducts() {
                 <article
                   className="ent-product-card"
                   key={item.id}
-                  onClick={() => navigate(`/products/${item.id}`)}
+                  onClick={() => navigate(`/enterprise/products/${item.id}`)}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="ent-product-card__top">

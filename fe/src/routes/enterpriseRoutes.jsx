@@ -24,6 +24,7 @@ import EnterpriseCreateContract from '../component/EnterpriseDashboard/pages/Ent
 
 // Dùng chung Farmer/Enterprise
 import ContractDetailView from '../component/ContractDetailView/ContractDetailView';
+import ProductDetail from '../component/ProductDetail/ProductDetail';
 
 const forEnterprise = (element) => (
   <ProtectedRoute allowedRoles={['enterprise']}>{element}</ProtectedRoute>
@@ -33,6 +34,7 @@ const enterpriseRoutes = [
   // Enterprise role website pages - chỉ dành cho enterprise đã đăng nhập
   { path: '/enterprise-home', element: forEnterprise(<EnterpriseHome />) },
   { path: '/enterprise-products', element: forEnterprise(<EnterpriseProductsPage />) },
+  { path: '/enterprise-products/:id', element: forEnterprise(<ProductDetail context="enterprise-site" />) },
   { path: '/enterprise-solutions', element: forEnterprise(<EnterpriseSolutions />) },
   { path: '/enterprise-contact', element: forEnterprise(<EnterpriseContact />) },
   { path: '/enterprise-ai-agriculture', element: forEnterprise(<EnterpriseAI />) },
@@ -47,6 +49,7 @@ const enterpriseRoutes = [
       { path: 'contracts/create', element: <EnterpriseCreateContract /> },
       { path: 'contracts/:id', element: <ContractDetailView /> },
       { path: 'products', element: <EnterpriseProducts /> },
+      { path: 'products/:id', element: <ProductDetail context="enterprise" /> },
       { path: 'orders', element: <EnterpriseOrders /> },
       { path: 'escrow', element: <EnterpriseEscrow /> },
       { path: 'wallet', element: <EnterpriseWallet /> },

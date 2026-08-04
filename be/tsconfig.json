@@ -4,7 +4,7 @@
     "ignoreDeprecations": "6.0",
     "module": "commonjs",
     "lib": ["ES2020"],
-    "types": ["node", "jest"],
+    "types": ["node"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -15,10 +15,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "strictPropertyInitialization": false,
-
-    // CẤU HÌNH ĐÚNG ĐỂ HẾT LỖI TS5101:
-    "baseUrl": "./", 
-     
+    "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"],
       "@config/*": ["src/config/*"],
@@ -30,6 +27,12 @@
       "@utils/*": ["src/utils/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/__tests__/**",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ]
 }

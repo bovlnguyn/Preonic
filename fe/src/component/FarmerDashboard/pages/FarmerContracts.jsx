@@ -5,14 +5,16 @@ import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import EmptyState from '../components/EmptyState';
 import contractService from '../../../services/contract.service';
-import { CONTRACT_STATUS_LABEL } from '../../../constants/contract';
+import { resolveContractStatusLabel } from '../../../constants/contract';
 import { formatDate, formatMoney } from '../utils';
 
 const TABS = [
   { key: 'all',       label: 'Tất cả' },
-  { key: 'pending',   label: 'Chờ xác nhận' },
+  { key: 'pending',   label: 'Chờ ký xác nhận' },
+  { key: 'approved',  label: 'Đã ký — chờ ký quỹ' },
   { key: 'active',    label: 'Đang hiệu lực' },
   { key: 'completed', label: 'Hoàn tất' },
+  { key: 'disputed',  label: 'Tranh chấp' },
   { key: 'cancelled', label: 'Đã hủy' },
 ];
 
@@ -83,7 +85,7 @@ function FarmerContracts() {
                     <td>{item.quantity} {item.unit}</td>
                     <td>{formatMoney(item.totalValue)}</td>
                     <td>{formatDate(item.deliveryDate)}</td>
-                    <td><StatusBadge status={CONTRACT_STATUS_LABEL[item.status] || item.status} /></td>
+                    <td><StatusBadge status={resolveContractStatusLabel(item)} /></td>
                     <td>
                       <div className="farmer-action-group">
                         <button

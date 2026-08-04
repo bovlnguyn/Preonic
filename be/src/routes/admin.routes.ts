@@ -11,6 +11,8 @@ import {
   getDisputeDetail,
   resolveDispute,
   getTransactions,
+  getSystemLogs,
+  getSystemLogDetail,
 } from '../controller/admin.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
 
@@ -33,5 +35,8 @@ router.get('/disputes/:id', getDisputeDetail as RequestHandler);
 router.patch('/disputes/:id/resolve', resolveDispute as RequestHandler);
 
 router.get('/transactions', getTransactions as RequestHandler);
+
+router.get('/system-logs', getSystemLogs as RequestHandler);
+router.get('/system-logs/:id', getSystemLogDetail as RequestHandler);
 
 export default router;

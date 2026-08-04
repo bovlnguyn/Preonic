@@ -405,3 +405,90 @@
     transition: none !important;
   }
 }
+
+/* =========================================================
+   ENTERPRISE THEME
+   Chỉ áp dụng khi người dùng đăng nhập với role enterprise.
+   ========================================================= */
+.preonic-footer--enterprise {
+  --footer-green-deep: #0b2353;
+  --footer-green: #2563eb;
+  --footer-green-soft: #dbeafe;
+  --footer-lime: #7dd3fc;
+  --footer-yellow: #60a5fa;
+  --footer-text: #273b64;
+  --footer-muted: #64748b;
+  --footer-border: #d8e5fb;
+  --footer-card: rgba(255, 255, 255, 0.88);
+
+  color: var(--footer-text);
+  background:
+    radial-gradient(circle at 8% 18%, rgba(96, 165, 250, 0.2), transparent 28%),
+    radial-gradient(circle at 88% 8%, rgba(56, 189, 248, 0.13), transparent 30%),
+    linear-gradient(118deg, #eff6ff 0%, #f8fbff 48%, #eef8ff 100%);
+  border-top-color: rgba(37, 99, 235, 0.16);
+}
+
+.preonic-footer--enterprise::before {
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.03) 1px, transparent 1px);
+}
+
+.preonic-footer--enterprise::after {
+  background: linear-gradient(90deg, transparent, #2563eb, #38bdf8, transparent);
+}
+
+.preonic-footer--enterprise .preonic-footer__ambient--one {
+  background: rgba(96, 165, 250, 0.24);
+}
+
+.preonic-footer--enterprise .preonic-footer__ambient--two {
+  background: rgba(56, 189, 248, 0.17);
+}
+
+.preonic-footer--enterprise .preonic-footer__logo-shell {
+  border-color: rgba(37, 99, 235, 0.18);
+  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.1);
+}
+
+.preonic-footer--enterprise .preonic-footer__description,
+.preonic-footer--enterprise .preonic-footer__contact-list a,
+.preonic-footer--enterprise .preonic-footer__contact-list span,
+.preonic-footer--enterprise .preonic-footer__link-column a {
+  color: #61708d;
+}
+
+.preonic-footer--enterprise .preonic-footer__trust-card {
+  border-color: rgba(37, 99, 235, 0.14);
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.06);
+}
+
+.preonic-footer--enterprise .preonic-footer__trust-card:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: 0 15px 34px rgba(37, 99, 235, 0.1);
+}
+
+.preonic-footer--enterprise .preonic-footer__trust-card > span {
+  color: #0b2353;
+  background: linear-gradient(145deg, #bfdbfe, #7dd3fc);
+  box-shadow: 0 9px 20px rgba(37, 99, 235, 0.16);
+}
+
+.preonic-footer--enterprise .preonic-footer__trust-card small {
+  color: #6b7891;
+}
+
+.preonic-footer--enterprise .preonic-footer__assurance {
+  border-color: rgba(37, 99, 235, 0.15);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.preonic-footer--enterprise .preonic-footer__assurance span {
+  color: #566783;
+}
+
+.preonic-footer--enterprise .preonic-footer__bottom {
+  border-top-color: rgba(37, 99, 235, 0.13);
+  color: #78859b;
+}

@@ -6,6 +6,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { MessagingWidgetProvider } from './contexts/MessagingWidgetContext';
 import FloatingChatWidget from './component/Messaging/FloatingChatWidget';
+import ServiceStatusBanner from './component/Common/ServiceStatusBanner/ServiceStatusBanner';
 
 import AppRoutes from './routes';
 
@@ -17,6 +18,7 @@ const App = () => (
           <AppRoutes />
         </BrowserRouter>
         <FloatingChatWidget />
+        <ServiceStatusBanner />
       </MessagingWidgetProvider>
     </ToastProvider>
   </AuthProvider>

@@ -5,6 +5,7 @@ import { Contract } from '../models/Contract.entity';
 import { Product } from '../models/Product.entity';
 import { User } from '../models/User.entity';
 import { Notification } from '../models/Notification.entity';
+import { logAction } from './systemLog.service';
 
 const toKg = (value: number, unit?: string | null) => value * (UNIT_TO_KG[unit || 'kg'] ?? 1);
 
@@ -199,6 +200,16 @@ export const createContractProposal = async (
 
   const saved = await contractRepo().save(contractRepo().create(contractData));
 
+  logAction({
+    category: 'contract',
+    action: 'contract_created',
+    message: `${enterprise.fullName || enterprise.email} tao de xuat hop dong ${saved.contractCode} voi nong dan ${farmer.fullName || farmer.email}`,
+    userId: enterprise.id,
+    targetType: 'Contract',
+    targetId: saved.id,
+    metadata: { contractCode: saved.contractCode, totalValue },
+  });
+
   return contractRepo().findOne({
     where: { id: saved.id },
     relations: ['product', 'farmer', 'enterprise'],
@@ -209,6 +220,40 @@ const TERMINAL_STATUSES = ['cancelled', 'completed', 'disputed'];
 
 const withRelations = (id: string) =>
   contractRepo().findOne({ where: { id }, relations: ['product', 'farmer', 'enterprise'] });
+
+// Enterprise gui de xuat 'draft' cho Farmer -- tu day Farmer moi thay va ky duoc.
+export const submitContractProposal = async (id: string, enterpriseId: string) => {
+  const contract = await contractRepo().findOne({ where: { id } });
+  if (!contract) throw makeError('Khong tim thay hop dong', 404);
+
+  if (contract.enterpriseId !== enterpriseId) {
+    throw makeError('Ban khong co quyen gui hop dong nay', 403);
+  }
+
+  if (contract.status !== 'draft') {
+    throw makeError('Hop dong da duoc gui truoc do', 400);
+  }
+
+  contract.status = 'pending';
+  contract.updatedBy = enterpriseId;
+  await contractRepo().save(contract);
+
+  await notificationRepo().save(
+    notificationRepo().create({
+      userId: contract.farmerId,
+      type: 'contract_proposal_sent',
+      title: 'De xuat hop dong moi',
+      message: `${contract.enterpriseName || 'Doanh nghiep'} da gui de xuat hop dong ${contract.contractCode} cho ban. Vui long xem va ky xac nhan.`,
+      relatedId: contract.id,
+      relatedModel: 'Contract',
+      severity: 'info',
+      isRead: false,
+      emailSent: false,
+    })
+  );
+
+  return withRelations(id);
+};
 
 export const listContractsForUser = async (
   userId: string,
@@ -233,6 +278,9 @@ export const listContractsForUser = async (
 
   if (role === 'farmer') {
     qb.where('contract.farmerId = :userId', { userId });
+    // Draft = Enterprise dang soan thao, chua gui cho Farmer -- khong duoc thay,
+    // bat ke co truyen status filter hay khong.
+    qb.andWhere("contract.status <> 'draft'");
   } else if (role === 'enterprise') {
     qb.where('contract.enterpriseId = :userId', { userId });
   } else {
@@ -294,6 +342,10 @@ export const getContractForUser = async (id: string, userId: string) => {
   if (contract.farmerId !== userId && contract.enterpriseId !== userId) {
     throw makeError('Ban khong co quyen xem hop dong nay', 403);
   }
+  // Draft = Enterprise dang soan thao, chua gui cho Farmer -- Farmer khong duoc xem.
+  if (contract.status === 'draft' && contract.farmerId === userId) {
+    throw makeError('Khong tim thay hop dong', 404);
+  }
   return contract;
 };
 
@@ -311,6 +363,10 @@ export const signContract = async (id: string, userId: string, role: string) => 
     throw makeError('Hop dong da ket thuc, khong the ky');
   }
 
+  if (isFarmer && contract.status === 'draft') {
+    throw makeError('Hop dong chua duoc gui de xac nhan', 400);
+  }
+
   if (isFarmer) {
     if (contract.signedByFarmer) throw makeError('Ban da ky hop dong nay roi');
     contract.signedByFarmer = true;
@@ -322,9 +378,9 @@ export const signContract = async (id: string, userId: string, role: string) => 
     contract.signedByEnterprise = true;
   }
 
-  const becameActive = contract.signedByFarmer && contract.signedByEnterprise;
-  if (becameActive) {
-    contract.status = 'active';
+  const bothSigned = contract.signedByFarmer && contract.signedByEnterprise;
+  if (bothSigned) {
+    contract.status = 'approved';
     contract.signedAt = new Date();
   } else {
     contract.status = 'pending';
@@ -339,10 +395,10 @@ export const signContract = async (id: string, userId: string, role: string) => 
   await notificationRepo().save(
     notificationRepo().create({
       userId: partnerId,
-      type: becameActive ? 'contract_signed' : 'contract_sign_pending',
-      title: becameActive ? 'Hop dong da co hieu luc' : 'Hop dong cho ban xac nhan ky',
-      message: becameActive
-        ? `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Hop dong chinh thuc co hieu luc.`
+      type: bothSigned ? 'contract_signed' : 'contract_sign_pending',
+      title: bothSigned ? 'Hop dong da duoc ky du hai ben' : 'Hop dong cho ban xac nhan ky',
+      message: bothSigned
+        ? `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Hop dong da duoc ky du hai ben, dang cho Doanh nghiep khoa ky quy de chinh thuc co hieu luc.`
         : `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Vui long xac nhan ky de hop dong co hieu luc.`,
       relatedId: contract.id,
       relatedModel: 'Contract',
@@ -406,9 +462,12 @@ export const cancelContract = async (
 
   contract.updatedBy = userId;
 
-  // Hop dong da active (ca 2 ben da ky) -- can ben con lai xac nhan moi huy chinh thuc.
-  // Hop dong chua active (draft/pending/approved) -- chua co rang buoc, huy ngay khong can xac nhan.
-  if (contract.status === 'active') {
+  // Hop dong da approved (ca 2 ben da ky nhung chua khoa ky quy) -- can ben con lai
+  // xac nhan moi huy chinh thuc. Hop dong chua approved (draft/pending) -- chua co
+  // rang buoc, huy ngay khong can xac nhan. Hop dong active (da khoa ky quy) khong
+  // the huy truc tiep o day -- bi chan boi guard escrowStatus==='funded' phia tren,
+  // phai xu ly qua dispute de dam bao tien trong escrow duoc giai quyet dung.
+  if (contract.status === 'approved') {
     contract.status = 'cancel_pending';
     contract.cancelReason = reason;
     contract.cancelRequestedBy = userId;
@@ -500,7 +559,7 @@ export const confirmCancelContract = async (id: string, userId: string, role: st
   return withRelations(id);
 };
 
-// Ben khong yeu cau huy tu choi -- hop dong quay lai 'active' nhu cu.
+// Ben khong yeu cau huy tu choi -- hop dong quay lai 'approved' nhu cu.
 export const declineCancelContract = async (id: string, userId: string, role: string) => {
   const contract = await contractRepo().findOne({ where: { id } });
   if (!contract) throw makeError('Khong tim thay hop dong', 404);
@@ -522,7 +581,7 @@ export const declineCancelContract = async (id: string, userId: string, role: st
   const requesterId = contract.cancelRequestedBy;
   const declinerName = isFarmer ? contract.farmerName : contract.enterpriseName;
 
-  contract.status = 'active';
+  contract.status = 'approved';
   contract.cancelReason = null as any;
   contract.cancelRequestedBy = null as any;
   contract.updatedBy = userId;
@@ -557,6 +616,9 @@ export const rejectContract = async (id: string, userId: string, reason?: string
   if (TERMINAL_STATUSES.includes(contract.status)) {
     throw makeError('Hop dong da ket thuc, khong the tu choi');
   }
+  if (contract.status === 'draft') {
+    throw makeError('Hop dong chua duoc gui de xac nhan', 400);
+  }
   if (contract.signedByFarmer) {
     throw makeError('Ban da ky hop dong nay, khong the tu choi');
   }
@@ -571,15 +633,17 @@ export const rejectContract = async (id: string, userId: string, reason?: string
 
 };
 
-// Dung cho cron job: hop dong con 'draft' (nong dan chua ky) qua han
-// CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS ke tu ngay tao thi tu dong chuyen 'cancelled'.
+// Dung cho cron job: hop dong da gui cho Farmer ('pending') nhung Farmer chua ky
+// qua han CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS ke tu ngay tao thi tu dong
+// chuyen 'cancelled'. Hop dong con 'draft' (Enterprise chua gui) khong tinh vao day
+// vi Farmer chua he thay/hanh dong duoc tren hop dong do.
 export const expireUnsignedContracts = async () => {
   const deadline = new Date(
     Date.now() - CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS * 24 * 60 * 60 * 1000
   );
 
   const expiredContracts = await contractRepo().find({
-    where: { status: 'draft', signedByFarmer: false, createdAt: LessThan(deadline) },
+    where: { status: 'pending', signedByFarmer: false, createdAt: LessThan(deadline) },
   });
 
   for (const contract of expiredContracts) {
