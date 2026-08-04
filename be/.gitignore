@@ -42,18 +42,9 @@ fe/dist/
 
 # ═══════════════════════════════════════════════════════════
 # UPLOADS — file do người dùng upload (ảnh SP, chứng chỉ, avatar)
-# Chỉ giữ lại cấu trúc thư mục (.gitkeep), không commit file thật
+# Backend lưu trực tiếp trên đĩa cục bộ (không có S3/Cloudinary),
+# nên các file này PHẢI được commit để cả nhóm đồng bộ khi pull code.
 # ═══════════════════════════════════════════════════════════
-uploads/*
-!uploads/.gitkeep
-!uploads/products/
-!uploads/avatars/
-
-uploads/products/*
-!uploads/products/.gitkeep
-
-uploads/avatars/*
-!uploads/avatars/.gitkeep
 # ═══════════════════════════════════════════════════════════
 # LOGS
 # ═══════════════════════════════════════════════════════════
