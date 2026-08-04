@@ -248,7 +248,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const avatarFile = (req as any).file as Express.Multer.File | undefined;
     const dto = avatarFile
-      ? { ...req.body, avatar: `/uploads/avatars/${avatarFile.filename}` }
+      ? { ...req.body, avatar: avatarFile.path }
       : req.body;
     const user = await authService.updateProfile(req.user!.id, dto);
     res.status(200).json({

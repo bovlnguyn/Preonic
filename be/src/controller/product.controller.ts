@@ -9,9 +9,7 @@ const parseUploadedFiles = (req: AuthRequest) => {
     certifications?: Express.Multer.File[];
   } | undefined;
 
-  const imagePaths = (files?.images || []).map(
-    f => `/uploads/products/${f.filename}`
-  );
+  const imagePaths = (files?.images || []).map(f => f.path);
 
   const certFiles = files?.certifications || [];
 
@@ -26,9 +24,7 @@ const parseUploadedFiles = (req: AuthRequest) => {
 
   const certifications = certNames.map((value, index) => ({
     value,
-    fileUrl: certFiles[index]
-      ? `/uploads/products/${certFiles[index].filename}`
-      : undefined,
+    fileUrl: certFiles[index]?.path,
   }));
 
   let commitments: string[] = [];
