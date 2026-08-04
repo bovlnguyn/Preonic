@@ -196,7 +196,11 @@ function Header() {
     navigate(path);
   };
 
-  const requestLogout = () => {
+  const requestLogout = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    // Chỉ mở hộp xác nhận. Tuyệt đối không gọi logout tại đây.
     setAccountOpen(false);
     setOpen(false);
     setLogoutConfirmOpen(true);

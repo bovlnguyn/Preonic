@@ -1301,3 +1301,42 @@
     order: 2;
   }
 }
+
+
+/* =========================================================
+   FINAL HEADER CONTROL ALIGNMENT
+   Đồng bộ chiều cao nút Dashboard và thẻ tài khoản.
+   ========================================================= */
+.preonic-header__actions {
+  --preonic-header-control-height: 50px;
+  align-items: center;
+}
+
+.preonic-header__dashboard,
+.preonic-header__account-trigger {
+  height: var(--preonic-header-control-height);
+  border-radius: 16px;
+}
+
+.preonic-header__dashboard {
+  min-width: 158px;
+  padding-inline: 22px;
+  font-size: 15px;
+}
+
+.preonic-header__dashboard svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 1260px) and (min-width: 981px) {
+  .preonic-header__dashboard {
+    min-width: 50px;
+    width: 50px;
+    padding: 0;
+  }
+
+  .preonic-header__dashboard span {
+    display: none;
+  }
+}
