@@ -2,39 +2,46 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiCreditCard, FiFileText, FiLayers, FiPlus, FiStar } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
-import StatCard     from '../components/StatCard';
-import StatusBadge  from '../components/StatusBadge';
-import ProgressBar  from '../components/ProgressBar';
+import StatCard from '../components/StatCard';
+import StatusBadge from '../components/StatusBadge';
+import ProgressBar from '../components/ProgressBar';
 import { useState, useEffect } from 'react';
 import contractService from '../../../services/contract.service';
 import { formatDate, formatMoney } from '../utils';
 
 const STAT_ICONS = {
-  'total-contracts':  FiFileText,
+  'total-contracts': FiFileText,
   'active-contracts': FiLayers,
-  'escrow-locked':    FiCreditCard,
-  reputation:         FiStar,
+  'escrow-locked': FiCreditCard,
+  reputation: FiStar,
 };
 
 function EnterpriseOverview() {
   const navigate = useNavigate();
-  const [stats, setStats]             = useState([]);
-const [contracts, setContracts]     = useState([]);
-const [orders, setOrders]           = useState([]);
-const [loading, setLoading]         = useState(true);
+  const [stats] = useState([]);
+  const [contracts, setContracts] = useState([]);
+  const [contractSummary, setContractSummary] = useState({
+    totalContracts: 0,
+    totalContractValue: 0,
+  });
+  const [orders] = useState([]);
 
-useEffect(() => {
-  Promise.all([
-    contractService.list(),
-    // Khi có API orders: orderService.list()
-  ])
-    .then(([contractsRes]) => {
-  const list = contractsRes?.data?.contracts;
-  setContracts(Array.isArray(list) ? list : []);
-    })
-    .catch(() => {})
-    .finally(() => setLoading(false));
-}, []);
+  useEffect(() => {
+    Promise.all([
+      contractService.list(undefined, { limit: 100 }),
+      contractService.summary(),
+      // Khi có API orders: orderService.list()
+    ])
+      .then(([contractsRes, summaryRes]) => {
+        const list = contractsRes?.data?.contracts;
+        setContracts(Array.isArray(list) ? list : []);
+        setContractSummary(summaryRes?.data?.summary || {
+          totalContracts: 0,
+          totalContractValue: 0,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="ent-stack">
@@ -59,8 +66,12 @@ useEffect(() => {
         </div>
         <div className="ent-hero-card__panel">
           <span>Tổng giá trị hợp đồng</span>
-          <strong>{formatMoney(1950000000)}</strong>
-          <p>Từ 8 hợp đồng đang thực hiện và 3 đơn hàng đang xử lý.</p>
+          <strong>{formatMoney(contractSummary.totalContractValue)}</strong>
+          <p>
+            {contractSummary.totalContracts > 0
+              ? `Từ ${contractSummary.totalContracts} hợp đồng chưa hủy.`
+              : 'Chưa có hợp đồng nào trong hệ thống.'}
+          </p>
         </div>
       </section>
 
@@ -91,7 +102,7 @@ useEffect(() => {
               <article key={c.id} className="ent-mini-item">
                 <div>
                   <strong>{c.id} — {c.product?.name}</strong>
-                    <span>{c.farmer?.name} • {formatMoney(c.totalValue)} • {formatDate(c.deliveryDate)}</span>
+                  <span>{c.farmer?.name} • {formatMoney(c.totalValue)} • {formatDate(c.deliveryDate)}</span>
                   <ProgressBar value={c.progress} />
                 </div>
                 <StatusBadge status={c.status} />

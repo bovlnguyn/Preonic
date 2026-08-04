@@ -3,6 +3,7 @@ import {
   createContract,
   submitContract,
   listContracts,
+  getContractSummary,
   getContract,
   signContract,
   rejectContract,
@@ -22,6 +23,7 @@ router.post(
 );
 
 router.get('/', protect as RequestHandler, listContracts as RequestHandler);
+router.get('/summary', protect as RequestHandler, getContractSummary as RequestHandler);
 router.get('/:id', protect as RequestHandler, getContract as RequestHandler);
 
 router.post(

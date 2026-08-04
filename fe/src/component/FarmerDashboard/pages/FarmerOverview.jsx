@@ -7,6 +7,7 @@ import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
 import { farmerContracts, farmerStats, farmerOrders } from '../../../data/farmer';
 import { useEffect, useState } from 'react';
+import contractService from '../../../services/contract.service';
 import farmerService from '../../../services/farmer.service';
 import { formatDate, formatMoney } from '../utils';
 
@@ -21,12 +22,28 @@ function FarmerOverview() {
   };
 
   const [cropProducts, setCropProducts] = useState([]);
+  const [contractSummary, setContractSummary] = useState({
+    totalContracts: 0,
+    totalContractValue: 0,
+  });
 
-useEffect(() => {
-  farmerService.getMyCrops()
-    .then(setCropProducts)
-    .catch(() => setCropProducts([]));
-}, []);
+  useEffect(() => {
+    Promise.all([
+      farmerService.getMyCrops(),
+      contractService.summary(),
+    ])
+      .then(([crops, summaryRes]) => {
+        setCropProducts(Array.isArray(crops) ? crops : []);
+        setContractSummary(summaryRes?.data?.summary || {
+          totalContracts: 0,
+          totalContractValue: 0,
+        });
+      })
+      .catch(() => {
+        setCropProducts([]);
+        setContractSummary({ totalContracts: 0, totalContractValue: 0 });
+      });
+  }, []);
 
   return (
     <div className="farmer-stack">
@@ -48,8 +65,12 @@ useEffect(() => {
         </div>
         <div className="farmer-hero-card__panel">
           <span>Doanh thu dự kiến</span>
-          <strong>{formatMoney(812400000)}</strong>
-          <p>Đến từ 5 hợp đồng đang hiệu lực và 3 đơn hàng đang xử lý.</p>
+          <strong>{formatMoney(contractSummary.totalContractValue)}</strong>
+          <p>
+            {contractSummary.totalContracts > 0
+              ? `Đến từ ${contractSummary.totalContracts} hợp đồng chưa hủy.`
+              : 'Chưa có hợp đồng tạo doanh thu.'}
+          </p>
         </div>
       </section>
 

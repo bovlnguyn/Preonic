@@ -30,6 +30,18 @@ const contractService = {
   },
 
   /**
+   * Get user's contract summary
+   */
+  summary: async () => {
+    try {
+      const response = await api.get('/contracts/summary');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Lấy tổng quan hợp đồng thất bại' };
+    }
+  },
+
+  /**
    * Get contract by ID
    */
   getById: async (id) => {
