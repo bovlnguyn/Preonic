@@ -336,6 +336,35 @@ export const listContractsForUser = async (
   };
 };
 
+export const getContractSummaryForUser = async (
+  userId: string,
+  role: string
+) => {
+  const qb = contractRepo()
+    .createQueryBuilder('contract')
+    .select('COUNT(contract.id)', 'totalContracts')
+    .addSelect('COALESCE(SUM(contract.totalValue), 0)', 'totalContractValue');
+
+  if (role === 'farmer') {
+    qb.where('contract.farmerId = :userId', { userId });
+    qb.andWhere("contract.status NOT IN (:...excludedStatuses)", {
+      excludedStatuses: ['draft', 'cancelled'],
+    });
+  } else if (role === 'enterprise') {
+    qb.where('contract.enterpriseId = :userId', { userId });
+    qb.andWhere("contract.status <> 'cancelled'");
+  } else {
+    throw makeError('Vai tro nguoi dung khong hop le', 403);
+  }
+
+  const summary = await qb.getRawOne();
+
+  return {
+    totalContracts: Number(summary?.totalContracts || 0),
+    totalContractValue: Number(summary?.totalContractValue || 0),
+  };
+};
+
 export const getContractForUser = async (id: string, userId: string) => {
   const contract = await withRelations(id);
   if (!contract) throw makeError('Khong tim thay hop dong', 404);

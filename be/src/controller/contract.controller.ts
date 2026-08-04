@@ -160,6 +160,27 @@ export const listContracts = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getContractSummary = async (req: AuthRequest, res: Response) => {
+  try {
+    const summary = await contractService.getContractSummaryForUser(
+      req.user!.id,
+      req.user!.role
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary,
+      },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lay tong quan hop dong that bai',
+    });
+  }
+};
+
 export const getContract = async (req: AuthRequest, res: Response) => {
   try {
     const contract = await contractService.getContractForUser(req.params.id, req.user!.id);
