@@ -41,19 +41,16 @@ fe/build/
 fe/dist/
 
 # ═══════════════════════════════════════════════════════════
-# UPLOADS — file do người dùng upload (ảnh SP, chứng chỉ, avatar)
-# Chỉ giữ lại cấu trúc thư mục (.gitkeep), không commit file thật
+# UPLOADS — ảnh upload mới đã chuyển sang Cloudinary (be/src/config/cloudinary.ts).
+# Các file cũ (đã commit trước khi có Cloudinary) vẫn giữ nguyên vì sản phẩm/
+# tài khoản tạo trước đó đang tham chiếu tới đường dẫn local này.
+# Ignore để chặn file MỚI phát sinh cục bộ (chạy code cũ, test thủ công...)
+# vô tình bị commit lại, tránh phình repo.
 # ═══════════════════════════════════════════════════════════
-uploads/*
-!uploads/.gitkeep
-!uploads/products/
-!uploads/avatars/
-
 uploads/products/*
-!uploads/products/.gitkeep
-
 uploads/avatars/*
-!uploads/avatars/.gitkeep
+uploads/disputes/*
+
 # ═══════════════════════════════════════════════════════════
 # LOGS
 # ═══════════════════════════════════════════════════════════
