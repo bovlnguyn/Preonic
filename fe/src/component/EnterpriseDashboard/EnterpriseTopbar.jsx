@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
+import { resolveImageUrl } from '../../services/product.service';
 import NotificationBell from '../Notifications/NotificationBell';
 import { getInitials } from './utils';
 
 function EnterpriseTopbar() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const entName = user?.fullName || user?.name || 'Doanh nghiệp PreOnic';
+  const [avatarError, setAvatarError] = useState(false);
+
+  const entName =
+    user?.fullName ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+    user?.companyName ||
+    'Doanh nghiệp PreOnic';
+  const avatarUrl = resolveImageUrl(user?.avatar);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatar]);
 
   return (
     <header className="ent-topbar">
@@ -26,11 +38,24 @@ function EnterpriseTopbar() {
         <button
           type="button"
           className="ent-profile-chip"
-          title={entName}
+          title={`Mở hồ sơ của ${entName}`}
           onClick={() => navigate('/profile')}
         >
-          <span>{getInitials(entName)}</span>
-          <strong>{entName}</strong>
+          <span className="ent-profile-chip__avatar" aria-hidden="true">
+            {avatarUrl && !avatarError ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              getInitials(entName)
+            )}
+          </span>
+          <span className="ent-profile-chip__copy">
+            <small>Xin chào</small>
+            <strong>{entName}</strong>
+          </span>
         </button>
       </div>
     </header>
