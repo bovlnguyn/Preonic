@@ -50,6 +50,60 @@ function formatHarvest(item) {
   return "Chưa cập nhật";
 }
 
+function getProductImageUrl(item) {
+  const candidates = [];
+
+  if (item?.image) candidates.push(item.image);
+
+  if (Array.isArray(item?.images)) {
+    candidates.push(...item.images);
+  } else if (typeof item?.images === "string" && item.images.trim()) {
+    try {
+      const parsed = JSON.parse(item.images);
+      if (Array.isArray(parsed)) candidates.push(...parsed);
+    } catch {
+      candidates.push(item.images);
+    }
+  }
+
+  const firstValidPath = candidates.find(
+    (path) => typeof path === "string" && path.trim()
+  );
+
+  return resolveImageUrl(firstValidPath?.trim());
+}
+
+function ProductCardImage({ item }) {
+  const imageUrl = getProductImageUrl(item);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [imageUrl]);
+
+  const showImage = Boolean(imageUrl) && !imageError;
+
+  return (
+    <div className={`ep-product-card__image ${showImage ? "has-image" : "is-fallback"}`}>
+      {showImage ? (
+        <img
+          src={imageUrl}
+          alt={item?.name || "Nông sản"}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        <div className="ep-product-card__image-fallback">
+          <FiPackage />
+          <strong>{item?.name || "Nông sản"}</strong>
+          <span>{CATEGORY_LABEL[item?.category] || item?.category || "Nguồn cung PreOnic"}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EnterpriseProducts() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
@@ -157,7 +211,6 @@ function EnterpriseProducts() {
               <div className="ep-empty">Không tìm thấy nguồn cung phù hợp.</div>
             ) : (
               products.map((item, index) => {
-                const image = resolveImageUrl(item.image);
                 return (
                   <motion.article
                     className="ep-product-card"
@@ -167,16 +220,7 @@ function EnterpriseProducts() {
                     viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.45, delay: index * 0.04 }}
                   >
-                    <div className="ep-product-card__image">
-                      {image ? (
-                        <img src={image} alt={item.name} />
-                      ) : (
-                        <>
-                          <FiPackage />
-                          <span>{CATEGORY_LABEL[item.category] || item.category}</span>
-                        </>
-                      )}
-                    </div>
+                    <ProductCardImage item={item} />
 
                     <div className="ep-product-card__body">
                       <div className="ep-product-card__top">

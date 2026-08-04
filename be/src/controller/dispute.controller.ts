@@ -28,7 +28,7 @@ const getUploadedEvidenceFiles = (files: any) => {
   if (!Array.isArray(evidenceFiles)) return [];
 
   return evidenceFiles.map((file: Express.Multer.File) => ({
-    fileUrl: `/uploads/disputes/${file.filename}`,
+    fileUrl: file.path,
     fileType: file.mimetype,
   }));
 };
