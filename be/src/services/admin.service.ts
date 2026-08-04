@@ -9,6 +9,7 @@ import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { EscrowTransaction } from '../models/EscrowTransaction.entity';
 import { Notification } from '../models/Notification.entity';
 import { AppError } from '../middlewares/error.middleware';
+import { logAction } from './systemLog.service';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const contractRepo = () => AppDataSource.getRepository(Contract);
@@ -289,7 +290,7 @@ export interface AdminDisputeFilters {
   limit?: number;
 }
 
-const DISPUTE_STATUSES = ['open', 'under_review', 'resolved_farmer', 'resolved_enterprise', 'closed'];
+const DISPUTE_STATUSES = ['open', 'under_review', 'resolved', 'closed'];
 
 export const getDisputes = async (filters: AdminDisputeFilters = {}) => {
   const page = Number(filters.page) || 1;
@@ -362,7 +363,8 @@ const RESOLVABLE_DISPUTE_STATUSES = ['open', 'under_review'];
 export const resolveDispute = async (
   disputeId: string,
   resolution: string,
-  adminNotes?: string
+  adminNotes?: string,
+  adminId?: string
 ) => {
   if (resolution !== 'farmer' && resolution !== 'enterprise') {
     throw new AppError('Phán quyết không hợp lệ', 400);
@@ -467,7 +469,7 @@ export const resolveDispute = async (
       }
     }
 
-    dispute.status = resolution === 'farmer' ? 'resolved_farmer' : 'resolved_enterprise';
+    dispute.status = 'resolved';
     dispute.resolution = resolution;
     dispute.adminNotes = adminNotes?.trim() || dispute.adminNotes;
     dispute.resolvedAt = now;
@@ -502,6 +504,16 @@ export const resolveDispute = async (
         emailSent: false,
       }),
     ]);
+  });
+
+  logAction({
+    category: 'dispute',
+    action: 'dispute_resolved',
+    message: `Admin da giai quyet tranh chap ${disputeId} (hop dong ${contract.contractCode}) nghieng ve ${resolution === 'farmer' ? 'nong dan' : 'doanh nghiep'}`,
+    userId: adminId,
+    targetType: 'Dispute',
+    targetId: disputeId,
+    metadata: { resolution, contractCode: contract.contractCode, adminNotes },
   });
 
   return getDisputeDetail(disputeId);

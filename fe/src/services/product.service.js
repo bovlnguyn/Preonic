@@ -61,6 +61,11 @@ const productService = {
     return response.data;
   },
 
+  getReviewEligibility: async (id) => {
+    const response = await api.get(`/products/${id}/reviews/eligibility`);
+    return response.data;
+  },
+
   addReview: async (id, { rating, text }) => {
     const response = await api.post(`/products/${id}/reviews`, { rating, text });
     return response.data;

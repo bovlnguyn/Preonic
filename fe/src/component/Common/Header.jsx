@@ -79,6 +79,7 @@ function Header() {
   const dashboardPath = isLoggedIn ? ROLE_DASHBOARD_PATH[role] : null;
   const roleLabel = ROLE_LABEL[role] || "Dashboard";
   const tagline = isLoggedIn ? ROLE_TAGLINE[role] || "Nông nghiệp số" : "Nông nghiệp số";
+  const themeRole = role === "enterprise" ? "enterprise" : role === "farmer" ? "farmer" : "guest";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 24);
@@ -106,12 +107,22 @@ function Header() {
 
   const isActive = (itemPath) => {
     if (itemPath === "/") return location.pathname === "/";
-    return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
+
+    const isLegacyEnterpriseProductDetail =
+      role === "enterprise" &&
+      itemPath === "/enterprise-products" &&
+      location.pathname.startsWith("/products/");
+
+    return (
+      isLegacyEnterpriseProductDetail ||
+      location.pathname === itemPath ||
+      location.pathname.startsWith(`${itemPath}/`)
+    );
   };
 
   return (
     <motion.header
-      className={`preonic-header ${scrolled ? "preonic-header--scrolled" : ""}`}
+      className={`preonic-header preonic-header--${themeRole} ${scrolled ? "preonic-header--scrolled" : ""}`}
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.55, ease: "easeOut" }}

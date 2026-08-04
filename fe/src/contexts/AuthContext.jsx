@@ -37,12 +37,15 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.setItem(ACCESS_TOKEN, accessToken);
   };
 
-  const logout = async () => {
-    try { await authService.logout(); } catch {}
-    // ← Đảm bảo xóa localStorage dù API có lỗi
+  const logout = () => {
+    // Cập nhật UI ngay, không chờ API/SQL Server.
     sessionStorage.removeItem(ACCESS_TOKEN);
     sessionStorage.removeItem(USER);
+    localStorage.removeItem(ACCESS_TOKEN);
+    localStorage.removeItem(USER);
     setUser(null);
+
+    void authService.logout();
   };
 
   return (

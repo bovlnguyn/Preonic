@@ -218,7 +218,23 @@ console.log('lockUntil > now:', lockUntil && new Date(lockUntil) > new Date());
 // ĐĂNG XUẤT
 // ══════════════════════════════════════════
 export const logout = async (userId: string) => {
-  await repo().update({ id: userId }, { refreshToken: undefined });
+  await repo().update({ id: userId }, { refreshToken: null as any });
+};
+
+// Đăng xuất từ refresh-token cookie mà không cần access token còn hạn.
+// ignoreExpiration chỉ phục vụ thu hồi phiên khi logout; chữ ký token vẫn phải hợp lệ.
+export const logoutByRefreshToken = async (token: string) => {
+  if (!token || !process.env.JWT_REFRESH_SECRET) return;
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET, {
+      ignoreExpiration: true,
+    }) as { id?: string };
+
+    if (decoded?.id) await logout(decoded.id);
+  } catch {
+    // Cookie sai/đã hỏng vẫn được xóa ở controller; không biến logout thành lỗi.
+  }
 };
 
 // ══════════════════════════════════════════

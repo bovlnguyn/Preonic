@@ -590,3 +590,163 @@
     padding: 0 14px;
   }
 }
+/* =========================================================
+   ENTERPRISE THEME
+   Farmer và guest tiếp tục dùng bảng màu xanh lá mặc định.
+   ========================================================= */
+.preonic-header--enterprise {
+  --header-green: #38bdf8;
+  --header-green-dark: #2563eb;
+  --header-green-deep: #071a3d;
+  --header-lime: #93c5fd;
+  --header-gold: #fbbf24;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 18, 47, 0.99),
+      rgba(16, 76, 155, 0.95) 48%,
+      rgba(5, 24, 61, 0.99)
+    ),
+    radial-gradient(circle at 76% 0%, rgba(56, 189, 248, 0.2), transparent 34%),
+    linear-gradient(135deg, #050f2b 0%, #0b326d 48%, #061733 100%);
+  box-shadow: 0 12px 38px rgba(2, 20, 54, 0.3);
+}
+
+.preonic-header--enterprise.preonic-header--scrolled {
+  box-shadow: 0 16px 46px rgba(2, 20, 54, 0.38);
+}
+
+.preonic-header--enterprise .preonic-header__bg::after {
+  background:
+    radial-gradient(100% 76% at 18% 100%, rgba(37, 99, 235, 0.31), transparent 64%),
+    radial-gradient(95% 76% at 78% 100%, rgba(56, 189, 248, 0.24), transparent 66%);
+}
+
+.preonic-header--enterprise .preonic-header__logo-shell {
+  border-color: rgba(125, 211, 252, 0.36);
+  box-shadow:
+    0 12px 28px rgba(2, 20, 54, 0.32),
+    0 0 0 5px rgba(56, 189, 248, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.preonic-header--enterprise .preonic-header__logo-shell::after {
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.preonic-header--enterprise .preonic-header__logo-glow {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.preonic-header--enterprise .preonic-header__brand-name {
+  color: #7dd3fc;
+  text-shadow: 0 2px 16px rgba(56, 189, 248, 0.34);
+}
+
+.preonic-header--enterprise .preonic-header__brand-tagline,
+.preonic-header--enterprise .preonic-header__link {
+  color: rgba(219, 234, 254, 0.9);
+}
+
+.preonic-header--enterprise .preonic-header__link:hover,
+.preonic-header--enterprise .preonic-header__link.active {
+  color: #7dd3fc;
+}
+
+.preonic-header--enterprise .preonic-header__link::after {
+  background: linear-gradient(90deg, #38bdf8, #60a5fa);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.56);
+}
+
+.preonic-header--enterprise .preonic-header__link--ai {
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.2);
+  border-color: rgba(125, 211, 252, 0.32);
+}
+
+.preonic-header--enterprise .preonic-header__link--ai:hover,
+.preonic-header--enterprise .preonic-header__link--ai.active {
+  color: #ffffff;
+  background: rgba(37, 99, 235, 0.34);
+  border-color: rgba(125, 211, 252, 0.58);
+}
+
+.preonic-header--enterprise .preonic-header__ai-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.78);
+}
+
+.preonic-header--enterprise .preonic-header__dashboard {
+  color: #dbeafe;
+  border-color: rgba(125, 211, 252, 0.3);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 10px 24px rgba(2, 20, 54, 0.28);
+}
+
+.preonic-header--enterprise .preonic-header__dashboard:hover {
+  color: #ffffff;
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(125, 211, 252, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 14px 34px rgba(2, 20, 54, 0.38);
+}
+
+.preonic-header--enterprise .preonic-header__login,
+.preonic-header--enterprise .preonic-header__register {
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+  border-color: rgba(125, 211, 252, 0.45);
+  box-shadow:
+    0 10px 28px rgba(37, 99, 235, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.preonic-header--enterprise .preonic-header__login:hover,
+.preonic-header--enterprise .preonic-header__register:hover {
+  background: linear-gradient(135deg, #1d4ed8, #0369a1);
+  box-shadow:
+    0 14px 34px rgba(37, 99, 235, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.preonic-header--enterprise .preonic-header__toggle {
+  border-color: rgba(125, 211, 252, 0.34);
+  background: rgba(2, 20, 54, 0.38);
+}
+
+.preonic-header--enterprise .preonic-header__toggle span {
+  background: #dbeafe;
+}
+
+.preonic-header--enterprise .preonic-header__mobile {
+  background: linear-gradient(180deg, rgba(5, 18, 47, 0.995), rgba(7, 34, 78, 0.995));
+  border-top-color: rgba(125, 211, 252, 0.24);
+}
+
+.preonic-header--enterprise .preonic-header__mobile-inner > button {
+  color: #dbeafe;
+  border-color: rgba(125, 211, 252, 0.19);
+}
+
+.preonic-header--enterprise .preonic-header__mobile-inner > button.active {
+  color: #7dd3fc;
+  background: rgba(37, 99, 235, 0.2);
+}
+
+.preonic-header--enterprise .preonic-header__mobile-inner > button.mobile-ai {
+  color: #e0f2fe;
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(37, 99, 235, 0.16);
+}
+
+.preonic-header--enterprise .preonic-header__mobile-actions button {
+  border-color: rgba(125, 211, 252, 0.28);
+}
+
+.preonic-header--enterprise .preonic-header__mobile-actions button:first-child,
+.preonic-header--enterprise .preonic-header__mobile-actions button:last-child {
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+}

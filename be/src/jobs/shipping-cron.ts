@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { createLogger } from '../utils/logger';
 import { remindPendingQualityChecks } from '../services/escrow.service';
+import { logError } from '../services/systemLog.service';
 
 const log = createLogger('ShippingCron');
 
@@ -15,6 +16,12 @@ export const startShippingCron = () => {
       }
     } catch (err: any) {
       log.error('Loi khi chay job nhac kiem tra chat luong:', err?.message ?? err);
+      logError({
+        category: 'cron',
+        action: 'shipping_reminder_cron_failed',
+        message: `Job nhac kiem tra chat luong that bai: ${err?.message ?? err}`,
+        error: err,
+      });
     }
   });
 

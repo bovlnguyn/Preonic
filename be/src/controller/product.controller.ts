@@ -278,6 +278,25 @@ export const getReviews = async (req: Request, res: Response) => {
 };
 
 // ══════════════════════════════════════════
+// GET /products/:id/reviews/eligibility — enterprise hiện tại có được đánh giá không
+// ══════════════════════════════════════════
+export const getReviewEligibility = async (req: AuthRequest, res: Response) => {
+  try {
+    const eligibility = await productService.getReviewEligibility(
+      req.params.id,
+      req.user!.id,
+      req.user!.role
+    );
+    res.status(200).json({ success: true, data: eligibility });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Kiểm tra quyền đánh giá thất bại',
+    });
+  }
+};
+
+// ══════════════════════════════════════════
 // POST /products/:id/reviews — thêm đánh giá (enterprise)
 // ══════════════════════════════════════════
 export const addReview = async (req: AuthRequest, res: Response) => {
