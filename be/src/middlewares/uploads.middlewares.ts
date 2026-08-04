@@ -1,30 +1,17 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { Request } from 'express';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from '../config/cloudinary';
 
-// ── Thư mục lưu file ──
-const UPLOAD_DIR = path.join(__dirname, '../../uploads/products');
-const AVATAR_UPLOAD_DIR = path.join(__dirname, '../../uploads/avatars');
-
-// Tạo thư mục nếu chưa tồn tại
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-if (!fs.existsSync(AVATAR_UPLOAD_DIR)) {
-  fs.mkdirSync(AVATAR_UPLOAD_DIR, { recursive: true });
-}
-
-// ── Cấu hình lưu file ──
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, uniqueName);
-  },
+// ── Cấu hình lưu file lên Cloudinary (thay vì đĩa cục bộ) ──
+// Ảnh upload từ máy dev nào cũng lên chung 1 nơi, không cần commit
+// file nhị phân vào git để đồng bộ giữa các thành viên.
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: async (_req, file) => ({
+    folder: 'preonic/products',
+    resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'image',
+  }),
 });
 
 // ── Giới hạn loại file: JPG, PNG, PDF ──
@@ -60,15 +47,12 @@ export const uploadProductFiles = multer({
 ]);
 
 // ── Cấu hình lưu ảnh đại diện ──
-const avatarStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, AVATAR_UPLOAD_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, uniqueName);
-  },
+const avatarStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async () => ({
+    folder: 'preonic/avatars',
+    resource_type: 'image',
+  }),
 });
 
 const AVATAR_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
@@ -85,21 +69,12 @@ const avatarFileFilter = (
   }
 };
 
-const DISPUTE_UPLOAD_DIR = path.join(__dirname, '../../uploads/disputes');
-
-if (!fs.existsSync(DISPUTE_UPLOAD_DIR)) {
-  fs.mkdirSync(DISPUTE_UPLOAD_DIR, { recursive: true });
-}
-
-const disputeStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, DISPUTE_UPLOAD_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, uniqueName);
-  },
+const disputeStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async (_req, file) => ({
+    folder: 'preonic/disputes',
+    resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'image',
+  }),
 });
 
 export const uploadDisputeFiles = multer({
