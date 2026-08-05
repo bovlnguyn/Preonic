@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { resolveImageUrl } from '../../services/product.service';
 import NotificationBell from '../Notifications/NotificationBell';
+import DashboardGlobalSearch from '../Common/DashboardGlobalSearch';
 import { getInitials } from './utils';
 
 function EnterpriseTopbar() {
@@ -30,10 +30,10 @@ function EnterpriseTopbar() {
       </div>
 
       <div className="ent-topbar__actions">
-        <label className="ent-search">
-          <FiSearch />
-          <input type="search" placeholder="Tìm nông dân, nông sản, hợp đồng..." />
-        </label>
+        <DashboardGlobalSearch
+          role="enterprise"
+          placeholder="Tìm nông dân, nông sản, hợp đồng..."
+        />
         <NotificationBell triggerClassName="ent-icon-button" />
         <button
           type="button"
