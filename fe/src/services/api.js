@@ -164,7 +164,9 @@ const isTransientServiceError = (error) => {
 
 const isLogoutRequest = (config) => config?.url?.includes('/auth/logout');
 const isDatabaseIndependentRequest = (config) =>
-  config?.url?.includes('/auth/logout') || config?.url?.includes('/weather');
+  config?.url?.includes('/auth/logout') ||
+  config?.url?.includes('/weather') ||
+  config?.url?.includes('/ai/public');
 const isAuthEntryRequest = (config) => {
   const url = config?.url || '';
   return [

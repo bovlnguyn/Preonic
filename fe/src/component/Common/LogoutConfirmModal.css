@@ -1,0 +1,213 @@
+.logout-confirm {
+  --logout-accent: #15803d;
+  --logout-accent-strong: #166534;
+  --logout-accent-soft: #dcfce7;
+  --logout-accent-ring: rgba(34, 197, 94, 0.24);
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(2, 15, 9, 0.58);
+  backdrop-filter: blur(10px);
+  animation: logout-confirm-fade 0.2s ease-out;
+}
+
+.logout-confirm--enterprise {
+  --logout-accent: #2563eb;
+  --logout-accent-strong: #1e3a8a;
+  --logout-accent-soft: #dbeafe;
+  --logout-accent-ring: rgba(37, 99, 235, 0.24);
+  background: rgba(7, 20, 53, 0.62);
+}
+
+.logout-confirm__dialog {
+  position: relative;
+  width: min(440px, 100%);
+  overflow: hidden;
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 88% 0, var(--logout-accent-soft), transparent 42%),
+    #ffffff;
+  box-shadow: 0 30px 90px rgba(2, 15, 9, 0.28);
+  text-align: center;
+  animation: logout-confirm-pop 0.24s cubic-bezier(0.2, 0.75, 0.3, 1.15);
+}
+
+.logout-confirm--enterprise .logout-confirm__dialog {
+  box-shadow: 0 30px 90px rgba(7, 20, 53, 0.32);
+}
+
+.logout-confirm__close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.76);
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.logout-confirm__close:hover:not(:disabled) {
+  color: var(--logout-accent-strong);
+  border-color: var(--logout-accent-ring);
+  background: var(--logout-accent-soft);
+}
+
+.logout-confirm__close:disabled,
+.logout-confirm__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.logout-confirm__icon {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 18px;
+  border: 1px solid var(--logout-accent-ring);
+  border-radius: 23px;
+  color: var(--logout-accent);
+  background: var(--logout-accent-soft);
+  box-shadow: 0 14px 34px var(--logout-accent-ring);
+}
+
+.logout-confirm__icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.logout-confirm__copy > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--logout-accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.logout-confirm__copy h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(25px, 4vw, 32px);
+  line-height: 1.1;
+  font-weight: 950;
+  letter-spacing: -0.7px;
+}
+
+.logout-confirm__copy p {
+  margin: 12px auto 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.logout-confirm__copy strong {
+  color: #334155;
+}
+
+.logout-confirm__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px;
+  margin-top: 25px;
+}
+
+.logout-confirm__button {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 17px;
+  border-radius: 15px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.logout-confirm__button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.logout-confirm__button--cancel {
+  border: 1px solid #dbe3ee;
+  color: #475569;
+  background: #ffffff;
+}
+
+.logout-confirm__button--cancel:hover:not(:disabled) {
+  border-color: var(--logout-accent-ring);
+  color: var(--logout-accent-strong);
+  background: var(--logout-accent-soft);
+}
+
+.logout-confirm__button--confirm {
+  border: 1px solid transparent;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--logout-accent), var(--logout-accent-strong));
+  box-shadow: 0 12px 28px var(--logout-accent-ring);
+}
+
+.logout-confirm__button--confirm:hover:not(:disabled) {
+  box-shadow: 0 16px 34px var(--logout-accent-ring);
+}
+
+.logout-confirm__spinner {
+  width: 17px;
+  height: 17px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: logout-confirm-spin 0.7s linear infinite;
+}
+
+@keyframes logout-confirm-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes logout-confirm-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes logout-confirm-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 520px) {
+  .logout-confirm {
+    padding: 14px;
+  }
+
+  .logout-confirm__dialog {
+    padding: 27px 18px 19px;
+    border-radius: 23px;
+  }
+
+  .logout-confirm__actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logout-confirm,
+  .logout-confirm__dialog,
+  .logout-confirm__spinner {
+    animation: none;
+  }
+}

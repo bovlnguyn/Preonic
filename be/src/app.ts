@@ -20,6 +20,7 @@ import walletRoutes from './routes/wallet.routes';
 import notificationRoutes from './routes/notification.routes';
 import messagingRoutes from './routes/messaging.routes';
 import partnerRatingRoutes from './routes/partner-rating.routes';
+import aiRoutes from './routes/ai.routes';
 // Import Config/Utils
 import { isDatabaseConnected, isDatabaseUnavailableError, markDatabaseUnhealthy } from './config/database';
 import { createLogger } from './utils/logger';
@@ -82,7 +83,9 @@ app.use(`${API_PREFIX}`, (req: Request, res: Response, next: NextFunction) => {
   // Weather không phụ thuộc SQL. Logout phải luôn hoạt động để người dùng có thể
   // xóa phiên phía trình duyệt ngay cả khi Azure SQL đang gián đoạn.
   const bypassDatabaseGuard =
-    req.path.startsWith('/weather') || req.path === '/auth/logout';
+    req.path.startsWith('/weather') ||
+    req.path.startsWith('/ai/public') ||
+    req.path === '/auth/logout';
 
   if (bypassDatabaseGuard) return next();
 
@@ -154,6 +157,8 @@ app.use(`${API_PREFIX}/notifications`, notificationRoutes);
 app.use(`${API_PREFIX}/messaging`, messagingRoutes);
 // Partner ratings
 app.use(`${API_PREFIX}/partner-ratings`, partnerRatingRoutes);
+// Public AI + AI theo vai trò (mở rộng ở các giai đoạn tiếp theo)
+app.use(`${API_PREFIX}/ai`, aiRoutes);
 // ══════════════════════════════════════════════════════
 // 4. ERROR HANDLING (Phải đặt sau cùng)
 // ══════════════════════════════════════════════════════
