@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   FiGrid, FiPlus, FiArrowUpRight, FiArrowDownLeft, FiClock,
   FiLock, FiRefreshCw, FiFileText, FiShield,
-  FiCheck, FiHome, FiZap, FiInbox,
+  FiCheck, FiHome, FiZap, FiInbox, FiCopy, FiLoader, FiCamera,
 } from 'react-icons/fi';
 import { useToast } from '../../../contexts/ToastContext';
 import walletService from '../../../services/wallet.service';
@@ -54,6 +54,18 @@ function formatDateTime(value) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
+// Escrow transactions không có cột status (luôn hoàn tất ngay), chỉ giao dịch
+// nguồn 'payment' (topup demo/SePay) mới có thể đang ở trạng thái pending.
+function TxStatusBadge({ tx }) {
+  if (tx.source === 'payment' && tx.status === 'pending') {
+    return <span className="ent-badge ent-badge--warning">Đang chờ</span>;
+  }
+  if (tx.source === 'payment' && tx.status && tx.status !== 'completed') {
+    return <span className="ent-badge ent-badge--danger">Thất bại</span>;
+  }
+  return <span className="ent-badge ent-badge--success">Thành công</span>;
+}
+
 function EnterpriseWallet() {
   const toast = useToast();
 
@@ -68,6 +80,10 @@ function EnterpriseWallet() {
   const [amountRaw, setAmountRaw] = useState('');
   const [quickPicked, setQuickPicked] = useState(null);
   const [topupLoading, setTopupLoading] = useState(false);
+
+  // Nạp tiền qua SePay — lệnh chuyển khoản đang chờ webhook xác nhận
+  const [sepayOrder, setSepayOrder] = useState(null);
+  const [sepayCreating, setSepayCreating] = useState(false);
 
   // Rút tiền — chua co API backend, tam giu dang yeu cau cho duyet thu cong.
   const [withdrawals, setWithdrawals] = useState([]);
@@ -120,10 +136,93 @@ function EnterpriseWallet() {
     setQuickPicked(null);
   };
 
-  const handleCreateSePayOrder = () => {
-    if (!Number(amountRaw)) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
-    toast.info('SePay sẽ được kết nối khi payment gateway thật sẵn sàng.');
+  const handleCreateSePayOrder = async () => {
+    const amount = Number(amountRaw);
+    if (!amount) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
+
+    setSepayCreating(true);
+    try {
+      const res = await walletService.createSepayOrder(amount);
+      setSepayOrder(res?.data || null);
+    } catch (err) {
+      toast.error(err?.message || 'Tạo lệnh SePay thất bại, vui lòng thử lại.');
+    } finally {
+      setSepayCreating(false);
+    }
   };
+
+  const handleCreateDemoQrOrder = async () => {
+    const amount = Number(amountRaw);
+    if (!amount) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
+
+    setSepayCreating(true);
+    try {
+      const res = await walletService.createDemoQrOrder(amount);
+      setSepayOrder(res?.data || null);
+    } catch (err) {
+      toast.error(err?.message || 'Tạo mã QR demo thất bại, vui lòng thử lại.');
+    } finally {
+      setSepayCreating(false);
+    }
+  };
+
+  const resetSepayOrder = () => setSepayOrder(null);
+
+  const copySepayField = async (text, label) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`Đã sao chép ${label}.`);
+    } catch {
+      toast.warning('Không thể sao chép, vui lòng copy thủ công.');
+    }
+  };
+
+  // Theo dõi trạng thái lệnh SePay đang chờ — webhook cộng ví ở phía backend,
+  // FE chỉ cần poll để biết khi nào đã nhận được tiền.
+  useEffect(() => {
+    if (!sepayOrder || sepayOrder.status === 'completed') return undefined;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await walletService.getSepayOrderStatus(sepayOrder.orderCode);
+        if (res?.data?.status === 'completed') {
+          setSepayOrder((prev) => (prev ? { ...prev, status: 'completed' } : prev));
+        }
+      } catch {
+        // Bỏ qua lỗi mạng tạm thời, thử lại ở lần poll kế tiếp.
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [sepayOrder?.orderCode, sepayOrder?.status]);
+
+  // Lệnh QR demo không có ngân hàng/webhook thật — tự giả lập xác nhận sau vài giây,
+  // vòng poll ở trên sẽ phát hiện và cập nhật giao diện như lệnh SePay thật.
+  useEffect(() => {
+    if (!sepayOrder?.isDemo || sepayOrder.status !== 'pending') return undefined;
+
+    const timer = setTimeout(() => {
+      walletService.confirmDemoQrOrder(sepayOrder.orderCode).catch(() => {});
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [sepayOrder?.orderCode, sepayOrder?.isDemo, sepayOrder?.status]);
+
+  useEffect(() => {
+    if (sepayOrder?.status !== 'completed') return undefined;
+
+    toast.success(`Nạp thành công ${formatMoney(sepayOrder.amount)} vào ví${sepayOrder.isDemo ? ' (QR demo)' : ' qua SePay'}.`);
+    loadWallet();
+
+    const timer = setTimeout(() => {
+      setSepayOrder(null);
+      setAmountRaw('');
+      setQuickPicked(null);
+      setTab('overview');
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [sepayOrder?.status]);
 
   const handleDemoTopUp = async () => {
     const amount = Number(amountRaw);
@@ -253,7 +352,7 @@ function EnterpriseWallet() {
                             <span className={`ewt-tx-amount ${isOutgoing ? 'down' : 'up'}`}>
                               {isOutgoing ? '-' : '+'}{formatMoney(tx.amount)}
                             </span>
-                            <span className="ent-badge ent-badge--success">Thành công</span>
+                            <TxStatusBadge tx={tx} />
                           </div>
                         </article>
                       );
@@ -302,59 +401,131 @@ function EnterpriseWallet() {
                 <div className="ewt-panel-head"><h3><FiPlus /> Nạp tiền vào ví</h3></div>
 
                 <div className="ewt-progress-steps">
-                  <span className="ewt-progress-steps__item done">
+                  <span className={`ewt-progress-steps__item ${sepayOrder ? 'done' : 'active'}`}>
                     <span className="ewt-progress-steps__dot">1</span>Chọn số tiền
                   </span>
                   <span className="ewt-progress-steps__line" />
-                  <span className="ewt-progress-steps__item">
+                  <span className={`ewt-progress-steps__item ${sepayOrder?.status === 'completed' ? 'done' : sepayOrder ? 'active' : ''}`}>
                     <span className="ewt-progress-steps__dot">2</span>Thanh toán
                   </span>
                   <span className="ewt-progress-steps__line" />
-                  <span className="ewt-progress-steps__item">
+                  <span className={`ewt-progress-steps__item ${sepayOrder?.status === 'completed' ? 'done' : ''}`}>
                     <span className="ewt-progress-steps__dot">3</span>Tiền vào ví
                   </span>
                 </div>
 
-                <span className="ewt-label">Chọn nhanh</span>
-                <div className="ewt-quick-grid">
-                  {QUICK_AMOUNTS.map((q) => (
-                    <button
-                      key={q.value}
-                      type="button"
-                      className={`ewt-quick-btn ${quickPicked === q.value ? 'active' : ''}`}
-                      onClick={() => pickQuick(q.value)}
-                    >
-                      {q.label}
-                    </button>
-                  ))}
-                </div>
+                {!sepayOrder ? (
+                  <>
+                    <span className="ewt-label">Chọn nhanh</span>
+                    <div className="ewt-quick-grid">
+                      {QUICK_AMOUNTS.map((q) => (
+                        <button
+                          key={q.value}
+                          type="button"
+                          className={`ewt-quick-btn ${quickPicked === q.value ? 'active' : ''}`}
+                          onClick={() => pickQuick(q.value)}
+                        >
+                          {q.label}
+                        </button>
+                      ))}
+                    </div>
 
-                <span className="ewt-label">Hoặc nhập tùy chỉnh</span>
-                <div className="ewt-amount-input">
-                  <span className="ewt-amount-input__prefix">₫</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={amountRaw ? Number(amountRaw).toLocaleString('vi-VN') : ''}
-                    onChange={onCustomAmountChange}
-                  />
-                  <span className="ewt-amount-input__suffix">VND</span>
-                </div>
+                    <span className="ewt-label">Hoặc nhập tùy chỉnh</span>
+                    <div className="ewt-amount-input">
+                      <span className="ewt-amount-input__prefix">₫</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={amountRaw ? Number(amountRaw).toLocaleString('vi-VN') : ''}
+                        onChange={onCustomAmountChange}
+                      />
+                      <span className="ewt-amount-input__suffix">VND</span>
+                    </div>
 
-                <div className="ewt-action-row">
-                  <button type="button" className="ewt-btn ewt-btn--outline" onClick={handleCreateSePayOrder}>
-                    <FiHome /> Tạo lệnh SePay
-                  </button>
-                  <button
-                    type="button"
-                    className="ewt-btn ewt-btn--gradient"
-                    onClick={handleDemoTopUp}
-                    disabled={topupLoading}
-                  >
-                    <FiZap /> {topupLoading ? 'Đang xử lý...' : 'Nạp demo (tức thì)'}
-                  </button>
-                </div>
+                    <div className="ewt-action-row">
+                      <button
+                        type="button"
+                        className="ewt-btn ewt-btn--outline"
+                        onClick={handleCreateSePayOrder}
+                        disabled={sepayCreating}
+                      >
+                        <FiHome /> {sepayCreating ? 'Đang tạo lệnh...' : 'Tạo lệnh SePay'}
+                      </button>
+                      <button
+                        type="button"
+                        className="ewt-btn ewt-btn--outline"
+                        onClick={handleCreateDemoQrOrder}
+                        disabled={sepayCreating}
+                      >
+                        <FiCamera /> {sepayCreating ? 'Đang tạo mã...' : 'Quét mã QR (demo)'}
+                      </button>
+                      <button
+                        type="button"
+                        className="ewt-btn ewt-btn--gradient"
+                        onClick={handleDemoTopUp}
+                        disabled={topupLoading}
+                      >
+                        <FiZap /> {topupLoading ? 'Đang xử lý...' : 'Nạp demo (tức thì)'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="ewt-sepay-panel">
+                    {sepayOrder.isDemo && (
+                      <div className="ewt-sepay-demo-note">
+                        <FiCamera /> Mã QR demo — không cần chuyển khoản thật, hệ thống sẽ tự xác nhận sau vài giây.
+                      </div>
+                    )}
+
+                    <img className="ewt-sepay-qr" src={sepayOrder.qrUrl} alt="QR chuyển khoản SePay" />
+
+                    <div className="ewt-sepay-info">
+                      <div className="ewt-sepay-row">
+                        <span>Ngân hàng</span>
+                        <strong>{sepayOrder.bank?.bankCode}</strong>
+                      </div>
+                      <div className="ewt-sepay-row">
+                        <span>Số tài khoản</span>
+                        <strong>{sepayOrder.bank?.accountNumber}</strong>
+                        <button type="button" onClick={() => copySepayField(sepayOrder.bank?.accountNumber, 'số tài khoản')}>
+                          <FiCopy />
+                        </button>
+                      </div>
+                      <div className="ewt-sepay-row">
+                        <span>Chủ tài khoản</span>
+                        <strong>{sepayOrder.bank?.accountHolder}</strong>
+                      </div>
+                      <div className="ewt-sepay-row">
+                        <span>Số tiền</span>
+                        <strong>{formatMoney(sepayOrder.amount)}</strong>
+                      </div>
+                      <div className="ewt-sepay-row ewt-sepay-row--highlight">
+                        <span>Nội dung chuyển khoản (bắt buộc, giữ đúng)</span>
+                        <strong>{sepayOrder.transferContent}</strong>
+                        <button type="button" onClick={() => copySepayField(sepayOrder.transferContent, 'nội dung chuyển khoản')}>
+                          <FiCopy />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className={`ewt-sepay-status ${sepayOrder.status === 'completed' ? 'success' : ''}`}>
+                      {sepayOrder.status === 'completed' ? (
+                        <><FiCheck /> Đã nhận được tiền, đang cộng vào ví...</>
+                      ) : sepayOrder.isDemo ? (
+                        <><FiLoader className="ewt-spin" /> Đang giả lập xác nhận...</>
+                      ) : (
+                        <><FiLoader className="ewt-spin" /> Đang chờ SePay xác nhận chuyển khoản...</>
+                      )}
+                    </div>
+
+                    {sepayOrder.status !== 'completed' && (
+                      <button type="button" className="ewt-btn ewt-btn--outline ewt-btn--full" onClick={resetSepayOrder}>
+                        Nhập số tiền khác
+                      </button>
+                    )}
+                  </div>
+                )}
               </section>
 
               <div className="ent-stack" style={{ gap: 18 }}>
@@ -529,7 +700,7 @@ function EnterpriseWallet() {
                           <td className={isOutgoing ? 'ent-money ent-money--down' : 'ent-money ent-money--up'}>
                             {isOutgoing ? '-' : '+'}{formatMoney(tx.amount)}
                           </td>
-                          <td><span className="ent-badge ent-badge--success">Thành công</span></td>
+                          <td><TxStatusBadge tx={tx} /></td>
                           <td>{formatDateTime(tx.createdAt)}</td>
                         </tr>
                       );
