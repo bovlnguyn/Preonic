@@ -37,3 +37,21 @@ export const PAYMENT_TERMS_LABEL = {
 export const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved', 'active'];
 
 export const CANCEL_PENDING_STATUS = 'cancel_pending';
+
+/**
+ * Uoc luong tien do hop dong theo trang thai — dung cho cac thanh progress
+ * o trang tong quan/danh sach khi chua co so lieu moc ky quy chi tiet.
+ */
+const CONTRACT_PROGRESS_BY_STATUS = {
+  draft: 0,
+  pending: 15,
+  approved: 35,
+  active: 65,
+  cancel_pending: 65,
+  completed: 100,
+  disputed: 50,
+  cancelled: 0,
+};
+
+export const resolveContractProgress = (contract) =>
+  CONTRACT_PROGRESS_BY_STATUS[contract?.status] ?? 0;
