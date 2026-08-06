@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { createPortal } from "react-dom";
 import {
-  FiAlertTriangle,
   FiChevronDown,
   FiGrid,
   FiHome,
@@ -13,6 +11,7 @@ import {
 import logo from "../../assets/branding/preonic-logo-main.png";
 import { useAuth } from "../../contexts/AuthContext";
 import { resolveImageUrl } from "../../services/product.service";
+import LogoutConfirmModal from "./LogoutConfirmModal";
 import "./Header.css";
 
 const GUEST_NAV_ITEMS = [
@@ -162,7 +161,6 @@ function Header() {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
         setAccountOpen(false);
-        setLogoutConfirmOpen(false);
       }
     };
 
@@ -175,16 +173,6 @@ function Header() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!logoutConfirmOpen) return undefined;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [logoutConfirmOpen]);
 
   const closeMenu = () => {
     setOpen(false);
@@ -196,7 +184,11 @@ function Header() {
     navigate(path);
   };
 
-  const requestLogout = () => {
+  const requestLogout = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    // Chỉ mở hộp xác nhận. Tuyệt đối không gọi logout tại đây.
     setAccountOpen(false);
     setOpen(false);
     setLogoutConfirmOpen(true);
@@ -473,67 +465,14 @@ function Header() {
       </AnimatePresence>
       </motion.header>
 
-      {typeof document !== "undefined" &&
-        createPortal(
-          <AnimatePresence>
-            {logoutConfirmOpen && (
-              <motion.div
-                className={`preonic-logout-overlay preonic-logout-overlay--${themeRole}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                onMouseDown={() => !isLoggingOut && setLogoutConfirmOpen(false)}
-              >
-                <motion.section
-                  className="preonic-logout-dialog"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="preonic-logout-title"
-                  aria-describedby="preonic-logout-description"
-                  initial={{ opacity: 0, y: 18, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 12, scale: 0.97 }}
-                  transition={{ duration: 0.22, ease: "easeOut" }}
-                  onMouseDown={(event) => event.stopPropagation()}
-                >
-                  <div className="preonic-logout-dialog__icon">
-                    <FiAlertTriangle />
-                  </div>
-
-                  <span className="preonic-logout-dialog__eyebrow">Xác nhận đăng xuất</span>
-                  <h2 id="preonic-logout-title">Bạn muốn đăng xuất?</h2>
-                  <p id="preonic-logout-description">
-                    Phiên làm việc của <strong>{displayName}</strong> sẽ kết thúc trên thiết bị này.
-                    Các thay đổi đã lưu vẫn được giữ nguyên.
-                  </p>
-
-                  <div className="preonic-logout-dialog__actions">
-                    <button
-                      type="button"
-                      className="preonic-logout-dialog__cancel"
-                      onClick={() => setLogoutConfirmOpen(false)}
-                      disabled={isLoggingOut}
-                      autoFocus
-                    >
-                      Không, ở lại
-                    </button>
-                    <button
-                      type="button"
-                      className="preonic-logout-dialog__confirm"
-                      onClick={confirmLogout}
-                      disabled={isLoggingOut}
-                    >
-                      <FiLogOut />
-                      {isLoggingOut ? "Đang đăng xuất..." : "Có, đăng xuất"}
-                    </button>
-                  </div>
-                </motion.section>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
+      <LogoutConfirmModal
+        open={logoutConfirmOpen}
+        role={themeRole}
+        userName={displayName}
+        loading={isLoggingOut}
+        onCancel={() => setLogoutConfirmOpen(false)}
+        onConfirm={confirmLogout}
+      />
     </>
   );
 }

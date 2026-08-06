@@ -21,6 +21,7 @@ import {
 import Header from "../Common/Header";
 import Footer from "../Common/Footer";
 import aiImage from "../../assets/home/BG2.jpg";
+import PublicAIChat from "./PublicAIChat";
 import "./AIAgriculture.css";
 
 const aiUseCases = [
@@ -113,8 +114,8 @@ function AIAgriculture() {
                 AI giúp thông tin nông nghiệp trở nên <span>dễ hiểu và hữu ích hơn.</span>
               </motion.h1>
               <motion.p variants={fadeUp}>
-                Khu vực này giới thiệu cách PreOnic định hướng AI cho Farmer và Enterprise. Khách có thể xem khả năng tổng quan;
-                trợ lý theo dữ liệu tài khoản sẽ được mở sau khi đăng nhập.
+                Khách có thể trò chuyện trực tiếp với PreOnic AI để hỏi nhanh về hệ thống, vai trò và quy trình sử dụng.
+                Khi cần phân tích chuyên sâu hoặc phiên dùng thử kết thúc, trợ lý sẽ mời bạn đăng nhập để mở AI đầy đủ.
               </motion.p>
               <motion.div className="pai-hero__actions" variants={fadeUp}>
                 <button type="button" className="pai-btn pai-btn--primary" onClick={() => navigate("/register")}>
@@ -197,8 +198,8 @@ function AIAgriculture() {
           <div className="pai-container">
             <div className="pai-demo-head">
               <div>
-                <span>Minh họa theo vai trò</span>
-                <h2>Mỗi nhóm người dùng cần một trợ lý khác nhau.</h2>
+                <span>Trải nghiệm AI công khai</span>
+                <h2>Hỏi nhanh trước khi tạo tài khoản.</h2>
               </div>
               <div className="pai-role-switch" role="tablist" aria-label="Chọn vai trò AI">
                 {Object.entries(roleDemos).map(([key, item]) => (
@@ -230,29 +231,14 @@ function AIAgriculture() {
                   <h3>{currentRole.title}</h3>
                   <p>{currentRole.description}</p>
                   <button type="button" className="pai-inline-link" onClick={() => navigate("/auth")}>
-                    Đăng nhập để mở trợ lý <FiArrowRight />
+                    Đăng nhập để mở AI đầy đủ <FiArrowRight />
                   </button>
                 </div>
 
-                <div className="pai-chat-card">
-                  <div className="pai-chat-card__header">
-                    <span><FiCpu /></span>
-                    <div>
-                      <strong>PreOnic AI</strong>
-                      <small>Minh họa nội dung tư vấn</small>
-                    </div>
-                    <i />
-                  </div>
-                  <div className="pai-chat-questions">
-                    {currentRole.questions.map((question) => (
-                      <button key={question} type="button">{question}</button>
-                    ))}
-                  </div>
-                  <div className="pai-chat-answer">
-                    <span>AI</span>
-                    <p>{currentRole.answer}</p>
-                  </div>
-                </div>
+                <PublicAIChat
+                  suggestedQuestions={currentRole.questions}
+                  roleLabel={currentRole.label.replace("AI cho ", "")}
+                />
               </motion.div>
             </AnimatePresence>
           </div>
