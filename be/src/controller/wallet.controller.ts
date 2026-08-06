@@ -40,6 +40,27 @@ export const getWalletTransactions = async (req: AuthRequest, res: Response) => 
   }
 };
 
+export const getEnterpriseTransactionsOverview = async (req: AuthRequest, res: Response) => {
+  try {
+    const year = req.query.year ? Number(req.query.year) : undefined;
+    const result = await walletService.getEnterpriseTransactionsOverview(
+      req.user!.id,
+      req.user!.role,
+      year
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lay tong quan giao dich that bai',
+    });
+  }
+};
+
 export const topupWallet = async (req: AuthRequest, res: Response) => {
   try {
     const result = await walletService.demoTopupWallet(
