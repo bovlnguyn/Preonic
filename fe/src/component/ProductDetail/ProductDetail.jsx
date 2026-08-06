@@ -76,7 +76,8 @@ const toUiProductDetail = (product) => ({
   region: String(product.region || "south").toLowerCase(),
   priceMin: asNumber(product.priceMin),
   priceMax: asNumber(product.priceMax || product.priceMin),
-  unit: product.priceUnit || product.unit || "kg",
+  unit: product.unit || "kg",
+  priceUnit: product.priceUnit || product.unit || "kg",
   progress: asNumber(product.progress),
   remaining: asNumber(product.remaining ?? product.totalQuantity),
   totalQuantity: asNumber(product.totalQuantity),
@@ -569,7 +570,7 @@ const ProductDetail = ({ context = "public" }) => {
                   <span>Giá chào bán</span>
                   <div>
                     <strong>{formatPriceRange(product.priceMin, product.priceMax)}</strong>
-                    <small>/ {product.unit}</small>
+                    <small>/ {product.priceUnit}</small>
                   </div>
                 </div>
 
@@ -920,7 +921,7 @@ const ProductDetail = ({ context = "public" }) => {
                       <span className="pd-similar-content">
                         <small><FiMapPin /> {item.location}</small>
                         <strong>{item.name}</strong>
-                        <span>{formatPriceRange(item.priceMin, item.priceMax)} / {item.unit}</span>
+                        <span>{formatPriceRange(item.priceMin, item.priceMax)} / {item.priceUnit}</span>
                       </span>
                     </motion.button>
                   ))}
