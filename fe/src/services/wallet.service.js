@@ -29,6 +29,18 @@ const walletService = {
   },
 
   /**
+   * Enterprise transaction overview: wallet + contracts + escrow chart/table
+   */
+  overviewTransactions: async (params = {}) => {
+    try {
+      const response = await api.get('/wallet/transactions/overview', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Lấy tổng quan giao dịch thất bại' };
+    }
+  },
+
+  /**
    * Demo top-up (enterprise only) — adds funds instantly, no real payment gateway
    */
   demoTopup: async (amount, note) => {

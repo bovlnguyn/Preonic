@@ -2,12 +2,16 @@ import { AppDataSource } from '../config/database';
 import { User } from '../models/User.entity';
 import { PaymentTransaction } from '../models/PaymentTransaction.entity';
 import { EscrowTransaction } from '../models/EscrowTransaction.entity';
+import { Contract } from '../models/Contract.entity';
+import { Escrow } from '../models/Escrow.entity';
 import { logAction, logError } from './systemLog.service';
 import crypto from 'crypto';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const paymentTransactionRepo = () => AppDataSource.getRepository(PaymentTransaction);
 const escrowTransactionRepo = () => AppDataSource.getRepository(EscrowTransaction);
+const contractRepo = () => AppDataSource.getRepository(Contract);
+const escrowRepo = () => AppDataSource.getRepository(Escrow);
 
 const makeError = (message: string, statusCode = 400) => {
   const err: any = new Error(message);
@@ -163,6 +167,205 @@ export const getWalletTransactions = async (
     },
   };
 
+};
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const isWalletIncoming = (type: string) => ['topup', 'refund', 'escrow_release'].includes(type);
+const isWalletOutgoing = (type: string) => ['withdraw', 'escrow_deposit'].includes(type);
+
+const getTransactionTime = (item: { completedAt?: Date | null; createdAt: Date }) =>
+  item.completedAt || item.createdAt;
+
+const getMonthIndex = (date: Date) => new Date(date).getMonth();
+
+const formatOverviewStatus = (status?: string | null) => status || 'pending';
+
+const buildChartSkeleton = () =>
+  MONTH_NAMES.map((month) => ({
+    month,
+    revenue: 0,
+    cost: 0,
+    profit: 0,
+  }));
+
+export const getEnterpriseTransactionsOverview = async (
+  userId: string,
+  role: string,
+  year = new Date().getFullYear()
+) => {
+  if (role !== 'enterprise') {
+    throw makeError('Chi doanh nghiep moi co the xem tong quan giao dich', 403);
+  }
+
+  const startDate = new Date(year, 0, 1);
+  const endDate = new Date(year + 1, 0, 1);
+
+  const [walletTransactions, escrowTransactions, contracts, escrows] = await Promise.all([
+    paymentTransactionRepo()
+      .createQueryBuilder('payment')
+      .where('payment.userId = :userId', { userId })
+      .andWhere('payment.createdAt >= :startDate AND payment.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('payment.createdAt', 'DESC')
+      .getMany(),
+
+    escrowTransactionRepo()
+      .createQueryBuilder('escrowTx')
+      .leftJoinAndSelect('escrowTx.escrow', 'escrow')
+      .leftJoinAndSelect('escrow.contract', 'contract')
+      .where('(escrowTx.fromUserId = :userId OR escrowTx.toUserId = :userId)', { userId })
+      .andWhere('escrowTx.createdAt >= :startDate AND escrowTx.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('escrowTx.createdAt', 'DESC')
+      .getMany(),
+
+    contractRepo()
+      .createQueryBuilder('contract')
+      .where('contract.enterpriseId = :userId', { userId })
+      .andWhere("contract.status <> 'cancelled'")
+      .andWhere('contract.createdAt >= :startDate AND contract.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('contract.createdAt', 'DESC')
+      .getMany(),
+
+    escrowRepo()
+      .createQueryBuilder('escrow')
+      .where('escrow.enterpriseId = :userId', { userId })
+      .andWhere('escrow.createdAt >= :startDate AND escrow.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .getMany(),
+  ]);
+
+  const chart = buildChartSkeleton();
+
+  contracts.forEach((contract) => {
+    const monthIndex = getMonthIndex(contract.createdAt);
+    chart[monthIndex].revenue += Number(contract.totalValue || 0);
+  });
+
+  walletTransactions.forEach((transaction) => {
+    const amount = Number(transaction.amount || 0);
+    const monthIndex = getMonthIndex(getTransactionTime(transaction));
+
+    if (isWalletIncoming(transaction.type) && transaction.status === 'completed') {
+      chart[monthIndex].revenue += amount;
+    }
+
+    if (isWalletOutgoing(transaction.type) && transaction.status === 'completed') {
+      chart[monthIndex].cost += amount;
+    }
+  });
+
+  escrowTransactions.forEach((transaction) => {
+    const amount = Number(transaction.amount || 0);
+    const monthIndex = getMonthIndex(transaction.createdAt);
+
+    if (transaction.fromUserId === userId) {
+      chart[monthIndex].cost += amount;
+    } else if (transaction.toUserId === userId) {
+      chart[monthIndex].revenue += amount;
+    }
+  });
+
+  chart.forEach((item) => {
+    item.profit = item.revenue - item.cost;
+  });
+
+  const walletItems = walletTransactions.map((item) => {
+    const incoming = isWalletIncoming(item.type);
+    const outgoing = isWalletOutgoing(item.type);
+    const signedAmount = outgoing ? -Number(item.amount || 0) : Number(item.amount || 0);
+
+    return {
+      id: item.id,
+      referenceId: item.id,
+      type: 'wallet',
+      title: normalizeTransactionType(item.type),
+      description: item.description || item.orderCode || 'Giao dich vi',
+      amount: incoming || outgoing ? signedAmount : Number(item.amount || 0),
+      status: formatOverviewStatus(item.status),
+      createdAt: item.createdAt,
+      detailUrl: null,
+    };
+  });
+
+  const escrowItems = escrowTransactions.map((item: any) => {
+    const contract = item.escrow?.contract;
+    const isOutgoing = item.fromUserId === userId;
+
+    return {
+      id: `escrow-${item.id}`,
+      referenceId: item.escrowId,
+      contractId: item.escrow?.contractId || contract?.id || null,
+      type: 'escrow',
+      title: normalizeTransactionType(item.type),
+      description: item.description || `Escrow ${contract?.contractCode || item.escrowId}`,
+      amount: isOutgoing ? -Number(item.amount || 0) : Number(item.amount || 0),
+      status: item.escrow?.status || 'completed',
+      createdAt: item.createdAt,
+      detailUrl: item.escrow?.contractId ? `/enterprise/escrow?contractId=${item.escrow.contractId}` : '/enterprise/escrow',
+    };
+  });
+
+  const contractItems = contracts.map((item) => ({
+    id: item.id,
+    referenceId: item.id,
+    type: 'contract',
+    title: item.contractCode,
+    description: item.productName || 'Hop dong mua ban nong san',
+    amount: Number(item.totalValue || 0),
+    status: item.status,
+    createdAt: item.createdAt,
+    detailUrl: `/enterprise/contracts/${item.id}`,
+  }));
+
+  const recentTransactions = [
+    ...walletItems,
+    ...escrowItems,
+    ...contractItems,
+  ]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 50);
+
+  const totalRevenue = chart.reduce((sum, item) => sum + item.revenue, 0);
+  const totalCost = chart.reduce((sum, item) => sum + item.cost, 0);
+  const totalProfit = totalRevenue - totalCost;
+
+  return {
+    year,
+    summary: {
+      totalRevenue,
+      totalCost,
+      totalProfit,
+      totalWalletTransactions: walletTransactions.length,
+      totalContracts: contracts.length,
+      totalEscrows: escrows.length,
+    },
+    chart,
+    recentTransactions,
+  };
 };
 
 const TOPUP_ALLOWED_ROLES = ['farmer', 'enterprise'];
