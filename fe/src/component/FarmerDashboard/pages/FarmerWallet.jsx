@@ -31,19 +31,21 @@ const BANKS = [
   'MB Bank', 'ACB', 'VPBank', 'Sacombank', 'TPBank',
 ];
 
-// Khop voi Transaction.type that su tra ve tu GET /wallet/transactions (topup | deposit | release | refund).
+// Khop voi Transaction.type that su tra ve tu GET /wallet/transactions (topup | withdraw | deposit | release | refund).
 const TX_META = {
-  topup:   { label: 'Nạp tiền',   icon: FiPlus,          tone: 'green' },
-  deposit: { label: 'Ký quỹ',     icon: FiLock,          tone: 'gold' },
-  release: { label: 'Nhận tiền',  icon: FiArrowUpRight,  tone: 'blue' },
-  refund:  { label: 'Hoàn tiền',  icon: FiArrowDownLeft, tone: 'purple' },
+  topup:    { label: 'Nạp tiền',   icon: FiPlus,          tone: 'green' },
+  withdraw: { label: 'Rút tiền',   icon: FiArrowUpRight,  tone: 'red' },
+  deposit:  { label: 'Ký quỹ',     icon: FiLock,          tone: 'gold' },
+  release:  { label: 'Nhận tiền',  icon: FiArrowUpRight,  tone: 'blue' },
+  refund:   { label: 'Hoàn tiền',  icon: FiArrowDownLeft, tone: 'purple' },
 };
 
 const HISTORY_FILTERS = [
-  { key: 'all',     label: 'Tất cả' },
-  { key: 'topup',   label: 'Nạp tiền' },
-  { key: 'release', label: 'Nhận tiền' },
-  { key: 'refund',  label: 'Hoàn tiền' },
+  { key: 'all',      label: 'Tất cả' },
+  { key: 'topup',    label: 'Nạp tiền' },
+  { key: 'withdraw', label: 'Rút tiền' },
+  { key: 'release',  label: 'Nhận tiền' },
+  { key: 'refund',   label: 'Hoàn tiền' },
 ];
 
 function formatDateTime(value) {
@@ -84,9 +86,10 @@ function FarmerWallet() {
   const [sepayOrder, setSepayOrder] = useState(null);
   const [sepayCreating, setSepayCreating] = useState(false);
 
-  // Rút tiền — chua co API backend, tam giu dang yeu cau cho duyet thu cong.
+  // Rút tiền — yêu cầu qua ngân hàng vẫn là mock cho duyệt thủ công, chưa có API.
   const [withdrawals, setWithdrawals] = useState([]);
   const [wForm, setWForm] = useState({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   // Lịch sử
   const [historyFilter, setHistoryFilter] = useState('all');
@@ -270,6 +273,26 @@ function FarmerWallet() {
     toast.success('Đã gửi yêu cầu rút tiền. Quản trị viên sẽ xử lý sớm nhất.');
   };
 
+  const handleDemoWithdraw = async () => {
+    const amount = Number(wForm.amount.replace(/\D/g, ''));
+    if (!amount || amount <= 0) { toast.warning('Vui lòng nhập số tiền muốn rút.'); return; }
+    if (amount > balance) { toast.error('Số tiền rút vượt quá số dư khả dụng.'); return; }
+
+    setWithdrawLoading(true);
+    try {
+      const res = await walletService.demoWithdraw(amount);
+      setBalance(res?.data?.wallet?.balance ?? balance);
+      setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
+      toast.success(`Rút thành công ${formatMoney(amount)} khỏi ví (demo).`);
+      setTab('overview');
+      loadWallet();
+    } catch (err) {
+      toast.error(err?.message || 'Rút tiền thất bại, vui lòng thử lại.');
+    } finally {
+      setWithdrawLoading(false);
+    }
+  };
+
   return (
     <div className="farmer-stack">
       {/* Hero balance */}
@@ -338,7 +361,7 @@ function FarmerWallet() {
                     {transactions.slice(0, 5).map((tx) => {
                       const meta = TX_META[tx.type] || TX_META.topup;
                       const Icon = meta.icon;
-                      const isOutgoing = tx.source === 'escrow' && tx.direction === 'out';
+                      const isOutgoing = (tx.source === 'escrow' && tx.direction === 'out') || tx.type === 'withdraw';
                       return (
                         <article key={`${tx.source}-${tx.id}`} className="fwt-tx-row">
                           <span className={`fwt-tx-icon fwt-tx-icon--${meta.tone}`}><Icon /></span>
@@ -582,6 +605,19 @@ function FarmerWallet() {
                     />
                   </div>
 
+                  <button
+                    type="button"
+                    className="fwt-btn fwt-btn--outline fwt-btn--full"
+                    onClick={handleDemoWithdraw}
+                    disabled={withdrawLoading}
+                  >
+                    <FiZap /> {withdrawLoading ? 'Đang xử lý...' : 'Rút demo (tức thì) — không cần thông tin ngân hàng'}
+                  </button>
+
+                  <p className="fwt-helper" style={{ marginTop: 0 }}>
+                    Hoặc điền đầy đủ thông tin bên dưới để gửi yêu cầu rút tiền qua ngân hàng thật (chờ quản trị viên duyệt):
+                  </p>
+
                   <div className="fwt-field">
                     <label>Ngân hàng <span className="fwt-req">*</span></label>
                     <select value={wForm.bank} onChange={(e) => setWField('bank', e.target.value)}>
@@ -684,7 +720,7 @@ function FarmerWallet() {
                     {filteredHistory.map((tx) => {
                       const meta = TX_META[tx.type] || TX_META.topup;
                       const Icon = meta.icon;
-                      const isOutgoing = tx.source === 'escrow' && tx.direction === 'out';
+                      const isOutgoing = (tx.source === 'escrow' && tx.direction === 'out') || tx.type === 'withdraw';
                       return (
                         <tr key={`${tx.source}-${tx.id}`}>
                           <td>

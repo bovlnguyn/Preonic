@@ -23,6 +23,7 @@ export interface WalletTransactionQuery {
 
 const WALLET_TRANSACTION_TYPES = [
   'topup',
+  'withdraw',
   'escrow_deposit',
   'escrow_release',
   'refund',
@@ -30,6 +31,7 @@ const WALLET_TRANSACTION_TYPES = [
 
 const normalizeTransactionType = (type: string) => {
   if (type === 'topup') return 'Nạp tiền';
+  if (type === 'withdraw') return 'Rút tiền';
   // EscrowTransaction.type thuc te la 'deposit'/'release' (xem escrow.service.ts),
   // khong phai 'escrow_deposit'/'escrow_release' — giu ca hai de tuong thich nguoc.
   if (type === 'deposit' || type === 'escrow_deposit') return 'Đặt cọc / ký quỹ';
@@ -249,6 +251,102 @@ export const demoTopupWallet = async (
     category: 'payment',
     action: 'wallet_topup',
     message: `${user.email} nap ${amount.toLocaleString('vi-VN')} VND vao vi (demo)`,
+    userId: user.id,
+    targetType: 'PaymentTransaction',
+    targetId: savedTransaction.id,
+    metadata: { amount, orderCode },
+  });
+
+  return {
+    wallet: {
+      balance: balanceAfter,
+      currency: 'VND',
+    },
+    transaction: {
+      id: savedTransaction.id,
+      type: savedTransaction.type,
+      amount: Number(savedTransaction.amount || 0),
+      status: savedTransaction.status,
+      paymentMethod: savedTransaction.paymentMethod,
+      orderCode: savedTransaction.orderCode,
+      description: savedTransaction.description,
+      balanceBefore: Number(savedTransaction.balanceBefore || 0),
+      balanceAfter: Number(savedTransaction.balanceAfter || 0),
+      createdAt: savedTransaction.createdAt,
+      completedAt: savedTransaction.completedAt,
+    },
+  };
+};
+
+export const demoWithdrawWallet = async (
+  userId: string,
+  role: string,
+  dto: { amount: number; note?: string }
+) => {
+  if (!TOPUP_ALLOWED_ROLES.includes(role)) {
+    throw makeError('Vai tro nay khong the rut tien demo', 403);
+  }
+
+  const amount = Number(dto.amount);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw makeError('So tien rut khong hop le', 400);
+  }
+
+  const user = await userRepo().findOne({ where: { id: userId } });
+  if (!user) {
+    throw makeError('Khong tim thay nguoi dung', 404);
+  }
+
+  const balanceBefore = Number(user.virtualBalance || 0);
+  if (amount > balanceBefore) {
+    throw makeError('So du vi khong du de rut', 400);
+  }
+
+  const balanceAfter = balanceBefore - amount;
+  const orderCode = `RUT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  let savedTransaction: PaymentTransaction;
+  try {
+    savedTransaction = await AppDataSource.transaction(async (manager) => {
+      user.virtualBalance = balanceAfter;
+      await manager.getRepository(User).save(user);
+
+      const transaction = manager.getRepository(PaymentTransaction).create({
+        userId: user.id,
+        type: 'withdraw',
+        amount,
+        status: 'completed',
+        paymentMethod: 'demo',
+        gatewayRef: orderCode,
+        orderCode,
+        description: dto.note?.trim() || 'Rut tien demo tu vi ao',
+        balanceBefore,
+        balanceAfter,
+        metadata: JSON.stringify({ source: 'demo_withdraw', createdBy: user.id }),
+        completedAt: new Date(),
+      } as Partial<PaymentTransaction>);
+
+      return manager.getRepository(PaymentTransaction).save(transaction);
+    });
+  } catch (err: any) {
+    logError({
+      category: 'payment',
+      action: 'wallet_withdraw_failed',
+      message: `Loi rut tien vi cho user ${user.email}: ${err.message || err}`,
+      userId: user.id,
+      targetType: 'User',
+      targetId: user.id,
+      metadata: { amount, orderCode },
+      error: err,
+    });
+    throw err;
+  }
+
+  logAction({
+    category: 'payment',
+    action: 'wallet_withdraw',
+    message: `${user.email} rut ${amount.toLocaleString('vi-VN')} VND khoi vi (demo)`,
     userId: user.id,
     targetType: 'PaymentTransaction',
     targetId: savedTransaction.id,
