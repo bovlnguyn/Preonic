@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { resolveImageUrl } from '../../services/product.service';
 import NotificationBell from '../Notifications/NotificationBell';
+import DashboardGlobalSearch from '../Common/DashboardGlobalSearch';
 import { getInitials } from './utils';
 
 function FarmerTopbar() {
@@ -26,10 +26,10 @@ function FarmerTopbar() {
       </div>
 
       <div className="farmer-topbar__actions">
-        <label className="farmer-search">
-          <FiSearch />
-          <input type="search" placeholder="Tìm mùa vụ, hợp đồng, đơn hàng..." />
-        </label>
+        <DashboardGlobalSearch
+          role="farmer"
+          placeholder="Tìm mùa vụ, hợp đồng, đơn hàng..."
+        />
 
         <NotificationBell triggerClassName="farmer-icon-button" />
 
