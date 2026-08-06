@@ -4,6 +4,7 @@ import {
   createDemoQrTopup,
   createSepayTopup,
   getSepayTopupStatus,
+  getEnterpriseTransactionsOverview,
   getWallet,
   getWalletTransactions,
   sepayWebhook,
@@ -18,6 +19,12 @@ router.get(
   '/',
   protect as RequestHandler,
   getWallet as RequestHandler
+);
+
+router.get(
+  '/transactions/overview',
+  protect as RequestHandler,
+  getEnterpriseTransactionsOverview as RequestHandler
 );
 
 router.get(
