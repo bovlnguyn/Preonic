@@ -1,10 +1,14 @@
 import { Router, RequestHandler } from 'express';
 import {
-  createVnpayTopup,
+  confirmDemoQrTopup,
+  createDemoQrTopup,
+  createSepayTopup,
+  getSepayTopupStatus,
   getWallet,
   getWalletTransactions,
+  sepayWebhook,
   topupWallet,
-  vnpayReturn,
+  withdrawWallet,
 } from '../controller/wallet.controller';
 import { protect } from '../middlewares/auth.middlewares';
 
@@ -29,14 +33,41 @@ router.post(
 );
 
 router.post(
-  '/topup/vnpay/create',
+  '/withdraw',
   protect as RequestHandler,
-  createVnpayTopup as RequestHandler
+  withdrawWallet as RequestHandler
+);
+
+router.post(
+  '/topup/sepay/create',
+  protect as RequestHandler,
+  createSepayTopup as RequestHandler
 );
 
 router.get(
-  '/vnpay/return',
-  vnpayReturn as RequestHandler
+  '/topup/sepay/:orderCode/status',
+  protect as RequestHandler,
+  getSepayTopupStatus as RequestHandler
+);
+
+// Ban demo cua lenh SePay — khong can cau hinh ngan hang that, khong can webhook/tunnel.
+router.post(
+  '/topup/sepay/demo/create',
+  protect as RequestHandler,
+  createDemoQrTopup as RequestHandler
+);
+
+router.post(
+  '/topup/sepay/demo/:orderCode/confirm',
+  protect as RequestHandler,
+  confirmDemoQrTopup as RequestHandler
+);
+
+// Goi truc tiep boi SePay server-to-server, xac thuc bang Authorization header (API Key)
+// thay vi JWT nen khong dung middleware protect.
+router.post(
+  '/topup/sepay/webhook',
+  sepayWebhook as RequestHandler
 );
 
 export default router;

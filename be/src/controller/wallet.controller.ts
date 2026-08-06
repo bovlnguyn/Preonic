@@ -64,39 +64,121 @@ export const topupWallet = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const createVnpayTopup = async (req: AuthRequest, res: Response) => {
+export const withdrawWallet = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await walletService.createVnpayTopupPayment(
+    const result = await walletService.demoWithdrawWallet(
       req.user!.id,
       req.user!.role,
       {
         amount: Number(req.body?.amount),
-        ipAddr: req.ip,
+        note: req.body?.note,
       }
     );
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: 'Tao thanh toan VNPay thanh cong',
+      message: 'Rut tien demo thanh cong',
       data: result,
     });
   } catch (err: any) {
     res.status(err.statusCode || 500).json({
       success: false,
-      message: err.message || 'Tao thanh toan VNPay that bai',
+      message: err.message || 'Rut tien demo that bai',
     });
   }
 };
 
-export const vnpayReturn = async (req: Request, res: Response) => {
+export const createSepayTopup = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await walletService.handleVnpayReturn(req.query as any);
-
-    return res.redirect(result.redirectUrl);
-  } catch {
-    return res.redirect(
-      process.env.FRONTEND_WALLET_FAILED_URL ||
-      'http://localhost:3000/wallet-test?topup=failed'
+    const result = await walletService.createSepayTopupOrder(
+      req.user!.id,
+      req.user!.role,
+      { amount: Number(req.body?.amount) }
     );
+
+    res.status(201).json({
+      success: true,
+      message: 'Tao lenh nap tien SePay thanh cong',
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Tao lenh nap tien SePay that bai',
+    });
+  }
+};
+
+export const getSepayTopupStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await walletService.getSepayTopupStatus(
+      req.user!.id,
+      req.params.orderCode
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lay trang thai lenh nap tien that bai',
+    });
+  }
+};
+
+export const createDemoQrTopup = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await walletService.createDemoQrTopupOrder(
+      req.user!.id,
+      req.user!.role,
+      { amount: Number(req.body?.amount) }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Tao lenh nap tien demo thanh cong',
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Tao lenh nap tien demo that bai',
+    });
+  }
+};
+
+export const confirmDemoQrTopup = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await walletService.confirmDemoQrTopup(
+      req.user!.id,
+      req.params.orderCode
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Xac nhan nap tien demo that bai',
+    });
+  }
+};
+
+export const sepayWebhook = async (req: Request, res: Response) => {
+  try {
+    const authHeader = String(req.headers['authorization'] || '');
+    const apiKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, '').trim();
+
+    const result = await walletService.handleSepayWebhook(req.body, apiKey);
+    res.status(200).json(result);
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Xu ly webhook SePay that bai',
+    });
   }
 };

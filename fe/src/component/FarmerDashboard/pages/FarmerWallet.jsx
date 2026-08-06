@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   FiGrid, FiPlus, FiArrowUpRight, FiArrowDownLeft, FiClock,
   FiLock, FiRefreshCw, FiFileText, FiShield,
-  FiCheck, FiHome, FiZap, FiInbox,
+  FiCheck, FiHome, FiZap, FiInbox, FiCopy, FiLoader, FiCamera,
 } from 'react-icons/fi';
 import { useToast } from '../../../contexts/ToastContext';
 import walletService from '../../../services/wallet.service';
@@ -31,19 +31,21 @@ const BANKS = [
   'MB Bank', 'ACB', 'VPBank', 'Sacombank', 'TPBank',
 ];
 
-// Khop voi Transaction.type that su tra ve tu GET /wallet/transactions (topup | deposit | release | refund).
+// Khop voi Transaction.type that su tra ve tu GET /wallet/transactions (topup | withdraw | deposit | release | refund).
 const TX_META = {
-  topup:   { label: 'Nạp tiền',   icon: FiPlus,          tone: 'green' },
-  deposit: { label: 'Ký quỹ',     icon: FiLock,          tone: 'gold' },
-  release: { label: 'Nhận tiền',  icon: FiArrowUpRight,  tone: 'blue' },
-  refund:  { label: 'Hoàn tiền',  icon: FiArrowDownLeft, tone: 'purple' },
+  topup:    { label: 'Nạp tiền',   icon: FiPlus,          tone: 'green' },
+  withdraw: { label: 'Rút tiền',   icon: FiArrowUpRight,  tone: 'red' },
+  deposit:  { label: 'Ký quỹ',     icon: FiLock,          tone: 'gold' },
+  release:  { label: 'Nhận tiền',  icon: FiArrowUpRight,  tone: 'blue' },
+  refund:   { label: 'Hoàn tiền',  icon: FiArrowDownLeft, tone: 'purple' },
 };
 
 const HISTORY_FILTERS = [
-  { key: 'all',     label: 'Tất cả' },
-  { key: 'topup',   label: 'Nạp tiền' },
-  { key: 'release', label: 'Nhận tiền' },
-  { key: 'refund',  label: 'Hoàn tiền' },
+  { key: 'all',      label: 'Tất cả' },
+  { key: 'topup',    label: 'Nạp tiền' },
+  { key: 'withdraw', label: 'Rút tiền' },
+  { key: 'release',  label: 'Nhận tiền' },
+  { key: 'refund',   label: 'Hoàn tiền' },
 ];
 
 function formatDateTime(value) {
@@ -51,6 +53,18 @@ function formatDateTime(value) {
   const d = new Date(value);
   const pad = (n) => String(n).padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+// Escrow transactions không có cột status (luôn hoàn tất ngay), chỉ giao dịch
+// nguồn 'payment' (topup demo/SePay) mới có thể đang ở trạng thái pending.
+function TxStatusBadge({ tx }) {
+  if (tx.source === 'payment' && tx.status === 'pending') {
+    return <span className="farmer-badge farmer-badge--warning">Đang chờ</span>;
+  }
+  if (tx.source === 'payment' && tx.status && tx.status !== 'completed') {
+    return <span className="farmer-badge farmer-badge--danger">Thất bại</span>;
+  }
+  return <span className="farmer-badge farmer-badge--success">Thành công</span>;
 }
 
 function FarmerWallet() {
@@ -68,9 +82,14 @@ function FarmerWallet() {
   const [quickPicked, setQuickPicked] = useState(null);
   const [topupLoading, setTopupLoading] = useState(false);
 
-  // Rút tiền — chua co API backend, tam giu dang yeu cau cho duyet thu cong.
+  // Nạp tiền qua SePay — lệnh chuyển khoản đang chờ webhook xác nhận
+  const [sepayOrder, setSepayOrder] = useState(null);
+  const [sepayCreating, setSepayCreating] = useState(false);
+
+  // Rút tiền — yêu cầu qua ngân hàng vẫn là mock cho duyệt thủ công, chưa có API.
   const [withdrawals, setWithdrawals] = useState([]);
   const [wForm, setWForm] = useState({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   // Lịch sử
   const [historyFilter, setHistoryFilter] = useState('all');
@@ -119,10 +138,93 @@ function FarmerWallet() {
     setQuickPicked(null);
   };
 
-  const handleCreateSePayOrder = () => {
-    if (!Number(amountRaw)) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
-    toast.info('SePay sẽ được kết nối khi payment gateway thật sẵn sàng.');
+  const handleCreateSePayOrder = async () => {
+    const amount = Number(amountRaw);
+    if (!amount) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
+
+    setSepayCreating(true);
+    try {
+      const res = await walletService.createSepayOrder(amount);
+      setSepayOrder(res?.data || null);
+    } catch (err) {
+      toast.error(err?.message || 'Tạo lệnh SePay thất bại, vui lòng thử lại.');
+    } finally {
+      setSepayCreating(false);
+    }
   };
+
+  const handleCreateDemoQrOrder = async () => {
+    const amount = Number(amountRaw);
+    if (!amount) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
+
+    setSepayCreating(true);
+    try {
+      const res = await walletService.createDemoQrOrder(amount);
+      setSepayOrder(res?.data || null);
+    } catch (err) {
+      toast.error(err?.message || 'Tạo mã QR demo thất bại, vui lòng thử lại.');
+    } finally {
+      setSepayCreating(false);
+    }
+  };
+
+  const resetSepayOrder = () => setSepayOrder(null);
+
+  const copySepayField = async (text, label) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`Đã sao chép ${label}.`);
+    } catch {
+      toast.warning('Không thể sao chép, vui lòng copy thủ công.');
+    }
+  };
+
+  // Theo dõi trạng thái lệnh SePay đang chờ — webhook cộng ví ở phía backend,
+  // FE chỉ cần poll để biết khi nào đã nhận được tiền.
+  useEffect(() => {
+    if (!sepayOrder || sepayOrder.status === 'completed') return undefined;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await walletService.getSepayOrderStatus(sepayOrder.orderCode);
+        if (res?.data?.status === 'completed') {
+          setSepayOrder((prev) => (prev ? { ...prev, status: 'completed' } : prev));
+        }
+      } catch {
+        // Bỏ qua lỗi mạng tạm thời, thử lại ở lần poll kế tiếp.
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [sepayOrder?.orderCode, sepayOrder?.status]);
+
+  // Lệnh QR demo không có ngân hàng/webhook thật — tự giả lập xác nhận sau vài giây,
+  // vòng poll ở trên sẽ phát hiện và cập nhật giao diện như lệnh SePay thật.
+  useEffect(() => {
+    if (!sepayOrder?.isDemo || sepayOrder.status !== 'pending') return undefined;
+
+    const timer = setTimeout(() => {
+      walletService.confirmDemoQrOrder(sepayOrder.orderCode).catch(() => {});
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [sepayOrder?.orderCode, sepayOrder?.isDemo, sepayOrder?.status]);
+
+  useEffect(() => {
+    if (sepayOrder?.status !== 'completed') return undefined;
+
+    toast.success(`Nạp thành công ${formatMoney(sepayOrder.amount)} vào ví${sepayOrder.isDemo ? ' (QR demo)' : ' qua SePay'}.`);
+    loadWallet();
+
+    const timer = setTimeout(() => {
+      setSepayOrder(null);
+      setAmountRaw('');
+      setQuickPicked(null);
+      setTab('overview');
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [sepayOrder?.status]);
 
   const handleDemoTopUp = async () => {
     const amount = Number(amountRaw);
@@ -169,6 +271,26 @@ function FarmerWallet() {
     setWithdrawals((prev) => [request, ...prev]);
     setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
     toast.success('Đã gửi yêu cầu rút tiền. Quản trị viên sẽ xử lý sớm nhất.');
+  };
+
+  const handleDemoWithdraw = async () => {
+    const amount = Number(wForm.amount.replace(/\D/g, ''));
+    if (!amount || amount <= 0) { toast.warning('Vui lòng nhập số tiền muốn rút.'); return; }
+    if (amount > balance) { toast.error('Số tiền rút vượt quá số dư khả dụng.'); return; }
+
+    setWithdrawLoading(true);
+    try {
+      const res = await walletService.demoWithdraw(amount);
+      setBalance(res?.data?.wallet?.balance ?? balance);
+      setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
+      toast.success(`Rút thành công ${formatMoney(amount)} khỏi ví (demo).`);
+      setTab('overview');
+      loadWallet();
+    } catch (err) {
+      toast.error(err?.message || 'Rút tiền thất bại, vui lòng thử lại.');
+    } finally {
+      setWithdrawLoading(false);
+    }
   };
 
   return (
@@ -239,7 +361,7 @@ function FarmerWallet() {
                     {transactions.slice(0, 5).map((tx) => {
                       const meta = TX_META[tx.type] || TX_META.topup;
                       const Icon = meta.icon;
-                      const isOutgoing = tx.source === 'escrow' && tx.direction === 'out';
+                      const isOutgoing = (tx.source === 'escrow' && tx.direction === 'out') || tx.type === 'withdraw';
                       return (
                         <article key={`${tx.source}-${tx.id}`} className="fwt-tx-row">
                           <span className={`fwt-tx-icon fwt-tx-icon--${meta.tone}`}><Icon /></span>
@@ -252,7 +374,7 @@ function FarmerWallet() {
                             <span className={`fwt-tx-amount ${isOutgoing ? 'down' : 'up'}`}>
                               {isOutgoing ? '-' : '+'}{formatMoney(tx.amount)}
                             </span>
-                            <span className="farmer-badge farmer-badge--success">Thành công</span>
+                            <TxStatusBadge tx={tx} />
                           </div>
                         </article>
                       );
@@ -301,59 +423,131 @@ function FarmerWallet() {
                 <div className="fwt-panel-head"><h3><FiPlus /> Nạp tiền vào ví</h3></div>
 
                 <div className="fwt-progress-steps">
-                  <span className="fwt-progress-steps__item done">
+                  <span className={`fwt-progress-steps__item ${sepayOrder ? 'done' : 'active'}`}>
                     <span className="fwt-progress-steps__dot">1</span>Chọn số tiền
                   </span>
                   <span className="fwt-progress-steps__line" />
-                  <span className="fwt-progress-steps__item">
+                  <span className={`fwt-progress-steps__item ${sepayOrder?.status === 'completed' ? 'done' : sepayOrder ? 'active' : ''}`}>
                     <span className="fwt-progress-steps__dot">2</span>Thanh toán
                   </span>
                   <span className="fwt-progress-steps__line" />
-                  <span className="fwt-progress-steps__item">
+                  <span className={`fwt-progress-steps__item ${sepayOrder?.status === 'completed' ? 'done' : ''}`}>
                     <span className="fwt-progress-steps__dot">3</span>Tiền vào ví
                   </span>
                 </div>
 
-                <span className="fwt-label">Chọn nhanh</span>
-                <div className="fwt-quick-grid">
-                  {QUICK_AMOUNTS.map((q) => (
-                    <button
-                      key={q.value}
-                      type="button"
-                      className={`fwt-quick-btn ${quickPicked === q.value ? 'active' : ''}`}
-                      onClick={() => pickQuick(q.value)}
-                    >
-                      {q.label}
-                    </button>
-                  ))}
-                </div>
+                {!sepayOrder ? (
+                  <>
+                    <span className="fwt-label">Chọn nhanh</span>
+                    <div className="fwt-quick-grid">
+                      {QUICK_AMOUNTS.map((q) => (
+                        <button
+                          key={q.value}
+                          type="button"
+                          className={`fwt-quick-btn ${quickPicked === q.value ? 'active' : ''}`}
+                          onClick={() => pickQuick(q.value)}
+                        >
+                          {q.label}
+                        </button>
+                      ))}
+                    </div>
 
-                <span className="fwt-label">Hoặc nhập tùy chỉnh</span>
-                <div className="fwt-amount-input">
-                  <span className="fwt-amount-input__prefix">₫</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={amountRaw ? Number(amountRaw).toLocaleString('vi-VN') : ''}
-                    onChange={onCustomAmountChange}
-                  />
-                  <span className="fwt-amount-input__suffix">VND</span>
-                </div>
+                    <span className="fwt-label">Hoặc nhập tùy chỉnh</span>
+                    <div className="fwt-amount-input">
+                      <span className="fwt-amount-input__prefix">₫</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={amountRaw ? Number(amountRaw).toLocaleString('vi-VN') : ''}
+                        onChange={onCustomAmountChange}
+                      />
+                      <span className="fwt-amount-input__suffix">VND</span>
+                    </div>
 
-                <div className="fwt-action-row">
-                  <button type="button" className="fwt-btn fwt-btn--outline" onClick={handleCreateSePayOrder}>
-                    <FiHome /> Tạo lệnh SePay
-                  </button>
-                  <button
-                    type="button"
-                    className="fwt-btn fwt-btn--gradient"
-                    onClick={handleDemoTopUp}
-                    disabled={topupLoading}
-                  >
-                    <FiZap /> {topupLoading ? 'Đang xử lý...' : 'Nạp demo (tức thì)'}
-                  </button>
-                </div>
+                    <div className="fwt-action-row">
+                      <button
+                        type="button"
+                        className="fwt-btn fwt-btn--outline"
+                        onClick={handleCreateSePayOrder}
+                        disabled={sepayCreating}
+                      >
+                        <FiHome /> {sepayCreating ? 'Đang tạo lệnh...' : 'Tạo lệnh SePay'}
+                      </button>
+                      <button
+                        type="button"
+                        className="fwt-btn fwt-btn--outline"
+                        onClick={handleCreateDemoQrOrder}
+                        disabled={sepayCreating}
+                      >
+                        <FiCamera /> {sepayCreating ? 'Đang tạo mã...' : 'Quét mã QR (demo)'}
+                      </button>
+                      <button
+                        type="button"
+                        className="fwt-btn fwt-btn--gradient"
+                        onClick={handleDemoTopUp}
+                        disabled={topupLoading}
+                      >
+                        <FiZap /> {topupLoading ? 'Đang xử lý...' : 'Nạp demo (tức thì)'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="fwt-sepay-panel">
+                    {sepayOrder.isDemo && (
+                      <div className="fwt-sepay-demo-note">
+                        <FiCamera /> Mã QR demo — không cần chuyển khoản thật, hệ thống sẽ tự xác nhận sau vài giây.
+                      </div>
+                    )}
+
+                    <img className="fwt-sepay-qr" src={sepayOrder.qrUrl} alt="QR chuyển khoản SePay" />
+
+                    <div className="fwt-sepay-info">
+                      <div className="fwt-sepay-row">
+                        <span>Ngân hàng</span>
+                        <strong>{sepayOrder.bank?.bankCode}</strong>
+                      </div>
+                      <div className="fwt-sepay-row">
+                        <span>Số tài khoản</span>
+                        <strong>{sepayOrder.bank?.accountNumber}</strong>
+                        <button type="button" onClick={() => copySepayField(sepayOrder.bank?.accountNumber, 'số tài khoản')}>
+                          <FiCopy />
+                        </button>
+                      </div>
+                      <div className="fwt-sepay-row">
+                        <span>Chủ tài khoản</span>
+                        <strong>{sepayOrder.bank?.accountHolder}</strong>
+                      </div>
+                      <div className="fwt-sepay-row">
+                        <span>Số tiền</span>
+                        <strong>{formatMoney(sepayOrder.amount)}</strong>
+                      </div>
+                      <div className="fwt-sepay-row fwt-sepay-row--highlight">
+                        <span>Nội dung chuyển khoản (bắt buộc, giữ đúng)</span>
+                        <strong>{sepayOrder.transferContent}</strong>
+                        <button type="button" onClick={() => copySepayField(sepayOrder.transferContent, 'nội dung chuyển khoản')}>
+                          <FiCopy />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className={`fwt-sepay-status ${sepayOrder.status === 'completed' ? 'success' : ''}`}>
+                      {sepayOrder.status === 'completed' ? (
+                        <><FiCheck /> Đã nhận được tiền, đang cộng vào ví...</>
+                      ) : sepayOrder.isDemo ? (
+                        <><FiLoader className="fwt-spin" /> Đang giả lập xác nhận...</>
+                      ) : (
+                        <><FiLoader className="fwt-spin" /> Đang chờ SePay xác nhận chuyển khoản...</>
+                      )}
+                    </div>
+
+                    {sepayOrder.status !== 'completed' && (
+                      <button type="button" className="fwt-btn fwt-btn--outline fwt-btn--full" onClick={resetSepayOrder}>
+                        Nhập số tiền khác
+                      </button>
+                    )}
+                  </div>
+                )}
               </section>
 
               <div className="farmer-stack" style={{ gap: 18 }}>
@@ -410,6 +604,19 @@ function FarmerWallet() {
                       onChange={(e) => setWField('amount', e.target.value)}
                     />
                   </div>
+
+                  <button
+                    type="button"
+                    className="fwt-btn fwt-btn--outline fwt-btn--full"
+                    onClick={handleDemoWithdraw}
+                    disabled={withdrawLoading}
+                  >
+                    <FiZap /> {withdrawLoading ? 'Đang xử lý...' : 'Rút demo (tức thì) — không cần thông tin ngân hàng'}
+                  </button>
+
+                  <p className="fwt-helper" style={{ marginTop: 0 }}>
+                    Hoặc điền đầy đủ thông tin bên dưới để gửi yêu cầu rút tiền qua ngân hàng thật (chờ quản trị viên duyệt):
+                  </p>
 
                   <div className="fwt-field">
                     <label>Ngân hàng <span className="fwt-req">*</span></label>
@@ -513,7 +720,7 @@ function FarmerWallet() {
                     {filteredHistory.map((tx) => {
                       const meta = TX_META[tx.type] || TX_META.topup;
                       const Icon = meta.icon;
-                      const isOutgoing = tx.source === 'escrow' && tx.direction === 'out';
+                      const isOutgoing = (tx.source === 'escrow' && tx.direction === 'out') || tx.type === 'withdraw';
                       return (
                         <tr key={`${tx.source}-${tx.id}`}>
                           <td>
@@ -528,7 +735,7 @@ function FarmerWallet() {
                           <td className={isOutgoing ? 'farmer-money farmer-money--down' : 'farmer-money farmer-money--up'}>
                             {isOutgoing ? '-' : '+'}{formatMoney(tx.amount)}
                           </td>
-                          <td><span className="farmer-badge farmer-badge--success">Thành công</span></td>
+                          <td><TxStatusBadge tx={tx} /></td>
                           <td>{formatDateTime(tx.createdAt)}</td>
                         </tr>
                       );
