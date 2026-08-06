@@ -8,6 +8,7 @@ import {
   getWalletTransactions,
   sepayWebhook,
   topupWallet,
+  withdrawWallet,
 } from '../controller/wallet.controller';
 import { protect } from '../middlewares/auth.middlewares';
 
@@ -29,6 +30,12 @@ router.post(
   '/topup',
   protect as RequestHandler,
   topupWallet as RequestHandler
+);
+
+router.post(
+  '/withdraw',
+  protect as RequestHandler,
+  withdrawWallet as RequestHandler
 );
 
 router.post(

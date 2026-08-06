@@ -87,6 +87,18 @@ const walletService = {
       throw error.response?.data || { success: false, message: 'Xác nhận nạp tiền demo thất bại' };
     }
   },
+
+  /**
+   * Demo withdraw — deducts funds from the wallet instantly, no real bank transfer
+   */
+  demoWithdraw: async (amount, note) => {
+    try {
+      const response = await api.post('/wallet/withdraw', { amount, note });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Rút tiền thất bại' };
+    }
+  },
 };
 
 export default walletService;
