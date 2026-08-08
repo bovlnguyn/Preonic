@@ -91,6 +91,18 @@ const contractService = {
   },
 
   /**
+   * Delete a draft contract (enterprise only, before it's sent to the farmer)
+   */
+  remove: async (id) => {
+    try {
+      const response = await api.delete(`/contracts/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Xóa hợp đồng thất bại' };
+    }
+  },
+
+  /**
    * Cancel a contract
    */
   cancel: async (id, reason) => {

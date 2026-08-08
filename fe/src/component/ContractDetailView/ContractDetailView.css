@@ -352,6 +352,25 @@
   margin-top: 4px;
 }
 
+/* ── Bảo hiểm nông nghiệp ── */
+.cdv-insurance {
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+}
+
+.cdv-insurance__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #15803d;
+}
+
 /* ── Badge cancel_pending ── */
 .cdv-badge--cancel_pending {
   background: #fffbeb;

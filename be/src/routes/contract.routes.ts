@@ -8,6 +8,7 @@ import {
   signContract,
   rejectContract,
   cancelContract,
+  deleteContract,
   confirmCancelContract,
   declineCancelContract,
 } from '../controller/contract.controller';
@@ -25,6 +26,12 @@ router.post(
 router.get('/', protect as RequestHandler, listContracts as RequestHandler);
 router.get('/summary', protect as RequestHandler, getContractSummary as RequestHandler);
 router.get('/:id', protect as RequestHandler, getContract as RequestHandler);
+router.delete(
+  '/:id',
+  protect as RequestHandler,
+  restrictTo('enterprise') as RequestHandler,
+  deleteContract as RequestHandler
+);
 
 router.post(
   '/:id/submit',
