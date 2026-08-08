@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiX, FiAlertTriangle, FiMessageCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiX, FiAlertTriangle, FiMessageCircle, FiShield, FiTrash2 } from 'react-icons/fi';
 import contractService from '../../services/contract.service';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -20,7 +20,9 @@ const FLOW_STEPS = [
 const TERMINAL_STATUSES = ['cancelled', 'disputed'];
 // 'active' khong nam trong day: mot khi hop dong active la escrow da funded,
 // huy truc tiep bi BE chan (phai xu ly qua dispute de tien duoc giai quyet dung).
-const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved'];
+// 'draft' cung khong nam trong day: hop dong nhap chua tung gui cho Farmer nen
+// khong can luong huy -- Enterprise xoa han thay vi huy (xem canDelete ben duoi).
+const CAN_CANCEL_STATUSES = ['pending', 'approved'];
 
 // Nong dan phai ky truoc, den luot doanh nghiep ky sau khi kich hoat hop dong
 const resolveFlowProgress = (contract) => {
@@ -40,6 +42,20 @@ const resolveFlowProgress = (contract) => {
 
 const fmtMoney = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
 const fmtDate  = (v) => (v ? new Date(v).toLocaleDateString('vi-VN') : 'Chưa cập nhật');
+
+const COVERED_EVENTS_LABEL = {
+  natural_disaster: 'Thiên tai',
+  disease:          'Dịch bệnh',
+  both:             'Cả hai (thiên tai + dịch bệnh)',
+};
+
+const INSURANCE_STATUS_LABEL = {
+  none:      'Không có',
+  pending:   'Chờ xử lý',
+  active:    'Đang hiệu lực',
+  expired:   'Đã hết hạn',
+  cancelled: 'Đã hủy',
+};
 
 // ── Modal hủy hợp đồng ────────────────────────────────────
 function CancelModal({ acting, onConfirm, onClose }) {
@@ -74,6 +90,32 @@ function CancelModal({ acting, onConfirm, onClose }) {
             disabled={acting || !reason.trim()}
           >
             {acting ? 'Đang gửi...' : 'Gửi yêu cầu hủy'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal xóa hợp đồng nháp ───────────────────────────────
+function DeleteModal({ contract, acting, onConfirm, onClose }) {
+  return (
+    <div className="cdv-modal-overlay" onClick={onClose}>
+      <div className="cdv-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="cdv-modal__header">
+          <FiAlertTriangle size={20} color="#dc2626" />
+          <h3>Xóa hợp đồng nháp</h3>
+        </div>
+        <p className="cdv-modal__desc">
+          Hợp đồng <strong>{contract.contractCode}</strong> chưa được gửi cho nông dân.
+          Xóa sẽ gỡ bỏ vĩnh viễn hợp đồng này và không thể hoàn tác.
+        </p>
+        <div className="cdv-modal__actions">
+          <button className="cdv-btn cdv-btn--outline" onClick={onClose} disabled={acting}>
+            Đóng
+          </button>
+          <button className="cdv-btn cdv-btn--danger" onClick={onConfirm} disabled={acting}>
+            {acting ? 'Đang xóa...' : 'Xóa hợp đồng'}
           </button>
         </div>
       </div>
@@ -130,6 +172,7 @@ export default function ContractDetailView() {
   const [signRejectReason, setSignRejectReason] = useState('');
   const [showCancelModal, setShowCancelModal]   = useState(false); // popup hủy HĐ
   const [showConfirmCancel, setShowConfirmCancel] = useState(false); // popup xác nhận hủy
+  const [showDeleteModal, setShowDeleteModal]   = useState(false); // popup xóa HĐ nháp
 
   const backPath = user?.role === 'farmer' ? '/farmer/contracts' : '/enterprise/contracts';
   const isFarmer = user?.role === 'farmer';
@@ -218,6 +261,21 @@ export default function ContractDetailView() {
     }
   };
 
+  // Xóa hợp đồng nháp (chưa từng gửi cho nông dân)
+  const handleDelete = async () => {
+    setActing(true);
+    try {
+      await contractService.remove(id);
+      toast.success('Đã xóa hợp đồng nháp');
+      navigate(backPath);
+    } catch (err) {
+      toast.error(err?.message || 'Xóa hợp đồng thất bại.');
+    } finally {
+      setActing(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   // Bên bị hủy từ chối xác nhận hủy (giữ nguyên hợp đồng)
   const handleDeclineCancel = async () => {
     setActing(true);
@@ -263,6 +321,9 @@ export default function ContractDetailView() {
 
   // Có thể hủy nếu HĐ đang trong trạng thái cho phép trực tiếp (chưa phát sinh ký quỹ)
   const canCancel = CAN_CANCEL_STATUSES.includes(contract.status);
+
+  // Doanh nghiệp: HĐ còn là bản nháp, chưa từng gửi cho nông dân -- xóa hẳn thay vì hủy
+  const canDelete = !isFarmer && contract.status === 'draft';
 
   // Bên bị yêu cầu hủy: cancel_pending và mình không phải người gửi yêu cầu
   const isCancelRequester = contract.cancelRequestedBy === user?.id;
@@ -311,11 +372,35 @@ export default function ContractDetailView() {
           <div className="cdv-summary__row"><span>Ngày giao hàng:</span><strong>{fmtDate(contract.deliveryDate)}</strong></div>
           <div className="cdv-summary__row"><span>Đặt cọc:</span><strong>{PAYMENT_TERMS_LABEL[contract.paymentTerms] || contract.paymentTerms}</strong></div>
           {contract.farmLocation && <div className="cdv-summary__row"><span>Khu vực:</span><strong>{contract.farmLocation}</strong></div>}
+          {contract.deliveryAddress && <div className="cdv-summary__row"><span>Địa chỉ giao hàng:</span><strong>{contract.deliveryAddress}</strong></div>}
           {contract.notes && <div className="cdv-summary__row"><span>Ghi chú:</span><strong>{contract.notes}</strong></div>}
           <hr className="cdv-divider" />
           <div className="cdv-summary__row cdv-summary__row--total"><span>Tổng giá trị:</span><strong>{fmtMoney(contract.totalValue)}</strong></div>
           <div className="cdv-summary__row"><span>Phí dịch vụ PreOnic ({contract.commissionRate}%):</span><strong>{fmtMoney(contract.commission)}</strong></div>
         </div>
+
+        {/* Bảo hiểm nông nghiệp */}
+        {contract.insuranceEnabled && (
+          <div className="cdv-summary cdv-insurance">
+            <h4 className="cdv-insurance__title"><FiShield size={14} /> Thông tin bảo hiểm nông nghiệp</h4>
+            {contract.insuranceProvider && <div className="cdv-summary__row"><span>Công ty bảo hiểm:</span><strong>{contract.insuranceProvider}</strong></div>}
+            {contract.insurancePolicyNumber && <div className="cdv-summary__row"><span>Số hợp đồng bảo hiểm:</span><strong>{contract.insurancePolicyNumber}</strong></div>}
+            {contract.insuredValue > 0 && <div className="cdv-summary__row"><span>Giá trị được bảo hiểm:</span><strong>{fmtMoney(contract.insuredValue)}</strong></div>}
+            {contract.insuranceCoveredEvents && (
+              <div className="cdv-summary__row"><span>Sự kiện được bảo hiểm:</span><strong>{COVERED_EVENTS_LABEL[contract.insuranceCoveredEvents] || contract.insuranceCoveredEvents}</strong></div>
+            )}
+            {(contract.insuranceValidFrom || contract.insuranceValidTo) && (
+              <div className="cdv-summary__row">
+                <span>Hiệu lực:</span>
+                <strong>{fmtDate(contract.insuranceValidFrom)} — {fmtDate(contract.insuranceValidTo)}</strong>
+              </div>
+            )}
+            {contract.insuranceRiskSharingTerms && (
+              <div className="cdv-summary__row"><span>Điều khoản chia sẻ rủi ro:</span><strong>{contract.insuranceRiskSharingTerms}</strong></div>
+            )}
+            <div className="cdv-summary__row"><span>Trạng thái:</span><strong>{INSURANCE_STATUS_LABEL[contract.insuranceStatus] || contract.insuranceStatus}</strong></div>
+          </div>
+        )}
 
         {/* Chữ ký */}
         <div className="cdv-signatures">
@@ -418,6 +503,13 @@ export default function ContractDetailView() {
             </div>
           )}
 
+          {/* Doanh nghiệp: xóa hẳn hợp đồng nháp thay vì hủy */}
+          {canDelete && !showSignReject && (
+            <button className="cdv-btn cdv-btn--ghost" onClick={() => setShowDeleteModal(true)} disabled={acting}>
+              <FiTrash2 size={14} /> Xóa hợp đồng
+            </button>
+          )}
+
           {/* Nút hủy hợp đồng — cả 2 bên đều có */}
           {canCancel && !showSignReject && (
             <button className="cdv-btn cdv-btn--ghost" onClick={() => setShowCancelModal(true)} disabled={acting}>
@@ -435,6 +527,16 @@ export default function ContractDetailView() {
       </div>
 
       <EscrowPanel contract={contract} userRole={user?.role} />
+
+      {/* Modal xóa hợp đồng nháp */}
+      {showDeleteModal && (
+        <DeleteModal
+          contract={contract}
+          acting={acting}
+          onConfirm={handleDelete}
+          onClose={() => setShowDeleteModal(false)}
+        />
+      )}
 
       {/* Modal hủy hợp đồng */}
       {showCancelModal && (

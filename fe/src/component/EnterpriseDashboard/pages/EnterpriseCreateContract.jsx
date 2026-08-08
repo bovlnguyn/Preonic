@@ -15,8 +15,8 @@ const STEPS = [
   { key: 'propose',      label: 'Đề xuất' },
   { key: 'review',       label: 'Xem xét' },
   { key: 'preon_verify', label: 'PreOnic Xác nhận' },
-  { key: 'sign',         label: 'Gửi đề xuất' },
-  { key: 'done',         label: 'Đã gửi' },
+  { key: 'sign',         label: 'Tạo hợp đồng' },
+  { key: 'done',         label: 'Đã tạo' },
 ];
 
 const PAYMENT_TERMS = [
@@ -117,6 +117,7 @@ export default function EnterpriseCreateContract() {
     unit:           'kg',
     pricePerUnit:   '',
     deliveryDate:   '',
+    deliveryAddress: '',
     paymentTerms:   '50_50',
     customDeposit:  '',
     customOnDelivery: '',
@@ -181,6 +182,8 @@ export default function EnterpriseCreateContract() {
       e.deliveryDate = 'Vui lòng chọn ngày giao hàng.';
     else if (form.deliveryDate <= today)
       e.deliveryDate = 'Ngày giao hàng phải sau ngày hôm nay.';
+    if (!form.deliveryAddress.trim())
+      e.deliveryAddress = 'Vui lòng nhập địa chỉ giao hàng.';
     if (form.paymentTerms === 'custom' && !customDepositValid())
       e.customDeposit = 'Tổng đặt cọc + khi nhận hàng phải bằng 100%.';
     setErrors(e);
@@ -229,6 +232,7 @@ export default function EnterpriseCreateContract() {
         // vi backend tinh totalValue = quantity * pricePerUnit ma khong tu quy doi don vi.
         pricePerUnit:      parseFloat(form.pricePerUnit) * unitFactor,
         deliveryDate:      form.deliveryDate,
+        deliveryAddress:   form.deliveryAddress,
         paymentTerms:      form.paymentTerms,
         qualityRequirements: form.notes,
         depositPercentage: depositPct,
@@ -344,6 +348,17 @@ export default function EnterpriseCreateContract() {
                 />
                 {errors.deliveryDate && <span className="ecc-err">{errors.deliveryDate}</span>}
               </div>
+            </div>
+
+            <div className="ecc-field ecc-field--full">
+              <label>Địa chỉ giao hàng <span className="ecc-req">*</span></label>
+              <input
+                className={errors.deliveryAddress ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                value={form.deliveryAddress}
+                onChange={e => setField('deliveryAddress', e.target.value)}
+                placeholder="VD: Kho số 12, KCN Tân Bình, Quận Tân Bình, TP.HCM"
+              />
+              {errors.deliveryAddress && <span className="ecc-err">{errors.deliveryAddress}</span>}
             </div>
 
             <div className="ecc-row">
@@ -480,6 +495,7 @@ export default function EnterpriseCreateContract() {
               <div className="ecc-summary__row"><span>Số lượng:</span><strong>{form.quantity} {form.unit}</strong></div>
               <div className="ecc-summary__row"><span>Đơn giá:</span><strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/kg</strong></div>
               <div className="ecc-summary__row"><span>Ngày giao:</span><strong>{form.deliveryDate || '--'}</strong></div>
+              <div className="ecc-summary__row"><span>Địa chỉ giao hàng:</span><strong>{form.deliveryAddress || '--'}</strong></div>
               <div className="ecc-summary__row"><span>Đặt cọc:</span><strong>{getDepositLabel(form.paymentTerms, form.customDeposit, form.customOnDelivery)}</strong></div>
               <div className="ecc-summary__row"><span>Nhà sản xuất:</span><strong>{form.farmerName || '--'}</strong></div>
               <div className="ecc-summary__row"><span>Doanh nghiệp:</span><strong>{form.enterpriseName || user?.fullName || '--'}</strong></div>
@@ -533,7 +549,7 @@ export default function EnterpriseCreateContract() {
         {/* ── BƯỚC 3: Ký hợp đồng ── */}
         {step === 3 && (
           <div className="ecc-card">
-            <h3 className="ecc-card__title">Xác nhận & gửi đề xuất hợp đồng</h3>
+            <h3 className="ecc-card__title">Xác nhận & tạo hợp đồng</h3>
 
             <div className="ecc-contract-doc">
               <div className="ecc-contract-doc__header">
@@ -544,6 +560,7 @@ export default function EnterpriseCreateContract() {
                 <p>Hợp đồng bao tiêu <strong>{form.quantity} {form.unit} {form.productName}</strong> với đơn giá <strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/kg</strong>.</p>
                 <p>Tổng giá trị: <strong>{fmtMoney(totalValue)}</strong> | Phí dịch vụ PreOnic: <strong>{fmtMoney(commission)}</strong></p>
                 <p>Ngày giao hàng: <strong>{form.deliveryDate}</strong></p>
+                <p>Địa chỉ giao hàng: <strong>{form.deliveryAddress}</strong></p>
                 <p>Bên bán: {form.farmerName || '--'} | Bên mua: {form.enterpriseName || user?.fullName || '--'}</p>
                 <p>Trung gian: <strong>Công ty TNHH PreOnic Việt Nam</strong></p>
               </div>
@@ -571,8 +588,8 @@ export default function EnterpriseCreateContract() {
             </div>
 
             <p className="ecc-sign-note">
-              Sau khi gửi, nông dân sẽ xem xét và xác nhận hoặc từ chối đề xuất này.
-              Bạn sẽ ký chính thức để kích hoạt hợp đồng sau khi nông dân đồng ý.
+              Sau khi tạo, hợp đồng sẽ ở trạng thái nháp. Vào trang chi tiết hợp đồng để gửi
+              cho nông dân xem xét, ký xác nhận -- bạn sẽ ký chính thức sau khi nông dân đồng ý.
             </p>
 
             {errors.submit && (
@@ -587,9 +604,9 @@ export default function EnterpriseCreateContract() {
         {step === 4 && (
           <div className="ecc-card ecc-card--center">
             <div className="ecc-done__icon"><FiCheckCircle size={48} /></div>
-            <h3 className="ecc-card__title">Đề xuất hợp đồng đã được gửi!</h3>
+            <h3 className="ecc-card__title">Hợp đồng đã được tạo!</h3>
             <p>Mã hợp đồng: <strong>{createdContract?.contractCode || contractCode}</strong></p>
-            <p>Nông dân sẽ nhận được thông báo để xem xét và xác nhận. Bạn có thể ký chính thức sau khi nông dân đồng ý.</p>
+            <p>Hợp đồng đang ở trạng thái nháp. Vào trang chi tiết hợp đồng để gửi cho nông dân xem xét và xác nhận.</p>
             <div className="ecc-done__summary">
               <div><span>Sản phẩm:</span><strong>{form.productName}</strong></div>
               <div><span>Giá trị:</span><strong>{fmtMoney(createdContract?.totalValue || totalValue)}</strong></div>
@@ -619,7 +636,7 @@ export default function EnterpriseCreateContract() {
               <button className="ecc-btn ecc-btn--primary"
                 onClick={handleSubmitProposal}
                 disabled={!canSign || loading}>
-                {loading ? 'Đang xử lý...' : 'Gửi đề xuất hợp đồng'}
+                {loading ? 'Đang tạo hợp đồng...' : 'Tạo hợp đồng'}
               </button>
             )}
           </div>
