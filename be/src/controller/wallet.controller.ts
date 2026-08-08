@@ -46,7 +46,12 @@ export const getEnterpriseTransactionsOverview = async (req: AuthRequest, res: R
     const result = await walletService.getEnterpriseTransactionsOverview(
       req.user!.id,
       req.user!.role,
-      year
+      year,
+      {
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        type: typeof req.query.type === 'string' ? req.query.type : undefined,
+      }
     );
 
     res.status(200).json({

@@ -17,3 +17,19 @@ export const getSuppliers = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
+export const getSupplierDetail = async (req: AuthRequest, res: Response) => {
+  try {
+    const supplier = await enterpriseService.getSupplierDetail(req.user!.id, req.params.farmerId);
+
+    res.status(200).json({
+      success: true,
+      data: { supplier },
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lay thong tin nha cung cap that bai',
+    });
+  }
+};

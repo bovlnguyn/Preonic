@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiStar } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
@@ -7,12 +8,13 @@ import { useState, useEffect } from 'react';
 import { formatMoney } from '../utils';
 import supplierService from '../../../services/supplier.service';
 
-const SUPPLIER_STATUS_LABEL = {
+export const SUPPLIER_STATUS_LABEL = {
   active: 'Đang hợp tác',
   inactive: 'Đã hợp tác',
 };
 
 function EnterpriseSuppliers() {
+  const navigate = useNavigate();
   const [enterpriseSuppliers, setEnterpriseSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +44,16 @@ function EnterpriseSuppliers() {
         ) : (
           <div className="ent-supplier-grid">
             {enterpriseSuppliers.map((s) => (
-              <article className="ent-supplier-card" key={s.id}>
+              <article
+                className="ent-supplier-card"
+                key={s.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/enterprise/suppliers/${s.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') navigate(`/enterprise/suppliers/${s.id}`);
+                }}
+              >
                 <div className="ent-supplier-card__top">
                   <span>{s.location}</span>
                   <StatusBadge status={SUPPLIER_STATUS_LABEL[s.status] || s.status} />

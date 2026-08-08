@@ -25,6 +25,7 @@ import EnterpriseCreateContract from '../component/EnterpriseDashboard/pages/Ent
 // Dùng chung Farmer/Enterprise
 import ContractDetailView from '../component/ContractDetailView/ContractDetailView';
 import ProductDetail from '../component/ProductDetail/ProductDetail';
+import EnterpriseSupplierDetail from '../component/EnterpriseSupplierDetail/EnterpriseSupplierDetail';
 
 const forEnterprise = (element) => (
   <ProtectedRoute allowedRoles={['enterprise']}>{element}</ProtectedRoute>
@@ -54,6 +55,7 @@ const enterpriseRoutes = [
       { path: 'escrow', element: <EnterpriseEscrow /> },
       { path: 'wallet', element: <EnterpriseWallet /> },
       { path: 'suppliers', element: <EnterpriseSuppliers /> },
+      { path: 'suppliers/:id', element: <EnterpriseSupplierDetail /> },
       { path: 'transactions', element: <EnterpriseTransactions /> },
       { path: 'ratings', element: <EnterpriseRatings /> },
       { path: 'weather-insurance', element: <EnterpriseWeatherInsurance /> },
