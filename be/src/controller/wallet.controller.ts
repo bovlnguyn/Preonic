@@ -40,19 +40,18 @@ export const getWalletTransactions = async (req: AuthRequest, res: Response) => 
   }
 };
 
-export const getEnterpriseTransactionsOverview = async (req: AuthRequest, res: Response) => {
+export const getTransactionsOverview = async (req: AuthRequest, res: Response) => {
   try {
     const year = req.query.year ? Number(req.query.year) : undefined;
-    const result = await walletService.getEnterpriseTransactionsOverview(
-      req.user!.id,
-      req.user!.role,
-      year,
-      {
-        page: req.query.page ? Number(req.query.page) : undefined,
-        limit: req.query.limit ? Number(req.query.limit) : undefined,
-        type: typeof req.query.type === 'string' ? req.query.type : undefined,
-      }
-    );
+    const options = {
+      page: req.query.page ? Number(req.query.page) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      type: typeof req.query.type === 'string' ? req.query.type : undefined,
+    };
+
+    const result = req.user!.role === 'farmer'
+      ? await walletService.getFarmerTransactionsOverview(req.user!.id, req.user!.role, year, options)
+      : await walletService.getEnterpriseTransactionsOverview(req.user!.id, req.user!.role, year, options);
 
     res.status(200).json({
       success: true,

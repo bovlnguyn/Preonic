@@ -227,6 +227,51 @@
 .fwt-tx-icon--purple { color: #6d28d9; background: #ede9fe; }
 .fwt-tx-icon--red    { color: #b91c1c; background: #fee2e2; }
 
+/* ── Pagination (Lịch sử) ── */
+.fwt-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.fwt-pagination span {
+  color: var(--farmer-muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.fwt-pagination-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.fwt-pagination-btns button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--farmer-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--farmer-green-700);
+  font-size: 13px;
+  font-weight: 900;
+  padding: 8px 14px;
+}
+
+.fwt-pagination-btns button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--farmer-green-100);
+  border-color: rgba(22, 163, 74, 0.36);
+}
+
+.fwt-pagination-btns button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .fwt-tx-main strong {
   display: block;
   color: var(--farmer-green-950);

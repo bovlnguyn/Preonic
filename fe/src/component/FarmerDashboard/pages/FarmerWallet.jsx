@@ -3,6 +3,7 @@ import {
   FiGrid, FiPlus, FiArrowUpRight, FiArrowDownLeft, FiClock,
   FiLock, FiRefreshCw, FiFileText, FiShield,
   FiCheck, FiHome, FiZap, FiInbox, FiCopy, FiLoader, FiCamera,
+  FiChevronLeft, FiChevronRight,
 } from 'react-icons/fi';
 import { useToast } from '../../../contexts/ToastContext';
 import walletService from '../../../services/wallet.service';
@@ -91,8 +92,12 @@ function FarmerWallet() {
   const [wForm, setWForm] = useState({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
-  // Lịch sử
+  // Lịch sử — phân trang & lọc phía server
   const [historyFilter, setHistoryFilter] = useState('all');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTransactions, setHistoryTransactions] = useState([]);
+  const [historyPagination, setHistoryPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const loadWallet = () => {
     setLoading(true);
@@ -122,10 +127,30 @@ function FarmerWallet() {
     [transactions],
   );
 
-  const filteredHistory = useMemo(
-    () => (historyFilter === 'all' ? transactions : transactions.filter((t) => t.type === historyFilter)),
-    [transactions, historyFilter],
-  );
+  useEffect(() => {
+    if (tab !== 'history') return;
+
+    setHistoryLoading(true);
+    walletService.listTransactions({
+      type: historyFilter === 'all' ? undefined : historyFilter,
+      page: historyPage,
+      limit: 10,
+    })
+      .then((res) => {
+        setHistoryTransactions(res?.data?.transactions || []);
+        setHistoryPagination(res?.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 });
+      })
+      .catch(() => {
+        setHistoryTransactions([]);
+        setHistoryPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
+      })
+      .finally(() => setHistoryLoading(false));
+  }, [tab, historyFilter, historyPage]);
+
+  const handleHistoryFilterChange = (key) => {
+    setHistoryFilter(key);
+    setHistoryPage(1);
+  };
 
   const pickQuick = (value) => {
     setQuickPicked(value);
@@ -701,7 +726,7 @@ function FarmerWallet() {
                     key={f.key}
                     type="button"
                     className={historyFilter === f.key ? 'active' : ''}
-                    onClick={() => setHistoryFilter(f.key)}
+                    onClick={() => handleHistoryFilterChange(f.key)}
                   >
                     {f.label}
                   </button>
@@ -717,7 +742,7 @@ function FarmerWallet() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredHistory.map((tx) => {
+                    {historyTransactions.map((tx) => {
                       const meta = TX_META[tx.type] || TX_META.topup;
                       const Icon = meta.icon;
                       const isOutgoing = (tx.source === 'escrow' && tx.direction === 'out') || tx.type === 'withdraw';
@@ -740,12 +765,36 @@ function FarmerWallet() {
                         </tr>
                       );
                     })}
-                    {filteredHistory.length === 0 && (
+                    {!historyLoading && historyTransactions.length === 0 && (
                       <tr><td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8' }}>Không có giao dịch phù hợp.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+
+              {historyTransactions.length > 0 && (
+                <div className="fwt-pagination">
+                  <span>
+                    Trang {historyPagination.page} / {historyPagination.totalPages} — {historyPagination.total.toLocaleString('vi-VN')} giao dịch
+                  </span>
+                  <div className="fwt-pagination-btns">
+                    <button
+                      type="button"
+                      disabled={historyPagination.page <= 1}
+                      onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                    >
+                      <FiChevronLeft size={14} /> Trước
+                    </button>
+                    <button
+                      type="button"
+                      disabled={historyPagination.page >= historyPagination.totalPages}
+                      onClick={() => setHistoryPage((p) => Math.min(historyPagination.totalPages, p + 1))}
+                    >
+                      Sau <FiChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           )}
         </>

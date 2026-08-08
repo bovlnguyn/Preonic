@@ -29,7 +29,8 @@ const walletService = {
   },
 
   /**
-   * Enterprise transaction overview: wallet + contracts + escrow chart/table
+   * Transaction overview (wallet + contracts + escrow chart/table).
+   * Enterprise sees spending as cost; farmer sees contracts/escrow as revenue.
    */
   overviewTransactions: async (params = {}) => {
     try {
