@@ -16,6 +16,7 @@ import FarmerContracts from '../component/FarmerDashboard/pages/FarmerContracts'
 import FarmerOrders from '../component/FarmerDashboard/pages/FarmerOrders';
 import FarmerEscrow from '../component/FarmerDashboard/pages/FarmerEscrow';
 import FarmerWallet from '../component/FarmerDashboard/pages/FarmerWallet';
+import FarmerFinance from '../component/FarmerDashboard/pages/FarmerFinance';
 import FarmerRatings from '../component/FarmerDashboard/pages/FarmerRatings';
 import FarmerWeatherInsurance from '../component/FarmerDashboard/pages/FarmerWeatherInsurance';
 import FarmerCreateProduct from '../component/FarmerDashboard/pages/FarmerCreateProduct';
@@ -50,6 +51,7 @@ const farmerRoutes = [
       { path: 'orders', element: <FarmerOrders /> },
       { path: 'escrow', element: <FarmerEscrow /> },
       { path: 'wallet', element: <FarmerWallet /> },
+      { path: 'finance', element: <FarmerFinance /> },
       { path: 'ratings', element: <FarmerRatings /> },
       { path: 'weather-insurance', element: <FarmerWeatherInsurance /> },
       { path: 'create-product', element: <FarmerCreateProduct /> },

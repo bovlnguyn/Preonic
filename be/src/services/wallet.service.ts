@@ -383,6 +383,189 @@ export const getEnterpriseTransactionsOverview = async (
   };
 };
 
+const FARMER_TRANSACTION_TYPES = ['wallet', 'contract', 'escrow'] as const;
+
+export interface FarmerTransactionsOverviewQuery {
+  page?: number;
+  limit?: number;
+  type?: string;
+}
+
+const buildRevenueChartSkeleton = () =>
+  MONTH_NAMES.map((month) => ({ month, revenue: 0 }));
+
+// Tuong tu getEnterpriseTransactionsOverview nhung dao chieu ngu nghia: hop dong/escrow
+// la doanh thu (+) chu khong phai chi phi (-), vi nong dan la ben nhan tien.
+export const getFarmerTransactionsOverview = async (
+  userId: string,
+  role: string,
+  year = new Date().getFullYear(),
+  options: FarmerTransactionsOverviewQuery = {}
+) => {
+  if (role !== 'farmer') {
+    throw makeError('Chi nong dan moi co the xem tong quan doanh thu', 403);
+  }
+
+  if (options.type && !FARMER_TRANSACTION_TYPES.includes(options.type as any)) {
+    throw makeError('Loai giao dich khong hop le', 400);
+  }
+
+  const page = Number.isFinite(Number(options.page)) && Number(options.page) > 0
+    ? Number(options.page)
+    : 1;
+
+  const limit = Number.isFinite(Number(options.limit)) && Number(options.limit) > 0
+    ? Math.min(Number(options.limit), 100)
+    : 10;
+
+  const skip = (page - 1) * limit;
+
+  const startDate = new Date(year, 0, 1);
+  const endDate = new Date(year + 1, 0, 1);
+
+  const [walletTransactions, escrowTransactions, contracts, escrows] = await Promise.all([
+    paymentTransactionRepo()
+      .createQueryBuilder('payment')
+      .where('payment.userId = :userId', { userId })
+      .andWhere('payment.createdAt >= :startDate AND payment.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('payment.createdAt', 'DESC')
+      .getMany(),
+
+    escrowTransactionRepo()
+      .createQueryBuilder('escrowTx')
+      .leftJoinAndSelect('escrowTx.escrow', 'escrow')
+      .leftJoinAndSelect('escrow.contract', 'contract')
+      .where('(escrowTx.fromUserId = :userId OR escrowTx.toUserId = :userId)', { userId })
+      .andWhere('escrowTx.createdAt >= :startDate AND escrowTx.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('escrowTx.createdAt', 'DESC')
+      .getMany(),
+
+    contractRepo()
+      .createQueryBuilder('contract')
+      .where('contract.farmerId = :userId', { userId })
+      .andWhere("contract.status <> 'cancelled'")
+      .andWhere('contract.createdAt >= :startDate AND contract.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('contract.createdAt', 'DESC')
+      .getMany(),
+
+    escrowRepo()
+      .createQueryBuilder('escrow')
+      .where('escrow.farmerId = :userId', { userId })
+      .andWhere('escrow.createdAt >= :startDate AND escrow.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .getMany(),
+  ]);
+
+  const chart = buildRevenueChartSkeleton();
+
+  // Doanh thu thuc nhan theo thang duoc tinh tu tien giai ngan escrow (toUserId = nong dan),
+  // chinh xac hon la lay ngay tao hop dong vi mot hop dong co the giai ngan qua nhieu thang.
+  escrowTransactions.forEach((transaction) => {
+    const amount = Number(transaction.amount || 0);
+    const monthIndex = getMonthIndex(transaction.createdAt);
+
+    if (transaction.toUserId === userId) {
+      chart[monthIndex].revenue += amount;
+    }
+  });
+
+  const walletItems = walletTransactions.map((item) => {
+    const incoming = isWalletIncoming(item.type);
+    const outgoing = isWalletOutgoing(item.type);
+    const signedAmount = outgoing ? -Number(item.amount || 0) : Number(item.amount || 0);
+
+    return {
+      id: item.id,
+      referenceId: item.id,
+      type: 'wallet',
+      title: normalizeTransactionType(item.type),
+      description: item.description || item.orderCode || 'Giao dich vi',
+      amount: incoming || outgoing ? signedAmount : Number(item.amount || 0),
+      status: formatOverviewStatus(item.status),
+      createdAt: item.createdAt,
+      detailUrl: null,
+    };
+  });
+
+  const escrowItems = escrowTransactions.map((item: any) => {
+    const contract = item.escrow?.contract;
+    const isOutgoing = item.fromUserId === userId;
+
+    return {
+      id: `escrow-${item.id}`,
+      referenceId: item.escrowId,
+      contractId: item.escrow?.contractId || contract?.id || null,
+      type: 'escrow',
+      title: normalizeTransactionType(item.type),
+      description: item.description || `Escrow ${contract?.contractCode || item.escrowId}`,
+      amount: isOutgoing ? -Number(item.amount || 0) : Number(item.amount || 0),
+      status: item.escrow?.status || 'completed',
+      createdAt: item.createdAt,
+      detailUrl: item.escrow?.contractId ? `/farmer/contracts/${item.escrow.contractId}` : '/farmer/escrow',
+    };
+  });
+
+  const contractItems = contracts.map((item) => ({
+    id: item.id,
+    referenceId: item.id,
+    type: 'contract',
+    title: item.contractCode,
+    description: item.productName || 'Hop dong bao tieu nong san',
+    amount: Number(item.totalValue || 0),
+    status: item.status,
+    createdAt: item.createdAt,
+    detailUrl: `/farmer/contracts/${item.id}`,
+  }));
+
+  const allTransactions = [
+    ...walletItems,
+    ...escrowItems,
+    ...contractItems,
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const filteredTransactions = options.type
+    ? allTransactions.filter((item) => item.type === options.type)
+    : allTransactions;
+
+  const recentTransactions = filteredTransactions.slice(skip, skip + limit);
+
+  const totalRevenue = chart.reduce((sum, item) => sum + item.revenue, 0);
+  const totalContractValue = contracts.reduce((sum, item) => sum + Number(item.totalValue || 0), 0);
+
+  return {
+    year,
+    summary: {
+      totalRevenue,
+      totalContractValue,
+      totalWalletTransactions: walletTransactions.length,
+      totalContracts: contracts.length,
+      totalEscrows: escrows.length,
+    },
+    chart,
+    recentTransactions,
+    pagination: {
+      page,
+      limit,
+      total: filteredTransactions.length,
+      totalPages: Math.max(1, Math.ceil(filteredTransactions.length / limit)),
+    },
+    filters: {
+      type: options.type || null,
+    },
+  };
+};
+
 const TOPUP_ALLOWED_ROLES = ['farmer', 'enterprise'];
 const MAX_TOPUP_AMOUNT = 100_000_000;
 
