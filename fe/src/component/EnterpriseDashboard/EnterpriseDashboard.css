@@ -785,6 +785,12 @@
   border-radius: 24px;
   background: var(--ent-card);
   box-shadow: 0 18px 50px rgba(30,58,138,.07);
+  cursor: pointer;
+  transition: box-shadow .15s, transform .15s;
+}
+.ent-supplier-card:hover {
+  box-shadow: 0 20px 55px rgba(30,58,138,.14);
+  transform: translateY(-2px);
 }
 
 .ent-supplier-card__top {
@@ -1090,6 +1096,22 @@
   transition: background .15s;
 }
 .ent-btn-primary:hover { background: #1d4ed8; }
+
+.ent-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  color: var(--ent-blue-700);
+  border: 1px solid var(--ent-blue-700);
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.ent-btn-outline:hover { background: #eff6ff; }
 /* ── Avatar thật trong Enterprise topbar ── */
 .ent-profile-chip {
   min-width: 188px;
@@ -1234,6 +1256,10 @@
   gap: 14px;
 }
 
+.et-summary-grid--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .et-summary-grid article {
   border: 1px solid rgba(148, 163, 184, .22);
   border-radius: 22px;
@@ -1304,6 +1330,51 @@
 .et-detail-btn {
   padding: 8px 12px;
   cursor: pointer;
+}
+
+.et-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.et-pagination span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.et-pagination-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.et-pagination-btns button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 8px 14px;
+  transition: all .2s ease;
+}
+
+.et-pagination-btns button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, 0.36);
+}
+
+.et-pagination-btns button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }
 
 @media (max-width: 1024px) {

@@ -197,19 +197,40 @@ const formatOverviewStatus = (status?: string | null) => status || 'pending';
 const buildChartSkeleton = () =>
   MONTH_NAMES.map((month) => ({
     month,
-    revenue: 0,
     cost: 0,
-    profit: 0,
   }));
+
+const ENTERPRISE_TRANSACTION_TYPES = ['wallet', 'contract', 'escrow'] as const;
+
+export interface EnterpriseTransactionsOverviewQuery {
+  page?: number;
+  limit?: number;
+  type?: string;
+}
 
 export const getEnterpriseTransactionsOverview = async (
   userId: string,
   role: string,
-  year = new Date().getFullYear()
+  year = new Date().getFullYear(),
+  options: EnterpriseTransactionsOverviewQuery = {}
 ) => {
   if (role !== 'enterprise') {
     throw makeError('Chi doanh nghiep moi co the xem tong quan giao dich', 403);
   }
+
+  if (options.type && !ENTERPRISE_TRANSACTION_TYPES.includes(options.type as any)) {
+    throw makeError('Loai giao dich khong hop le', 400);
+  }
+
+  const page = Number.isFinite(Number(options.page)) && Number(options.page) > 0
+    ? Number(options.page)
+    : 1;
+
+  const limit = Number.isFinite(Number(options.limit)) && Number(options.limit) > 0
+    ? Math.min(Number(options.limit), 100)
+    : 10;
+
+  const skip = (page - 1) * limit;
 
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year + 1, 0, 1);
@@ -260,18 +281,9 @@ export const getEnterpriseTransactionsOverview = async (
 
   const chart = buildChartSkeleton();
 
-  contracts.forEach((contract) => {
-    const monthIndex = getMonthIndex(contract.createdAt);
-    chart[monthIndex].revenue += Number(contract.totalValue || 0);
-  });
-
   walletTransactions.forEach((transaction) => {
     const amount = Number(transaction.amount || 0);
     const monthIndex = getMonthIndex(getTransactionTime(transaction));
-
-    if (isWalletIncoming(transaction.type) && transaction.status === 'completed') {
-      chart[monthIndex].revenue += amount;
-    }
 
     if (isWalletOutgoing(transaction.type) && transaction.status === 'completed') {
       chart[monthIndex].cost += amount;
@@ -284,13 +296,7 @@ export const getEnterpriseTransactionsOverview = async (
 
     if (transaction.fromUserId === userId) {
       chart[monthIndex].cost += amount;
-    } else if (transaction.toUserId === userId) {
-      chart[monthIndex].revenue += amount;
     }
-  });
-
-  chart.forEach((item) => {
-    item.profit = item.revenue - item.cost;
   });
 
   const walletItems = walletTransactions.map((item) => {
@@ -335,36 +341,45 @@ export const getEnterpriseTransactionsOverview = async (
     type: 'contract',
     title: item.contractCode,
     description: item.productName || 'Hop dong mua ban nong san',
-    amount: Number(item.totalValue || 0),
+    amount: -Number(item.totalValue || 0),
     status: item.status,
     createdAt: item.createdAt,
     detailUrl: `/enterprise/contracts/${item.id}`,
   }));
 
-  const recentTransactions = [
+  const allTransactions = [
     ...walletItems,
     ...escrowItems,
     ...contractItems,
-  ]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 50);
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const totalRevenue = chart.reduce((sum, item) => sum + item.revenue, 0);
+  const filteredTransactions = options.type
+    ? allTransactions.filter((item) => item.type === options.type)
+    : allTransactions;
+
+  const recentTransactions = filteredTransactions.slice(skip, skip + limit);
+
   const totalCost = chart.reduce((sum, item) => sum + item.cost, 0);
-  const totalProfit = totalRevenue - totalCost;
 
   return {
     year,
     summary: {
-      totalRevenue,
       totalCost,
-      totalProfit,
       totalWalletTransactions: walletTransactions.length,
       totalContracts: contracts.length,
       totalEscrows: escrows.length,
     },
     chart,
     recentTransactions,
+    pagination: {
+      page,
+      limit,
+      total: filteredTransactions.length,
+      totalPages: Math.max(1, Math.ceil(filteredTransactions.length / limit)),
+    },
+    filters: {
+      type: options.type || null,
+    },
   };
 };
 

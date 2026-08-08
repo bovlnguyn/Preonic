@@ -2,16 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bar,
+  BarChart,
   CartesianGrid,
-  ComposedChart,
   Legend,
-  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { FiArrowRight, FiBarChart2, FiCreditCard, FiFileText, FiShield } from 'react-icons/fi';
+import { FiArrowRight, FiBarChart2, FiChevronLeft, FiChevronRight, FiCreditCard, FiFileText, FiShield } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import EmptyState from '../components/EmptyState';
 import walletService from '../../../services/wallet.service';
@@ -28,6 +27,13 @@ const TYPE_LABELS = {
   contract: 'Hợp đồng',
   escrow: 'Escrow',
 };
+
+const TYPE_FILTERS = [
+  { key: '', label: 'Tất cả' },
+  { key: 'wallet', label: 'Giao dịch ví' },
+  { key: 'contract', label: 'Hợp đồng' },
+  { key: 'escrow', label: 'Escrow' },
+];
 
 const STATUS_LABELS = {
   completed: 'Hoàn tất',
@@ -57,9 +63,7 @@ const getDetailPath = (item) => {
 
 const tooltipFormatter = (value, name) => {
   const labels = {
-    profit: 'Lợi nhuận',
     cost: 'Chi phí',
-    revenue: 'Doanh thu',
   };
 
   return [formatMoney(Number(value || 0)), labels[name] || name];
@@ -69,34 +73,34 @@ function EnterpriseTransactions() {
   const navigate = useNavigate();
   const [overview, setOverview] = useState({
     summary: {
-      totalRevenue: 0,
       totalCost: 0,
-      totalProfit: 0,
       totalWalletTransactions: 0,
       totalContracts: 0,
       totalEscrows: 0,
     },
     chart: [],
     recentTransactions: [],
+    pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     setLoading(true);
-    walletService.overviewTransactions()
+    walletService.overviewTransactions({ type: typeFilter || undefined, page })
       .then((res) => {
         setOverview(res?.data || {
           summary: {
-            totalRevenue: 0,
             totalCost: 0,
-            totalProfit: 0,
             totalWalletTransactions: 0,
             totalContracts: 0,
             totalEscrows: 0,
           },
           chart: [],
           recentTransactions: [],
+          pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
         });
         setError('');
       })
@@ -104,20 +108,24 @@ function EnterpriseTransactions() {
         setError(err?.message || 'Không thể tải tổng quan giao dịch');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [typeFilter, page]);
+
+  const handleTypeFilterChange = (key) => {
+    setTypeFilter(key);
+    setPage(1);
+  };
 
   const chartData = useMemo(
     () => (overview.chart || []).map((item) => ({
       ...item,
-      profit: Number(item.profit || 0),
       cost: Number(item.cost || 0),
-      revenue: Number(item.revenue || 0),
     })),
     [overview.chart]
   );
 
   const transactions = overview.recentTransactions || [];
   const summary = overview.summary || {};
+  const pagination = overview.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 };
 
   return (
     <div className="ent-stack">
@@ -152,21 +160,11 @@ function EnterpriseTransactions() {
           <EmptyState title="Không tải được dữ liệu" desc={error} />
         ) : (
           <>
-            <div className="et-summary-grid">
+            <div className="et-summary-grid et-summary-grid--compact">
               <article>
-                <span>Doanh thu</span>
-                <strong>{formatMoney(summary.totalRevenue)}</strong>
-                <small>Hợp đồng chưa hủy + tiền vào</small>
-              </article>
-              <article>
-                <span>Chi phí</span>
+                <span>Tổng chi tiêu</span>
                 <strong>{formatMoney(summary.totalCost)}</strong>
                 <small>Tiền ký quỹ và giao dịch đi ra</small>
-              </article>
-              <article>
-                <span>Lợi nhuận ước tính</span>
-                <strong>{formatMoney(summary.totalProfit)}</strong>
-                <small>Doanh thu - chi phí</small>
               </article>
               <article>
                 <span>Tổng bản ghi</span>
@@ -182,26 +180,37 @@ function EnterpriseTransactions() {
             <section className="et-chart-card">
               <div className="et-chart-title">
                 <div>
-                  <span><FiBarChart2 size={15} /> Biểu đồ dòng tiền</span>
+                  <span><FiBarChart2 size={15} /> Biểu đồ chi tiêu theo tháng</span>
                   <p>Đơn vị tính: triệu đồng</p>
                 </div>
               </div>
 
               <div className="et-chart-wrap">
                 <ResponsiveContainer width="100%" height={320}>
-                  <ComposedChart data={chartData} margin={{ top: 12, right: 24, left: 8, bottom: 0 }}>
+                  <BarChart data={chartData} margin={{ top: 12, right: 24, left: 8, bottom: 0 }}>
                     <CartesianGrid stroke="#e5e7eb" />
                     <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(value) => Number(value / 1000000).toLocaleString('vi-VN')} />
                     <Tooltip formatter={tooltipFormatter} />
                     <Legend />
-                    <Bar dataKey="profit" name="Lợi nhuận" fill="#f9a8d4" radius={[8, 8, 0, 0]} />
-                    <Line type="monotone" dataKey="cost" name="Chi phí" stroke="#facc15" strokeWidth={2.5} dot />
-                    <Line type="monotone" dataKey="revenue" name="Doanh thu" stroke="#38bdf8" strokeWidth={3} dot />
-                  </ComposedChart>
+                    <Bar dataKey="cost" name="Chi phí" fill="#facc15" radius={[8, 8, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </section>
+
+            <div className="ent-filter-row">
+              {TYPE_FILTERS.map((f) => (
+                <button
+                  key={f.key || 'all'}
+                  type="button"
+                  className={typeFilter === f.key ? 'active' : ''}
+                  onClick={() => handleTypeFilterChange(f.key)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
             <div className="ent-table-wrap">
               <table className="ent-table">
@@ -259,6 +268,30 @@ function EnterpriseTransactions() {
                 />
               )}
             </div>
+
+            {transactions.length > 0 && (
+              <div className="et-pagination">
+                <span>
+                  Trang {pagination.page} / {pagination.totalPages} — {pagination.total.toLocaleString('vi-VN')} giao dịch
+                </span>
+                <div className="et-pagination-btns">
+                  <button
+                    type="button"
+                    disabled={pagination.page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <FiChevronLeft size={14} /> Trước
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pagination.page >= pagination.totalPages}
+                    onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                  >
+                    Sau <FiChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </section>
