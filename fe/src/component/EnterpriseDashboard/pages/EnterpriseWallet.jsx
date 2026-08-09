@@ -63,6 +63,9 @@ function TxStatusBadge({ tx }) {
   if (tx.source === 'payment' && tx.status === 'pending') {
     return <span className="ent-badge ent-badge--warning">Đang chờ</span>;
   }
+  if (tx.source === 'payment' && tx.status === 'rejected') {
+    return <span className="ent-badge ent-badge--danger">Đã từ chối</span>;
+  }
   if (tx.source === 'payment' && tx.status && tx.status !== 'completed') {
     return <span className="ent-badge ent-badge--danger">Thất bại</span>;
   }
@@ -88,8 +91,9 @@ function EnterpriseWallet() {
   const [sepayOrder, setSepayOrder] = useState(null);
   const [sepayCreating, setSepayCreating] = useState(false);
 
-  // Rút tiền — yêu cầu qua ngân hàng vẫn là mock cho duyệt thủ công, chưa có API.
+  // Rút tiền — yêu cầu rút (demo hoặc qua ngân hàng) đều ở trạng thái 'pending' cho tới khi admin duyệt.
   const [withdrawals, setWithdrawals] = useState([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
   const [wForm, setWForm] = useState({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
@@ -118,6 +122,18 @@ function EnterpriseWallet() {
   };
 
   useEffect(loadWallet, []);
+
+  const loadWithdrawals = () => {
+    setWithdrawalsLoading(true);
+    walletService.listTransactions({ type: 'withdraw', limit: 20 })
+      .then((res) => setWithdrawals(res?.data?.transactions || []))
+      .catch(() => setWithdrawals([]))
+      .finally(() => setWithdrawalsLoading(false));
+  };
+
+  useEffect(() => {
+    if (tab === 'withdraw') loadWithdrawals();
+  }, [tab]);
 
   const totalDeposit = useMemo(
     () => transactions.filter((t) => t.type === 'topup').reduce((sum, t) => sum + Number(t.amount || 0), 0),
@@ -274,7 +290,7 @@ function EnterpriseWallet() {
 
   const setWField = (key, value) => setWForm((prev) => ({ ...prev, [key]: value }));
 
-  const submitWithdraw = (e) => {
+  const submitWithdraw = async (e) => {
     e.preventDefault();
     const amount = Number(wForm.amount.replace(/\D/g, ''));
 
@@ -284,19 +300,24 @@ function EnterpriseWallet() {
     if (!wForm.accountNumber.trim()) { toast.warning('Vui lòng nhập số tài khoản.'); return; }
     if (!wForm.accountHolder.trim()) { toast.warning('Vui lòng nhập tên chủ tài khoản.'); return; }
 
-    const request = {
-      id: `wd-${Date.now()}`,
-      amount,
-      bank: wForm.bank,
-      accountNumber: wForm.accountNumber.trim(),
-      accountHolder: wForm.accountHolder.trim().toUpperCase(),
-      note: wForm.note.trim(),
-      time: formatDateTime(new Date()),
-    };
-
-    setWithdrawals((prev) => [request, ...prev]);
-    setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
-    toast.success('Đã gửi yêu cầu rút tiền. Quản trị viên sẽ xử lý sớm nhất.');
+    setWithdrawLoading(true);
+    try {
+      await walletService.requestWithdraw({
+        amount,
+        note: wForm.note.trim(),
+        isDemo: false,
+        bankName: wForm.bank,
+        bankAccountNumber: wForm.accountNumber.trim(),
+        bankAccountHolder: wForm.accountHolder.trim().toUpperCase(),
+      });
+      setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
+      toast.success('Đã gửi yêu cầu rút tiền. Quản trị viên sẽ xử lý sớm nhất.');
+      loadWithdrawals();
+    } catch (err) {
+      toast.error(err?.message || 'Gửi yêu cầu rút tiền thất bại, vui lòng thử lại.');
+    } finally {
+      setWithdrawLoading(false);
+    }
   };
 
   const handleDemoWithdraw = async () => {
@@ -306,14 +327,12 @@ function EnterpriseWallet() {
 
     setWithdrawLoading(true);
     try {
-      const res = await walletService.demoWithdraw(amount);
-      setBalance(res?.data?.wallet?.balance ?? balance);
+      await walletService.requestWithdraw({ amount, isDemo: true });
       setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
-      toast.success(`Rút thành công ${formatMoney(amount)} khỏi ví (demo).`);
-      setTab('overview');
-      loadWallet();
+      toast.success(`Đã gửi yêu cầu rút ${formatMoney(amount)} (demo). Chờ quản trị viên duyệt để hoàn tất.`);
+      loadWithdrawals();
     } catch (err) {
-      toast.error(err?.message || 'Rút tiền thất bại, vui lòng thử lại.');
+      toast.error(err?.message || 'Gửi yêu cầu rút tiền thất bại, vui lòng thử lại.');
     } finally {
       setWithdrawLoading(false);
     }
@@ -693,7 +712,9 @@ function EnterpriseWallet() {
 
               <section className="ent-card">
                 <div className="ewt-panel-head"><h3>Lịch sử rút tiền</h3></div>
-                {withdrawals.length === 0 ? (
+                {withdrawalsLoading ? (
+                  <div className="ewt-empty"><p>Đang tải...</p></div>
+                ) : withdrawals.length === 0 ? (
                   <div className="ewt-empty">
                     <FiInbox />
                     <p>Chưa có yêu cầu rút tiền nào.</p>
@@ -704,10 +725,15 @@ function EnterpriseWallet() {
                       <article key={w.id} className="ewt-withdraw-item">
                         <div className="ewt-withdraw-item__top">
                           <strong>{formatMoney(w.amount)}</strong>
-                          <span className="ent-badge ent-badge--warning">Chờ duyệt</span>
+                          <TxStatusBadge tx={{ source: 'payment', status: w.status }} />
                         </div>
-                        <p className="ewt-withdraw-item__meta">{w.bank} • {w.accountNumber} • {w.accountHolder}</p>
-                        <p className="ewt-withdraw-item__meta">{w.time}</p>
+                        <p className="ewt-withdraw-item__meta">
+                          {w.bankName ? `${w.bankName} • ${w.bankAccountNumber} • ${w.bankAccountHolder}` : 'Rút demo — không cần thông tin ngân hàng'}
+                        </p>
+                        <p className="ewt-withdraw-item__meta">{formatDateTime(w.createdAt)}</p>
+                        {w.status === 'rejected' && w.rejectReason && (
+                          <p className="ewt-withdraw-item__meta" style={{ color: '#dc2626' }}>Lý do từ chối: {w.rejectReason}</p>
+                        )}
                       </article>
                     ))}
                   </div>

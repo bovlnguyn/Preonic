@@ -89,30 +89,6 @@ export const topupWallet = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const withdrawWallet = async (req: AuthRequest, res: Response) => {
-  try {
-    const result = await walletService.demoWithdrawWallet(
-      req.user!.id,
-      req.user!.role,
-      {
-        amount: Number(req.body?.amount),
-        note: req.body?.note,
-      }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Rut tien demo thanh cong',
-      data: result,
-    });
-  } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Rut tien demo that bai',
-    });
-  }
-};
-
 export const createSepayTopup = async (req: AuthRequest, res: Response) => {
   try {
     const result = await walletService.createSepayTopupOrder(

@@ -9,8 +9,8 @@ import {
   getWalletTransactions,
   sepayWebhook,
   topupWallet,
-  withdrawWallet,
 } from '../controller/wallet.controller';
+import { createWithdrawal } from '../controller/withdrawal.controller';
 import { protect } from '../middlewares/auth.middlewares';
 
 const router = Router();
@@ -42,7 +42,7 @@ router.post(
 router.post(
   '/withdraw',
   protect as RequestHandler,
-  withdrawWallet as RequestHandler
+  createWithdrawal as RequestHandler
 );
 
 router.post(

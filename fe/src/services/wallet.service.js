@@ -102,14 +102,23 @@ const walletService = {
   },
 
   /**
-   * Demo withdraw — deducts funds from the wallet instantly, no real bank transfer
+   * Create a withdrawal request — goes to 'pending' status. Balance is only deducted
+   * once an admin approves it via the withdrawal management screen.
+   * Pass isDemo:true to skip bank details (demo/instant-request flow).
    */
-  demoWithdraw: async (amount, note) => {
+  requestWithdraw: async ({ amount, note, isDemo, bankName, bankAccountNumber, bankAccountHolder }) => {
     try {
-      const response = await api.post('/wallet/withdraw', { amount, note });
+      const response = await api.post('/wallet/withdraw', {
+        amount,
+        note,
+        isDemo,
+        bankName,
+        bankAccountNumber,
+        bankAccountHolder,
+      });
       return response.data;
     } catch (error) {
-      throw error.response?.data || { success: false, message: 'Rút tiền thất bại' };
+      throw error.response?.data || { success: false, message: 'Gửi yêu cầu rút tiền thất bại' };
     }
   },
 };
