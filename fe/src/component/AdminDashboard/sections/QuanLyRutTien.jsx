@@ -68,8 +68,10 @@ function RejectModal({ open, request, onConfirm, onCancel }) {
         <div className="adm-modal-body">
           {request && (
             <div style={{ background: "#f8fafc", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#475569" }}>
-              <div><strong>{request.bankAccountHolder}</strong> — {formatMoney(request.amount)}</div>
-              <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 2 }}>{request.bankName} · {request.bankAccountNumber}</div>
+              <div><strong>{request.bankAccountHolder || request.userId?.fullName || "—"}</strong> — {formatMoney(request.amount)}</div>
+              <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 2 }}>
+                {request.bankName ? `${request.bankName} · ${request.bankAccountNumber}` : "Rút demo — không có ngân hàng"}
+              </div>
             </div>
           )}
           <label style={{ fontSize: 13, fontWeight: 600, color: "#334155", display: "block", marginBottom: 6 }}>
@@ -140,9 +142,9 @@ export default function QuanLyRutTien() {
   const doComplete = async () => {
     const r = confirmModal.request;
     setConfirmModal({ open: false, request: null });
-    setActionId(r._id);
+    setActionId(r.id);
     try {
-      await adminService.completeWithdrawal(r._id, "");
+      await adminService.completeWithdrawal(r.id);
       toast.success("Đã hoàn tất rút tiền và trừ số dư người dùng.");
       await load(pagination.page);
     } catch (err) {
@@ -156,9 +158,9 @@ export default function QuanLyRutTien() {
   const doReject = async (reason) => {
     const r = rejectModal.request;
     setRejectModal({ open: false, request: null });
-    setActionId(r._id);
+    setActionId(r.id);
     try {
-      await adminService.rejectWithdrawal(r._id, reason);
+      await adminService.rejectWithdrawal(r.id, reason);
       toast.success("Đã từ chối đơn rút tiền.");
       await load(pagination.page);
     } catch (err) {
@@ -229,9 +231,9 @@ export default function QuanLyRutTien() {
                 <tbody>
                   {requests.map(r => {
                     const sm = STATUS_META[r.status] || { label: r.status, cls: "adm-badge-gray" };
-                    const busy = actionId === r._id;
+                    const busy = actionId === r.id;
                     return (
-                      <tr key={r._id}>
+                      <tr key={r.id}>
                         <td>
                           {r.userId ? (
                             <div>
@@ -243,9 +245,15 @@ export default function QuanLyRutTien() {
                         </td>
                         <td><span style={{ fontWeight: 700, fontSize: 14, color: "#b91c1c" }}>-{formatMoney(r.amount)}</span></td>
                         <td style={{ fontSize: 12.5, color: "#475569" }}>
-                          <div style={{ fontWeight: 600 }}>{r.bankName}</div>
-                          <div>{r.bankAccountNumber}</div>
-                          <div style={{ color: "#94a3b8" }}>{r.bankAccountHolder}</div>
+                          {r.bankName ? (
+                            <>
+                              <div style={{ fontWeight: 600 }}>{r.bankName}</div>
+                              <div>{r.bankAccountNumber}</div>
+                              <div style={{ color: "#94a3b8" }}>{r.bankAccountHolder}</div>
+                            </>
+                          ) : (
+                            <span style={{ color: "#94a3b8" }}>Rút demo — không có ngân hàng</span>
+                          )}
                         </td>
                         <td style={{ color: "#64748b", fontSize: 12, maxWidth: 160 }}>{r.note || "—"}</td>
                         <td><span className={`adm-badge ${sm.cls}`}>{sm.label}</span></td>
