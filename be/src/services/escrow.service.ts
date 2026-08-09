@@ -8,6 +8,8 @@ import { EscrowTransaction } from '../models/EscrowTransaction.entity';
 import { Notification } from '../models/Notification.entity';
 import { buildMilestones, getMilestoneRequiredRole, MILESTONE_CONFIG } from '../utils/milestone.util';
 import { logAction, logError } from './systemLog.service';
+import { sendNotificationEmail, buildContractUrl } from './email.service';
+import { displayName } from '../utils/user.util';
 
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -19,6 +21,22 @@ const makeError = (message: string, statusCode = 400) => {
   const err: any = new Error(message);
   err.statusCode = statusCode;
   return err;
+};
+
+// Email khong duoc lam gian doan luong nghiep vu ky quy -- loi gui mail chi log, khong throw.
+const notifyEmail = async (
+  user: User | null | undefined,
+  role: 'farmer' | 'enterprise',
+  title: string,
+  message: string,
+  contractId: string
+) => {
+  if (!user?.email) return;
+  try {
+    await sendNotificationEmail(user.email, displayName(user), title, message, buildContractUrl(role, contractId));
+  } catch (err: any) {
+    console.error('Loi gui email thong bao ky quy:', err.message || err);
+  }
 };
 
 const ESCROW_RELATIONS = ['milestones', 'transactions', 'contract', 'farmer', 'enterprise'];
@@ -66,6 +84,9 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
   if (Number(enterprise.virtualBalance) < amount) {
     throw makeError('So du khong du de nap ky quy hop dong', 400);
   }
+
+  const escrowFundedTitle = 'Hop dong da duoc nap ky quy';
+  const escrowFundedMessage = `${contract.enterpriseName || 'Doanh nghiep'} da nap ky quy ${amount.toLocaleString('vi-VN')} VND cho hop dong ${contract.contractCode}. Hop dong chinh thuc co hieu luc, bat dau theo doi tien do cac moc thanh toan.`;
 
   let escrowId: string;
   try {
@@ -153,8 +174,8 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
       txNotificationRepo.create({
         userId: contract.farmerId,
         type: 'escrow_funded',
-        title: 'Hop dong da duoc nap ky quy',
-        message: `${contract.enterpriseName || 'Doanh nghiep'} da nap ky quy ${amount.toLocaleString('vi-VN')} VND cho hop dong ${contract.contractCode}. Hop dong chinh thuc co hieu luc, bat dau theo doi tien do cac moc thanh toan.`,
+        title: escrowFundedTitle,
+        message: escrowFundedMessage,
         relatedId: contract.id,
         relatedModel: 'Contract',
         severity: 'info',
@@ -188,6 +209,9 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
     targetId: escrowId,
     metadata: { contractCode: contract.contractCode, amount },
   });
+
+  const farmer = await userRepo().findOne({ where: { id: contract.farmerId } });
+  await notifyEmail(farmer, 'farmer', escrowFundedTitle, escrowFundedMessage, contract.id);
 
   return withEscrowRelations(escrowId);
 };
@@ -299,6 +323,18 @@ export const confirmMilestone = async (
   const releaseAmount = willComplete ? Number(milestone.releaseAmount || 0) : 0;
   const contractCode = escrow.contract?.contractCode ?? '';
 
+  const confirmerName = isFarmer ? 'Nong dan' : 'Doanh nghiep';
+  const partnerId = isFarmer ? escrow.enterpriseId : escrow.farmerId;
+  const partnerRole: 'farmer' | 'enterprise' = isFarmer ? 'enterprise' : 'farmer';
+  const milestoneTitle = willComplete ? `Da xac nhan moc: ${milestone.name}` : `Cho ban xac nhan: ${milestone.name}`;
+  const milestoneMessage = willComplete
+    ? (releaseAmount > 0
+        ? `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). He thong da giai ngan ${releaseAmount.toLocaleString('vi-VN')} VND cho nong dan.`
+        : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}).`)
+    : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). Vui long xac nhan de hoan tat va giai ngan so du con lai.`;
+  const completedTitle = 'Hop dong da hoan tat';
+  const completedMessage = `Hop dong ${contractCode} da giai ngan het ky quy va chuyen sang trang thai Hoan tat.`;
+
   let escrowId: string;
   try {
     escrowId = await AppDataSource.transaction(async (manager) => {
@@ -364,18 +400,12 @@ export const confirmMilestone = async (
       );
     }
 
-    const confirmerName = isFarmer ? 'Nong dan' : 'Doanh nghiep';
-    const partnerId = isFarmer ? escrow.enterpriseId : escrow.farmerId;
     await txNotificationRepo.save(
       txNotificationRepo.create({
         userId: partnerId,
         type: 'milestone_confirmed',
-        title: willComplete ? `Da xac nhan moc: ${milestone.name}` : `Cho ban xac nhan: ${milestone.name}`,
-        message: willComplete
-          ? (releaseAmount > 0
-              ? `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). He thong da giai ngan ${releaseAmount.toLocaleString('vi-VN')} VND cho nong dan.`
-              : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}).`)
-          : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). Vui long xac nhan de hoan tat va giai ngan so du con lai.`,
+        title: milestoneTitle,
+        message: milestoneMessage,
         relatedId: escrow.contractId,
         relatedModel: 'Contract',
         severity: 'info',
@@ -390,8 +420,8 @@ export const confirmMilestone = async (
           txNotificationRepo.create({
             userId: uid,
             type: 'contract_completed',
-            title: 'Hop dong da hoan tat',
-            message: `Hop dong ${contractCode} da giai ngan het ky quy va chuyen sang trang thai Hoan tat.`,
+            title: completedTitle,
+            message: completedMessage,
             relatedId: escrow.contractId,
             relatedModel: 'Contract',
             severity: 'info',
@@ -428,6 +458,18 @@ export const confirmMilestone = async (
       targetId: escrowId,
       metadata: { contractCode, step, releaseAmount },
     });
+  }
+
+  const partner = await userRepo().findOne({ where: { id: partnerId } });
+  await notifyEmail(partner, partnerRole, milestoneTitle, milestoneMessage, escrow.contractId);
+
+  if ((escrow.status as string) === 'completed') {
+    const [farmer, enterprise] = await Promise.all([
+      userRepo().findOne({ where: { id: escrow.farmerId } }),
+      userRepo().findOne({ where: { id: escrow.enterpriseId } }),
+    ]);
+    await notifyEmail(farmer, 'farmer', completedTitle, completedMessage, escrow.contractId);
+    await notifyEmail(enterprise, 'enterprise', completedTitle, completedMessage, escrow.contractId);
   }
 
   return withEscrowRelations(escrowId);
@@ -470,13 +512,15 @@ export const remindPendingQualityChecks = async (): Promise<number> => {
 
     const contractCode = escrow.contract?.contractCode ?? '';
     const daysSince = Math.floor((Date.now() - shipped.completedAt.getTime()) / (24 * 60 * 60 * 1000));
+    const reminderTitle = 'Hang da giao — can kiem tra chat luong';
+    const reminderMessage = `Nong dan da xac nhan giao hang cho hop dong ${contractCode} tu ${daysSince} ngay truoc. Vui long kiem tra va xac nhan chat luong de he thong giai ngan phan con lai.`;
 
     await notificationRepo().save(
       notificationRepo().create({
         userId: escrow.enterpriseId,
         type: 'shipping_reminder',
-        title: 'Hang da giao — can kiem tra chat luong',
-        message: `Nong dan da xac nhan giao hang cho hop dong ${contractCode} tu ${daysSince} ngay truoc. Vui long kiem tra va xac nhan chat luong de he thong giai ngan phan con lai.`,
+        title: reminderTitle,
+        message: reminderMessage,
         relatedId: escrow.contractId,
         relatedModel: 'Contract',
         severity: 'warning',
@@ -484,6 +528,9 @@ export const remindPendingQualityChecks = async (): Promise<number> => {
         emailSent: false,
       })
     );
+
+    const enterprise = await userRepo().findOne({ where: { id: escrow.enterpriseId } });
+    await notifyEmail(enterprise, 'enterprise', reminderTitle, reminderMessage, escrow.contractId);
 
     notified++;
   }
