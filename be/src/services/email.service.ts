@@ -67,6 +67,55 @@ export const sendResetPasswordEmail = async (
   });
 };
 
+// Link ve trang chi tiet hop dong, khac nhau theo role vi FE co route rieng cho tung dashboard.
+export const buildContractUrl = (role: 'farmer' | 'enterprise', contractId: string) =>
+  `${process.env.FRONTEND_URL}/${role}/contracts/${contractId}`;
+
+// Email dung chung cho moi su kien thong bao trong he thong (hop dong, ky quy, tranh chap...)
+// -- noi dung tieu de/message duoc truyen vao giong het Notification tuong ung de dam bao nhat quan.
+export const sendNotificationEmail = async (
+  toEmail: string,
+  userName: string,
+  title: string,
+  message: string,
+  actionUrl?: string
+) => {
+  await transporter.sendMail({
+    from:    `"${process.env.SMTP_FROM_NAME}" <${process.env.SMTP_FROM_EMAIL}>`,
+    to:      toEmail,
+    subject: title,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #16a34a; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+          <h1 style="color: #fff; margin: 0; font-size: 24px;">🌾 PreOnic</h1>
+        </div>
+
+        <div style="padding: 32px; background: #fff; border: 1px solid #e5e7eb;">
+          <h2 style="color: #0f1d12; margin-bottom: 16px;">Xin chào ${userName}!</h2>
+          <p style="color: #6b7c70; line-height: 1.6;">${message}</p>
+
+          ${actionUrl ? `
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${actionUrl}"
+              style="background: #16a34a; color: #fff; padding: 14px 32px;
+                     border-radius: 8px; text-decoration: none; font-weight: 700;
+                     font-size: 16px; display: inline-block;">
+              Xem chi tiết
+            </a>
+          </div>` : ''}
+        </div>
+
+        <div style="background: #f9fafb; padding: 16px; text-align: center;
+                    border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            © 2026 PreOnic. Nền tảng kết nối nông nghiệp bền vững.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+};
+
 export const sendVerifyEmail = async (
   toEmail: string,
   verifyToken: string,
