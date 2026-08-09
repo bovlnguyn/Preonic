@@ -15,6 +15,11 @@ import {
   getSystemLogDetail,
 } from '../controller/admin.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
+import {
+  validateResolveDispute,
+  validateDisputeIdParam,
+  validateContractIdParam,
+} from '../middlewares/validation';
 
 const router = Router();
 
@@ -28,11 +33,23 @@ router.patch('/users/:id/toggle-status', toggleUserStatus as RequestHandler);
 router.delete('/users/:id', deleteUser as RequestHandler);
 
 router.get('/contracts', getContracts as RequestHandler);
-router.get('/contracts/:id', getContractDetail as RequestHandler);
+router.get(
+  '/contracts/:id',
+  validateContractIdParam as RequestHandler[],
+  getContractDetail as RequestHandler
+);
 
 router.get('/disputes', getDisputes as RequestHandler);
-router.get('/disputes/:id', getDisputeDetail as RequestHandler);
-router.patch('/disputes/:id/resolve', resolveDispute as RequestHandler);
+router.get(
+  '/disputes/:id',
+  validateDisputeIdParam as RequestHandler[],
+  getDisputeDetail as RequestHandler
+);
+router.patch(
+  '/disputes/:id/resolve',
+  validateResolveDispute as RequestHandler[],
+  resolveDispute as RequestHandler
+);
 
 router.get('/transactions', getTransactions as RequestHandler);
 
