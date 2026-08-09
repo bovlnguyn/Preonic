@@ -186,6 +186,30 @@ export default function EnterpriseCreateContract() {
       e.deliveryAddress = 'Vui lòng nhập địa chỉ giao hàng.';
     if (form.paymentTerms === 'custom' && !customDepositValid())
       e.customDeposit = 'Tổng đặt cọc + khi nhận hàng phải bằng 100%.';
+
+    if (showInsurance) {
+      if (!insurance.insuranceCompany.trim())
+        e.insuranceCompany = 'Vui lòng nhập tên công ty bảo hiểm.';
+      if (!insurance.policyNumber.trim())
+        e.policyNumber = 'Vui lòng nhập số hợp đồng bảo hiểm.';
+
+      const insuredValueStr = String(insurance.insuredValue).trim();
+      if (!insuredValueStr)
+        e.insuredValue = 'Vui lòng nhập giá trị được bảo hiểm.';
+      else if (!/^\d+(\.\d+)?$/.test(insuredValueStr))
+        e.insuredValue = 'Giá trị được bảo hiểm phải là số và không được là số âm.';
+
+      if (!insurance.coveredEvents)
+        e.coveredEvents = 'Vui lòng chọn sự kiện được bảo hiểm.';
+
+      if (!insurance.validFrom)
+        e.validFrom = 'Vui lòng chọn ngày hiệu lực từ.';
+      if (!insurance.validTo)
+        e.validTo = 'Vui lòng chọn ngày hiệu lực đến.';
+      else if (insurance.validFrom && insurance.validTo < insurance.validFrom)
+        e.validTo = 'Ngày hiệu lực đến không được trước ngày hiệu lực từ.';
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -196,7 +220,10 @@ export default function EnterpriseCreateContract() {
     if (errors[k]) setErrors(prev => ({ ...prev, [k]: '' }));
   };
 
-  const setInsField = (k, v) => setInsurance(prev => ({ ...prev, [k]: v }));
+  const setInsField = (k, v) => {
+    setInsurance(prev => ({ ...prev, [k]: v }));
+    if (errors[k]) setErrors(prev => ({ ...prev, [k]: '' }));
+  };
 
   const handleCustomDeposit = (val, field) => {
     const num = val === '' ? '' : String(Math.min(100, Math.max(0, Number(val))));
@@ -433,45 +460,65 @@ export default function EnterpriseCreateContract() {
                 <p className="ecc-ins-note">Nhập thông tin bảo hiểm nông nghiệp mà bạn đã mua từ công ty bảo hiểm bên ngoài.</p>
                 <div className="ecc-row">
                   <div className="ecc-field">
-                    <label>Tên công ty bảo hiểm</label>
-                    <input className="ecc-input" value={insurance.insuranceCompany}
+                    <label>Tên công ty bảo hiểm <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.insuranceCompany ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      value={insurance.insuranceCompany}
                       onChange={e => setInsField('insuranceCompany', e.target.value)}
                       placeholder="VD: Bao Viet, PVI..." />
+                    {errors.insuranceCompany && <span className="ecc-err">{errors.insuranceCompany}</span>}
                   </div>
                   <div className="ecc-field">
-                    <label>Số hợp đồng bảo hiểm</label>
-                    <input className="ecc-input" value={insurance.policyNumber}
+                    <label>Số hợp đồng bảo hiểm <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.policyNumber ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      value={insurance.policyNumber}
                       onChange={e => setInsField('policyNumber', e.target.value)}
                       placeholder="VD: BV-2024-001234" />
+                    {errors.policyNumber && <span className="ecc-err">{errors.policyNumber}</span>}
                   </div>
                 </div>
                 <div className="ecc-row">
                   <div className="ecc-field">
-                    <label>Giá trị được bảo hiểm (VND)</label>
-                    <input className="ecc-input" type="number" value={insurance.insuredValue}
+                    <label>Giá trị được bảo hiểm (VND) <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.insuredValue ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      type="number" min="0" step="1"
+                      value={insurance.insuredValue}
                       onChange={e => setInsField('insuredValue', e.target.value)}
                       placeholder="VD: 500000000" />
+                    {errors.insuredValue && <span className="ecc-err">{errors.insuredValue}</span>}
                   </div>
                   <div className="ecc-field">
-                    <label>Sự kiện được bảo hiểm</label>
-                    <select className="ecc-select ecc-select--full" value={insurance.coveredEvents}
+                    <label>Sự kiện được bảo hiểm <span className="ecc-req">*</span></label>
+                    <select
+                      className={errors.coveredEvents ? 'ecc-select ecc-select--full ecc-input--error' : 'ecc-select ecc-select--full'}
+                      value={insurance.coveredEvents}
                       onChange={e => setInsField('coveredEvents', e.target.value)}>
                       <option value="natural_disaster">Thiên tai</option>
                       <option value="disease">Dịch bệnh</option>
                       <option value="both">Cả hai (thiên tai + dịch bệnh)</option>
                     </select>
+                    {errors.coveredEvents && <span className="ecc-err">{errors.coveredEvents}</span>}
                   </div>
                 </div>
                 <div className="ecc-row">
                   <div className="ecc-field">
-                    <label>Hiệu lực từ</label>
-                    <input className="ecc-input" type="date" value={insurance.validFrom}
+                    <label>Hiệu lực từ <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.validFrom ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      type="date" value={insurance.validFrom}
                       onChange={e => setInsField('validFrom', e.target.value)} />
+                    {errors.validFrom && <span className="ecc-err">{errors.validFrom}</span>}
                   </div>
                   <div className="ecc-field">
-                    <label>Hiệu lực đến</label>
-                    <input className="ecc-input" type="date" value={insurance.validTo}
+                    <label>Hiệu lực đến <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.validTo ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      type="date" min={insurance.validFrom || undefined}
+                      value={insurance.validTo}
                       onChange={e => setInsField('validTo', e.target.value)} />
+                    {errors.validTo && <span className="ecc-err">{errors.validTo}</span>}
                   </div>
                 </div>
                 <div className="ecc-field ecc-field--full">
