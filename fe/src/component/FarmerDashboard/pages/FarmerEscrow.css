@@ -17,15 +17,22 @@
 }
 
 .fe-stat-card__icon {
+  position: relative;
   width: 42px;
   height: 42px;
   flex: 0 0 auto;
-  display: grid;
-  place-items: center;
   border-radius: 12px;
 }
 
-.fe-stat-card__icon svg { width: 19px; height: 19px; }
+.fe-stat-card__icon svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  transform: translate(-50%, -50%);
+}
 
 .fe-stat-card__icon--green { color: var(--farmer-green-700); background: var(--farmer-green-100); }
 .fe-stat-card__icon--gold  { color: #b45309; background: #fef3c7; }
