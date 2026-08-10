@@ -31,8 +31,9 @@ function FarmerCrops() {
 
   return (
     <div className="farmer-stack">
-      <section className="farmer-card">
+      <section className="farmer-card fc-crops-shell">
         <SectionHeader
+          breadcrumb="Mùa vụ của tôi"
           eyebrow="Mùa vụ của tôi"
           title="Quản lý nông sản đang canh tác và đang bán"
           desc="Trang này hiển thị sản lượng, chuẩn chất lượng, giá chào bán và tiến độ mùa vụ."
@@ -51,7 +52,7 @@ function FarmerCrops() {
           <div className="farmer-loading">Đang tải...</div>
         ) : (
           <>
-            <div className="farmer-filter-row">
+            <div className="farmer-filter-row fc-crops-filters">
               {categories.map(category => (
                 <button
                   key={category}
@@ -76,24 +77,24 @@ function FarmerCrops() {
                 </button>
               </div>
             ) : (
-              <div className="farmer-product-grid">
+              <div className="farmer-product-grid fc-crops-grid">
                 {filtered.map(item => (
                   <article
-                    className="farmer-product-card"
+                    className="farmer-product-card fc-product-card"
                     key={item.id}
                     onClick={() => navigate('/farmer/crops/' + item.id)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <div className="farmer-product-card__top">
+                    <div className="farmer-product-card__top fc-product-card__top">
                       <span>{item.category}</span>
                       <StatusBadge status={item.isActive ? 'active' : 'inactive'} />
                     </div>
-                    <h3>{item.name}</h3>
-                    <p>
+                    <h3 className="fc-product-card__title">{item.name}</h3>
+                    <p className="fc-product-card__location">
                       {item.location || 'Chưa cập nhật'} •{' '}
                       {item.totalQuantity ? `${item.totalQuantity} ${item.unit}` : 'Chưa cập nhật'}
                     </p>
-                    <div className="farmer-product-card__meta">
+                    <div className="farmer-product-card__meta fc-product-card__meta">
                       <div>
                         <span>Giá chào bán</span>
                         <strong>
@@ -111,7 +112,7 @@ function FarmerCrops() {
                         </strong>
                       </div>
                     </div>
-                    <div className="farmer-product-card__progress">
+                    <div className="farmer-product-card__progress fc-product-card__progress">
                       <span>Tiến độ mùa vụ: {item.progress || 0}%</span>
                       <ProgressBar value={item.progress || 0} />
                     </div>

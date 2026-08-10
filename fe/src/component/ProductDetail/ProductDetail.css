@@ -170,6 +170,160 @@
   align-items: stretch;
 }
 
+/* Farmer sở hữu sản phẩm có ít action hơn Enterprise.
+   Cam kết rút gọn được đưa trực tiếp vào phần dưới ảnh,
+   nên layout chỉ còn một hàng media / purchase. */
+.pd-product-layout--farmer-owner {
+  grid-template-areas: "media purchase";
+}
+
+/* Hai card được kéo đều chiều cao, nhưng phần trống của media
+   sẽ được compact commitments lấp đầy thay vì để trắng. */
+.pd-product-layout--farmer-owner .pd-media-card,
+.pd-product-layout--farmer-owner .pd-purchase-card {
+  height: 100%;
+}
+
+.pd-product-layout--farmer-owner .pd-media-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-product-layout--farmer-owner .pd-purchase-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-product-layout--farmer-owner .pd-owner-actions {
+  margin-top: auto;
+}
+
+/* Cam kết rút gọn riêng cho Farmer chủ sản phẩm. */
+.pd-owner-commitments-compact {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  min-height: 150px;
+  padding: 18px 20px 20px;
+  border-top: 1px solid var(--pd-border);
+  background:
+    radial-gradient(circle at 0 100%, rgba(34, 197, 94, 0.08), transparent 44%),
+    linear-gradient(135deg, #fbfefb, #ffffff);
+}
+
+.pd-owner-commitments-compact__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.pd-owner-commitments-compact__title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pd-owner-commitments-compact__title > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  color: var(--pd-primary);
+  background: var(--pd-primary-soft);
+  font-size: 18px;
+}
+
+.pd-owner-commitments-compact__title small {
+  display: block;
+  color: var(--pd-primary);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.55px;
+  text-transform: uppercase;
+}
+
+.pd-owner-commitments-compact__title strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--pd-primary-dark);
+  font-size: 17px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.pd-owner-commitments-compact__badge {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border: 1px solid rgba(217, 119, 6, 0.18);
+  border-radius: 999px;
+  color: #9a4b08;
+  background: #fffbeb;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.pd-owner-commitments-compact__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.pd-owner-commitments-compact__list > div {
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid rgba(21, 128, 61, 0.12);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(220, 252, 231, 0.72), #fff);
+}
+
+.pd-owner-commitments-compact__list svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--pd-primary);
+  font-size: 15px;
+}
+
+.pd-owner-commitments-compact__list span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--pd-primary-dark);
+  font-size: 10.5px;
+  line-height: 1.4;
+  font-weight: 760;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.pd-owner-commitments-compact__footnote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pd-muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.pd-owner-commitments-compact__footnote svg {
+  flex: 0 0 auto;
+  color: #d97706;
+  font-size: 14px;
+}
+
 .pd-media-card,
 .pd-purchase-card,
 .pd-section-card {
@@ -1418,5 +1572,26 @@
 
   .pd-similar-grid img {
     height: 190px;
+  }
+}
+
+
+@media (max-width: 760px) {
+  .pd-owner-commitments-compact {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .pd-owner-commitments-compact__heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pd-owner-commitments-compact__list {
+    grid-template-columns: 1fr;
+  }
+
+  .pd-owner-commitments-compact__badge {
+    align-self: flex-start;
   }
 }

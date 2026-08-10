@@ -20,6 +20,10 @@ const productService = {
     const formData = new FormData();
 
     Object.entries(form).forEach(([key, value]) => {
+      // Không append undefined/null vào FormData vì browser sẽ biến chúng
+      // thành chuỗi "undefined"/"null" và có thể bị lưu xuống database.
+      if (value === undefined || value === null) return;
+
       if (key === 'commitments' || key === 'certificationNames') {
         formData.append(key, JSON.stringify(value));
       } else {
@@ -72,7 +76,14 @@ const productService = {
   },
 
   updateProduct: async (id, form) => {
-    const response = await api.put(`/products/${id}`, form);
+    const isMultipart = typeof FormData !== 'undefined' && form instanceof FormData;
+
+    const response = await api.put(`/products/${id}`, form,
+      isMultipart
+        ? { headers: { 'Content-Type': 'multipart/form-data' } }
+        : undefined
+    );
+
     return response.data;
   },
 

@@ -11,6 +11,8 @@ export interface AuthUserPayload {
 // ── Request có kèm user sau khi xác thực JWT ──
 export interface AuthRequest extends Request {
   user?: AuthUserPayload;   // ← dùng AuthUserPayload thay vì User
+  file?: Express.Multer.File;
+  files?: Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] };
 }
 
 // ── Payload bên trong JWT token ──

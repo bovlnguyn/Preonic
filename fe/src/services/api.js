@@ -21,13 +21,21 @@ const isMutationRequest = (config) =>
   ['post', 'put', 'patch', 'delete'].includes((config?.method || '').toLowerCase());
 
 const shouldCacheRequest = (config) => {
+  if (!isGetRequest(config)) return false;
+
   const url = config?.url || '';
-  return (
-    isGetRequest(config) &&
-    !url.includes('/auth/') &&
-    !url.includes('/notifications') &&
-    !url.includes('/messaging')
-  );
+
+  // Chỉ cache dữ liệu ít nhạy cảm và ít thay đổi. Không cache wallet/escrow/
+  // contract/admin vì các trang này cần phản ánh ngay thao tác vừa thực hiện.
+  const isPublicProductRead =
+    url.startsWith('/products') &&
+    !url.includes('/my-products') &&
+    !url.includes('/reviews/eligibility') &&
+    !url.includes('/reviews');
+
+  const isWeatherRead = url.startsWith('/weather');
+
+  return isPublicProductRead || isWeatherRead;
 };
 
 const getCacheKey = (config) => {

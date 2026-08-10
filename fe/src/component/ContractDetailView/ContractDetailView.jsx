@@ -8,6 +8,7 @@ import { useMessagingWidget } from '../../contexts/MessagingWidgetContext';
 import { PAYMENT_TERMS_LABEL, resolveContractStatusLabel } from '../../constants/contract';
 import ContractFlow from '../ContractFlow/ContractFlow';
 import EscrowPanel from '../EscrowPanel/EscrowPanel';
+import FarmerSectionHeader from '../FarmerDashboard/components/SectionHeader';
 import './ContractDetailView.css';
 
 const FLOW_STEPS = [
@@ -334,22 +335,48 @@ export default function ContractDetailView() {
   const partnerName = isFarmer ? contract.enterprise?.name : contract.farmer?.name;
 
   return (
-    <div className="cdv-page">
-      <div className="cdv-top">
-        <button className="cdv-back" onClick={() => navigate(backPath)}>
-          <FiArrowLeft size={14} /> Quay lại
-        </button>
-        {partnerId && (
-          <button
-            className="cdv-message-btn"
-            onClick={() => openChatWith(partnerId, partnerName)}
-          >
-            <FiMessageCircle size={14} /> Nhắn tin
-          </button>
-        )}
-      </div>
+    <div className={`cdv-page${isFarmer ? ' cdv-page--farmer' : ''}`}>
+      {isFarmer ? (
+        <>
+          <div className="cdv-farmer-top-actions">
+            <button className="cdv-back cdv-back--button" onClick={() => navigate(backPath)}>
+              <FiArrowLeft size={15} /> Quay lại
+            </button>
+            {partnerId && (
+              <button
+                className="cdv-message-btn"
+                onClick={() => openChatWith(partnerId, partnerName)}
+              >
+                <FiMessageCircle size={14} /> Nhắn tin
+              </button>
+            )}
+          </div>
 
-      <ContractFlow steps={FLOW_STEPS} currentIndex={currentIndex} cancelled={cancelled} />
+          <FarmerSectionHeader
+            breadcrumb="Hợp đồng / Chi tiết hợp đồng"
+            eyebrow="Hợp đồng"
+            title="Chi tiết hợp đồng bao tiêu nông sản"
+            desc={`Theo dõi điều khoản, chữ ký và tiến độ thực hiện hợp đồng ${contract.contractCode}.`}
+          />
+        </>
+      ) : (
+        <div className="cdv-top">
+          <button className="cdv-back" onClick={() => navigate(backPath)}>
+            <FiArrowLeft size={14} /> Quay lại
+          </button>
+          {partnerId && (
+            <button
+              className="cdv-message-btn"
+              onClick={() => openChatWith(partnerId, partnerName)}
+            >
+              <FiMessageCircle size={14} /> Nhắn tin
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className={isFarmer ? 'cdv-detail-shell' : undefined}>
+        <ContractFlow steps={FLOW_STEPS} currentIndex={currentIndex} cancelled={cancelled} />
 
       <div className="cdv-card">
         <div className="cdv-card__header">
@@ -527,6 +554,7 @@ export default function ContractDetailView() {
       </div>
 
       <EscrowPanel contract={contract} userRole={user?.role} />
+      </div>
 
       {/* Modal xóa hợp đồng nháp */}
       {showDeleteModal && (

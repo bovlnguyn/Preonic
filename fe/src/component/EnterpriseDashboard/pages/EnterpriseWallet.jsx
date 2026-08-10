@@ -238,6 +238,8 @@ function EnterpriseWallet() {
     }, 3000);
 
     return () => clearInterval(interval);
+  // Cố ý chỉ chạy lại khi mã/trạng thái thay đổi; không phụ thuộc toàn object để tránh reset polling.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sepayOrder?.orderCode, sepayOrder?.status]);
 
   // Lệnh QR demo không có ngân hàng/webhook thật — tự giả lập xác nhận sau vài giây,
@@ -266,6 +268,8 @@ function EnterpriseWallet() {
     }, 1800);
 
     return () => clearTimeout(timer);
+  // Giữ trigger theo status để callback completed chỉ chạy một lần cho mỗi lệnh.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sepayOrder?.status]);
 
   const handleDemoTopUp = async () => {
