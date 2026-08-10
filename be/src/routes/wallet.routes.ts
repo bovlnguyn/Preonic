@@ -4,12 +4,13 @@ import {
   createDemoQrTopup,
   createSepayTopup,
   getSepayTopupStatus,
+  getTransactionsOverview,
   getWallet,
   getWalletTransactions,
   sepayWebhook,
   topupWallet,
-  withdrawWallet,
 } from '../controller/wallet.controller';
+import { createWithdrawal } from '../controller/withdrawal.controller';
 import { protect } from '../middlewares/auth.middlewares';
 
 const router = Router();
@@ -18,6 +19,12 @@ router.get(
   '/',
   protect as RequestHandler,
   getWallet as RequestHandler
+);
+
+router.get(
+  '/transactions/overview',
+  protect as RequestHandler,
+  getTransactionsOverview as RequestHandler
 );
 
 router.get(
@@ -35,7 +42,7 @@ router.post(
 router.post(
   '/withdraw',
   protect as RequestHandler,
-  withdrawWallet as RequestHandler
+  createWithdrawal as RequestHandler
 );
 
 router.post(

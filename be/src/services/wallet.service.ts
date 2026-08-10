@@ -2,12 +2,16 @@ import { AppDataSource } from '../config/database';
 import { User } from '../models/User.entity';
 import { PaymentTransaction } from '../models/PaymentTransaction.entity';
 import { EscrowTransaction } from '../models/EscrowTransaction.entity';
+import { Contract } from '../models/Contract.entity';
+import { Escrow } from '../models/Escrow.entity';
 import { logAction, logError } from './systemLog.service';
 import crypto from 'crypto';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const paymentTransactionRepo = () => AppDataSource.getRepository(PaymentTransaction);
 const escrowTransactionRepo = () => AppDataSource.getRepository(EscrowTransaction);
+const contractRepo = () => AppDataSource.getRepository(Contract);
+const escrowRepo = () => AppDataSource.getRepository(Escrow);
 
 const makeError = (message: string, statusCode = 400) => {
   const err: any = new Error(message);
@@ -117,6 +121,10 @@ export const getWalletTransactions = async (
     paymentMethod: item.paymentMethod,
     transactionCode: item.transactionCode,
     contractId: item.contractId || null,
+    bankName: item.bankName || null,
+    bankAccountNumber: item.bankAccountNumber || null,
+    bankAccountHolder: item.bankAccountHolder || null,
+    rejectReason: item.rejectReason || null,
     createdAt: item.createdAt,
   }));
 
@@ -163,6 +171,403 @@ export const getWalletTransactions = async (
     },
   };
 
+};
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const isWalletIncoming = (type: string) => ['topup', 'refund', 'escrow_release'].includes(type);
+const isWalletOutgoing = (type: string) => ['withdraw', 'escrow_deposit'].includes(type);
+
+const getTransactionTime = (item: { completedAt?: Date | null; createdAt: Date }) =>
+  item.completedAt || item.createdAt;
+
+const getMonthIndex = (date: Date) => new Date(date).getMonth();
+
+const formatOverviewStatus = (status?: string | null) => status || 'pending';
+
+const buildChartSkeleton = () =>
+  MONTH_NAMES.map((month) => ({
+    month,
+    cost: 0,
+  }));
+
+const ENTERPRISE_TRANSACTION_TYPES = ['wallet', 'contract', 'escrow'] as const;
+
+export interface EnterpriseTransactionsOverviewQuery {
+  page?: number;
+  limit?: number;
+  type?: string;
+}
+
+export const getEnterpriseTransactionsOverview = async (
+  userId: string,
+  role: string,
+  year = new Date().getFullYear(),
+  options: EnterpriseTransactionsOverviewQuery = {}
+) => {
+  if (role !== 'enterprise') {
+    throw makeError('Chi doanh nghiep moi co the xem tong quan giao dich', 403);
+  }
+
+  if (options.type && !ENTERPRISE_TRANSACTION_TYPES.includes(options.type as any)) {
+    throw makeError('Loai giao dich khong hop le', 400);
+  }
+
+  const page = Number.isFinite(Number(options.page)) && Number(options.page) > 0
+    ? Number(options.page)
+    : 1;
+
+  const limit = Number.isFinite(Number(options.limit)) && Number(options.limit) > 0
+    ? Math.min(Number(options.limit), 100)
+    : 10;
+
+  const skip = (page - 1) * limit;
+
+  const startDate = new Date(year, 0, 1);
+  const endDate = new Date(year + 1, 0, 1);
+
+  const [walletTransactions, escrowTransactions, contracts, escrows] = await Promise.all([
+    paymentTransactionRepo()
+      .createQueryBuilder('payment')
+      .where('payment.userId = :userId', { userId })
+      .andWhere('payment.createdAt >= :startDate AND payment.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('payment.createdAt', 'DESC')
+      .getMany(),
+
+    escrowTransactionRepo()
+      .createQueryBuilder('escrowTx')
+      .leftJoinAndSelect('escrowTx.escrow', 'escrow')
+      .leftJoinAndSelect('escrow.contract', 'contract')
+      .where('(escrowTx.fromUserId = :userId OR escrowTx.toUserId = :userId)', { userId })
+      .andWhere('escrowTx.createdAt >= :startDate AND escrowTx.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('escrowTx.createdAt', 'DESC')
+      .getMany(),
+
+    contractRepo()
+      .createQueryBuilder('contract')
+      .where('contract.enterpriseId = :userId', { userId })
+      .andWhere("contract.status <> 'cancelled'")
+      .andWhere('contract.createdAt >= :startDate AND contract.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('contract.createdAt', 'DESC')
+      .getMany(),
+
+    escrowRepo()
+      .createQueryBuilder('escrow')
+      .where('escrow.enterpriseId = :userId', { userId })
+      .andWhere('escrow.createdAt >= :startDate AND escrow.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .getMany(),
+  ]);
+
+  const chart = buildChartSkeleton();
+
+  walletTransactions.forEach((transaction) => {
+    const amount = Number(transaction.amount || 0);
+    const monthIndex = getMonthIndex(getTransactionTime(transaction));
+
+    if (isWalletOutgoing(transaction.type) && transaction.status === 'completed') {
+      chart[monthIndex].cost += amount;
+    }
+  });
+
+  escrowTransactions.forEach((transaction) => {
+    const amount = Number(transaction.amount || 0);
+    const monthIndex = getMonthIndex(transaction.createdAt);
+
+    if (transaction.fromUserId === userId) {
+      chart[monthIndex].cost += amount;
+    }
+  });
+
+  const walletItems = walletTransactions.map((item) => {
+    const incoming = isWalletIncoming(item.type);
+    const outgoing = isWalletOutgoing(item.type);
+    const signedAmount = outgoing ? -Number(item.amount || 0) : Number(item.amount || 0);
+
+    return {
+      id: item.id,
+      referenceId: item.id,
+      type: 'wallet',
+      title: normalizeTransactionType(item.type),
+      description: item.description || item.orderCode || 'Giao dich vi',
+      amount: incoming || outgoing ? signedAmount : Number(item.amount || 0),
+      status: formatOverviewStatus(item.status),
+      createdAt: item.createdAt,
+      detailUrl: null,
+    };
+  });
+
+  const escrowItems = escrowTransactions.map((item: any) => {
+    const contract = item.escrow?.contract;
+    const isOutgoing = item.fromUserId === userId;
+
+    return {
+      id: `escrow-${item.id}`,
+      referenceId: item.escrowId,
+      contractId: item.escrow?.contractId || contract?.id || null,
+      type: 'escrow',
+      title: normalizeTransactionType(item.type),
+      description: item.description || `Escrow ${contract?.contractCode || item.escrowId}`,
+      amount: isOutgoing ? -Number(item.amount || 0) : Number(item.amount || 0),
+      status: item.escrow?.status || 'completed',
+      createdAt: item.createdAt,
+      detailUrl: item.escrow?.contractId ? `/enterprise/escrow?contractId=${item.escrow.contractId}` : '/enterprise/escrow',
+    };
+  });
+
+  const contractItems = contracts.map((item) => ({
+    id: item.id,
+    referenceId: item.id,
+    type: 'contract',
+    title: item.contractCode,
+    description: item.productName || 'Hop dong mua ban nong san',
+    amount: -Number(item.totalValue || 0),
+    status: item.status,
+    createdAt: item.createdAt,
+    detailUrl: `/enterprise/contracts/${item.id}`,
+  }));
+
+  const allTransactions = [
+    ...walletItems,
+    ...escrowItems,
+    ...contractItems,
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const filteredTransactions = options.type
+    ? allTransactions.filter((item) => item.type === options.type)
+    : allTransactions;
+
+  const recentTransactions = filteredTransactions.slice(skip, skip + limit);
+
+  const totalCost = chart.reduce((sum, item) => sum + item.cost, 0);
+
+  return {
+    year,
+    summary: {
+      totalCost,
+      totalWalletTransactions: walletTransactions.length,
+      totalContracts: contracts.length,
+      totalEscrows: escrows.length,
+    },
+    chart,
+    recentTransactions,
+    pagination: {
+      page,
+      limit,
+      total: filteredTransactions.length,
+      totalPages: Math.max(1, Math.ceil(filteredTransactions.length / limit)),
+    },
+    filters: {
+      type: options.type || null,
+    },
+  };
+};
+
+const FARMER_TRANSACTION_TYPES = ['wallet', 'contract', 'escrow'] as const;
+
+export interface FarmerTransactionsOverviewQuery {
+  page?: number;
+  limit?: number;
+  type?: string;
+}
+
+const buildRevenueChartSkeleton = () =>
+  MONTH_NAMES.map((month) => ({ month, revenue: 0 }));
+
+// Tuong tu getEnterpriseTransactionsOverview nhung dao chieu ngu nghia: hop dong/escrow
+// la doanh thu (+) chu khong phai chi phi (-), vi nong dan la ben nhan tien.
+export const getFarmerTransactionsOverview = async (
+  userId: string,
+  role: string,
+  year = new Date().getFullYear(),
+  options: FarmerTransactionsOverviewQuery = {}
+) => {
+  if (role !== 'farmer') {
+    throw makeError('Chi nong dan moi co the xem tong quan doanh thu', 403);
+  }
+
+  if (options.type && !FARMER_TRANSACTION_TYPES.includes(options.type as any)) {
+    throw makeError('Loai giao dich khong hop le', 400);
+  }
+
+  const page = Number.isFinite(Number(options.page)) && Number(options.page) > 0
+    ? Number(options.page)
+    : 1;
+
+  const limit = Number.isFinite(Number(options.limit)) && Number(options.limit) > 0
+    ? Math.min(Number(options.limit), 100)
+    : 10;
+
+  const skip = (page - 1) * limit;
+
+  const startDate = new Date(year, 0, 1);
+  const endDate = new Date(year + 1, 0, 1);
+
+  const [walletTransactions, escrowTransactions, contracts, escrows] = await Promise.all([
+    paymentTransactionRepo()
+      .createQueryBuilder('payment')
+      .where('payment.userId = :userId', { userId })
+      .andWhere('payment.createdAt >= :startDate AND payment.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('payment.createdAt', 'DESC')
+      .getMany(),
+
+    escrowTransactionRepo()
+      .createQueryBuilder('escrowTx')
+      .leftJoinAndSelect('escrowTx.escrow', 'escrow')
+      .leftJoinAndSelect('escrow.contract', 'contract')
+      .where('(escrowTx.fromUserId = :userId OR escrowTx.toUserId = :userId)', { userId })
+      .andWhere('escrowTx.createdAt >= :startDate AND escrowTx.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('escrowTx.createdAt', 'DESC')
+      .getMany(),
+
+    contractRepo()
+      .createQueryBuilder('contract')
+      .where('contract.farmerId = :userId', { userId })
+      .andWhere("contract.status <> 'cancelled'")
+      .andWhere('contract.createdAt >= :startDate AND contract.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('contract.createdAt', 'DESC')
+      .getMany(),
+
+    escrowRepo()
+      .createQueryBuilder('escrow')
+      .where('escrow.farmerId = :userId', { userId })
+      .andWhere('escrow.createdAt >= :startDate AND escrow.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .getMany(),
+  ]);
+
+  const chart = buildRevenueChartSkeleton();
+
+  // Doanh thu thuc nhan theo thang duoc tinh tu tien giai ngan escrow (toUserId = nong dan),
+  // chinh xac hon la lay ngay tao hop dong vi mot hop dong co the giai ngan qua nhieu thang.
+  escrowTransactions.forEach((transaction) => {
+    const amount = Number(transaction.amount || 0);
+    const monthIndex = getMonthIndex(transaction.createdAt);
+
+    if (transaction.toUserId === userId) {
+      chart[monthIndex].revenue += amount;
+    }
+  });
+
+  const walletItems = walletTransactions.map((item) => {
+    const incoming = isWalletIncoming(item.type);
+    const outgoing = isWalletOutgoing(item.type);
+    const signedAmount = outgoing ? -Number(item.amount || 0) : Number(item.amount || 0);
+
+    return {
+      id: item.id,
+      referenceId: item.id,
+      type: 'wallet',
+      title: normalizeTransactionType(item.type),
+      description: item.description || item.orderCode || 'Giao dich vi',
+      amount: incoming || outgoing ? signedAmount : Number(item.amount || 0),
+      status: formatOverviewStatus(item.status),
+      createdAt: item.createdAt,
+      detailUrl: null,
+    };
+  });
+
+  const escrowItems = escrowTransactions.map((item: any) => {
+    const contract = item.escrow?.contract;
+    const isOutgoing = item.fromUserId === userId;
+
+    return {
+      id: `escrow-${item.id}`,
+      referenceId: item.escrowId,
+      contractId: item.escrow?.contractId || contract?.id || null,
+      type: 'escrow',
+      title: normalizeTransactionType(item.type),
+      description: item.description || `Escrow ${contract?.contractCode || item.escrowId}`,
+      amount: isOutgoing ? -Number(item.amount || 0) : Number(item.amount || 0),
+      status: item.escrow?.status || 'completed',
+      createdAt: item.createdAt,
+      detailUrl: item.escrow?.contractId ? `/farmer/contracts/${item.escrow.contractId}` : '/farmer/escrow',
+    };
+  });
+
+  const contractItems = contracts.map((item) => ({
+    id: item.id,
+    referenceId: item.id,
+    type: 'contract',
+    title: item.contractCode,
+    description: item.productName || 'Hop dong bao tieu nong san',
+    amount: Number(item.totalValue || 0),
+    status: item.status,
+    createdAt: item.createdAt,
+    detailUrl: `/farmer/contracts/${item.id}`,
+  }));
+
+  const allTransactions = [
+    ...walletItems,
+    ...escrowItems,
+    ...contractItems,
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const filteredTransactions = options.type
+    ? allTransactions.filter((item) => item.type === options.type)
+    : allTransactions;
+
+  const recentTransactions = filteredTransactions.slice(skip, skip + limit);
+
+  const totalRevenue = chart.reduce((sum, item) => sum + item.revenue, 0);
+  const totalContractValue = contracts.reduce((sum, item) => sum + Number(item.totalValue || 0), 0);
+
+  return {
+    year,
+    summary: {
+      totalRevenue,
+      totalContractValue,
+      totalWalletTransactions: walletTransactions.length,
+      totalContracts: contracts.length,
+      totalEscrows: escrows.length,
+    },
+    chart,
+    recentTransactions,
+    pagination: {
+      page,
+      limit,
+      total: filteredTransactions.length,
+      totalPages: Math.max(1, Math.ceil(filteredTransactions.length / limit)),
+    },
+    filters: {
+      type: options.type || null,
+    },
+  };
 };
 
 const TOPUP_ALLOWED_ROLES = ['farmer', 'enterprise'];
@@ -251,102 +656,6 @@ export const demoTopupWallet = async (
     category: 'payment',
     action: 'wallet_topup',
     message: `${user.email} nap ${amount.toLocaleString('vi-VN')} VND vao vi (demo)`,
-    userId: user.id,
-    targetType: 'PaymentTransaction',
-    targetId: savedTransaction.id,
-    metadata: { amount, orderCode },
-  });
-
-  return {
-    wallet: {
-      balance: balanceAfter,
-      currency: 'VND',
-    },
-    transaction: {
-      id: savedTransaction.id,
-      type: savedTransaction.type,
-      amount: Number(savedTransaction.amount || 0),
-      status: savedTransaction.status,
-      paymentMethod: savedTransaction.paymentMethod,
-      orderCode: savedTransaction.orderCode,
-      description: savedTransaction.description,
-      balanceBefore: Number(savedTransaction.balanceBefore || 0),
-      balanceAfter: Number(savedTransaction.balanceAfter || 0),
-      createdAt: savedTransaction.createdAt,
-      completedAt: savedTransaction.completedAt,
-    },
-  };
-};
-
-export const demoWithdrawWallet = async (
-  userId: string,
-  role: string,
-  dto: { amount: number; note?: string }
-) => {
-  if (!TOPUP_ALLOWED_ROLES.includes(role)) {
-    throw makeError('Vai tro nay khong the rut tien demo', 403);
-  }
-
-  const amount = Number(dto.amount);
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw makeError('So tien rut khong hop le', 400);
-  }
-
-  const user = await userRepo().findOne({ where: { id: userId } });
-  if (!user) {
-    throw makeError('Khong tim thay nguoi dung', 404);
-  }
-
-  const balanceBefore = Number(user.virtualBalance || 0);
-  if (amount > balanceBefore) {
-    throw makeError('So du vi khong du de rut', 400);
-  }
-
-  const balanceAfter = balanceBefore - amount;
-  const orderCode = `RUT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-  let savedTransaction: PaymentTransaction;
-  try {
-    savedTransaction = await AppDataSource.transaction(async (manager) => {
-      user.virtualBalance = balanceAfter;
-      await manager.getRepository(User).save(user);
-
-      const transaction = manager.getRepository(PaymentTransaction).create({
-        userId: user.id,
-        type: 'withdraw',
-        amount,
-        status: 'completed',
-        paymentMethod: 'demo',
-        gatewayRef: orderCode,
-        orderCode,
-        description: dto.note?.trim() || 'Rut tien demo tu vi ao',
-        balanceBefore,
-        balanceAfter,
-        metadata: JSON.stringify({ source: 'demo_withdraw', createdBy: user.id }),
-        completedAt: new Date(),
-      } as Partial<PaymentTransaction>);
-
-      return manager.getRepository(PaymentTransaction).save(transaction);
-    });
-  } catch (err: any) {
-    logError({
-      category: 'payment',
-      action: 'wallet_withdraw_failed',
-      message: `Loi rut tien vi cho user ${user.email}: ${err.message || err}`,
-      userId: user.id,
-      targetType: 'User',
-      targetId: user.id,
-      metadata: { amount, orderCode },
-      error: err,
-    });
-    throw err;
-  }
-
-  logAction({
-    category: 'payment',
-    action: 'wallet_withdraw',
-    message: `${user.email} rut ${amount.toLocaleString('vi-VN')} VND khoi vi (demo)`,
     userId: user.id,
     targetType: 'PaymentTransaction',
     targetId: savedTransaction.id,

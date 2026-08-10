@@ -3,6 +3,7 @@ import {
   FiGrid, FiPlus, FiArrowUpRight, FiArrowDownLeft, FiClock,
   FiLock, FiRefreshCw, FiFileText, FiShield,
   FiCheck, FiHome, FiZap, FiInbox, FiCopy, FiLoader, FiCamera,
+  FiChevronLeft, FiChevronRight,
 } from 'react-icons/fi';
 import { useToast } from '../../../contexts/ToastContext';
 import walletService from '../../../services/wallet.service';
@@ -61,6 +62,9 @@ function TxStatusBadge({ tx }) {
   if (tx.source === 'payment' && tx.status === 'pending') {
     return <span className="farmer-badge farmer-badge--warning">Đang chờ</span>;
   }
+  if (tx.source === 'payment' && tx.status === 'rejected') {
+    return <span className="farmer-badge farmer-badge--danger">Đã từ chối</span>;
+  }
   if (tx.source === 'payment' && tx.status && tx.status !== 'completed') {
     return <span className="farmer-badge farmer-badge--danger">Thất bại</span>;
   }
@@ -86,13 +90,18 @@ function FarmerWallet() {
   const [sepayOrder, setSepayOrder] = useState(null);
   const [sepayCreating, setSepayCreating] = useState(false);
 
-  // Rút tiền — yêu cầu qua ngân hàng vẫn là mock cho duyệt thủ công, chưa có API.
+  // Rút tiền — yêu cầu rút (demo hoặc qua ngân hàng) đều ở trạng thái 'pending' cho tới khi admin duyệt.
   const [withdrawals, setWithdrawals] = useState([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
   const [wForm, setWForm] = useState({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
-  // Lịch sử
+  // Lịch sử — phân trang & lọc phía server
   const [historyFilter, setHistoryFilter] = useState('all');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTransactions, setHistoryTransactions] = useState([]);
+  const [historyPagination, setHistoryPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const loadWallet = () => {
     setLoading(true);
@@ -113,6 +122,18 @@ function FarmerWallet() {
 
   useEffect(loadWallet, []);
 
+  const loadWithdrawals = () => {
+    setWithdrawalsLoading(true);
+    walletService.listTransactions({ type: 'withdraw', limit: 20 })
+      .then((res) => setWithdrawals(res?.data?.transactions || []))
+      .catch(() => setWithdrawals([]))
+      .finally(() => setWithdrawalsLoading(false));
+  };
+
+  useEffect(() => {
+    if (tab === 'withdraw') loadWithdrawals();
+  }, [tab]);
+
   const totalDeposit = useMemo(
     () => transactions.filter((t) => t.type === 'topup').reduce((sum, t) => sum + Number(t.amount || 0), 0),
     [transactions],
@@ -122,10 +143,30 @@ function FarmerWallet() {
     [transactions],
   );
 
-  const filteredHistory = useMemo(
-    () => (historyFilter === 'all' ? transactions : transactions.filter((t) => t.type === historyFilter)),
-    [transactions, historyFilter],
-  );
+  useEffect(() => {
+    if (tab !== 'history') return;
+
+    setHistoryLoading(true);
+    walletService.listTransactions({
+      type: historyFilter === 'all' ? undefined : historyFilter,
+      page: historyPage,
+      limit: 10,
+    })
+      .then((res) => {
+        setHistoryTransactions(res?.data?.transactions || []);
+        setHistoryPagination(res?.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 });
+      })
+      .catch(() => {
+        setHistoryTransactions([]);
+        setHistoryPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
+      })
+      .finally(() => setHistoryLoading(false));
+  }, [tab, historyFilter, historyPage]);
+
+  const handleHistoryFilterChange = (key) => {
+    setHistoryFilter(key);
+    setHistoryPage(1);
+  };
 
   const pickQuick = (value) => {
     setQuickPicked(value);
@@ -248,7 +289,7 @@ function FarmerWallet() {
 
   const setWField = (key, value) => setWForm((prev) => ({ ...prev, [key]: value }));
 
-  const submitWithdraw = (e) => {
+  const submitWithdraw = async (e) => {
     e.preventDefault();
     const amount = Number(wForm.amount.replace(/\D/g, ''));
 
@@ -258,19 +299,24 @@ function FarmerWallet() {
     if (!wForm.accountNumber.trim()) { toast.warning('Vui lòng nhập số tài khoản.'); return; }
     if (!wForm.accountHolder.trim()) { toast.warning('Vui lòng nhập tên chủ tài khoản.'); return; }
 
-    const request = {
-      id: `wd-${Date.now()}`,
-      amount,
-      bank: wForm.bank,
-      accountNumber: wForm.accountNumber.trim(),
-      accountHolder: wForm.accountHolder.trim().toUpperCase(),
-      note: wForm.note.trim(),
-      time: formatDateTime(new Date()),
-    };
-
-    setWithdrawals((prev) => [request, ...prev]);
-    setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
-    toast.success('Đã gửi yêu cầu rút tiền. Quản trị viên sẽ xử lý sớm nhất.');
+    setWithdrawLoading(true);
+    try {
+      await walletService.requestWithdraw({
+        amount,
+        note: wForm.note.trim(),
+        isDemo: false,
+        bankName: wForm.bank,
+        bankAccountNumber: wForm.accountNumber.trim(),
+        bankAccountHolder: wForm.accountHolder.trim().toUpperCase(),
+      });
+      setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
+      toast.success('Đã gửi yêu cầu rút tiền. Quản trị viên sẽ xử lý sớm nhất.');
+      loadWithdrawals();
+    } catch (err) {
+      toast.error(err?.message || 'Gửi yêu cầu rút tiền thất bại, vui lòng thử lại.');
+    } finally {
+      setWithdrawLoading(false);
+    }
   };
 
   const handleDemoWithdraw = async () => {
@@ -280,14 +326,12 @@ function FarmerWallet() {
 
     setWithdrawLoading(true);
     try {
-      const res = await walletService.demoWithdraw(amount);
-      setBalance(res?.data?.wallet?.balance ?? balance);
+      await walletService.requestWithdraw({ amount, isDemo: true });
       setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
-      toast.success(`Rút thành công ${formatMoney(amount)} khỏi ví (demo).`);
-      setTab('overview');
-      loadWallet();
+      toast.success(`Đã gửi yêu cầu rút ${formatMoney(amount)} (demo). Chờ quản trị viên duyệt để hoàn tất.`);
+      loadWithdrawals();
     } catch (err) {
-      toast.error(err?.message || 'Rút tiền thất bại, vui lòng thử lại.');
+      toast.error(err?.message || 'Gửi yêu cầu rút tiền thất bại, vui lòng thử lại.');
     } finally {
       setWithdrawLoading(false);
     }
@@ -667,7 +711,9 @@ function FarmerWallet() {
 
               <section className="farmer-card">
                 <div className="fwt-panel-head"><h3>Lịch sử rút tiền</h3></div>
-                {withdrawals.length === 0 ? (
+                {withdrawalsLoading ? (
+                  <div className="fwt-empty"><p>Đang tải...</p></div>
+                ) : withdrawals.length === 0 ? (
                   <div className="fwt-empty">
                     <FiInbox />
                     <p>Chưa có yêu cầu rút tiền nào.</p>
@@ -678,10 +724,15 @@ function FarmerWallet() {
                       <article key={w.id} className="fwt-withdraw-item">
                         <div className="fwt-withdraw-item__top">
                           <strong>{formatMoney(w.amount)}</strong>
-                          <span className="farmer-badge farmer-badge--warning">Chờ duyệt</span>
+                          <TxStatusBadge tx={{ source: 'payment', status: w.status }} />
                         </div>
-                        <p className="fwt-withdraw-item__meta">{w.bank} • {w.accountNumber} • {w.accountHolder}</p>
-                        <p className="fwt-withdraw-item__meta">{w.time}</p>
+                        <p className="fwt-withdraw-item__meta">
+                          {w.bankName ? `${w.bankName} • ${w.bankAccountNumber} • ${w.bankAccountHolder}` : 'Rút demo — không cần thông tin ngân hàng'}
+                        </p>
+                        <p className="fwt-withdraw-item__meta">{formatDateTime(w.createdAt)}</p>
+                        {w.status === 'rejected' && w.rejectReason && (
+                          <p className="fwt-withdraw-item__meta" style={{ color: '#dc2626' }}>Lý do từ chối: {w.rejectReason}</p>
+                        )}
                       </article>
                     ))}
                   </div>
@@ -701,7 +752,7 @@ function FarmerWallet() {
                     key={f.key}
                     type="button"
                     className={historyFilter === f.key ? 'active' : ''}
-                    onClick={() => setHistoryFilter(f.key)}
+                    onClick={() => handleHistoryFilterChange(f.key)}
                   >
                     {f.label}
                   </button>
@@ -717,7 +768,7 @@ function FarmerWallet() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredHistory.map((tx) => {
+                    {historyTransactions.map((tx) => {
                       const meta = TX_META[tx.type] || TX_META.topup;
                       const Icon = meta.icon;
                       const isOutgoing = (tx.source === 'escrow' && tx.direction === 'out') || tx.type === 'withdraw';
@@ -740,12 +791,36 @@ function FarmerWallet() {
                         </tr>
                       );
                     })}
-                    {filteredHistory.length === 0 && (
+                    {!historyLoading && historyTransactions.length === 0 && (
                       <tr><td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8' }}>Không có giao dịch phù hợp.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+
+              {historyTransactions.length > 0 && (
+                <div className="fwt-pagination">
+                  <span>
+                    Trang {historyPagination.page} / {historyPagination.totalPages} — {historyPagination.total.toLocaleString('vi-VN')} giao dịch
+                  </span>
+                  <div className="fwt-pagination-btns">
+                    <button
+                      type="button"
+                      disabled={historyPagination.page <= 1}
+                      onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                    >
+                      <FiChevronLeft size={14} /> Trước
+                    </button>
+                    <button
+                      type="button"
+                      disabled={historyPagination.page >= historyPagination.totalPages}
+                      onClick={() => setHistoryPage((p) => Math.min(historyPagination.totalPages, p + 1))}
+                    >
+                      Sau <FiChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           )}
         </>

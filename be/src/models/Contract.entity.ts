@@ -79,6 +79,9 @@ export class Contract {
   @Column({ name: 'FarmLocation', type: 'nvarchar', length: 500, nullable: true })
   farmLocation: string;
 
+  @Column({ name: 'DeliveryAddress', type: 'nvarchar', length: 500, nullable: true })
+  deliveryAddress: string;
+
   // Status
   @Column({ name: 'Status', type: 'nvarchar', length: 30, default: 'draft' })
   status: 'draft' | 'pending' | 'approved' | 'active' | 'cancel_pending' | 'completed' | 'cancelled' | 'disputed';
@@ -119,6 +122,24 @@ export class Contract {
 
   @Column({ name: 'InsuranceStatus', type: 'nvarchar', length: 30, nullable: true })
   insuranceStatus: 'none' | 'pending' | 'active' | 'expired' | 'cancelled';
+
+  @Column({ name: 'InsurancePolicyNumber', type: 'nvarchar', length: 100, nullable: true })
+  insurancePolicyNumber: string;
+
+  @Column({ name: 'InsuredValue', type: 'decimal', precision: 18, scale: 2, nullable: true })
+  insuredValue: number;
+
+  @Column({ name: 'InsuranceCoveredEvents', type: 'nvarchar', length: 30, nullable: true })
+  insuranceCoveredEvents: 'natural_disaster' | 'disease' | 'both';
+
+  @Column({ name: 'InsuranceValidFrom', type: 'date', nullable: true })
+  insuranceValidFrom: Date;
+
+  @Column({ name: 'InsuranceValidTo', type: 'date', nullable: true })
+  insuranceValidTo: Date;
+
+  @Column({ name: 'InsuranceRiskSharingTerms', type: 'nvarchar', length: 'max', nullable: true })
+  insuranceRiskSharingTerms: string;
 
   // Escrow / payment tracking
   @Column({ name: 'EscrowStatus', type: 'nvarchar', length: 30, nullable: true })

@@ -10,8 +10,26 @@ import { EscrowTransaction } from '../models/EscrowTransaction.entity';
 import { Notification } from '../models/Notification.entity';
 import { AppError } from '../middlewares/error.middleware';
 import { logAction } from './systemLog.service';
+import { sendNotificationEmail, buildContractUrl } from './email.service';
+import { displayName } from '../utils/user.util';
 
 const userRepo = () => AppDataSource.getRepository(User);
+
+// Email khong duoc lam gian doan luong nghiep vu admin -- loi gui mail chi log, khong throw.
+const notifyEmail = async (
+  user: User | null | undefined,
+  role: 'farmer' | 'enterprise',
+  title: string,
+  message: string,
+  contractId: string
+) => {
+  if (!user?.email) return;
+  try {
+    await sendNotificationEmail(user.email, displayName(user), title, message, buildContractUrl(role, contractId));
+  } catch (err: any) {
+    console.error('Loi gui email thong bao admin:', err.message || err);
+  }
+};
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const paymentRepo = () => AppDataSource.getRepository(PaymentTransaction);
 const disputeRepo = () => AppDataSource.getRepository(Dispute);
@@ -505,6 +523,22 @@ export const resolveDispute = async (
       }),
     ]);
   });
+
+  const resolvedTitle = 'Khiếu nại đã được giải quyết';
+  const resolvedMessage =
+    resolution === 'farmer'
+      ? `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: giải ngân số dư còn lại cho nông dân.`
+      : `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: hoàn tiền số dư còn lại cho doanh nghiệp.`;
+
+  const raisedByRole = dispute.raisedByRole === 'farmer' ? 'farmer' : 'enterprise';
+  const againstRole = raisedByRole === 'farmer' ? 'enterprise' : 'farmer';
+
+  const [raisedByUser, againstUser] = await Promise.all([
+    userRepo().findOne({ where: { id: dispute.raisedBy } }),
+    userRepo().findOne({ where: { id: dispute.againstUserId } }),
+  ]);
+  await notifyEmail(raisedByUser, raisedByRole, resolvedTitle, resolvedMessage, contract.id);
+  await notifyEmail(againstUser, againstRole, resolvedTitle, resolvedMessage, contract.id);
 
   logAction({
     category: 'dispute',

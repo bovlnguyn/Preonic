@@ -15,8 +15,8 @@ const STEPS = [
   { key: 'propose',      label: 'Đề xuất' },
   { key: 'review',       label: 'Xem xét' },
   { key: 'preon_verify', label: 'PreOnic Xác nhận' },
-  { key: 'sign',         label: 'Gửi đề xuất' },
-  { key: 'done',         label: 'Đã gửi' },
+  { key: 'sign',         label: 'Tạo hợp đồng' },
+  { key: 'done',         label: 'Đã tạo' },
 ];
 
 const PAYMENT_TERMS = [
@@ -117,6 +117,7 @@ export default function EnterpriseCreateContract() {
     unit:           'kg',
     pricePerUnit:   '',
     deliveryDate:   '',
+    deliveryAddress: '',
     paymentTerms:   '50_50',
     customDeposit:  '',
     customOnDelivery: '',
@@ -181,8 +182,34 @@ export default function EnterpriseCreateContract() {
       e.deliveryDate = 'Vui lòng chọn ngày giao hàng.';
     else if (form.deliveryDate <= today)
       e.deliveryDate = 'Ngày giao hàng phải sau ngày hôm nay.';
+    if (!form.deliveryAddress.trim())
+      e.deliveryAddress = 'Vui lòng nhập địa chỉ giao hàng.';
     if (form.paymentTerms === 'custom' && !customDepositValid())
       e.customDeposit = 'Tổng đặt cọc + khi nhận hàng phải bằng 100%.';
+
+    if (showInsurance) {
+      if (!insurance.insuranceCompany.trim())
+        e.insuranceCompany = 'Vui lòng nhập tên công ty bảo hiểm.';
+      if (!insurance.policyNumber.trim())
+        e.policyNumber = 'Vui lòng nhập số hợp đồng bảo hiểm.';
+
+      const insuredValueStr = String(insurance.insuredValue).trim();
+      if (!insuredValueStr)
+        e.insuredValue = 'Vui lòng nhập giá trị được bảo hiểm.';
+      else if (!/^\d+(\.\d+)?$/.test(insuredValueStr))
+        e.insuredValue = 'Giá trị được bảo hiểm phải là số và không được là số âm.';
+
+      if (!insurance.coveredEvents)
+        e.coveredEvents = 'Vui lòng chọn sự kiện được bảo hiểm.';
+
+      if (!insurance.validFrom)
+        e.validFrom = 'Vui lòng chọn ngày hiệu lực từ.';
+      if (!insurance.validTo)
+        e.validTo = 'Vui lòng chọn ngày hiệu lực đến.';
+      else if (insurance.validFrom && insurance.validTo < insurance.validFrom)
+        e.validTo = 'Ngày hiệu lực đến không được trước ngày hiệu lực từ.';
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -193,7 +220,10 @@ export default function EnterpriseCreateContract() {
     if (errors[k]) setErrors(prev => ({ ...prev, [k]: '' }));
   };
 
-  const setInsField = (k, v) => setInsurance(prev => ({ ...prev, [k]: v }));
+  const setInsField = (k, v) => {
+    setInsurance(prev => ({ ...prev, [k]: v }));
+    if (errors[k]) setErrors(prev => ({ ...prev, [k]: '' }));
+  };
 
   const handleCustomDeposit = (val, field) => {
     const num = val === '' ? '' : String(Math.min(100, Math.max(0, Number(val))));
@@ -229,6 +259,7 @@ export default function EnterpriseCreateContract() {
         // vi backend tinh totalValue = quantity * pricePerUnit ma khong tu quy doi don vi.
         pricePerUnit:      parseFloat(form.pricePerUnit) * unitFactor,
         deliveryDate:      form.deliveryDate,
+        deliveryAddress:   form.deliveryAddress,
         paymentTerms:      form.paymentTerms,
         qualityRequirements: form.notes,
         depositPercentage: depositPct,
@@ -346,6 +377,17 @@ export default function EnterpriseCreateContract() {
               </div>
             </div>
 
+            <div className="ecc-field ecc-field--full">
+              <label>Địa chỉ giao hàng <span className="ecc-req">*</span></label>
+              <input
+                className={errors.deliveryAddress ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                value={form.deliveryAddress}
+                onChange={e => setField('deliveryAddress', e.target.value)}
+                placeholder="VD: Kho số 12, KCN Tân Bình, Quận Tân Bình, TP.HCM"
+              />
+              {errors.deliveryAddress && <span className="ecc-err">{errors.deliveryAddress}</span>}
+            </div>
+
             <div className="ecc-row">
               <div className="ecc-field">
                 <label>Phương thức đặt cọc</label>
@@ -418,45 +460,65 @@ export default function EnterpriseCreateContract() {
                 <p className="ecc-ins-note">Nhập thông tin bảo hiểm nông nghiệp mà bạn đã mua từ công ty bảo hiểm bên ngoài.</p>
                 <div className="ecc-row">
                   <div className="ecc-field">
-                    <label>Tên công ty bảo hiểm</label>
-                    <input className="ecc-input" value={insurance.insuranceCompany}
+                    <label>Tên công ty bảo hiểm <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.insuranceCompany ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      value={insurance.insuranceCompany}
                       onChange={e => setInsField('insuranceCompany', e.target.value)}
                       placeholder="VD: Bao Viet, PVI..." />
+                    {errors.insuranceCompany && <span className="ecc-err">{errors.insuranceCompany}</span>}
                   </div>
                   <div className="ecc-field">
-                    <label>Số hợp đồng bảo hiểm</label>
-                    <input className="ecc-input" value={insurance.policyNumber}
+                    <label>Số hợp đồng bảo hiểm <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.policyNumber ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      value={insurance.policyNumber}
                       onChange={e => setInsField('policyNumber', e.target.value)}
                       placeholder="VD: BV-2024-001234" />
+                    {errors.policyNumber && <span className="ecc-err">{errors.policyNumber}</span>}
                   </div>
                 </div>
                 <div className="ecc-row">
                   <div className="ecc-field">
-                    <label>Giá trị được bảo hiểm (VND)</label>
-                    <input className="ecc-input" type="number" value={insurance.insuredValue}
+                    <label>Giá trị được bảo hiểm (VND) <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.insuredValue ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      type="number" min="0" step="1"
+                      value={insurance.insuredValue}
                       onChange={e => setInsField('insuredValue', e.target.value)}
                       placeholder="VD: 500000000" />
+                    {errors.insuredValue && <span className="ecc-err">{errors.insuredValue}</span>}
                   </div>
                   <div className="ecc-field">
-                    <label>Sự kiện được bảo hiểm</label>
-                    <select className="ecc-select ecc-select--full" value={insurance.coveredEvents}
+                    <label>Sự kiện được bảo hiểm <span className="ecc-req">*</span></label>
+                    <select
+                      className={errors.coveredEvents ? 'ecc-select ecc-select--full ecc-input--error' : 'ecc-select ecc-select--full'}
+                      value={insurance.coveredEvents}
                       onChange={e => setInsField('coveredEvents', e.target.value)}>
                       <option value="natural_disaster">Thiên tai</option>
                       <option value="disease">Dịch bệnh</option>
                       <option value="both">Cả hai (thiên tai + dịch bệnh)</option>
                     </select>
+                    {errors.coveredEvents && <span className="ecc-err">{errors.coveredEvents}</span>}
                   </div>
                 </div>
                 <div className="ecc-row">
                   <div className="ecc-field">
-                    <label>Hiệu lực từ</label>
-                    <input className="ecc-input" type="date" value={insurance.validFrom}
+                    <label>Hiệu lực từ <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.validFrom ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      type="date" value={insurance.validFrom}
                       onChange={e => setInsField('validFrom', e.target.value)} />
+                    {errors.validFrom && <span className="ecc-err">{errors.validFrom}</span>}
                   </div>
                   <div className="ecc-field">
-                    <label>Hiệu lực đến</label>
-                    <input className="ecc-input" type="date" value={insurance.validTo}
+                    <label>Hiệu lực đến <span className="ecc-req">*</span></label>
+                    <input
+                      className={errors.validTo ? 'ecc-input ecc-input--error' : 'ecc-input'}
+                      type="date" min={insurance.validFrom || undefined}
+                      value={insurance.validTo}
                       onChange={e => setInsField('validTo', e.target.value)} />
+                    {errors.validTo && <span className="ecc-err">{errors.validTo}</span>}
                   </div>
                 </div>
                 <div className="ecc-field ecc-field--full">
@@ -480,6 +542,7 @@ export default function EnterpriseCreateContract() {
               <div className="ecc-summary__row"><span>Số lượng:</span><strong>{form.quantity} {form.unit}</strong></div>
               <div className="ecc-summary__row"><span>Đơn giá:</span><strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/kg</strong></div>
               <div className="ecc-summary__row"><span>Ngày giao:</span><strong>{form.deliveryDate || '--'}</strong></div>
+              <div className="ecc-summary__row"><span>Địa chỉ giao hàng:</span><strong>{form.deliveryAddress || '--'}</strong></div>
               <div className="ecc-summary__row"><span>Đặt cọc:</span><strong>{getDepositLabel(form.paymentTerms, form.customDeposit, form.customOnDelivery)}</strong></div>
               <div className="ecc-summary__row"><span>Nhà sản xuất:</span><strong>{form.farmerName || '--'}</strong></div>
               <div className="ecc-summary__row"><span>Doanh nghiệp:</span><strong>{form.enterpriseName || user?.fullName || '--'}</strong></div>
@@ -533,7 +596,7 @@ export default function EnterpriseCreateContract() {
         {/* ── BƯỚC 3: Ký hợp đồng ── */}
         {step === 3 && (
           <div className="ecc-card">
-            <h3 className="ecc-card__title">Xác nhận & gửi đề xuất hợp đồng</h3>
+            <h3 className="ecc-card__title">Xác nhận & tạo hợp đồng</h3>
 
             <div className="ecc-contract-doc">
               <div className="ecc-contract-doc__header">
@@ -544,6 +607,7 @@ export default function EnterpriseCreateContract() {
                 <p>Hợp đồng bao tiêu <strong>{form.quantity} {form.unit} {form.productName}</strong> với đơn giá <strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/kg</strong>.</p>
                 <p>Tổng giá trị: <strong>{fmtMoney(totalValue)}</strong> | Phí dịch vụ PreOnic: <strong>{fmtMoney(commission)}</strong></p>
                 <p>Ngày giao hàng: <strong>{form.deliveryDate}</strong></p>
+                <p>Địa chỉ giao hàng: <strong>{form.deliveryAddress}</strong></p>
                 <p>Bên bán: {form.farmerName || '--'} | Bên mua: {form.enterpriseName || user?.fullName || '--'}</p>
                 <p>Trung gian: <strong>Công ty TNHH PreOnic Việt Nam</strong></p>
               </div>
@@ -571,8 +635,8 @@ export default function EnterpriseCreateContract() {
             </div>
 
             <p className="ecc-sign-note">
-              Sau khi gửi, nông dân sẽ xem xét và xác nhận hoặc từ chối đề xuất này.
-              Bạn sẽ ký chính thức để kích hoạt hợp đồng sau khi nông dân đồng ý.
+              Sau khi tạo, hợp đồng sẽ ở trạng thái nháp. Vào trang chi tiết hợp đồng để gửi
+              cho nông dân xem xét, ký xác nhận -- bạn sẽ ký chính thức sau khi nông dân đồng ý.
             </p>
 
             {errors.submit && (
@@ -587,9 +651,9 @@ export default function EnterpriseCreateContract() {
         {step === 4 && (
           <div className="ecc-card ecc-card--center">
             <div className="ecc-done__icon"><FiCheckCircle size={48} /></div>
-            <h3 className="ecc-card__title">Đề xuất hợp đồng đã được gửi!</h3>
+            <h3 className="ecc-card__title">Hợp đồng đã được tạo!</h3>
             <p>Mã hợp đồng: <strong>{createdContract?.contractCode || contractCode}</strong></p>
-            <p>Nông dân sẽ nhận được thông báo để xem xét và xác nhận. Bạn có thể ký chính thức sau khi nông dân đồng ý.</p>
+            <p>Hợp đồng đang ở trạng thái nháp. Vào trang chi tiết hợp đồng để gửi cho nông dân xem xét và xác nhận.</p>
             <div className="ecc-done__summary">
               <div><span>Sản phẩm:</span><strong>{form.productName}</strong></div>
               <div><span>Giá trị:</span><strong>{fmtMoney(createdContract?.totalValue || totalValue)}</strong></div>
@@ -619,7 +683,7 @@ export default function EnterpriseCreateContract() {
               <button className="ecc-btn ecc-btn--primary"
                 onClick={handleSubmitProposal}
                 disabled={!canSign || loading}>
-                {loading ? 'Đang xử lý...' : 'Gửi đề xuất hợp đồng'}
+                {loading ? 'Đang tạo hợp đồng...' : 'Tạo hợp đồng'}
               </button>
             )}
           </div>

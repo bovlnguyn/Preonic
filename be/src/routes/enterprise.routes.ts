@@ -1,5 +1,5 @@
 import { Router, RequestHandler } from 'express';
-import { getSuppliers } from '../controller/enterprise.controller';
+import { getSuppliers, getSupplierDetail } from '../controller/enterprise.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
 
 const router = Router();
@@ -9,6 +9,13 @@ router.get(
   protect as RequestHandler,
   restrictTo('enterprise') as RequestHandler,
   getSuppliers as RequestHandler
+);
+
+router.get(
+  '/suppliers/:farmerId',
+  protect as RequestHandler,
+  restrictTo('enterprise') as RequestHandler,
+  getSupplierDetail as RequestHandler
 );
 
 export default router;

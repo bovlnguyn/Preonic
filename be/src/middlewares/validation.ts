@@ -1,5 +1,12 @@
-import { body, validationResult } from 'express-validator';
+import { body, param, query, validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
+
+// SQL Server sinh cac cot uniqueidentifier bang NEWSEQUENTIALID() (xem
+// @PrimaryGeneratedColumn('uuid') tren cac entity), khong phai UUID v4 chuan
+// RFC4122 -- cac nibble version/variant khong dam bao dung dinh dang [1-8]/[89ab]
+// nen KHONG dung express-validator isUUID() (qua chat, se loai bo ca id that trong DB).
+// Chi kiem tra dung khuon dang 8-4-4-4-12 hex.
+const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Handle validation errors
@@ -367,6 +374,391 @@ export const validateCreateProduct = [
         throw new Error('Danh sách chứng chỉ không hợp lệ');
       }
     }),
+
+  handleValidationErrors,
+];
+
+/* ============================================================
+ * Contract validation
+ * Matches contract.controller.ts (buildDto) + contract.service.ts business rules
+ * ============================================================ */
+
+const CONTRACT_PAYMENT_TERMS = ['50_50', '30_70', '100_delivery', '100_upfront'];
+const CONTRACT_STATUSES = [
+  'draft',
+  'pending',
+  'approved',
+  'active',
+  'cancel_pending',
+  'completed',
+  'cancelled',
+  'disputed',
+];
+const CONTRACT_SORT_FIELDS = ['createdAt', 'updatedAt', 'deliveryDate', 'totalValue', 'status'];
+
+export const validateContractIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã hợp đồng không hợp lệ'),
+
+  handleValidationErrors,
+];
+
+// Bat buoc cac truong bao hiem (tru dieu khoan chia se rui ro) khi nguoi dung
+// bat cong tac bao hiem o FE (EnterpriseCreateContract.jsx) hoac goi API truc
+// tiep voi insuranceEnabled=true.
+const isInsuranceRequested = (req: any): boolean =>
+  req.body?.insuranceEnabled === true ||
+  req.body?.insuranceEnabled === 'true' ||
+  Boolean(req.body?.insuranceEnterprise);
+
+/**
+ * Validate Create Contract
+ * Chấp nhận cả field phẳng (productId, quantity...) lẫn dạng lồng
+ * (insuranceEnterprise.*) mà FE hiện dùng -- xem buildDto() trong contract.controller.ts
+ */
+export const validateCreateContract = [
+  body('productId')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng chọn sản phẩm')
+    .matches(GUID_REGEX)
+    .withMessage('Mã sản phẩm không hợp lệ'),
+
+  body('quantity')
+    .notEmpty()
+    .withMessage('Vui lòng nhập số lượng')
+    .isFloat({ gt: 0 })
+    .withMessage('Số lượng phải lớn hơn 0'),
+
+  body('pricePerUnit')
+    .notEmpty()
+    .withMessage('Vui lòng nhập đơn giá')
+    .isFloat({ gt: 0 })
+    .withMessage('Đơn giá phải lớn hơn 0'),
+
+  body('unit')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Đơn vị tính không hợp lệ'),
+
+  body('paymentTerms')
+    .notEmpty()
+    .withMessage('Vui lòng chọn điều khoản thanh toán')
+    .isIn(CONTRACT_PAYMENT_TERMS)
+    .withMessage('Điều khoản thanh toán không hợp lệ'),
+
+  body('deliveryDate')
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('Ngày giao hàng không hợp lệ'),
+
+  body('deliveryAddress')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập địa chỉ giao hàng')
+    .isLength({ max: 500 })
+    .withMessage('Địa chỉ giao hàng không được vượt quá 500 ký tự'),
+
+  body('farmLocation')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Vị trí nông trại không được vượt quá 500 ký tự'),
+
+  body('notes')
+    .optional()
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage('Ghi chú không được vượt quá 2000 ký tự'),
+
+  body('depositPercentage')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Tỷ lệ đặt cọc phải nằm trong khoảng 0-100'),
+
+  body('insuranceEnabled')
+    .optional()
+    .isBoolean()
+    .withMessage('Trạng thái bảo hiểm không hợp lệ'),
+
+  body('insuranceProvider')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Đơn vị bảo hiểm không hợp lệ'),
+
+  body('insurancePackage')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Gói bảo hiểm không hợp lệ'),
+
+  body('insuranceFee')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Phí bảo hiểm phải là số không âm'),
+
+  body(['insuranceEnterprise.insuredValue', 'insuredValue'])
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Giá trị bảo hiểm phải là số không âm'),
+
+  body(['insuranceEnterprise.insuranceCompany', 'insuranceEnterprise.policyNumber'])
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Thông tin bảo hiểm không hợp lệ'),
+
+  body(['insuranceEnterprise.validFrom', 'insuranceValidFrom'])
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('Ngày bắt đầu hiệu lực bảo hiểm không hợp lệ'),
+
+  body(['insuranceEnterprise.validTo', 'insuranceValidTo'])
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('Ngày hết hạn bảo hiểm không hợp lệ')
+    .custom((value, { req }) => {
+      const from = req.body?.insuranceEnterprise?.validFrom ?? req.body?.insuranceValidFrom;
+      if (from && !isNaN(Date.parse(from)) && new Date(value) < new Date(from)) {
+        throw new Error('Ngày hết hạn bảo hiểm không được trước ngày bắt đầu hiệu lực');
+      }
+      return true;
+    }),
+
+  // Khi da bat cong tac bao hiem, tat ca cac truong sau la bat buoc -- CHI TRU
+  // insuranceRiskSharingTerms (dieu khoan chia se rui ro, van la tuy chon).
+  body(['insuranceEnterprise.insuranceCompany', 'insuranceProvider'])
+    .custom((value, { req }) => {
+      if (!isInsuranceRequested(req)) return true;
+      const company = req.body?.insuranceEnterprise?.insuranceCompany ?? req.body?.insuranceProvider;
+      if (!String(company || '').trim()) {
+        throw new Error('Vui lòng nhập tên công ty bảo hiểm');
+      }
+      return true;
+    }),
+
+  body('insuranceEnterprise.policyNumber')
+    .custom((value, { req }) => {
+      if (isInsuranceRequested(req) && !String(value || '').trim()) {
+        throw new Error('Vui lòng nhập số hợp đồng bảo hiểm');
+      }
+      return true;
+    }),
+
+  body(['insuranceEnterprise.insuredValue', 'insuredValue'])
+    .custom((value, { req }) => {
+      if (!isInsuranceRequested(req)) return true;
+      const raw = req.body?.insuranceEnterprise?.insuredValue ?? req.body?.insuredValue;
+      if (raw === undefined || raw === null || String(raw).trim() === '') {
+        throw new Error('Vui lòng nhập giá trị được bảo hiểm');
+      }
+      if (!/^\d+(\.\d+)?$/.test(String(raw).trim())) {
+        throw new Error('Giá trị được bảo hiểm phải là số và không được là số âm');
+      }
+      return true;
+    }),
+
+  body('insuranceEnterprise.coveredEvents')
+    .custom((value, { req }) => {
+      if (isInsuranceRequested(req) && !String(value || '').trim()) {
+        throw new Error('Vui lòng chọn sự kiện được bảo hiểm');
+      }
+      return true;
+    }),
+
+  body(['insuranceEnterprise.validFrom', 'insuranceValidFrom'])
+    .custom((value, { req }) => {
+      const from = req.body?.insuranceEnterprise?.validFrom ?? req.body?.insuranceValidFrom;
+      if (isInsuranceRequested(req) && !from) {
+        throw new Error('Vui lòng chọn ngày hiệu lực bảo hiểm (từ ngày)');
+      }
+      return true;
+    }),
+
+  body(['insuranceEnterprise.validTo', 'insuranceValidTo'])
+    .custom((value, { req }) => {
+      const to = req.body?.insuranceEnterprise?.validTo ?? req.body?.insuranceValidTo;
+      if (isInsuranceRequested(req) && !to) {
+        throw new Error('Vui lòng chọn ngày hiệu lực bảo hiểm (đến ngày)');
+      }
+      return true;
+    }),
+
+  handleValidationErrors,
+];
+
+export const validateCancelContract = [
+  body('reason')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập lý do hủy hợp đồng')
+    .isLength({ min: 5, max: 500 })
+    .withMessage('Lý do hủy hợp đồng phải từ 5-500 ký tự'),
+
+  handleValidationErrors,
+];
+
+export const validateRejectContract = [
+  body('reason')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Lý do từ chối không được vượt quá 500 ký tự'),
+
+  handleValidationErrors,
+];
+
+export const validateListContracts = [
+  query('status')
+    .optional()
+    .custom((value) => {
+      const statuses = String(value)
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+      const invalid = statuses.find((status) => !CONTRACT_STATUSES.includes(status));
+      if (invalid) throw new Error(`Trạng thái hợp đồng không hợp lệ: ${invalid}`);
+      return true;
+    }),
+
+  query('sort')
+    .optional()
+    .isIn(CONTRACT_SORT_FIELDS)
+    .withMessage('Trường sắp xếp không hợp lệ'),
+
+  query('order')
+    .optional()
+    .isIn(['asc', 'desc', 'ASC', 'DESC'])
+    .withMessage('Thứ tự sắp xếp không hợp lệ'),
+
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Số trang không hợp lệ'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Giới hạn số bản ghi không hợp lệ'),
+
+  handleValidationErrors,
+];
+
+/* ============================================================
+ * Escrow validation
+ * Matches escrow.controller.ts + escrow.service.ts business rules
+ * ============================================================ */
+
+export const validateEscrowContractIdParam = [
+  param('contractId').matches(GUID_REGEX).withMessage('Mã hợp đồng không hợp lệ'),
+
+  handleValidationErrors,
+];
+
+export const validateConfirmMilestone = [
+  param('contractId').matches(GUID_REGEX).withMessage('Mã hợp đồng không hợp lệ'),
+
+  param('step')
+    .isInt({ min: 1, max: 5 })
+    .withMessage('Mốc thanh toán không hợp lệ'),
+
+  body('evidence')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Minh chứng không được vượt quá 1000 ký tự'),
+
+  handleValidationErrors,
+];
+
+/* ============================================================
+ * Dispute validation
+ * Matches dispute.controller.ts + dispute.service.ts business rules
+ * ============================================================ */
+
+const DISPUTE_STATUSES = ['open', 'under_review', 'resolved'];
+
+export const validateDisputeIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã tranh chấp không hợp lệ'),
+
+  handleValidationErrors,
+];
+
+// Ap dung SAU multer (uploadDisputeFiles) tren route POST /disputes vi req.body
+// chi duoc dien khi multer da parse xong multipart/form-data.
+export const validateCreateDispute = [
+  body('contractId')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng chọn hợp đồng cần tạo tranh chấp')
+    .matches(GUID_REGEX)
+    .withMessage('Mã hợp đồng không hợp lệ'),
+
+  body('milestoneStep')
+    .optional({ checkFalsy: true })
+    .isInt({ min: 1, max: 5 })
+    .withMessage('Mốc milestone không hợp lệ'),
+
+  body('reason')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập mô tả tranh chấp')
+    .isLength({ min: 10, max: 2000 })
+    .withMessage('Mô tả tranh chấp phải từ 10-2000 ký tự'),
+
+  body('evidenceUrls')
+    .optional()
+    .custom((value) => {
+      let items: unknown[];
+      if (Array.isArray(value)) {
+        items = value;
+      } else {
+        try {
+          const parsed = JSON.parse(value);
+          items = Array.isArray(parsed) ? parsed : String(value).split(',');
+        } catch {
+          items = String(value).split(',');
+        }
+      }
+
+      if (items.length > 10) {
+        throw new Error('Chỉ được đính kèm tối đa 10 đường dẫn minh chứng');
+      }
+      if (items.some((item) => String(item).trim().length > 1000)) {
+        throw new Error('Đường dẫn minh chứng không hợp lệ');
+      }
+      return true;
+    }),
+
+  handleValidationErrors,
+];
+
+export const validateListDisputes = [
+  query('status')
+    .optional()
+    .isIn(DISPUTE_STATUSES)
+    .withMessage('Trạng thái tranh chấp không hợp lệ'),
+
+  handleValidationErrors,
+];
+
+// Dung cho admin.routes.ts (PATCH /admin/disputes/:id/resolve)
+export const validateResolveDispute = [
+  param('id').matches(GUID_REGEX).withMessage('Mã tranh chấp không hợp lệ'),
+
+  body('resolution')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng chọn phán quyết')
+    .isIn(['farmer', 'enterprise'])
+    .withMessage('Phán quyết không hợp lệ'),
+
+  body('adminNotes')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage('Ghi chú của quản trị viên không được vượt quá 2000 ký tự'),
 
   handleValidationErrors,
 ];

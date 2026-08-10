@@ -40,6 +40,31 @@ export const getWalletTransactions = async (req: AuthRequest, res: Response) => 
   }
 };
 
+export const getTransactionsOverview = async (req: AuthRequest, res: Response) => {
+  try {
+    const year = req.query.year ? Number(req.query.year) : undefined;
+    const options = {
+      page: req.query.page ? Number(req.query.page) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      type: typeof req.query.type === 'string' ? req.query.type : undefined,
+    };
+
+    const result = req.user!.role === 'farmer'
+      ? await walletService.getFarmerTransactionsOverview(req.user!.id, req.user!.role, year, options)
+      : await walletService.getEnterpriseTransactionsOverview(req.user!.id, req.user!.role, year, options);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lay tong quan giao dich that bai',
+    });
+  }
+};
+
 export const topupWallet = async (req: AuthRequest, res: Response) => {
   try {
     const result = await walletService.demoTopupWallet(
@@ -60,30 +85,6 @@ export const topupWallet = async (req: AuthRequest, res: Response) => {
     res.status(err.statusCode || 500).json({
       success: false,
       message: err.message || 'Nap tien demo that bai',
-    });
-  }
-};
-
-export const withdrawWallet = async (req: AuthRequest, res: Response) => {
-  try {
-    const result = await walletService.demoWithdrawWallet(
-      req.user!.id,
-      req.user!.role,
-      {
-        amount: Number(req.body?.amount),
-        note: req.body?.note,
-      }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Rut tien demo thanh cong',
-      data: result,
-    });
-  } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Rut tien demo that bai',
     });
   }
 };

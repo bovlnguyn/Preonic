@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEye } from 'react-icons/fi';
+import { FiEye, FiTrash2 } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
 import EmptyState    from '../components/EmptyState';
 import contractService from '../../../services/contract.service';
 import { resolveContractStatusLabel } from '../../../constants/contract';
 import { formatDate, formatMoney } from '../utils';
+import { useToast } from '../../../contexts/ToastContext';
 
 const TABS = [
   { key: 'all',       label: 'Tất cả' },
@@ -21,6 +22,7 @@ const TABS = [
 
 function EnterpriseContracts() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [tab, setTab] = useState('all');
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,18 @@ function EnterpriseContracts() {
     () => (tab === 'all' ? contracts : contracts.filter((c) => c.status === tab)),
     [contracts, tab],
   );
+
+  // Hợp đồng nháp chưa từng gửi cho nông dân -- xóa hẳn thay vì hủy
+  const handleDelete = async (contract) => {
+    if (!window.confirm(`Xóa hợp đồng nháp ${contract.contractCode}? Hành động này không thể hoàn tác.`)) return;
+    try {
+      await contractService.remove(contract.id);
+      setContracts(prev => prev.filter(c => c.id !== contract.id));
+      toast.success('Đã xóa hợp đồng nháp');
+    } catch (err) {
+      toast.error(err?.message || 'Xóa hợp đồng thất bại.');
+    }
+  };
 
   return (
     <div className="ent-stack">
@@ -99,6 +113,15 @@ function EnterpriseContracts() {
                         >
                           <FiEye />
                         </button>
+                        {c.status === 'draft' && (
+                          <button
+                            type="button"
+                            title="Xóa hợp đồng nháp"
+                            onClick={() => handleDelete(c)}
+                          >
+                            <FiTrash2 />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -6,6 +6,8 @@ import { Product } from '../models/Product.entity';
 import { User } from '../models/User.entity';
 import { Notification } from '../models/Notification.entity';
 import { logAction } from './systemLog.service';
+import { sendNotificationEmail, buildContractUrl } from './email.service';
+import { displayName } from '../utils/user.util';
 
 const toKg = (value: number, unit?: string | null) => value * (UNIT_TO_KG[unit || 'kg'] ?? 1);
 
@@ -62,19 +64,39 @@ export interface CreateContractDto {
   deliveryDate?: string;
   notes?: string;
   farmLocation?: string;
+  deliveryAddress?: string;
   depositPercentage?: number;
   insuranceEnabled?: boolean;
   insuranceProvider?: string;
   insurancePackage?: string;
   insuranceFee?: number;
+  insurancePolicyNumber?: string;
+  insuredValue?: number;
+  insuranceCoveredEvents?: string;
+  insuranceValidFrom?: string;
+  insuranceValidTo?: string;
+  insuranceRiskSharingTerms?: string;
 }
 
 export interface CancelContractDto {
   reason: string;
 }
 
-const displayName = (user: User) =>
-  user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+// Email khong duoc lam gian doan luong nghiep vu hop dong -- loi gui mail chi log, khong throw.
+const notifyEmail = async (
+  user: User | null | undefined,
+  role: 'farmer' | 'enterprise',
+  title: string,
+  message: string,
+  contractId: string
+) => {
+  if (!user?.email) return;
+  try {
+    await sendNotificationEmail(user.email, displayName(user), title, message, buildContractUrl(role, contractId));
+  } catch (err: any) {
+    console.error('Loi gui email thong bao hop dong:', err.message || err);
+  }
+};
 
 const ensurePaymentTerms = (value: string): PaymentTerms => {
   if (!PAYMENT_TERMS.includes(value as PaymentTerms)) {
@@ -111,6 +133,9 @@ export const createContractProposal = async (
   if (!Number.isFinite(dto.pricePerUnit) || dto.pricePerUnit <= 0) {
     throw makeError('Don gia phai lon hon 0');
   }
+  if (!dto.deliveryAddress?.trim()) {
+    throw makeError('Vui long nhap dia chi giao hang');
+  }
 
   const paymentTerms = ensurePaymentTerms(dto.paymentTerms);
   const depositPercentage = dto.depositPercentage ?? 0;
@@ -121,6 +146,11 @@ export const createContractProposal = async (
   const insuranceFee = dto.insuranceFee ?? 0;
   if (!Number.isFinite(insuranceFee) || insuranceFee < 0) {
     throw makeError('Phi bao hiem khong hop le');
+  }
+
+  const insuredValue = dto.insuredValue ?? 0;
+  if (!Number.isFinite(insuredValue) || insuredValue < 0) {
+    throw makeError('Gia tri bao hiem khong hop le');
   }
 
   const enterprise = await userRepo().findOne({ where: { id: enterpriseId } });
@@ -178,6 +208,7 @@ export const createContractProposal = async (
     deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
     notes: dto.notes,
     farmLocation: dto.farmLocation || product.location || product.farm,
+    deliveryAddress: dto.deliveryAddress,
 
     status: 'draft',
     signedByFarmer: false,
@@ -187,7 +218,15 @@ export const createContractProposal = async (
     insuranceProvider: dto.insuranceProvider,
     insurancePackage: dto.insurancePackage,
     insuranceFee: dto.insuranceEnabled ? insuranceFee : undefined,
-    insuranceStatus: dto.insuranceEnabled ? 'pending' : 'none',
+    // Bao hiem duoc nhap la bao hiem da mua san tu ben ngoai (khong qua PreOnic)
+    // nen coi nhu da co hieu luc ngay, khong can trang thai 'pending' cho xu ly.
+    insuranceStatus: dto.insuranceEnabled ? 'active' : 'none',
+    insurancePolicyNumber: dto.insuranceEnabled ? dto.insurancePolicyNumber : undefined,
+    insuredValue: dto.insuranceEnabled ? insuredValue : undefined,
+    insuranceCoveredEvents: dto.insuranceEnabled ? (dto.insuranceCoveredEvents as any) : undefined,
+    insuranceValidFrom: dto.insuranceEnabled && dto.insuranceValidFrom ? new Date(dto.insuranceValidFrom) : undefined,
+    insuranceValidTo: dto.insuranceEnabled && dto.insuranceValidTo ? new Date(dto.insuranceValidTo) : undefined,
+    insuranceRiskSharingTerms: dto.insuranceEnabled ? dto.insuranceRiskSharingTerms : undefined,
 
     escrowStatus: 'none',
     paidAmount: 0,
@@ -238,12 +277,15 @@ export const submitContractProposal = async (id: string, enterpriseId: string) =
   contract.updatedBy = enterpriseId;
   await contractRepo().save(contract);
 
+  const proposalTitle = 'De xuat hop dong moi';
+  const proposalMessage = `${contract.enterpriseName || 'Doanh nghiep'} da gui de xuat hop dong ${contract.contractCode} cho ban. Vui long xem va ky xac nhan.`;
+
   await notificationRepo().save(
     notificationRepo().create({
       userId: contract.farmerId,
       type: 'contract_proposal_sent',
-      title: 'De xuat hop dong moi',
-      message: `${contract.enterpriseName || 'Doanh nghiep'} da gui de xuat hop dong ${contract.contractCode} cho ban. Vui long xem va ky xac nhan.`,
+      title: proposalTitle,
+      message: proposalMessage,
       relatedId: contract.id,
       relatedModel: 'Contract',
       severity: 'info',
@@ -251,6 +293,9 @@ export const submitContractProposal = async (id: string, enterpriseId: string) =
       emailSent: false,
     })
   );
+
+  const farmer = await userRepo().findOne({ where: { id: contract.farmerId } });
+  await notifyEmail(farmer, 'farmer', proposalTitle, proposalMessage, contract.id);
 
   return withRelations(id);
 };
@@ -416,19 +461,46 @@ export const signContract = async (id: string, userId: string, role: string) => 
   }
   contract.updatedBy = userId;
 
-  await contractRepo().save(contract);
+  // Ca hai ben da ky -- hop dong chinh thuc co hieu luc nen tru ngay so luong da
+  // ban vao san luong con lai cua san pham, tranh cac de xuat khac ban vuot ton kho.
+  if (bothSigned) {
+    await AppDataSource.transaction(async (manager) => {
+      const txContractRepo = manager.getRepository(Contract);
+      const txProductRepo = manager.getRepository(Product);
+
+      await txContractRepo.save(contract);
+
+      const product = await txProductRepo.findOne({ where: { id: contract.productId } });
+      if (product && product.remaining != null) {
+        const remainingKg =
+          toKg(Number(product.remaining), product.unit) - toKg(Number(contract.quantity), contract.unit);
+        if (remainingKg < 0) {
+          throw makeError('San pham khong con du so luong de hoan tat hop dong nay', 400);
+        }
+        const unitFactor = UNIT_TO_KG[product.unit || 'kg'] ?? 1;
+        product.remaining = Math.round((remainingKg / unitFactor) * 100) / 100;
+        await txProductRepo.save(product);
+      }
+    });
+  } else {
+    await contractRepo().save(contract);
+  }
 
   const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
+  const partnerRole = isFarmer ? 'enterprise' : 'farmer';
   const signerName = isFarmer ? contract.farmerName : contract.enterpriseName;
+
+  const signTitle = bothSigned ? 'Hop dong da duoc ky du hai ben' : 'Hop dong cho ban xac nhan ky';
+  const signMessage = bothSigned
+    ? `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Hop dong da duoc ky du hai ben, dang cho Doanh nghiep khoa ky quy de chinh thuc co hieu luc.`
+    : `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Vui long xac nhan ky de hop dong co hieu luc.`;
 
   await notificationRepo().save(
     notificationRepo().create({
       userId: partnerId,
       type: bothSigned ? 'contract_signed' : 'contract_sign_pending',
-      title: bothSigned ? 'Hop dong da duoc ky du hai ben' : 'Hop dong cho ban xac nhan ky',
-      message: bothSigned
-        ? `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Hop dong da duoc ky du hai ben, dang cho Doanh nghiep khoa ky quy de chinh thuc co hieu luc.`
-        : `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Vui long xac nhan ky de hop dong co hieu luc.`,
+      title: signTitle,
+      message: signMessage,
       relatedId: contract.id,
       relatedModel: 'Contract',
       severity: 'info',
@@ -437,10 +509,43 @@ export const signContract = async (id: string, userId: string, role: string) => 
     })
   );
 
+  const partner = await userRepo().findOne({ where: { id: partnerId } });
+  await notifyEmail(partner, partnerRole, signTitle, signMessage, contract.id);
+
   return withRelations(id);
 };
 
-const CANCELLABLE_STATUSES = ['draft', 'pending', 'approved', 'active'];
+// Hop dong 'draft' chua tung gui cho Farmer nen khong can luong huy (khong co ai de
+// thong bao/xac nhan) -- Enterprise xoa han thay vi huy, xem deleteContract() ben duoi.
+const CANCELLABLE_STATUSES = ['pending', 'approved', 'active'];
+
+// Enterprise xoa han hop dong con o trang thai 'draft' (chua gui cho Farmer).
+// Khac voi cancelContract: khong doi status, khong gui thong bao -- vi Farmer
+// chua bao gio thay hop dong nay.
+export const deleteContract = async (id: string, userId: string, role: string) => {
+  const contract = await contractRepo().findOne({ where: { id } });
+  if (!contract) throw makeError('Khong tim thay hop dong', 404);
+
+  if (role !== 'enterprise' || contract.enterpriseId !== userId) {
+    throw makeError('Ban khong co quyen xoa hop dong nay', 403);
+  }
+
+  if (contract.status !== 'draft') {
+    throw makeError('Chi co the xoa hop dong o trang thai nhap, chua gui cho nong dan', 400);
+  }
+
+  await contractRepo().remove(contract);
+
+  logAction({
+    category: 'contract',
+    action: 'contract_deleted',
+    message: `${contract.enterpriseName || 'Doanh nghiep'} da xoa hop dong nhap ${contract.contractCode}`,
+    userId,
+    targetType: 'Contract',
+    targetId: id,
+    metadata: { contractCode: contract.contractCode },
+  });
+};
 
 export const cancelContract = async (
   id: string,
@@ -487,6 +592,8 @@ export const cancelContract = async (
   }
 
   const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
+  const partnerRole = isFarmer ? 'enterprise' : 'farmer';
+  const partnerUser = isFarmer ? contract.enterprise : contract.farmer;
   const cancelledByName = isFarmer ? contract.farmerName : contract.enterpriseName;
 
   contract.updatedBy = userId;
@@ -503,12 +610,15 @@ export const cancelContract = async (
 
     await contractRepo().save(contract);
 
+    const requestTitle = 'Yeu cau huy hop dong';
+    const requestMessage = `${cancelledByName || 'Doi tac'} muon huy hop dong ${contract.contractCode}. Ly do: ${reason}. Vui long xac nhan hoac tu choi.`;
+
     await notificationRepo().save(
       notificationRepo().create({
         userId: partnerId,
         type: 'contract_cancel_requested',
-        title: 'Yeu cau huy hop dong',
-        message: `${cancelledByName || 'Doi tac'} muon huy hop dong ${contract.contractCode}. Ly do: ${reason}. Vui long xac nhan hoac tu choi.`,
+        title: requestTitle,
+        message: requestMessage,
         relatedId: contract.id,
         relatedModel: 'Contract',
         severity: 'warning',
@@ -516,6 +626,8 @@ export const cancelContract = async (
         emailSent: false,
       })
     );
+
+    await notifyEmail(partnerUser, partnerRole, requestTitle, requestMessage, contract.id);
   } else {
     contract.status = 'cancelled';
     contract.cancelReason = reason;
@@ -523,12 +635,15 @@ export const cancelContract = async (
 
     await contractRepo().save(contract);
 
+    const cancelledTitle = 'Hop dong da bi huy';
+    const cancelledMessage = `${cancelledByName || 'Doi tac'} da huy hop dong ${contract.contractCode}. Ly do: ${reason}`;
+
     await notificationRepo().save(
       notificationRepo().create({
         userId: partnerId,
         type: 'contract_cancelled',
-        title: 'Hop dong da bi huy',
-        message: `${cancelledByName || 'Doi tac'} da huy hop dong ${contract.contractCode}. Ly do: ${reason}`,
+        title: cancelledTitle,
+        message: cancelledMessage,
         relatedId: contract.id,
         relatedModel: 'Contract',
         severity: 'warning',
@@ -536,6 +651,8 @@ export const cancelContract = async (
         emailSent: false,
       })
     );
+
+    await notifyEmail(partnerUser, partnerRole, cancelledTitle, cancelledMessage, contract.id);
   }
 
   return withRelations(id);
@@ -570,12 +687,15 @@ export const confirmCancelContract = async (id: string, userId: string, role: st
   await contractRepo().save(contract);
 
   if (requesterId) {
+    const confirmTitle = 'Yeu cau huy hop dong da duoc chap nhan';
+    const confirmMessage = `${confirmerName || 'Doi tac'} da dong y huy hop dong ${contract.contractCode}.`;
+
     await notificationRepo().save(
       notificationRepo().create({
         userId: requesterId,
         type: 'contract_cancel_confirmed',
-        title: 'Yeu cau huy hop dong da duoc chap nhan',
-        message: `${confirmerName || 'Doi tac'} da dong y huy hop dong ${contract.contractCode}.`,
+        title: confirmTitle,
+        message: confirmMessage,
         relatedId: contract.id,
         relatedModel: 'Contract',
         severity: 'warning',
@@ -583,6 +703,10 @@ export const confirmCancelContract = async (id: string, userId: string, role: st
         emailSent: false,
       })
     );
+
+    const requesterRole = requesterId === contract.farmerId ? 'farmer' : 'enterprise';
+    const requester = await userRepo().findOne({ where: { id: requesterId } });
+    await notifyEmail(requester, requesterRole, confirmTitle, confirmMessage, contract.id);
   }
 
   return withRelations(id);
@@ -618,12 +742,15 @@ export const declineCancelContract = async (id: string, userId: string, role: st
   await contractRepo().save(contract);
 
   if (requesterId) {
+    const declineTitle = 'Yeu cau huy hop dong bi tu choi';
+    const declineMessage = `${declinerName || 'Doi tac'} khong dong y huy hop dong ${contract.contractCode}. Hop dong tiep tuc co hieu luc.`;
+
     await notificationRepo().save(
       notificationRepo().create({
         userId: requesterId,
         type: 'contract_cancel_declined',
-        title: 'Yeu cau huy hop dong bi tu choi',
-        message: `${declinerName || 'Doi tac'} khong dong y huy hop dong ${contract.contractCode}. Hop dong tiep tuc co hieu luc.`,
+        title: declineTitle,
+        message: declineMessage,
         relatedId: contract.id,
         relatedModel: 'Contract',
         severity: 'info',
@@ -631,6 +758,10 @@ export const declineCancelContract = async (id: string, userId: string, role: st
         emailSent: false,
       })
     );
+
+    const requesterRole = requesterId === contract.farmerId ? 'farmer' : 'enterprise';
+    const requester = await userRepo().findOne({ where: { id: requesterId } });
+    await notifyEmail(requester, requesterRole, declineTitle, declineMessage, contract.id);
   }
 
   return withRelations(id);
@@ -658,8 +789,28 @@ export const rejectContract = async (id: string, userId: string, reason?: string
   contract.updatedBy = userId;
 
   await contractRepo().save(contract);
-  return withRelations(id);
 
+  const rejectTitle = 'Hop dong bi tu choi';
+  const rejectMessage = `${contract.farmerName || 'Nong dan'} da tu choi hop dong ${contract.contractCode}.${reason ? ` Ly do: ${reason}` : ''}`;
+
+  await notificationRepo().save(
+    notificationRepo().create({
+      userId: contract.enterpriseId,
+      type: 'contract_rejected',
+      title: rejectTitle,
+      message: rejectMessage,
+      relatedId: contract.id,
+      relatedModel: 'Contract',
+      severity: 'warning',
+      isRead: false,
+      emailSent: false,
+    })
+  );
+
+  const enterprise = await userRepo().findOne({ where: { id: contract.enterpriseId } });
+  await notifyEmail(enterprise, 'enterprise', rejectTitle, rejectMessage, contract.id);
+
+  return withRelations(id);
 };
 
 // Dung cho cron job: hop dong da gui cho Farmer ('pending') nhung Farmer chua ky
@@ -682,12 +833,16 @@ export const expireUnsignedContracts = async () => {
 
     await contractRepo().save(contract);
 
+    const farmerMessage = `Hop dong ${contract.contractCode} da tu dong chuyen sang trang thai huy do ban khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`;
+    const enterpriseMessage = `Hop dong ${contract.contractCode} da tu dong chuyen sang trang thai huy do nong dan khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`;
+    const autoCancelTitle = 'Hop dong da tu dong huy';
+
     await notificationRepo().save([
       notificationRepo().create({
         userId: contract.farmerId,
         type: 'contract_auto_cancelled',
-        title: 'Hop dong da tu dong huy',
-        message: `Hop dong ${contract.contractCode} da tu dong chuyen sang trang thai huy do ban khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`,
+        title: autoCancelTitle,
+        message: farmerMessage,
         relatedId: contract.id,
         relatedModel: 'Contract',
         severity: 'warning',
@@ -697,8 +852,8 @@ export const expireUnsignedContracts = async () => {
       notificationRepo().create({
         userId: contract.enterpriseId,
         type: 'contract_auto_cancelled',
-        title: 'Hop dong da tu dong huy',
-        message: `Hop dong ${contract.contractCode} da tu dong chuyen sang trang thai huy do nong dan khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`,
+        title: autoCancelTitle,
+        message: enterpriseMessage,
         relatedId: contract.id,
         relatedModel: 'Contract',
         severity: 'warning',
@@ -706,6 +861,13 @@ export const expireUnsignedContracts = async () => {
         emailSent: false,
       }),
     ]);
+
+    const [farmer, enterprise] = await Promise.all([
+      userRepo().findOne({ where: { id: contract.farmerId } }),
+      userRepo().findOne({ where: { id: contract.enterpriseId } }),
+    ]);
+    await notifyEmail(farmer, 'farmer', autoCancelTitle, farmerMessage, contract.id);
+    await notifyEmail(enterprise, 'enterprise', autoCancelTitle, enterpriseMessage, contract.id);
   }
 
   return expiredContracts.length;

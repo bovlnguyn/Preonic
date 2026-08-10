@@ -31,6 +31,9 @@ import "./ProductDetail.css";
 
 const ROLE = { FARMER: "farmer", ENTERPRISE: "enterprise" };
 
+const UNIT_TO_KG = { kg: 1, "tạ": 100, "tấn": 1000 };
+const toKg = (value, unit) => Number(value || 0) * (UNIT_TO_KG[unit] ?? 1);
+
 const asNumber = (value, fallback = 0) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -238,8 +241,8 @@ const ProductDetail = ({ context = "public" }) => {
         if (!active) return;
 
         setProduct(nextProduct);
-        const availableQuantity = nextProduct.remaining || nextProduct.totalQuantity;
-        setQuantity(Math.max(1, Math.min(1000, availableQuantity || 1000)));
+        const availableKg = toKg(nextProduct.remaining || nextProduct.totalQuantity, nextProduct.unit);
+        setQuantity(Math.max(1, Math.min(1000, availableKg || 1000)));
         window.scrollTo({ top: 0, behavior: "smooth" });
 
         try {
@@ -323,6 +326,10 @@ const ProductDetail = ({ context = "public" }) => {
     : Math.min(100, Math.max(0, product?.progress || 0));
 
   const remainPct = Math.max(0, 100 - committedPct);
+  const remainingKg = product ? toKg(product.remaining, product.unit) : 0;
+  const priceUnitFactor = product ? UNIT_TO_KG[product.priceUnit] ?? 1 : 1;
+  const pricePerKgMin = product ? product.priceMin / priceUnitFactor : 0;
+  const pricePerKgMax = product ? product.priceMax / priceUnitFactor : 0;
   const region = product
     ? REGIONS[product.region.toUpperCase()] || REGIONS.SOUTH
     : REGIONS.SOUTH;
@@ -585,7 +592,7 @@ const ProductDetail = ({ context = "public" }) => {
                   <div className="pd-availability-grid">
                     <div>
                       <span>Còn có thể giao dịch</span>
-                      <strong>{product.remaining.toLocaleString("vi-VN")} {product.unit}</strong>
+                      <strong>{remainingKg.toLocaleString("vi-VN")} kg</strong>
                     </div>
                     <div>
                       <span>Tỷ lệ còn trống</span>
@@ -618,7 +625,7 @@ const ProductDetail = ({ context = "public" }) => {
 
                 {isEnterprise && (
                   <div className="pd-enterprise-actions">
-                    <label htmlFor="pd-quantity">Số lượng dự kiến ({product.unit})</label>
+                    <label htmlFor="pd-quantity">Số lượng dự kiến (kg)</label>
                     <div className="pd-quantity-control">
                       <button
                         type="button"
@@ -630,20 +637,18 @@ const ProductDetail = ({ context = "public" }) => {
                         id="pd-quantity"
                         type="number"
                         min="1"
-                        max={product.remaining || undefined}
+                        max={remainingKg || undefined}
                         value={quantity}
                         onChange={(event) => {
                           const nextValue = Math.max(1, asNumber(event.target.value, 1));
-                          setQuantity(product.remaining ? Math.min(product.remaining, nextValue) : nextValue);
+                          setQuantity(remainingKg ? Math.min(remainingKg, nextValue) : nextValue);
                         }}
                       />
                       <button
                         type="button"
                         onClick={() =>
                           setQuantity((current) =>
-                            product.remaining
-                              ? Math.min(product.remaining, current + 500)
-                              : current + 500
+                            remainingKg ? Math.min(remainingKg, current + 500) : current + 500
                           )
                         }
                       >
@@ -651,9 +656,9 @@ const ProductDetail = ({ context = "public" }) => {
                       </button>
                     </div>
                     <p className="pd-estimate">
-                      Giá trị dự kiến: <strong>{formatPrice(quantity * product.priceMin)}</strong>
-                      {product.priceMax !== product.priceMin && (
-                        <> – <strong>{formatPrice(quantity * product.priceMax)}</strong></>
+                      Giá trị dự kiến: <strong>{formatPrice(quantity * pricePerKgMin)}</strong>
+                      {pricePerKgMax !== pricePerKgMin && (
+                        <> – <strong>{formatPrice(quantity * pricePerKgMax)}</strong></>
                       )}
                     </p>
 

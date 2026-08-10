@@ -12,6 +12,7 @@ import {
   FiPlusCircle,
   FiShield,
   FiStar,
+  FiTrendingUp,
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import LogoutConfirmModal from '../Common/LogoutConfirmModal';
@@ -25,6 +26,7 @@ const navItems = [
   { to: '/farmer/orders', label: 'Đơn hàng', icon: FiBox },
   { to: '/farmer/escrow', label: 'Thanh toán trung gian', icon: FiShield },
   { to: '/farmer/wallet', label: 'Ví & Thanh toán', icon: FiCreditCard },
+  { to: '/farmer/finance', label: 'Tài chính', icon: FiTrendingUp },
   { to: '/farmer/ratings', label: 'Đánh giá đối tác', icon: FiStar },
   { to: '/farmer/weather-insurance', label: 'Thời tiết & Bảo hiểm', icon: FiCloudRain },
 ];

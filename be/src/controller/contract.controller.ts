@@ -9,6 +9,10 @@ const buildDto = (body: any) => {
   const product = body.product || {};
   const terms = body.terms || {};
   const payment = body.payment || {};
+  // Bao hiem nong nghiep ma doanh nghiep da mua san tu ben ngoai, nhap kem theo
+  // de xuat hop dong (payload.insuranceEnterprise) -- fallback body.insurance de
+  // tuong thich nguoc voi dang du lieu phang cu.
+  const insuranceEnterprise = body.insuranceEnterprise || null;
   const insurance = body.insurance || {};
 
   return {
@@ -21,13 +25,20 @@ const buildDto = (body: any) => {
     deliveryDate: body.deliveryDate ?? terms.deliveryDate,
     notes: body.notes ?? terms.notes,
     farmLocation: body.farmLocation ?? terms.farmLocation,
+    deliveryAddress: body.deliveryAddress ?? terms.deliveryAddress,
 
     depositPercentage: toNumber(body.depositPercentage ?? payment.depositPercentage),
 
-    insuranceEnabled: body.insuranceEnabled ?? insurance.enabled,
-    insuranceProvider: body.insuranceProvider ?? insurance.provider,
+    insuranceEnabled: body.insuranceEnabled ?? insurance.enabled ?? Boolean(insuranceEnterprise),
+    insuranceProvider: insuranceEnterprise?.insuranceCompany ?? (body.insuranceProvider ?? insurance.provider),
     insurancePackage: body.insurancePackage ?? insurance.package,
     insuranceFee: toNumber(body.insuranceFee ?? insurance.fee),
+    insurancePolicyNumber: insuranceEnterprise?.policyNumber,
+    insuredValue: toNumber(insuranceEnterprise?.insuredValue),
+    insuranceCoveredEvents: insuranceEnterprise?.coveredEvents,
+    insuranceValidFrom: insuranceEnterprise?.validFrom,
+    insuranceValidTo: insuranceEnterprise?.validTo,
+    insuranceRiskSharingTerms: insuranceEnterprise?.riskSharingTerms,
   };
 };
 
@@ -63,12 +74,19 @@ const formatContract = (contract: any) => ({
   deliveryDate: contract.deliveryDate,
   notes: contract.notes,
   farmLocation: contract.farmLocation,
+  deliveryAddress: contract.deliveryAddress,
 
   insuranceEnabled: contract.insuranceEnabled,
   insuranceProvider: contract.insuranceProvider,
   insurancePackage: contract.insurancePackage,
   insuranceFee: contract.insuranceFee,
   insuranceStatus: contract.insuranceStatus,
+  insurancePolicyNumber: contract.insurancePolicyNumber,
+  insuredValue: contract.insuredValue,
+  insuranceCoveredEvents: contract.insuranceCoveredEvents,
+  insuranceValidFrom: contract.insuranceValidFrom,
+  insuranceValidTo: contract.insuranceValidTo,
+  insuranceRiskSharingTerms: contract.insuranceRiskSharingTerms,
 
   escrowStatus: contract.escrowStatus,
   deliveryStatus: contract.deliveryStatus,
@@ -217,6 +235,22 @@ export const signContract = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+export const deleteContract = async (req: AuthRequest, res: Response) => {
+  try {
+    await contractService.deleteContract(req.params.id, req.user!.id, req.user!.role);
+
+    res.status(200).json({
+      success: true,
+      message: 'Xoa hop dong thanh cong',
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Xoa hop dong that bai',
+    });
+  }
+};
+
 export const cancelContract = async (req: AuthRequest, res: Response) => {
   try {
     const contract = await contractService.cancelContract(
