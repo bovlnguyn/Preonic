@@ -52,15 +52,16 @@ function EnterpriseOrders() {
 
   return (
     <div className="ent-stack">
-      <section className="ent-card">
+      <section className="ent-card ent-page-shell">
         <SectionHeader
-          eyebrow="Theo dõi đơn hàng"
-          title="Luồng giao nhận từ nông trại đến kho"
-          desc="Theo dõi milestone vận chuyển, kiểm tra chất lượng và xác nhận nhận hàng để kích hoạt giải ngân."
+          breadcrumb="Theo dõi đơn hàng"
+          eyebrow="Đơn hàng"
+          title="Theo dõi giao nhận từ nông trại đến kho"
+          desc="Theo dõi số lượng, lịch giao, kiểm tra chất lượng và trạng thái xử lý của từng đơn hàng."
         />
 
         {loading ? (
-          <div className="spinner-border text-success" role="status" />
+          <div className="spinner-border text-primary" role="status" />
         ) : orders.length === 0 ? (
           <EmptyState
             title="Chưa có đơn hàng nào"

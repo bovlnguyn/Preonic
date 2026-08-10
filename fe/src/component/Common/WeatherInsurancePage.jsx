@@ -58,7 +58,7 @@ const ROLE_CONTENT = {
     subtitle: "Theo dõi thời tiết và quản lý rủi ro bảo hiểm cho vùng canh tác.",
   },
   enterprise: {
-    eyebrow: "ENTERPRISE CLIMATE CENTER",
+    eyebrow: "THỜI TIẾT & BẢO HIỂM",
     subtitle: "Theo dõi rủi ro khí hậu tại các vùng nguyên liệu đang hợp tác.",
   },
 };
@@ -286,7 +286,7 @@ export default function WeatherInsurancePage({ role }) {
 
   return (
     <div className={`wi-shell wi-shell--${resolvedRole}`}>
-      <div className="wi-breadcrumb"><span>Trang chủ</span><span>›</span><strong>Thời tiết &amp; Bảo hiểm</strong></div>
+      <div className="wi-breadcrumb"><span>Trang chủ</span><span>/</span><strong>Thời tiết &amp; Bảo hiểm</strong></div>
 
       <header className="wi-page-header">
         <div>

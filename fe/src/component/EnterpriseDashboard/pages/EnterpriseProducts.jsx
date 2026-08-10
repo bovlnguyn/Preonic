@@ -66,9 +66,10 @@ function EnterpriseProducts() {
 
   return (
     <div className="ent-stack">
-      <section className="ent-card">
+      <section className="ent-card ent-page-shell">
         <SectionHeader
-          eyebrow="Danh sách sản phẩm"
+          breadcrumb="Danh sách sản phẩm"
+          eyebrow="Nguồn cung"
           title="Tìm nguồn cung nông sản cho hợp đồng"
           desc="Lọc theo giá, vùng miền, loại nông sản và sắp xếp để tìm nguồn cung phù hợp nhu cầu."
         />

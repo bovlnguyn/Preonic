@@ -30,28 +30,33 @@ function EnterpriseSupplierDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const backButton = (
-    <button type="button" className="ent-btn-outline" onClick={() => navigate('/enterprise/suppliers')}>
-      <FiArrowLeft /> Quay lại
-    </button>
-  );
-
   const contractHistory = supplier?.contractHistory || [];
   const totalPages = Math.max(1, Math.ceil(contractHistory.length / PAGE_SIZE));
   const pagedContracts = contractHistory.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="ent-stack">
-      <section className="ent-card">
+      <div className="ent-page-top-actions">
+        <button type="button" className="ent-back-button" onClick={() => navigate('/enterprise/suppliers')}>
+          <FiArrowLeft /> Quay lại
+        </button>
+      </div>
+
+      <section className="ent-card ent-page-shell">
         <SectionHeader
+          breadcrumb={{
+            items: [
+              { label: 'Nhà cung cấp', to: '/enterprise/suppliers' },
+              { label: 'Chi tiết nhà cung cấp' },
+            ],
+          }}
           eyebrow="Nhà cung cấp"
           title={supplier?.name || 'Chi tiết nhà cung cấp'}
-          desc={supplier?.location}
-          action={backButton}
+          desc={supplier?.location || 'Theo dõi hồ sơ, uy tín và lịch sử hợp tác với nhà cung cấp.'}
         />
 
         {loading ? (
-          <div className="spinner-border text-success" role="status" />
+          <div className="spinner-border text-primary" role="status" />
         ) : error || !supplier ? (
           <EmptyState
             title="Không tìm thấy nhà cung cấp"

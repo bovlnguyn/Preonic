@@ -129,12 +129,13 @@ function EnterpriseTransactions() {
 
   return (
     <div className="ent-stack">
-      <section className="ent-card et-overview-card">
+      <section className="ent-card ent-page-shell et-overview-card">
         <div className="et-header-row">
           <SectionHeader
-            eyebrow="Lịch sử giao dịch"
+            breadcrumb="Lịch sử giao dịch"
+            eyebrow="Tài chính"
             title="Toàn bộ dòng tiền của doanh nghiệp"
-            desc="Xem lịch sử ví, trạng thái hợp đồng và tiến độ escrow trên cùng một trang."
+            desc="Theo dõi lịch sử ví, chi phí hợp đồng và tiến độ escrow trên cùng một trang."
           />
 
           <div className="et-quick-links">

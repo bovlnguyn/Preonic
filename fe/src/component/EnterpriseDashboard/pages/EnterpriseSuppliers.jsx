@@ -27,15 +27,16 @@ function EnterpriseSuppliers() {
 
   return (
     <div className="ent-stack">
-      <section className="ent-card">
+      <section className="ent-card ent-page-shell">
         <SectionHeader
+          breadcrumb="Nhà cung cấp"
           eyebrow="Nhà cung cấp"
           title="Nông dân đang và đã hợp tác"
           desc="Xem lịch sử hợp đồng, tổng giá trị giao dịch và điểm uy tín để quyết định mở rộng hợp tác."
         />
 
         {loading ? (
-          <div className="spinner-border text-success" role="status" />
+          <div className="spinner-border text-primary" role="status" />
         ) : enterpriseSuppliers.length === 0 ? (
           <EmptyState
             title="Chưa có nhà cung cấp nào"

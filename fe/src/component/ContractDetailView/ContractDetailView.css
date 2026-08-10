@@ -4,11 +4,26 @@
   padding: 12px 16px 48px;
 }
 
+
+/* Farmer contract detail: đồng bộ header với các trang Farmer dashboard */
 .cdv-page--farmer {
   max-width: none;
   width: 100%;
   margin: 0;
   padding: 0 0 48px;
+}
+
+/* Enterprise contract detail dùng cùng nhịp bố cục với Farmer,
+   nhưng màu sắc/action lấy từ Enterprise dashboard. */
+.cdv-page--enterprise {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0 0 48px;
+}
+
+.cdv-enterprise-top-actions {
+  margin-top: 2px;
 }
 
 .cdv-detail-shell {
@@ -44,6 +59,7 @@
   padding: 0;
 }
 
+/* Farmer: nút quay lại đồng bộ chính xác với nút ở trang Mùa vụ */
 .cdv-back.cdv-back--button {
   min-height: 44px;
   display: inline-flex;
@@ -70,9 +86,11 @@
 }
 
 .cdv-back.cdv-back--button svg {
+  flex: 0 0 auto;
   width: 18px;
   height: 18px;
   color: currentColor;
+  transition: color 0.18s ease, transform 0.18s ease;
 }
 
 .cdv-back.cdv-back--button:hover {
@@ -90,6 +108,11 @@
 .cdv-back.cdv-back--button:active {
   transform: translateX(-1px);
   box-shadow: 0 6px 16px rgba(21, 128, 61, 0.14);
+}
+
+.cdv-back.cdv-back--button:focus-visible {
+  outline: 3px solid rgba(21, 128, 61, 0.20);
+  outline-offset: 3px;
 }
 
 .cdv-message-btn {
@@ -534,4 +557,41 @@
     border-radius: 20px;
     font-size: 15px;
   }
+}
+
+
+/* =========================================================
+   ENTERPRISE CONTRACT DETAIL THEME
+   Giữ cấu trúc dùng chung nhưng đổi phần nội dung sang palette Enterprise.
+   ========================================================= */
+.cdv-page--enterprise .cdv-card {
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,251,255,.97));
+  border-color: rgba(37, 99, 235, 0.14);
+  box-shadow: 0 22px 46px rgba(30, 58, 138, 0.08);
+}
+
+.cdv-page--enterprise .cdv-card__header {
+  border-bottom-color: rgba(37, 99, 235, 0.16);
+}
+
+.cdv-page--enterprise .cdv-card__header h3,
+.cdv-page--enterprise .cdv-summary__row strong {
+  color: #172554;
+}
+
+.cdv-page--enterprise .cdv-summary__row--total strong {
+  color: #1d4ed8;
+}
+
+.cdv-page--enterprise .cdv-sig {
+  border-color: rgba(37, 99, 235, 0.13);
+}
+
+.cdv-page--enterprise .cdv-btn--primary {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  box-shadow: 0 14px 24px rgba(37, 99, 235, 0.2);
+}
+
+.cdv-page--enterprise .cdv-modal__field textarea:focus {
+  border-color: #3b82f6;
 }

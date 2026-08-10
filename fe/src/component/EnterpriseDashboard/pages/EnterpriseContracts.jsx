@@ -53,20 +53,22 @@ function EnterpriseContracts() {
 
   return (
     <div className="ent-stack">
-      <section className="ent-card">
+      <section className="ent-card ent-page-shell">
         <SectionHeader
+          breadcrumb="Hợp đồng"
           eyebrow="Hợp đồng"
           title="Theo dõi hợp đồng bao tiêu và mua bán nông sản"
           desc="Xem tiến trình ký xác nhận và theo dõi tình trạng từng hợp đồng đã đề xuất."
+          action={
+            <button
+              type="button"
+              className="ent-btn-primary"
+              onClick={() => navigate('/enterprise/products')}
+            >
+              + Tạo hợp đồng mới
+            </button>
+          }
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-          <button
-            className="ent-btn-primary"
-            onClick={() => navigate('/enterprise/products')}
-          >
-            + Tạo hợp đồng mới
-          </button>
-        </div>
 
         <div className="ent-filter-row">
           {TABS.map((t) => (
@@ -78,7 +80,7 @@ function EnterpriseContracts() {
         </div>
 
         {loading ? (
-          <div className="spinner-border text-success" role="status" />
+          <div className="spinner-border text-primary" role="status" />
         ) : filtered.length === 0 ? (
           <EmptyState
             title="Chưa có hợp đồng nào"
