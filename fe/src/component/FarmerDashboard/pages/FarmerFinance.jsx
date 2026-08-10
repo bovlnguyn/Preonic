@@ -138,6 +138,7 @@ function FarmerFinance() {
       <section className="farmer-card ff-overview-card">
         <div className="ff-header-row">
           <SectionHeader
+            breadcrumb="Tài chính"
             eyebrow="Tài chính"
             title="Doanh thu từ hợp đồng và dòng tiền của bạn"
             desc="Theo dõi doanh thu hợp đồng, tiến độ giải ngân và toàn bộ lịch sử nạp, rút tiền trên cùng một trang."

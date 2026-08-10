@@ -1,15 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiSave, FiAlertTriangle } from 'react-icons/fi';
-import productService from '../../../services/product.service';
+import {
+  FiAlertTriangle,
+  FiArrowLeft,
+  FiCheckCircle,
+  FiExternalLink,
+  FiFileText,
+  FiSave,
+  FiUploadCloud,
+  FiX,
+} from 'react-icons/fi';
+import productService, { resolveImageUrl } from '../../../services/product.service';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { CATEGORY_OPTIONS, REGION_OPTIONS, TYPE_OPTIONS } from '../../../constants/product';
-import logo from '../../../assets/branding/preonic-logo-main.png';
 import './FarmerCreateProduct.css';
 import './FarmerEditProduct.css';
 
 const UNITS = ['kg', 'Tạ', 'Tấn'];
+const MAX_CERT_FILES = 10;
+const MAX_CERT_SIZE = 5 * 1024 * 1024;
+const ALLOWED_CERT_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 
 const buildForm = (product) => ({
   name: product?.name || '',
@@ -30,35 +41,154 @@ const buildForm = (product) => ({
   note: product?.note || '',
 });
 
+const normalizeCertifications = (certifications = []) =>
+  certifications.map((certification, index) => {
+    if (typeof certification === 'string') {
+      return {
+        id: `existing-${index}`,
+        value: certification,
+        fileUrl: '',
+      };
+    }
+
+    return {
+      id: certification?.id ?? `existing-${index}`,
+      value: certification?.value || certification?.name || `Chứng chỉ ${index + 1}`,
+      fileUrl: certification?.fileUrl || '',
+    };
+  });
+
+const certificationFileName = (fileName = '') =>
+  fileName.replace(/\.[^/.]+$/, '').trim() || 'Chứng chỉ mới';
+
 export default function FarmerEditProduct() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const certInputRef = useRef(null);
 
   const [product, setProduct] = useState(null);
   const [form, setForm] = useState(buildForm(null));
+  const [existingCertifications, setExistingCertifications] = useState([]);
+  const [newCertifications, setNewCertifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let active = true;
+
     setLoading(true);
-    productService.getProductById(id)
+    setError('');
+
+    productService
+      .getProductById(id)
       .then((data) => {
-        const p = data?.data?.product || data?.data || data;
-        setProduct(p);
-        setForm(buildForm(p));
+        if (!active) return;
+
+        const nextProduct = data?.data?.product || data?.data || data;
+        setProduct(nextProduct);
+        setForm(buildForm(nextProduct));
+        setExistingCertifications(normalizeCertifications(nextProduct?.certifications));
       })
-      .catch(() => setError('Không thể tải thông tin sản phẩm.'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (active) setError('Không thể tải thông tin sản phẩm.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const updateExistingCertificateName = (index, value) => {
+    setExistingCertifications((prev) =>
+      prev.map((certification, certIndex) =>
+        certIndex === index ? { ...certification, value } : certification
+      )
+    );
+  };
+
+  const removeExistingCertificate = (index) => {
+    setExistingCertifications((prev) => prev.filter((_, certIndex) => certIndex !== index));
+  };
+
+  const updateNewCertificateName = (index, value) => {
+    setNewCertifications((prev) =>
+      prev.map((certification, certIndex) =>
+        certIndex === index ? { ...certification, value } : certification
+      )
+    );
+  };
+
+  const removeNewCertificate = (index) => {
+    setNewCertifications((prev) => prev.filter((_, certIndex) => certIndex !== index));
+  };
+
+  const handleCertificateFiles = (files) => {
+    const selectedFiles = Array.from(files || []);
+    if (!selectedFiles.length) return;
+
+    const invalidType = selectedFiles.find((file) => !ALLOWED_CERT_TYPES.includes(file.type));
+    if (invalidType) {
+      toast.error('Chứng chỉ chỉ hỗ trợ PDF, JPG hoặc PNG.');
+      return;
+    }
+
+    const oversized = selectedFiles.find((file) => file.size > MAX_CERT_SIZE);
+    if (oversized) {
+      toast.error(`File “${oversized.name}” vượt quá giới hạn 5MB.`);
+      return;
+    }
+
+    const remainingSlots = Math.max(
+      0,
+      MAX_CERT_FILES - existingCertifications.length - newCertifications.length
+    );
+
+    if (remainingSlots === 0) {
+      toast.warning(`Mỗi sản phẩm chỉ nên có tối đa ${MAX_CERT_FILES} chứng chỉ.`);
+      return;
+    }
+
+    const accepted = selectedFiles.slice(0, remainingSlots).map((file) => ({
+      file,
+      value: certificationFileName(file.name),
+    }));
+
+    if (accepted.length < selectedFiles.length) {
+      toast.warning(`Chỉ thêm ${accepted.length} file để không vượt quá ${MAX_CERT_FILES} chứng chỉ.`);
+    }
+
+    setNewCertifications((prev) => [...prev, ...accepted]);
+
+    if (certInputRef.current) {
+      certInputRef.current.value = '';
+    }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError('');
+
+    if (!form.name.trim() || !form.category || !form.region || !form.type) {
+      setError('Vui lòng điền đầy đủ tên sản phẩm, loại nông sản, vùng miền và hình thức.');
+      return;
+    }
+
+    if (
+      form.priceMin !== '' &&
+      form.priceMax !== '' &&
+      Number(form.priceMin) > Number(form.priceMax)
+    ) {
+      setError('Giá tối thiểu không được lớn hơn giá tối đa.');
+      return;
+    }
 
     const today = new Date().toISOString().split('T')[0];
     if (form.expectedDate) {
@@ -66,36 +196,77 @@ export default function FarmerEditProduct() {
         setError('Ngày thu hoạch không được trước ngày hiện tại.');
         return;
       }
+
       if (form.plantDate && form.expectedDate < form.plantDate) {
         setError('Ngày thu hoạch không được trước ngày gieo trồng.');
         return;
       }
     }
 
+    const invalidExistingName = existingCertifications.some(
+      (certification) => !certification.value.trim()
+    );
+    const invalidNewName = newCertifications.some((certification) => !certification.value.trim());
+
+    if (invalidExistingName || invalidNewName) {
+      setError('Tên chứng chỉ không được để trống.');
+      return;
+    }
+
+    const payload = new FormData();
+
+    payload.append('name', form.name.trim());
+    payload.append('category', form.category);
+    payload.append('region', form.region);
+    payload.append('type', form.type);
+    payload.append('unit', form.unit);
+    payload.append('priceUnit', form.priceUnit);
+
+    // Gửi cả chuỗi rỗng để người dùng có thể xóa dữ liệu tùy chọn đã nhập trước đó.
+    payload.append('variety', form.variety.trim());
+    payload.append('area', form.area === '' ? '' : String(Number(form.area)));
+    payload.append('priceMin', form.priceMin === '' ? '' : String(Number(form.priceMin)));
+    payload.append('priceMax', form.priceMax === '' ? '' : String(Number(form.priceMax)));
+    payload.append(
+      'totalQuantity',
+      form.totalQuantity === '' ? '' : String(Number(form.totalQuantity))
+    );
+    payload.append('plantDate', form.plantDate || '');
+    payload.append('expectedDate', form.expectedDate || '');
+    payload.append('description', form.description.trim());
+    payload.append('nutritionInfo', form.nutritionInfo.trim());
+    payload.append('note', form.note.trim());
+
+    // Luôn gửi danh sách chứng chỉ cũ còn giữ lại. Nếu mảng rỗng, BE sẽ xóa hết chứng chỉ cũ.
+    payload.append(
+      'existingCertifications',
+      JSON.stringify(
+        existingCertifications.map(({ value, fileUrl }) => ({
+          value: value.trim(),
+          fileUrl,
+        }))
+      )
+    );
+
+    // Tên chứng chỉ mới phải cùng thứ tự với các file certifications gửi lên.
+    payload.append(
+      'certificationNames',
+      JSON.stringify(newCertifications.map((certification) => certification.value.trim()))
+    );
+
+    newCertifications.forEach(({ file }) => {
+      payload.append('certifications', file);
+    });
+
     setSaving(true);
+
     try {
-      await productService.updateProduct(id, {
-        name: form.name.trim(),
-        category: form.category,
-        region: form.region,
-        type: form.type,
-        variety: form.variety.trim() || undefined,
-        area: form.area === '' ? undefined : Number(form.area),
-        priceMin: form.priceMin === '' ? undefined : Number(form.priceMin),
-        priceMax: form.priceMax === '' ? undefined : Number(form.priceMax),
-        unit: form.unit,
-        priceUnit: form.priceUnit,
-        totalQuantity: form.totalQuantity === '' ? undefined : Number(form.totalQuantity),
-        plantDate: form.plantDate || undefined,
-        expectedDate: form.expectedDate || undefined,
-        description: form.description.trim() || undefined,
-        nutritionInfo: form.nutritionInfo.trim() || undefined,
-        note: form.note.trim() || undefined,
-      });
+      await productService.updateProduct(id, payload);
       toast.success('Cập nhật sản phẩm thành công');
       navigate(`/farmer/crops/${id}`);
     } catch (err) {
-      const message = err.response?.data?.message || 'Cập nhật sản phẩm thất bại, vui lòng thử lại.';
+      const message =
+        err.response?.data?.message || 'Cập nhật sản phẩm thất bại, vui lòng thử lại.';
       setError(message);
       toast.error(message);
     } finally {
@@ -103,69 +274,66 @@ export default function FarmerEditProduct() {
     }
   };
 
-  const Topbar = () => (
-    <header className="fep-topbar">
-      <div className="fep-topbar__brand" onClick={() => navigate('/farmer')}>
-        <img src={logo} alt="PreOnic" />
-        <span>PreOnic</span>
-      </div>
-      <button type="button" className="fep-topbar__close" onClick={() => navigate(`/farmer/crops/${id}`)}>
-        <FiArrowLeft size={14} /> Quay lại sản phẩm
-      </button>
-    </header>
-  );
+  const backToProduct = () => navigate(`/farmer/crops/${id}`);
 
   if (loading) {
     return (
-      <div className="fep-shell">
-        <Topbar />
-        <div className="fcp-page fep-content fep-content--center">
-          <div className="spinner-border text-success" role="status" />
-        </div>
+      <div className="fep-page fep-page--loading">
+        <div className="spinner-border text-success" role="status" />
       </div>
     );
   }
 
   if (!product || (user && product.createdBy !== user.id)) {
     return (
-      <div className="fep-shell">
-        <Topbar />
-        <div className="fcp-page fep-content fep-content--center">
-          <div className="fcp-card" style={{ alignItems: 'center', textAlign: 'center', gap: 12 }}>
-            <span className="fcp-card__icon" style={{ fontSize: 40 }}>⚠️</span>
-            <div className="fcp-card__title">Không thể chỉnh sửa sản phẩm này</div>
-            <div className="fcp-card__sub">Sản phẩm không tồn tại hoặc không thuộc về bạn.</div>
-            <button type="button" className="fcp-nav__submit" onClick={() => navigate('/farmer/crops')}>
-              Quay lại danh sách
-            </button>
-          </div>
+      <div className="fep-page">
+        <button type="button" className="fep-back-button" onClick={() => navigate('/farmer/crops')}>
+          <FiArrowLeft /> Quay lại mùa vụ của tôi
+        </button>
+
+        <div className="fep-empty-card">
+          <span>⚠️</span>
+          <strong>Không thể chỉnh sửa sản phẩm này</strong>
+          <p>Sản phẩm không tồn tại hoặc không thuộc về bạn.</p>
+          <button type="button" className="fcp-nav__submit" onClick={() => navigate('/farmer/crops')}>
+            Quay lại danh sách
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fep-shell">
-      <Topbar />
-      <div className="fcp-page fep-content">
-      <div className="fcp-breadcrumb">
-        <span onClick={() => navigate('/farmer/crops')} style={{ cursor: 'pointer' }}>Mùa vụ của tôi</span>
-        <span> › </span>
-        <span>Chỉnh sửa sản phẩm</span>
+    <div className="fep-page">
+      <div className="fep-page-nav">
+        <button type="button" className="fep-back-button" onClick={backToProduct}>
+          <FiArrowLeft />
+          <span>Quay lại sản phẩm</span>
+        </button>
       </div>
 
-      <div className="fcp-heading">
+      <div className="fep-breadcrumb" aria-label="Điều hướng chỉnh sửa sản phẩm">
+        <button type="button" onClick={() => navigate('/farmer')}>Dashboard</button>
+        <span>/</span>
+        <button type="button" onClick={() => navigate('/farmer/crops')}>Mùa vụ của tôi</button>
+        <span>/</span>
+        <strong>{product.name}</strong>
+      </div>
+
+      <div className="fep-heading">
+        <span className="fep-heading__eyebrow">QUẢN LÝ MÙA VỤ</span>
         <h1>Chỉnh sửa sản phẩm</h1>
-        <p>Cập nhật thông tin nông sản đã đăng bán.</p>
+        <p>Cập nhật thông tin nông sản, giá bán và chứng chỉ trong cùng một màn hình.</p>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="fcp-card">
+      <section className="fep-surface">
+        <form className="fep-form" onSubmit={handleSubmit}>
+        <section className="fcp-card fep-card">
           <div className="fcp-card__head">
             <span className="fcp-card__icon">🌿</span>
             <div>
               <div className="fcp-card__title">Thông tin cơ bản</div>
-              <div className="fcp-card__sub">Tên, loại nông sản và giống</div>
+              <div className="fcp-card__sub">Tên, nhóm nông sản, vùng miền và hình thức sản phẩm</div>
             </div>
           </div>
 
@@ -174,48 +342,63 @@ export default function FarmerEditProduct() {
             <input
               className="fcp-input"
               value={form.name}
-              onChange={(e) => set('name', e.target.value)}
+              onChange={(event) => set('name', event.target.value)}
+              placeholder="Nhập tên sản phẩm"
             />
           </div>
 
-          <div className="fcp-field fcp-field--full">
-            <label>Loại nông sản <span className="fcp-required">*</span></label>
-            <div className="fcp-btn-group">
-              {CATEGORY_OPTIONS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  className={`fcp-btn-region ${form.category === c.value ? 'fcp-btn-region--active' : ''}`}
-                  onClick={() => set('category', c.value)}
-                >{c.label}</button>
-              ))}
+          <div className="fep-option-row">
+            <div className="fcp-field">
+              <label>Loại nông sản <span className="fcp-required">*</span></label>
+              <div className="fcp-btn-group">
+                {CATEGORY_OPTIONS.map((category) => (
+                  <button
+                    key={category.value}
+                    type="button"
+                    className={`fcp-btn-region ${
+                      form.category === category.value ? 'fcp-btn-region--active' : ''
+                    }`}
+                    onClick={() => set('category', category.value)}
+                  >
+                    {category.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="fcp-field fcp-field--full">
-            <label>Vùng miền <span className="fcp-required">*</span></label>
-            <div className="fcp-btn-group">
-              {REGION_OPTIONS.map((r) => (
-                <button
-                  key={r.value}
-                  type="button"
-                  className={`fcp-btn-region ${form.region === r.value ? 'fcp-btn-region--active' : ''}`}
-                  onClick={() => set('region', r.value)}
-                >{r.label}</button>
-              ))}
+            <div className="fcp-field">
+              <label>Vùng miền <span className="fcp-required">*</span></label>
+              <div className="fcp-btn-group">
+                {REGION_OPTIONS.map((region) => (
+                  <button
+                    key={region.value}
+                    type="button"
+                    className={`fcp-btn-region ${
+                      form.region === region.value ? 'fcp-btn-region--active' : ''
+                    }`}
+                    onClick={() => set('region', region.value)}
+                  >
+                    {region.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           <div className="fcp-field fcp-field--full">
             <label>Hình thức <span className="fcp-required">*</span></label>
             <div className="fcp-btn-group">
-              {TYPE_OPTIONS.map((t) => (
+              {TYPE_OPTIONS.map((type) => (
                 <button
-                  key={t.value}
+                  key={type.value}
                   type="button"
-                  className={`fcp-btn-region ${form.type === t.value ? 'fcp-btn-region--active' : ''}`}
-                  onClick={() => set('type', t.value)}
-                >{t.label}</button>
+                  className={`fcp-btn-region ${
+                    form.type === type.value ? 'fcp-btn-region--active' : ''
+                  }`}
+                  onClick={() => set('type', type.value)}
+                >
+                  {type.label}
+                </button>
               ))}
             </div>
           </div>
@@ -226,170 +409,325 @@ export default function FarmerEditProduct() {
               <input
                 className="fcp-input"
                 value={form.variety}
-                onChange={(e) => set('variety', e.target.value)}
-                placeholder="VD: ST25..."
+                onChange={(event) => set('variety', event.target.value)}
+                placeholder="VD: ST25, Hắc Mỹ Nhân..."
               />
             </div>
+
             <div className="fcp-field">
               <label>Diện tích canh tác (ha)</label>
               <div className="fcp-input-suffix">
                 <input
                   className="fcp-input"
-                  type="number" min="0" step="0.1"
+                  type="number"
+                  min="0"
+                  step="0.1"
                   value={form.area}
-                  onChange={(e) => set('area', e.target.value)}
+                  onChange={(event) => set('area', event.target.value)}
                 />
                 <span>ha</span>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="fcp-card" style={{ marginTop: 20 }}>
-          <div className="fcp-card__head">
-            <span className="fcp-card__icon">💲</span>
-            <div>
-              <div className="fcp-card__title">Sản lượng và giá</div>
-              <div className="fcp-card__sub">Số lượng, giá bán và ngày thu hoạch</div>
+        <div className="fep-two-column">
+          <section className="fcp-card fep-card">
+            <div className="fcp-card__head">
+              <span className="fcp-card__icon">💲</span>
+              <div>
+                <div className="fcp-card__title">Sản lượng và giá</div>
+                <div className="fcp-card__sub">Số lượng, mức giá và thời gian thu hoạch</div>
+              </div>
             </div>
-          </div>
 
-          <div className="fcp-field fcp-field--full">
-            <label>Sản lượng ước tính</label>
-            <div className="fcp-input-suffix">
-              <input
-                className="fcp-input"
-                type="number" min="0"
-                value={form.totalQuantity}
-                onChange={(e) => set('totalQuantity', e.target.value)}
-              />
-              <select className="fcp-select-inline" value={form.unit} onChange={(e) => set('unit', e.target.value)}>
-                {UNITS.map((u) => <option key={u} value={u.toLowerCase()}>{u}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="fcp-field fcp-field--full">
-            <label>Đơn vị tính giá</label>
-            <div className="fcp-btn-group">
-              {UNITS.map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  className={`fcp-btn-region ${form.priceUnit === u.toLowerCase() ? 'fcp-btn-region--active' : ''}`}
-                  onClick={() => set('priceUnit', u.toLowerCase())}
-                >{u}</button>
-              ))}
-            </div>
-            <span className="fcp-hint">Có thể khác với đơn vị sản lượng ở trên</span>
-          </div>
-
-          <div className="fcp-row">
-            <div className="fcp-field">
-              <label>Giá tối thiểu</label>
+            <div className="fcp-field fcp-field--full">
+              <label>Sản lượng ước tính</label>
               <div className="fcp-input-suffix">
                 <input
                   className="fcp-input"
-                  type="number" min="0"
-                  value={form.priceMin}
-                  onChange={(e) => set('priceMin', e.target.value)}
+                  type="number"
+                  min="0"
+                  value={form.totalQuantity}
+                  onChange={(event) => set('totalQuantity', event.target.value)}
                 />
-                <span>VNĐ/{form.priceUnit}</span>
+                <select
+                  className="fcp-select-inline"
+                  value={form.unit}
+                  onChange={(event) => set('unit', event.target.value)}
+                >
+                  {UNITS.map((unit) => (
+                    <option key={unit} value={unit.toLowerCase()}>{unit}</option>
+                  ))}
+                </select>
               </div>
             </div>
-            <div className="fcp-field">
-              <label>Giá tối đa</label>
-              <div className="fcp-input-suffix">
+
+            <div className="fcp-field fcp-field--full">
+              <label>Đơn vị tính giá</label>
+              <div className="fcp-btn-group">
+                {UNITS.map((unit) => (
+                  <button
+                    key={unit}
+                    type="button"
+                    className={`fcp-btn-region ${
+                      form.priceUnit === unit.toLowerCase() ? 'fcp-btn-region--active' : ''
+                    }`}
+                    onClick={() => set('priceUnit', unit.toLowerCase())}
+                  >
+                    {unit}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="fcp-row">
+              <div className="fcp-field">
+                <label>Giá tối thiểu</label>
+                <div className="fcp-input-suffix">
+                  <input
+                    className="fcp-input"
+                    type="number"
+                    min="0"
+                    value={form.priceMin}
+                    onChange={(event) => set('priceMin', event.target.value)}
+                  />
+                  <span>VNĐ/{form.priceUnit}</span>
+                </div>
+              </div>
+
+              <div className="fcp-field">
+                <label>Giá tối đa</label>
+                <div className="fcp-input-suffix">
+                  <input
+                    className="fcp-input"
+                    type="number"
+                    min="0"
+                    value={form.priceMax}
+                    onChange={(event) => set('priceMax', event.target.value)}
+                  />
+                  <span>VNĐ/{form.priceUnit}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="fcp-row">
+              <div className="fcp-field">
+                <label>Ngày bắt đầu gieo / trồng</label>
                 <input
                   className="fcp-input"
-                  type="number" min="0"
-                  value={form.priceMax}
-                  onChange={(e) => set('priceMax', e.target.value)}
+                  type="date"
+                  value={form.plantDate}
+                  onChange={(event) => set('plantDate', event.target.value)}
                 />
-                <span>VNĐ/{form.priceUnit}</span>
+              </div>
+
+              <div className="fcp-field">
+                <label>Ngày thu hoạch dự kiến</label>
+                <input
+                  className="fcp-input"
+                  type="date"
+                  value={form.expectedDate}
+                  onChange={(event) => set('expectedDate', event.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="fcp-card fep-card">
+            <div className="fcp-card__head">
+              <span className="fcp-card__icon">📝</span>
+              <div>
+                <div className="fcp-card__title">Mô tả chi tiết</div>
+                <div className="fcp-card__sub">Thông tin giúp doanh nghiệp hiểu rõ sản phẩm hơn</div>
+              </div>
+            </div>
+
+            <div className="fcp-field fcp-field--full">
+              <label>Mô tả sản phẩm</label>
+              <textarea
+                className="fcp-input fep-textarea"
+                rows={4}
+                value={form.description}
+                onChange={(event) => set('description', event.target.value)}
+                placeholder="Mô tả chất lượng, đặc điểm vùng trồng..."
+              />
+            </div>
+
+            <div className="fcp-field fcp-field--full">
+              <label>Thông tin dinh dưỡng</label>
+              <textarea
+                className="fcp-input fep-textarea"
+                rows={4}
+                value={form.nutritionInfo}
+                onChange={(event) => set('nutritionInfo', event.target.value)}
+                placeholder="Thông tin dinh dưỡng nổi bật của sản phẩm..."
+              />
+            </div>
+
+            <div className="fcp-field fcp-field--full">
+              <label>Ghi chú</label>
+              <textarea
+                className="fcp-input fep-textarea fep-textarea--small"
+                rows={2}
+                value={form.note}
+                onChange={(event) => set('note', event.target.value)}
+                placeholder="Ghi chú thêm nếu có..."
+              />
+            </div>
+          </section>
+        </div>
+
+        <section className="fcp-card fep-card fep-cert-card">
+          <div className="fcp-card__head">
+            <span className="fcp-card__icon">📄</span>
+            <div>
+              <div className="fcp-card__title">Chứng chỉ & kiểm định</div>
+              <div className="fcp-card__sub">
+                Giữ, đổi tên, xóa chứng chỉ hiện có hoặc bổ sung file mới
               </div>
             </div>
           </div>
 
-          <div className="fcp-row">
-            <div className="fcp-field">
-              <label>Ngày bắt đầu gieo / trồng</label>
-              <input
-                className="fcp-input"
-                type="date"
-                value={form.plantDate}
-                onChange={(e) => set('plantDate', e.target.value)}
-              />
-            </div>
-            <div className="fcp-field">
-              <label>Ngày thu hoạch dự kiến</label>
-              <input
-                className="fcp-input"
-                type="date"
-                value={form.expectedDate}
-                onChange={(e) => set('expectedDate', e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="fcp-card" style={{ marginTop: 20 }}>
-          <div className="fcp-card__head">
-            <span className="fcp-card__icon">📝</span>
+          <div className="fep-cert-summary">
             <div>
-              <div className="fcp-card__title">Mô tả chi tiết</div>
-              <div className="fcp-card__sub">Mô tả, thông tin dinh dưỡng và ghi chú thêm</div>
+              <strong>{existingCertifications.length + newCertifications.length}</strong>
+              <span>chứng chỉ sau khi lưu</span>
             </div>
+            <small>PDF, JPG, PNG · tối đa 5MB/file · tối đa {MAX_CERT_FILES} file</small>
           </div>
 
-          <div className="fcp-field fcp-field--full">
-            <label>Mô tả sản phẩm</label>
-            <textarea
-              className="fcp-input"
-              rows={3}
-              value={form.description}
-              onChange={(e) => set('description', e.target.value)}
+          {existingCertifications.length > 0 && (
+            <div className="fep-cert-section">
+              <div className="fep-cert-section__title">
+                <FiCheckCircle /> Chứng chỉ hiện tại
+              </div>
+
+              <div className="fep-cert-list">
+                {existingCertifications.map((certification, index) => (
+                  <div className="fep-cert-item" key={certification.id}>
+                    <div className="fep-cert-item__icon"><FiFileText /></div>
+                    <div className="fep-cert-item__body">
+                      <input
+                        className="fcp-input"
+                        value={certification.value}
+                        onChange={(event) =>
+                          updateExistingCertificateName(index, event.target.value)
+                        }
+                        aria-label={`Tên chứng chỉ ${index + 1}`}
+                      />
+                      <div className="fep-cert-item__meta">
+                        <span>File hiện tại được giữ nguyên nếu bạn không xóa.</span>
+                        {certification.fileUrl && (
+                          <a
+                            href={resolveImageUrl(certification.fileUrl) || certification.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <FiExternalLink /> Xem file
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="fep-cert-remove"
+                      onClick={() => removeExistingCertificate(index)}
+                      title="Xóa chứng chỉ"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="fep-cert-section">
+            <div className="fep-cert-section__title">
+              <FiUploadCloud /> Bổ sung chứng chỉ mới
+            </div>
+
+            <button
+              type="button"
+              className="fep-cert-upload"
+              onClick={() => certInputRef.current?.click()}
+              disabled={existingCertifications.length + newCertifications.length >= MAX_CERT_FILES}
+            >
+              <FiUploadCloud size={24} />
+              <div>
+                <strong>Chọn file chứng chỉ</strong>
+                <span>Bạn có thể chọn nhiều file cùng lúc</span>
+              </div>
+            </button>
+
+            <input
+              ref={certInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+              multiple
+              hidden
+              onChange={(event) => handleCertificateFiles(event.target.files)}
             />
+
+            {newCertifications.length > 0 && (
+              <div className="fep-cert-list fep-cert-list--new">
+                {newCertifications.map((certification, index) => (
+                  <div className="fep-cert-item fep-cert-item--new" key={`${certification.file.name}-${index}`}>
+                    <div className="fep-cert-item__icon"><FiFileText /></div>
+                    <div className="fep-cert-item__body">
+                      <input
+                        className="fcp-input"
+                        value={certification.value}
+                        onChange={(event) => updateNewCertificateName(index, event.target.value)}
+                        aria-label={`Tên chứng chỉ mới ${index + 1}`}
+                      />
+                      <div className="fep-cert-item__meta">
+                        <span>
+                          {certification.file.name} · {(certification.file.size / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="fep-cert-remove"
+                      onClick={() => removeNewCertificate(index)}
+                      title="Bỏ file mới"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        </section>
 
-          <div className="fcp-field fcp-field--full">
-            <label>Thông tin dinh dưỡng</label>
-            <textarea
-              className="fcp-input"
-              rows={3}
-              value={form.nutritionInfo}
-              onChange={(e) => set('nutritionInfo', e.target.value)}
-            />
+        {error && (
+          <div className="fcp-error fep-error">
+            <FiAlertTriangle size={16} /> {error}
           </div>
+        )}
 
-          <div className="fcp-field fcp-field--full">
-            <label>Ghi chú</label>
-            <textarea
-              className="fcp-input"
-              rows={2}
-              value={form.note}
-              onChange={(e) => set('note', e.target.value)}
-            />
-          </div>
-        </div>
-
-        {error && <div className="fcp-error"><FiAlertTriangle size={14} /> {error}</div>}
-
-        <div className="fcp-nav">
-          <button
-            type="button"
-            className="fcp-nav__back"
-            onClick={() => navigate(`/farmer/crops/${id}`)}
-          >
-            <FiArrowLeft size={14} /> Hủy
+        <div className="fep-actions">
+          <button type="button" className="fcp-nav__back" onClick={backToProduct} disabled={saving}>
+            <FiArrowLeft /> Hủy
           </button>
 
           <button type="submit" className="fcp-nav__submit" disabled={saving}>
-            {saving ? 'Đang lưu...' : <><FiSave size={14} /> Lưu thay đổi</>}
+            {saving ? (
+              <>
+                <span className="spinner-border spinner-border-sm" aria-hidden="true" /> Đang lưu...
+              </>
+            ) : (
+              <>
+                <FiSave /> Lưu thay đổi
+              </>
+            )}
           </button>
         </div>
-      </form>
-      </div>
+        </form>
+      </section>
     </div>
   );
 }

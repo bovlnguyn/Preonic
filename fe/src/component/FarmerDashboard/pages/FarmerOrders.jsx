@@ -45,8 +45,9 @@ function FarmerOrders() {
 
   return (
     <div className="farmer-stack">
-      <section className="farmer-card">
+      <section className="farmer-card fo-shell">
         <SectionHeader
+          breadcrumb="Đơn hàng"
           eyebrow="Đơn hàng"
           title="Theo dõi chuẩn bị hàng và lịch giao"
           desc="Farmer có thể theo dõi số lượng, địa chỉ giao và trạng thái xử lý của từng đơn hàng."
@@ -60,24 +61,24 @@ function FarmerOrders() {
             desc="Đơn hàng sẽ xuất hiện khi hợp đồng được kích hoạt."
           />
         ) : (
-          <div className="farmer-order-list">
+          <div className="farmer-order-list fo-order-list">
             {orders.map((item) => (
               <article
-                className="farmer-order-card"
+                className="farmer-order-card fo-order-card"
                 key={item.id}
                 onClick={() => navigate(`/farmer/contracts/${item.contractId}`)}
                 style={{ cursor: 'pointer' }}
               >
-                <div className="farmer-order-card__icon"><FiTruck /></div>
-                <div className="farmer-order-card__body">
-                  <div className="farmer-order-card__head">
+                <div className="farmer-order-card__icon fo-order-card__icon"><FiTruck /></div>
+                <div className="farmer-order-card__body fo-order-card__body">
+                  <div className="farmer-order-card__head fo-order-card__head">
                     <div>
                       <span>{item.id}</span>
-                      <h3>{item.product}</h3>
+                      <h3 className="fo-order-card__title">{item.product}</h3>
                     </div>
                     <StatusBadge status={item.status} />
                   </div>
-                  <div className="farmer-order-card__grid">
+                  <div className="farmer-order-card__grid fo-order-card__grid">
                     <p><strong>Doanh nghiệp:</strong> {item.buyer}</p>
                     <p><strong>Số lượng:</strong> {item.quantity}</p>
                     <p><strong>Ngày giao:</strong> {formatDate(item.deliveryDate)}</p>

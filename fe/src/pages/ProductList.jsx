@@ -4,22 +4,21 @@ import { FiSearch, FiMapPin, FiStar, FiChevronLeft, FiChevronRight } from 'react
 import { FaSeedling } from 'react-icons/fa';
 import Header from '../component/Common/Header';
 import Footer from "../component/Common/Footer";
-import productService from '../services/product.service';
+import productService, { resolveImageUrl } from '../services/product.service';
 import { CATEGORY_LABEL, REGION_LABEL, TYPE_LABEL, CATEGORY_OPTIONS, REGION_OPTIONS, TYPE_OPTIONS } from '../constants/product';
 import './Home.css';
 import '../component/HomeSections/HomeProductsPreview/HomeProductsPreview.css';
 import './ProductList.css';
 
-const IMAGE_BASE_URL = 'http://localhost:8080';
 const SEARCH_DEBOUNCE_MS = 350;
 
 const formatMoney = (value) => (value ? Number(value).toLocaleString('vi-VN') + ' ₫' : '');
 
 const getCardImage = (product) => {
-  if (product.image) return IMAGE_BASE_URL + product.image;
+  if (product.image) return resolveImageUrl(product.image);
   try {
     const images = product.images ? JSON.parse(product.images) : [];
-    if (images.length > 0) return IMAGE_BASE_URL + images[0];
+    if (images.length > 0) return resolveImageUrl(images[0]);
   } catch {
     // ignore malformed images JSON
   }

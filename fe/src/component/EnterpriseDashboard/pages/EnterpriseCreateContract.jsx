@@ -664,7 +664,7 @@ export default function EnterpriseCreateContract() {
               <button className="ecc-btn ecc-btn--primary"
                 onClick={() => navigate('/enterprise/contracts')}>Về Dashboard</button>
               <button className="ecc-btn ecc-btn--outline"
-                onClick={() => navigate('/messaging')}>Nhắn tin đối tác</button>
+                onClick={() => createdContract?.id && navigate(`/enterprise/contracts/${createdContract.id}`)}>Xem chi tiết & nhắn tin</button>
             </div>
           </div>
         )}

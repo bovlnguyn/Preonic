@@ -1,11 +1,31 @@
 .cdv-page {
-  max-width: 780px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 12px 16px 48px;
+}
+
+.cdv-page--farmer {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0 0 48px;
+}
+
+.cdv-detail-shell {
+  width: min(100%, 860px);
+  margin: 0 auto;
+}
+
+.cdv-farmer-top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 14px;
 }
 
 .cdv-top {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -18,35 +38,87 @@
   gap: 6px;
   background: none;
   border: none;
-  color: #16a34a;
-  font-weight: 600;
+  color: var(--farmer-green-600, #16a34a);
+  font-weight: 800;
   cursor: pointer;
   padding: 0;
+}
+
+.cdv-back.cdv-back--button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 15px;
+  border: 1px solid rgba(22, 101, 52, 0.14);
+  border-radius: 14px;
+  color: #10391f;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 7px 22px rgba(5, 46, 22, 0.05);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.cdv-back.cdv-back--button svg {
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+}
+
+.cdv-back.cdv-back--button:hover {
+  color: #ffffff;
+  border-color: #15803d;
+  background: #15803d;
+  box-shadow: 0 10px 24px rgba(21, 128, 61, 0.18);
+  transform: translateX(-2px);
+}
+
+.cdv-back.cdv-back--button:hover svg {
+  color: #ffffff;
+}
+
+.cdv-back.cdv-back--button:active {
+  transform: translateX(-1px);
+  box-shadow: 0 6px 16px rgba(21, 128, 61, 0.14);
 }
 
 .cdv-message-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #2563eb;
-  font-weight: 600;
+  gap: 7px;
+  min-height: 40px;
+  background: rgba(255,255,255,0.95);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  color: var(--farmer-green-700, #15803d);
+  box-shadow: 0 12px 26px rgba(5, 46, 22, 0.06);
+  font-weight: 800;
   font-size: 13px;
   border-radius: 999px;
-  padding: 8px 14px;
+  padding: 0 16px;
   cursor: pointer;
 }
 
 .cdv-message-btn:hover {
-  background: #dbeafe;
+  background: var(--farmer-green-100, #dcfce7);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .cdv-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,253,247,0.96));
+  border: 1px solid rgba(22, 101, 52, 0.12);
+  border-radius: 28px;
+  padding: 26px;
+  box-shadow: 0 22px 46px rgba(5, 46, 22, 0.08);
 }
 
 .cdv-card__header {
@@ -54,78 +126,101 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px dashed #d1d5db;
+  border-bottom: 1px dashed rgba(22, 101, 52, 0.16);
   padding-bottom: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .cdv-card__header h3 {
   margin: 0 0 4px;
+  color: var(--farmer-green-950, #052e16);
   font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -0.2px;
 }
 
 .cdv-card__header p {
   margin: 0;
   color: #6b7280;
   font-size: 13px;
+  font-weight: 650;
 }
 
 .cdv-badge {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
+  padding: 7px 13px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   white-space: nowrap;
   background: #f1f5f9;
   color: #475569;
 }
 
 .cdv-badge--active,
-.cdv-badge--completed { background: #f0fdf4; color: #15803d; }
+.cdv-badge--completed,
+.cdv-badge--approved { background: #f0fdf4; color: #15803d; }
 .cdv-badge--pending,
-.cdv-badge--draft { background: #fffbeb; color: #b45309; }
+.cdv-badge--draft,
+.cdv-badge--cancel_pending { background: #fffbeb; color: #b45309; }
 .cdv-badge--cancelled,
 .cdv-badge--disputed { background: #fef2f2; color: #b91c1c; }
 
+.cdv-summary {
+  display: grid;
+  gap: 2px;
+}
+
 .cdv-summary__row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(136px, 190px) minmax(0, 1fr);
+  align-items: flex-start;
   gap: 16px;
-  padding: 8px 0;
+  padding: 9px 0;
   font-size: 14px;
 }
 
-.cdv-summary__row span { color: #6b7280; }
+.cdv-summary__row span {
+  color: #6b7280;
+}
 
-.cdv-summary__row--total strong { color: #16a34a; font-size: 16px; }
+.cdv-summary__row strong {
+  color: var(--farmer-green-950, #052e16);
+  font-weight: 850;
+  text-align: right;
+}
+
+.cdv-summary__row--total strong {
+  color: var(--farmer-green-700, #15803d);
+  font-size: 16px;
+}
 
 .cdv-divider {
   border: none;
   border-top: 1px solid #e5e7eb;
-  margin: 8px 0;
+  margin: 10px 0;
 }
 
 .cdv-signatures {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 14px;
+  margin-top: 18px;
 }
 
 .cdv-sig {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 14px;
-  border: 1px dashed #d1d5db;
-  border-radius: 12px;
-  background: #f9fafb;
+  gap: 5px;
+  padding: 16px;
+  border: 1px solid rgba(22, 101, 52, 0.12);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.88);
 }
 
 .cdv-sig--signed {
-  border: 1px solid #bbf7d0;
+  border-color: #bbf7d0;
   background: #f0fdf4;
 }
 
@@ -134,6 +229,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #9ca3af;
+  font-weight: 850;
 }
 
 .cdv-sig__name {
@@ -146,7 +242,7 @@
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: #b45309;
 }
 
@@ -159,8 +255,8 @@
   align-items: center;
   gap: 8px;
   margin-top: 16px;
-  padding: 12px 14px;
-  border-radius: 10px;
+  padding: 13px 14px;
+  border-radius: 14px;
   font-size: 14px;
 }
 
@@ -173,15 +269,18 @@
   justify-content: flex-end;
   gap: 12px;
   margin-top: 24px;
+  flex-wrap: wrap;
 }
 
 .cdv-btn {
+  min-height: 42px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-weight: 600;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-weight: 800;
   font-size: 14px;
   cursor: pointer;
   border: 1px solid transparent;
@@ -189,13 +288,25 @@
 
 .cdv-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.cdv-btn--primary { background: #16a34a; color: #fff; }
-.cdv-btn--primary:hover:not(:disabled) { background: #15803d; }
+.cdv-btn--primary {
+  background: linear-gradient(135deg, var(--farmer-green-600, #16a34a), var(--farmer-green-700, #15803d));
+  color: #fff;
+  box-shadow: 0 14px 24px rgba(22, 163, 74, 0.18);
+}
+.cdv-btn--primary:hover:not(:disabled) { filter: brightness(0.98); }
 
-.cdv-btn--danger { background: #fff; color: #dc2626; border-color: #dc2626; }
+.cdv-btn--danger {
+  background: #fff;
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.2);
+}
 .cdv-btn--danger:hover:not(:disabled) { background: #fef2f2; }
 
-.cdv-btn--outline { background: #fff; color: #374151; border-color: #d1d5db; }
+.cdv-btn--outline {
+  background: #fff;
+  color: #374151;
+  border-color: #d1d5db;
+}
 .cdv-btn--outline:hover:not(:disabled) { background: #f9fafb; }
 
 .cdv-reject {
@@ -207,14 +318,14 @@
 
 .cdv-reject label {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: #374151;
 }
 
 .cdv-reject textarea {
   width: 100%;
   border: 1px solid #d1d5db;
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 10px 12px;
   font-size: 14px;
   resize: vertical;
@@ -226,12 +337,11 @@
   gap: 12px;
 }
 
-/* ── Note variants ── */
 .cdv-note--warning {
   background: #fffbeb;
   border: 1px solid #fcd34d;
   color: #92400e;
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 12px 16px;
   font-size: 13px;
   display: flex;
@@ -240,15 +350,14 @@
   margin-top: 16px;
 }
 
-/* ── Ghost button (hủy hợp đồng) ── */
 .cdv-btn--ghost {
   background: transparent;
-  border: 1.5px solid #e5e7eb;
+  border: 1px solid #dfe8df;
   color: #6b7280;
-  border-radius: 10px;
-  padding: 10px 18px;
+  border-radius: 14px;
+  padding: 0 18px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -261,24 +370,21 @@
   background: #fef2f2;
 }
 
-/* ── Warning button ── */
 .cdv-btn--warning {
   background: #fffbeb;
-  border: 1.5px solid #fcd34d;
+  border: 1px solid #fcd34d;
   color: #92400e;
-  border-radius: 10px;
-  padding: 10px 18px;
+  border-radius: 14px;
+  padding: 0 18px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: background .15s;
 }
 .cdv-btn--warning:hover:not(:disabled) { background: #fef3c7; }
 
-/* ── Modal ── */
 .cdv-modal-overlay {
   position: fixed;
   inset: 0;
@@ -289,76 +395,85 @@
   z-index: 1000;
   padding: 24px;
 }
+
 .cdv-modal {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 22px;
   width: 100%;
   max-width: 520px;
-  padding: 28px 32px;
+  padding: 28px 30px;
   box-shadow: 0 24px 60px rgba(0,0,0,.18);
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+
 .cdv-modal__header {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
 .cdv-modal__header h3 {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 900;
   color: #111827;
   margin: 0;
 }
+
 .cdv-modal__desc {
   font-size: 14px;
   color: #6b7280;
   margin: 0;
   line-height: 1.6;
 }
+
 .cdv-modal__reason {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 10px 14px;
   font-size: 13px;
   color: #374151;
 }
+
 .cdv-modal__field {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
 .cdv-modal__field label {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: #374151;
 }
+
 .cdv-modal__field textarea {
   padding: 10px 14px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   font-size: 14px;
   resize: vertical;
   outline: none;
   transition: border-color .15s;
 }
-.cdv-modal__field textarea:focus { border-color: #2563eb; }
+.cdv-modal__field textarea:focus { border-color: var(--farmer-green-500, #22c55e); }
+
 .cdv-modal__actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 4px;
+  flex-wrap: wrap;
 }
 
-/* ── Bảo hiểm nông nghiệp ── */
 .cdv-insurance {
   margin-top: 16px;
   padding: 16px 18px;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 12px;
+  border-radius: 16px;
 }
 
 .cdv-insurance__title {
@@ -367,13 +482,56 @@
   gap: 6px;
   margin: 0 0 4px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   color: #15803d;
 }
 
-/* ── Badge cancel_pending ── */
-.cdv-badge--cancel_pending {
-  background: #fffbeb;
-  color: #92400e;
-  border: 1px solid #fcd34d;
+@media (max-width: 640px) {
+  .cdv-top,
+  .cdv-card__header,
+  .cdv-signatures,
+  .cdv-summary__row,
+  .cdv-actions,
+  .cdv-reject__actions,
+  .cdv-modal__actions {
+    display: grid;
+  }
+
+  .cdv-summary__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .cdv-summary__row strong {
+    text-align: left;
+  }
+
+  .cdv-btn,
+  .cdv-btn--ghost,
+  .cdv-btn--warning,
+  .cdv-message-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 620px) {
+  .cdv-page--farmer {
+    padding-bottom: 34px;
+  }
+
+  .cdv-farmer-top-actions {
+    align-items: stretch;
+  }
+
+  .cdv-back.cdv-back--button,
+  .cdv-farmer-top-actions .cdv-message-btn {
+    min-height: 50px;
+  }
+
+  .cdv-back.cdv-back--button {
+    min-width: 150px;
+    padding: 0 22px;
+    border-radius: 20px;
+    font-size: 15px;
+  }
 }

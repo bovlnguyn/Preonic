@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './FarmerCreateProduct.css';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -22,6 +22,12 @@ const isFarmerProfileComplete = (user) =>
 const REGIONS = ['Miền Bắc', 'Miền Trung', 'Miền Nam'];
 const UNITS = ['kg', 'Tạ', 'Tấn'];
 const COVERAGE_PRESETS = [25, 50, 75, 100];
+const MAX_IMAGES = 10;
+const MIN_IMAGES = 3;
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_CERT_FILES = 10;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+const ALLOWED_CERT_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 
 // Map region hiển thị (tiếng Việt) sang giá trị enum backend yêu cầu
 const REGION_MAP = {
@@ -57,10 +63,10 @@ const STEPS = [
 ];
 
 const TIPS = [
-  '📸 Ảnh rõ nét, chụp thực tế tăng 3x tỉ lệ quan tâm',
-  '✅ Chứng nhận VietGAP thu hút DN lớn',
-  '💲 Giá hợp lý so thị trường → nhiều đề xuất hơn',
-  '📅 Ghi đúng ngày thu hoạch để DN chủ động kế hoạch',
+  '📸 Dùng ảnh rõ nét, chụp trực tiếp tại vùng trồng',
+  '✅ Bổ sung chứng nhận giúp hồ sơ sản phẩm đáng tin cậy hơn',
+  '💲 Đặt mức giá phù hợp để doanh nghiệp dễ đánh giá đề xuất',
+  '📅 Ghi đúng ngày thu hoạch để đối tác chủ động kế hoạch',
 ];
 
 const initialForm = {
@@ -71,11 +77,49 @@ const initialForm = {
   // Bước 3
   priceUnit: 'kg', price: '', coverageRate: 50,
   // Bước 4
-  images: [], certFile: null,
+  images: [], certFiles: [],
 };
 
 // ── Helper ────────────────────────────────────────────────
-const fmt = (n) => Number(n).toLocaleString('vi-VN');
+const fmt = (n) => Number(n || 0).toLocaleString('vi-VN');
+
+const toKg = (quantity, unit) => {
+  const value = Number(quantity || 0);
+  if (unit === 'tấn') return value * 1000;
+  if (unit === 'tạ') return value * 100;
+  return value;
+};
+
+const estimateTotalValue = (totalKg, price, priceUnit) => {
+  const priceNum = Number(price || 0);
+  if (!totalKg || !priceNum) return 0;
+
+  if (priceUnit === 'tấn') return (totalKg / 1000) * priceNum;
+  if (priceUnit === 'tạ') return (totalKg / 100) * priceNum;
+  return totalKg * priceNum;
+};
+
+const stripExtension = (fileName = '') =>
+  fileName.replace(/\.[^/.]+$/, '').trim() || 'Chứng chỉ';
+
+function LocalImagePreview({ file, alt = '' }) {
+  const [src, setSrc] = useState('');
+
+  useEffect(() => {
+    if (!file) {
+      setSrc('');
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setSrc(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  if (!src) return null;
+  return <img src={src} alt={alt} />;
+}
 
 function StepIndicator({ current }) {
   return (
@@ -105,55 +149,99 @@ function StepIndicator({ current }) {
 }
 
 function Preview({ form }) {
-  const totalKg = form.unit === 'tấn'
-    ? Number(form.quantity || 0) * 1000
-    : form.unit === 'tạ'
-    ? Number(form.quantity || 0) * 100
-    : Number(form.quantity || 0);
-
+  const totalKg = toKg(form.quantity, form.unit);
   const priceNum = Number(form.price || 0);
   const highPrice = Math.round(priceNum * 1.15);
-  const totalValue = form.priceUnit === 'kg'
-    ? totalKg * priceNum
-    : form.priceUnit === 'tạ'
-    ? (totalKg / 100) * priceNum
-    : (totalKg / 1000) * priceNum;
+  const totalValue = estimateTotalValue(totalKg, priceNum, form.priceUnit);
+  const categoryLabel = CATEGORIES.find((item) => item.value === form.category)?.label;
+  const typeLabel = TYPES.find((item) => item.value === form.type)?.label;
+
+  const completedFields = [
+    form.name,
+    form.category,
+    form.type,
+    form.region,
+    form.quantity,
+    form.price,
+    form.harvestDate,
+    form.images.length >= MIN_IMAGES ? 'images' : '',
+  ].filter(Boolean).length;
+  const completion = Math.round((completedFields / 8) * 100);
 
   return (
-    <div className="fcp-preview">
+    <aside className="fcp-preview" aria-label="Xem trước sản phẩm">
       <div className="fcp-preview__header">
-        <span>👁 XEM TRƯỚC SẢN PHẨM</span>
+        <div>
+          <span>XEM TRƯỚC</span>
+          <strong>Sản phẩm của bạn</strong>
+        </div>
+        <span className="fcp-preview__completion">{completion}%</span>
       </div>
+
+      <div className="fcp-preview__progress" aria-label={`Mức độ hoàn thiện ${completion}%`}>
+        <span style={{ width: `${completion}%` }} />
+      </div>
+
       <div className="fcp-preview__thumb">
-        {form.images.length > 0
-          ? <img src={URL.createObjectURL(form.images[0])} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
-          : <><FiCheckCircle size={28} color="#86efac" /><span>Ảnh sẽ hiện thị ở đây</span></>
-        }
+        {form.images.length > 0 ? (
+          <LocalImagePreview file={form.images[0]} alt={form.name || 'Ảnh sản phẩm'} />
+        ) : (
+          <div className="fcp-preview__placeholder">
+            <FiCamera size={26} />
+            <span>Ảnh sản phẩm sẽ hiển thị ở đây</span>
+          </div>
+        )}
       </div>
-      <div className="fcp-preview__name">{form.name || '—'}</div>
-      <div className="fcp-preview__location">
-        <FiMapPin size={13} /> {form.region || 'Địa điểm của bạn'}
-      </div>
-      {priceNum > 0 && (
-        <div className="fcp-preview__price">
-          {fmt(priceNum)}đ – {fmt(highPrice)}đ/{form.priceUnit}
+
+      <div className="fcp-preview__content">
+        <div className="fcp-preview__name">{form.name || 'Tên nông sản'}</div>
+
+        <div className="fcp-preview__location">
+          <FiMapPin size={13} />
+          <span>{form.region || 'Khu vực sản xuất'}</span>
         </div>
-      )}
-      <div className="fcp-preview__tags">
-        {form.region && <span className="fcp-tag">{form.region}</span>}
-        {totalKg > 0 && <span className="fcp-tag">⚖ {fmt(totalKg)} kg</span>}
-      </div>
-      {totalValue > 0 && (
-        <div className="fcp-preview__value">
-          <div className="fcp-preview__value-label">💲 Tổng giá trị ước tính</div>
-          <div className="fcp-preview__value-num">{(totalValue / 1e6).toFixed(1)} triệu VNĐ</div>
+
+        {priceNum > 0 ? (
+          <div className="fcp-preview__price">
+            {fmt(priceNum)}đ – {fmt(highPrice)}đ
+            <small>/ {form.priceUnit}</small>
+          </div>
+        ) : (
+          <div className="fcp-preview__price fcp-preview__price--empty">
+            Giá bán sẽ hiển thị tại đây
+          </div>
+        )}
+
+        <div className="fcp-preview__tags">
+          {categoryLabel && <span className="fcp-tag">{categoryLabel}</span>}
+          {typeLabel && <span className="fcp-tag">{typeLabel}</span>}
+          {totalKg > 0 && <span className="fcp-tag">⚖ {fmt(totalKg)} kg</span>}
         </div>
-      )}
+
+        {totalValue > 0 && (
+          <div className="fcp-preview__value">
+            <div className="fcp-preview__value-label">Giá trị ước tính</div>
+            <div className="fcp-preview__value-num">
+              {totalValue >= 1e6
+                ? `${(totalValue / 1e6).toFixed(1)} triệu VNĐ`
+                : `${fmt(totalValue)} VNĐ`}
+            </div>
+          </div>
+        )}
+
+        <div className="fcp-preview__media-count">
+          <span>📷 {form.images.length}/{MAX_IMAGES} ảnh</span>
+          <span>📄 {form.certFiles.length}/{MAX_CERT_FILES} chứng chỉ</span>
+        </div>
+      </div>
+
       <div className="fcp-preview__tips">
-        <div className="fcp-preview__tips-title">💡 Mẹo tăng tỉ lệ bao tiêu</div>
-        {TIPS.map((t, i) => <div key={i} className="fcp-preview__tip">{t}</div>)}
+        <div className="fcp-preview__tips-title">Mẹo tăng tỉ lệ bao tiêu</div>
+        {TIPS.slice(0, 3).map((tip, index) => (
+          <div key={index} className="fcp-preview__tip">{tip}</div>
+        ))}
       </div>
-    </div>
+    </aside>
   );
 }
 
@@ -180,40 +268,56 @@ function Step1({ form, set }) {
         <span className="fcp-hint">Nhập tên đầy đủ để doanh nghiệp dễ tìm kiếm</span>
       </div>
 
-      {/* Loại nông sản — bắt buộc, backend cần dto.category */}
-      <div className="fcp-field fcp-field--full">
-        <label>Loại nông sản <span className="fcp-required">*</span></label>
-        <div className="fcp-btn-group">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              className={`fcp-btn-region ${form.category === c.value ? 'fcp-btn-region--active' : ''}`}
-              onClick={() => set('category', c.value)}
-            >{c.label}</button>
-          ))}
+      <div className="fcp-step1-split">
+        {/* Loại nông sản — bắt buộc, backend cần dto.category */}
+        <div className="fcp-field">
+          <label>Loại nông sản <span className="fcp-required">*</span></label>
+          <div className="fcp-btn-group">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                className={`fcp-btn-region ${form.category === c.value ? 'fcp-btn-region--active' : ''}`}
+                onClick={() => set('category', c.value)}
+              >{c.label}</button>
+            ))}
+          </div>
+          {!form.category && (
+            <span className="fcp-hint">Chọn nhóm phù hợp để doanh nghiệp tìm kiếm nhanh hơn.</span>
+          )}
         </div>
-        {!form.category && (
-          <span className="fcp-hint">Vui lòng chọn loại nông sản phù hợp</span>
-        )}
+
+        <div className="fcp-field">
+          <label>Khu vực sản xuất</label>
+          <div className="fcp-btn-group">
+            {REGIONS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`fcp-btn-region ${form.region === r ? 'fcp-btn-region--active' : ''}`}
+                onClick={() => set('region', r)}
+              >{r}</button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Hình thức — bắt buộc, backend cần dto.type */}
-      <div className="fcp-field fcp-field--full">
-        <label>Hình thức <span className="fcp-required">*</span></label>
-        <div className="fcp-btn-group">
-          {TYPES.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              className={`fcp-btn-region ${form.type === t.value ? 'fcp-btn-region--active' : ''}`}
-              onClick={() => set('type', t.value)}
-            >{t.label}</button>
-          ))}
+      <div className="fcp-step1-bottom">
+        {/* Hình thức — bắt buộc, backend cần dto.type */}
+        <div className="fcp-field">
+          <label>Hình thức <span className="fcp-required">*</span></label>
+          <div className="fcp-btn-group">
+            {TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                className={`fcp-btn-region ${form.type === t.value ? 'fcp-btn-region--active' : ''}`}
+                onClick={() => set('type', t.value)}
+              >{t.label}</button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div className="fcp-row">
         <div className="fcp-field">
           <label>Giống / Phân loại</label>
           <input
@@ -223,6 +327,7 @@ function Step1({ form, set }) {
             placeholder="VD: Cát Hòa Lộc, ST25..."
           />
         </div>
+
         <div className="fcp-field">
           <label>Diện tích canh tác (ha)</label>
           <div className="fcp-input-suffix">
@@ -239,31 +344,13 @@ function Step1({ form, set }) {
           </div>
         </div>
       </div>
-
-      <div className="fcp-field fcp-field--full">
-        <label>Khu vực sản xuất</label>
-        <div className="fcp-btn-group">
-          {REGIONS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              className={`fcp-btn-region ${form.region === r ? 'fcp-btn-region--active' : ''}`}
-              onClick={() => set('region', r)}
-            >{r}</button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
 
 // ── Bước 2: Mùa vụ ────────────────────────────────────────
 function Step2({ form, set }) {
-  const totalKg = form.unit === 'tấn'
-    ? Number(form.quantity || 0) * 1000
-    : form.unit === 'tạ'
-    ? Number(form.quantity || 0) * 100
-    : Number(form.quantity || 0);
+  const totalKg = toKg(form.quantity, form.unit);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -311,7 +398,7 @@ function Step2({ form, set }) {
         {totalKg > 0 && (
           <div className="fcp-convert">⚖ Tương đương <strong>{fmt(totalKg)} kg</strong></div>
         )}
-        <span className="fcp-hint">Nhập sản lượng dự kiến, đơn vị tính bằng tấn</span>
+        <span className="fcp-hint">Nhập sản lượng dự kiến và chọn đúng đơn vị đang sử dụng.</span>
       </div>
     </div>
   );
@@ -321,12 +408,8 @@ function Step2({ form, set }) {
 function Step3({ form, set }) {
   const priceNum = Number(form.price || 0);
   const highPrice = Math.round(priceNum * 1.15);
-  const totalKg = form.unit === 'tấn'
-    ? Number(form.quantity || 0) * 1000
-    : form.unit === 'tạ'
-    ? Number(form.quantity || 0) * 100
-    : Number(form.quantity || 0);
-  const totalValue = totalKg * priceNum;
+  const totalKg = toKg(form.quantity, form.unit);
+  const totalValue = estimateTotalValue(totalKg, priceNum, form.priceUnit);
 
   return (
     <div className="fcp-card">
@@ -375,26 +458,38 @@ function Step3({ form, set }) {
       )}
 
       <div className="fcp-field fcp-field--full">
-        <label>Tỉ lệ bao tiêu tối thiểu chấp nhận (%)</label>
-        <input
-          className="fcp-input"
-          type="number"
-          min="0"
-          max="100"
-          value={form.coverageRate}
-          onChange={(e) => set('coverageRate', Number(e.target.value))}
-        />
-        <div className="fcp-btn-group" style={{ marginTop: 8 }}>
-          {COVERAGE_PRESETS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={`fcp-btn-region ${form.coverageRate === p ? 'fcp-btn-region--active' : ''}`}
-              onClick={() => set('coverageRate', p)}
-            >{p}%</button>
-          ))}
+        <div className="fcp-coverage-head">
+          <label>Tỉ lệ bao tiêu tối thiểu chấp nhận</label>
+          <strong>{form.coverageRate}%</strong>
         </div>
-        <span className="fcp-hint">Tỉ lệ tối thiểu sản lượng bạn muốn được bao tiêu</span>
+
+        <div className="fcp-coverage-control">
+          <input
+            className="fcp-coverage-range"
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={form.coverageRate}
+            onChange={(e) => set('coverageRate', Number(e.target.value))}
+            aria-label="Tỉ lệ bao tiêu tối thiểu"
+          />
+
+          <div className="fcp-btn-group fcp-coverage-presets">
+            {COVERAGE_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className={`fcp-btn-region ${form.coverageRate === preset ? 'fcp-btn-region--active' : ''}`}
+                onClick={() => set('coverageRate', preset)}
+              >
+                {preset}%
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <span className="fcp-hint">Tỉ lệ tối thiểu sản lượng bạn mong muốn doanh nghiệp cam kết thu mua.</span>
       </div>
     </div>
   );
@@ -404,86 +499,229 @@ function Step3({ form, set }) {
 function Step4({ form, set }) {
   const imgRef = useRef();
   const certRef = useRef();
+  const [uploadError, setUploadError] = useState('');
 
   const addImages = (files) => {
-    const arr = Array.from(files).filter((f) => f.size <= 5 * 1024 * 1024);
-    set('images', [...form.images, ...arr].slice(0, 10));
+    const selected = Array.from(files || []);
+    if (!selected.length) return;
+
+    const invalidType = selected.find((file) => !ALLOWED_IMAGE_TYPES.includes(file.type));
+    if (invalidType) {
+      setUploadError('Ảnh sản phẩm chỉ hỗ trợ JPG hoặc PNG.');
+      return;
+    }
+
+    const oversized = selected.find((file) => file.size > MAX_FILE_SIZE);
+    if (oversized) {
+      setUploadError(`Ảnh “${oversized.name}” vượt quá giới hạn 5MB.`);
+      return;
+    }
+
+    const remaining = Math.max(0, MAX_IMAGES - form.images.length);
+    if (remaining === 0) {
+      setUploadError(`Mỗi sản phẩm chỉ được tải tối đa ${MAX_IMAGES} ảnh.`);
+      return;
+    }
+
+    setUploadError('');
+    set('images', [...form.images, ...selected.slice(0, remaining)]);
+
+    if (imgRef.current) imgRef.current.value = '';
   };
-  const removeImage = (i) => set('images', form.images.filter((_, idx) => idx !== i));
+
+  const removeImage = (index) => {
+    set('images', form.images.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const addCertificates = (files) => {
+    const selected = Array.from(files || []);
+    if (!selected.length) return;
+
+    const invalidType = selected.find((file) => !ALLOWED_CERT_TYPES.includes(file.type));
+    if (invalidType) {
+      setUploadError('Chứng chỉ chỉ hỗ trợ PDF, JPG hoặc PNG.');
+      return;
+    }
+
+    const oversized = selected.find((file) => file.size > MAX_FILE_SIZE);
+    if (oversized) {
+      setUploadError(`File “${oversized.name}” vượt quá giới hạn 5MB.`);
+      return;
+    }
+
+    const remaining = Math.max(0, MAX_CERT_FILES - form.certFiles.length);
+    if (remaining === 0) {
+      setUploadError(`Mỗi sản phẩm chỉ được tải tối đa ${MAX_CERT_FILES} chứng chỉ.`);
+      return;
+    }
+
+    setUploadError('');
+    set('certFiles', [...form.certFiles, ...selected.slice(0, remaining)]);
+
+    if (certRef.current) certRef.current.value = '';
+  };
+
+  const removeCertificate = (index) => {
+    set('certFiles', form.certFiles.filter((_, currentIndex) => currentIndex !== index));
+  };
 
   return (
-    <div className="fcp-card">
+    <div className="fcp-card fcp-card--media">
       <div className="fcp-card__head">
         <span className="fcp-card__icon">📷</span>
         <div>
           <div className="fcp-card__title">Chứng chỉ và hình ảnh</div>
-          <div className="fcp-card__sub">Tải lên ảnh thực tế và giấy tờ chứng nhận</div>
+          <div className="fcp-card__sub">
+            Hoàn thiện hồ sơ sản phẩm bằng ảnh thực tế và giấy tờ chứng nhận.
+          </div>
         </div>
       </div>
 
-      {/* Ảnh thực tế */}
-      <div className="fcp-field fcp-field--full">
-        <label>
-          Ảnh thực tế <span className="fcp-required">*</span>
-          <span className="fcp-label-note"> · tối thiểu 3 ảnh, tối đa 10</span>
-        </label>
+      <div className="fcp-media-layout">
+        {/* Ảnh thực tế */}
+        <div className="fcp-field">
+          <div className="fcp-media-title-row">
+            <label>
+              Ảnh thực tế <span className="fcp-required">*</span>
+            </label>
+            <span>{form.images.length}/{MAX_IMAGES} ảnh</span>
+          </div>
 
-        {form.images.length > 0 && (
-          <div className="fcp-img-grid">
-            {form.images.map((f, i) => (
-              <div key={i} className="fcp-img-thumb">
-                <img src={URL.createObjectURL(f)} alt="" />
-                <button type="button" className="fcp-img-remove" onClick={() => removeImage(i)}>
-                  <FiX size={12} />
-                </button>
+          {form.images.length > 0 && (
+            <div className="fcp-img-grid">
+              {form.images.map((file, index) => (
+                <div key={`${file.name}-${index}`} className="fcp-img-thumb">
+                  <LocalImagePreview file={file} alt={`Ảnh sản phẩm ${index + 1}`} />
+                  {index === 0 && <span className="fcp-img-cover">Ảnh chính</span>}
+                  <button
+                    type="button"
+                    className="fcp-img-remove"
+                    onClick={() => removeImage(index)}
+                    aria-label={`Xóa ảnh ${index + 1}`}
+                  >
+                    <FiX size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div
+            className="fcp-upload-zone"
+            onClick={() => imgRef.current?.click()}
+            onDrop={(event) => {
+              event.preventDefault();
+              addImages(event.dataTransfer.files);
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') imgRef.current?.click();
+            }}
+          >
+            <FiCamera size={28} />
+            <strong>Thêm ảnh sản phẩm</strong>
+            <span className="fcp-upload-hint">
+              Kéo thả hoặc nhấn để chọn · JPG, PNG · tối đa 5MB/ảnh
+            </span>
+            <input
+              ref={imgRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+              multiple
+              hidden
+              onChange={(event) => addImages(event.target.files)}
+            />
+          </div>
+
+          <div
+            className={`fcp-media-status ${
+              form.images.length >= MIN_IMAGES ? 'fcp-media-status--success' : ''
+            }`}
+          >
+            {form.images.length >= MIN_IMAGES ? (
+              <>
+                <FiCheckCircle size={14} />
+                Đã đủ số ảnh tối thiểu để đăng bán.
+              </>
+            ) : (
+              <>
+                <FiAlertTriangle size={14} />
+                Cần thêm {MIN_IMAGES - form.images.length} ảnh để đạt tối thiểu {MIN_IMAGES} ảnh.
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Chứng nhận */}
+        <div className="fcp-field">
+          <div className="fcp-media-title-row">
+            <label>
+              Chứng nhận / kiểm định
+              <span className="fcp-label-note"> · không bắt buộc</span>
+            </label>
+            <span>{form.certFiles.length}/{MAX_CERT_FILES} file</span>
+          </div>
+
+          <div
+            className="fcp-upload-zone fcp-upload-zone--cert"
+            onClick={() => certRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') certRef.current?.click();
+            }}
+          >
+            <FiFileText size={24} />
+            <div>
+              <strong>Thêm chứng chỉ</strong>
+              <div className="fcp-upload-hint">
+                VietGAP, GlobalGAP, hữu cơ... · PDF, JPG, PNG · tối đa 5MB/file
               </div>
-            ))}
+            </div>
+            <input
+              ref={certRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+              multiple
+              hidden
+              onChange={(event) => addCertificates(event.target.files)}
+            />
           </div>
-        )}
 
-        <div
-          className="fcp-upload-zone"
-          onClick={() => imgRef.current.click()}
-          onDrop={(e) => { e.preventDefault(); addImages(e.dataTransfer.files); }}
-          onDragOver={(e) => e.preventDefault()}
-        >
-          <FiCamera size={28} />
-          <div>Nhấn để tải ảnh lên</div>
-          <div className="fcp-upload-hint">JPG, PNG · tối đa 5MB mỗi ảnh</div>
-          <input ref={imgRef} type="file" accept="image/*" multiple hidden onChange={(e) => addImages(e.target.files)} />
+          {form.certFiles.length > 0 ? (
+            <div className="fcp-cert-list">
+              {form.certFiles.map((file, index) => (
+                <div className="fcp-cert-item" key={`${file.name}-${index}`}>
+                  <span className="fcp-cert-item__icon"><FiFileText /></span>
+                  <div>
+                    <strong>{stripExtension(file.name)}</strong>
+                    <small>{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</small>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeCertificate(index)}
+                    aria-label={`Xóa chứng chỉ ${index + 1}`}
+                  >
+                    <FiX />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="fcp-cert-empty">
+              Chưa có chứng chỉ. Bạn vẫn có thể đăng bán sản phẩm mà không cần tải giấy tờ.
+            </div>
+          )}
         </div>
-
-        {form.images.length < 3 && (
-          <div className="fcp-warning">
-            <FiAlertTriangle size={14} /> Cần ít nhất 3 ảnh để tăng độ tin cậy
-          </div>
-        )}
       </div>
 
-      {/* Chứng nhận */}
-      <div className="fcp-field fcp-field--full">
-        <label>
-          Chứng nhận VietGAP / GlobalGAP / Hữu cơ
-          <span className="fcp-label-note"> · không bắt buộc</span>
-        </label>
-
-        <div
-          className="fcp-upload-zone fcp-upload-zone--cert"
-          onClick={() => certRef.current.click()}
-        >
-          <FiFileText size={22} />
-          <div>
-            <strong>Tải lên chứng nhận</strong>
-            <div className="fcp-upload-hint">PDF, JPG, PNG · tối đa 5MB</div>
-          </div>
-          <input ref={certRef} type="file" accept=".pdf,image/*" hidden onChange={(e) => set('certFile', e.target.files[0])} />
+      {uploadError && (
+        <div className="fcp-error">
+          <FiAlertTriangle size={14} /> {uploadError}
         </div>
-        {form.certFile && (
-          <div className="fcp-cert-name">
-            <FiCheckCircle color="#16a34a" size={14} /> {form.certFile.name}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -500,10 +738,23 @@ export default function FarmerCreateProduct() {
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const canNext = () => {
-    // Bước 1: bắt buộc tên, loại nông sản (category) và hình thức (type)
-    if (step === 0) return form.name.trim() !== '' && form.category !== '' && form.type !== '';
-    if (step === 1) return form.plantDate !== '' && form.harvestDate !== '' && form.quantity !== '';
-    if (step === 2) return form.price !== '';
+    if (step === 0) {
+      return form.name.trim() !== '' && form.category !== '' && form.type !== '' && form.region !== '';
+    }
+
+    if (step === 1) {
+      return (
+        form.plantDate !== '' &&
+        form.harvestDate !== '' &&
+        Number(form.quantity || 0) > 0 &&
+        form.harvestDate >= form.plantDate
+      );
+    }
+
+    if (step === 2) {
+      return Number(form.price || 0) > 0 && form.coverageRate >= 0 && form.coverageRate <= 100;
+    }
+
     return true;
   };
 
@@ -512,7 +763,12 @@ export default function FarmerCreateProduct() {
   };
 
   const handleBack = () => {
-    if (step > 0) setStep(step - 1);
+    if (step > 0) {
+      setStep(step - 1);
+      return;
+    }
+
+    navigate('/farmer/crops');
   };
 
   const handleSubmit = async () => {
@@ -539,10 +795,10 @@ export default function FarmerCreateProduct() {
           priceMax:      priceNum ? Math.round(priceNum * 1.15) : undefined,
           plantDate:     form.plantDate || undefined,
           expectedDate:  form.harvestDate || undefined,
-          certificationNames: form.certFile ? [form.certFile.name] : [],
+          certificationNames: form.certFiles.map((file) => stripExtension(file.name)),
         },
         form.images,
-        form.certFile ? [form.certFile] : [],
+        form.certFiles,
       );
       navigate('/farmer/crops');
     } catch (err) {
@@ -557,18 +813,19 @@ export default function FarmerCreateProduct() {
     return (
       <div className="fcp-page">
         <div className="fcp-breadcrumb">
-          <span onClick={() => navigate('/farmer')} style={{ cursor: 'pointer' }}>Trang chủ</span>
-          <span> › </span>
+          <button type="button" onClick={() => navigate('/farmer')}>Trang chủ</button>
+          <span>/</span>
           <span>Đăng bán nông sản</span>
         </div>
 
-        <div className="fcp-card" style={{ alignItems: 'center', textAlign: 'center', gap: 12 }}>
-          <span className="fcp-card__icon" style={{ fontSize: 40 }}>⚠️</span>
-          <div className="fcp-card__title">Vui lòng hoàn thiện hồ sơ trước khi đăng bán sản phẩm</div>
-          <div className="fcp-card__sub">
-            Hồ sơ cần có đầy đủ họ tên, số điện thoại, tỉnh/thành phố và tên trang trại
-            để doanh nghiệp có thể xác minh nguồn gốc sản phẩm.
-          </div>
+        <section className="fcp-profile-required">
+          <div className="fcp-profile-required__icon">⚠️</div>
+          <span className="fcp-profile-required__eyebrow">HOÀN THIỆN HỒ SƠ</span>
+          <h2>Vui lòng bổ sung thông tin trước khi đăng bán</h2>
+          <p>
+            Hồ sơ Farmer cần có đầy đủ họ tên, số điện thoại, tỉnh/thành phố và tên trang trại
+            để thông tin nguồn cung được hiển thị rõ ràng cho doanh nghiệp.
+          </p>
           <button
             type="button"
             className="fcp-nav__submit"
@@ -576,7 +833,7 @@ export default function FarmerCreateProduct() {
           >
             Cập nhật hồ sơ ngay
           </button>
-        </div>
+        </section>
       </div>
     );
   }
@@ -585,14 +842,15 @@ export default function FarmerCreateProduct() {
     <div className="fcp-page">
       {/* Breadcrumb */}
       <div className="fcp-breadcrumb">
-        <span onClick={() => navigate('/farmer')} style={{ cursor: 'pointer' }}>Trang chủ</span>
-        <span> › </span>
+        <button type="button" onClick={() => navigate('/farmer')}>Trang chủ</button>
+        <span>/</span>
         <span>Đăng bán nông sản</span>
       </div>
 
       <div className="fcp-heading">
-        <h1>Đăng ký Bán Nông sản Mới</h1>
-        <p>Điền thông tin để kết nối với nhà bao tiêu uy tín trên toàn quốc.</p>
+        <span className="fcp-heading__eyebrow">MÙA VỤ MỚI</span>
+        <h1>Đăng bán nông sản mới</h1>
+        <p>Hoàn thiện thông tin mùa vụ theo 4 bước để sản phẩm sẵn sàng tiếp cận doanh nghiệp thu mua.</p>
       </div>
 
       {/* Step bar */}
@@ -600,7 +858,7 @@ export default function FarmerCreateProduct() {
 
       <div className="fcp-body">
         {/* Form */}
-        <div className="fcp-main">
+        <div className="fcp-main fcp-main--wizard">
           {step === 0 && <Step1 form={form} set={set} />}
           {step === 1 && <Step2 form={form} set={set} />}
           {step === 2 && <Step3 form={form} set={set} />}
@@ -614,15 +872,17 @@ export default function FarmerCreateProduct() {
               type="button"
               className="fcp-nav__back"
               onClick={handleBack}
-              disabled={step === 0}
             >
-              <FiArrowLeft size={14} /> Quay lại
+              <FiArrowLeft size={14} /> {step === 0 ? 'Mùa vụ của tôi' : 'Quay lại'}
             </button>
 
-            <div className="fcp-dots">
-              {dots.map((d) => (
-                <span key={d} className={`fcp-dot ${d === step ? 'fcp-dot--active' : ''}`} />
-              ))}
+            <div className="fcp-nav__progress">
+              <span>Bước {step + 1}/{STEPS.length}</span>
+              <div className="fcp-dots">
+                {dots.map((d) => (
+                  <span key={d} className={`fcp-dot ${d === step ? 'fcp-dot--active' : ''}`} />
+                ))}
+              </div>
             </div>
 
             {step < STEPS.length - 1 ? (
@@ -639,9 +899,9 @@ export default function FarmerCreateProduct() {
                 type="button"
                 className="fcp-nav__submit"
                 onClick={handleSubmit}
-                disabled={submitting || form.images.length < 3}
+                disabled={submitting || form.images.length < MIN_IMAGES}
               >
-                {submitting ? 'Đang đăng...' : 'Đăng bán ngay'}
+                {submitting ? 'Đang đăng...' : <>Đăng bán ngay <FiCheckCircle size={15} /></>}
               </button>
             )}
           </div>

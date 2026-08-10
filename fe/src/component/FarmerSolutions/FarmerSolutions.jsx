@@ -10,7 +10,6 @@ import {
   FiPackage,
   FiShield,
   FiStar,
-  FiTrendingUp,
 } from "react-icons/fi";
 
 import Header from "../Common/Header";

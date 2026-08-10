@@ -31,9 +31,6 @@ import "./ProductDetail.css";
 
 const ROLE = { FARMER: "farmer", ENTERPRISE: "enterprise" };
 
-const UNIT_TO_KG = { kg: 1, "tạ": 100, "tấn": 1000 };
-const toKg = (value, unit) => Number(value || 0) * (UNIT_TO_KG[unit] ?? 1);
-
 const asNumber = (value, fallback = 0) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -51,6 +48,80 @@ const formatPriceRange = (min, max) => {
     return `${formatPrice(minValue)} – ${formatPrice(maxValue)}`;
   }
   return formatPrice(minValue || maxValue);
+};
+
+const UNIT_TO_KG = {
+  kg: 1,
+  "tạ": 100,
+  "tấn": 1000,
+};
+
+const normalizeUnit = (value, fallback = "kg") => {
+  const raw = String(value || "").trim().toLowerCase();
+
+  if (["kg", "kilogram", "kilograms"].includes(raw)) return "kg";
+  if (["tạ", "ta"].includes(raw)) return "tạ";
+  if (["tấn", "tan", "ton", "tons", "tonne", "tonnes"].includes(raw)) return "tấn";
+
+  return fallback;
+};
+
+const toKg = (quantity, unit) =>
+  asNumber(quantity) * (UNIT_TO_KG[normalizeUnit(unit)] || 1);
+
+const estimateValueByUnits = (quantity, quantityUnit, price, priceUnit) => {
+  const quantityKg = toKg(quantity, quantityUnit);
+  const normalizedPriceUnit = normalizeUnit(priceUnit);
+  const priceUnitKg = UNIT_TO_KG[normalizedPriceUnit] || 1;
+
+  return (quantityKg / priceUnitKg) * asNumber(price);
+};
+
+const getQuantityStep = (unit) => {
+  const normalized = normalizeUnit(unit);
+  if (normalized === "tấn") return 0.1;
+  if (normalized === "tạ") return 1;
+  return 500;
+};
+
+const getProductAvailability = (product) => {
+  const totalQuantity = Math.max(0, asNumber(product?.totalQuantity));
+  const rawRemaining = Math.max(0, asNumber(product?.remaining, totalQuantity));
+  const progressPct = Math.min(100, Math.max(0, asNumber(product?.progress)));
+
+  if (!totalQuantity) {
+    return {
+      committedPct: progressPct,
+      remainPct: Math.max(0, 100 - progressPct),
+      remainingQuantity: rawRemaining,
+      remainingKg: toKg(rawRemaining, product?.unit),
+    };
+  }
+
+  // Backend hiện lưu remaining cùng đơn vị với totalQuantity.
+  // Khi remaining thực sự nhỏ hơn totalQuantity, đây là nguồn chính xác nhất.
+  const hasReducedRemaining = rawRemaining < totalQuantity;
+  const remainingBasedPct = hasReducedRemaining
+    ? ((totalQuantity - rawRemaining) / totalQuantity) * 100
+    : 0;
+
+  // Một số dữ liệu hiện tại mới cập nhật progress nhưng remaining vẫn bằng totalQuantity.
+  // Khi đó fallback về progress để UI vẫn phản ánh đúng phần đã cam kết.
+  const committedPct = Math.min(
+    100,
+    Math.max(0, hasReducedRemaining ? remainingBasedPct : progressPct)
+  );
+
+  const remainingQuantity = hasReducedRemaining
+    ? rawRemaining
+    : totalQuantity * (1 - committedPct / 100);
+
+  return {
+    committedPct,
+    remainPct: Math.max(0, 100 - committedPct),
+    remainingQuantity,
+    remainingKg: toKg(remainingQuantity, product?.unit),
+  };
 };
 
 const formatDisplayDate = (value) => {
@@ -79,8 +150,10 @@ const toUiProductDetail = (product) => ({
   region: String(product.region || "south").toLowerCase(),
   priceMin: asNumber(product.priceMin),
   priceMax: asNumber(product.priceMax || product.priceMin),
-  unit: product.unit || "kg",
-  priceUnit: product.priceUnit || product.unit || "kg",
+  // unit = đơn vị sản lượng; priceUnit = đơn vị dùng để báo giá.
+  // Không được trộn hai giá trị này vì một sản phẩm có thể là 3 tấn nhưng giá theo kg.
+  unit: normalizeUnit(product.unit || "kg"),
+  priceUnit: normalizeUnit(product.priceUnit || product.unit || "kg"),
   progress: asNumber(product.progress),
   remaining: asNumber(product.remaining ?? product.totalQuantity),
   totalQuantity: asNumber(product.totalQuantity),
@@ -196,6 +269,11 @@ const ProductDetail = ({ context = "public" }) => {
   const [quantity, setQuantity] = useState(1000);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [reviews, setReviews] = useState([]);
+  const [reviewEligibility, setReviewEligibility] = useState({
+    canReview: false,
+    alreadyReviewed: false,
+    hasPurchased: false,
+  });
   const [myRating, setMyRating] = useState(5);
   const [myReviewText, setMyReviewText] = useState("");
   const [loadingProduct, setLoadingProduct] = useState(true);
@@ -204,7 +282,7 @@ const ProductDetail = ({ context = "public" }) => {
   const [certPreview, setCertPreview] = useState(null);
   const [checkingContract, setCheckingContract] = useState(false);
 
-  const role = user?.role === ROLE.ENTERPRISE ? ROLE.ENTERPRISE : ROLE.FARMER;
+  const role = user?.role || null;
   const isEnterprise = role === ROLE.ENTERPRISE;
   const isFarmer = role === ROLE.FARMER;
   const currentUserId = normalizeIdentity(user);
@@ -221,12 +299,6 @@ const ProductDetail = ({ context = "public" }) => {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user) {
-      toast.warning("Vui lòng đăng nhập để xem chi tiết sản phẩm", TOAST_DURATION.DEFAULT);
-      navigate(ROUTES.AUTH, { replace: true });
-      return;
-    }
-
     let active = true;
 
     const loadProduct = async () => {
@@ -241,8 +313,16 @@ const ProductDetail = ({ context = "public" }) => {
         if (!active) return;
 
         setProduct(nextProduct);
-        const availableKg = toKg(nextProduct.remaining || nextProduct.totalQuantity, nextProduct.unit);
-        setQuantity(Math.max(1, Math.min(1000, availableKg || 1000)));
+        const availability = getProductAvailability(nextProduct);
+        const quantityStep = getQuantityStep(nextProduct.unit);
+        const availableQuantity = availability.remainingQuantity || nextProduct.totalQuantity;
+        const preferredQuantity = nextProduct.unit === "kg" ? 1000 : nextProduct.unit === "tạ" ? 10 : 1;
+        setQuantity(
+          Math.max(
+            Math.min(quantityStep, availableQuantity || quantityStep),
+            Math.min(preferredQuantity, availableQuantity || preferredQuantity)
+          )
+        );
         window.scrollTo({ top: 0, behavior: "smooth" });
 
         try {
@@ -271,7 +351,7 @@ const ProductDetail = ({ context = "public" }) => {
     return () => {
       active = false;
     };
-  }, [authLoading, id, navigate, navigation.listRoute, toast, user]);
+  }, [authLoading, id, navigate, navigation.listRoute, toast]);
 
   useEffect(() => {
     if (!product?.expectedDate || product.expectedDate === "Quanh năm") return undefined;
@@ -301,7 +381,7 @@ const ProductDetail = ({ context = "public" }) => {
   }, [product]);
 
   useEffect(() => {
-    if (!id || !user) return;
+    if (!id) return undefined;
 
     let active = true;
     productService
@@ -316,20 +396,43 @@ const ProductDetail = ({ context = "public" }) => {
     return () => {
       active = false;
     };
-  }, [id, user]);
+  }, [id]);
 
-  const committedPct = product?.totalQuantity
-    ? Math.min(
-        100,
-        Math.max(0, ((product.totalQuantity - product.remaining) / product.totalQuantity) * 100)
-      )
-    : Math.min(100, Math.max(0, product?.progress || 0));
+  useEffect(() => {
+    if (!id || !isEnterprise) {
+      setReviewEligibility({ canReview: false, alreadyReviewed: false, hasPurchased: false });
+      return undefined;
+    }
 
-  const remainPct = Math.max(0, 100 - committedPct);
-  const remainingKg = product ? toKg(product.remaining, product.unit) : 0;
-  const priceUnitFactor = product ? UNIT_TO_KG[product.priceUnit] ?? 1 : 1;
-  const pricePerKgMin = product ? product.priceMin / priceUnitFactor : 0;
-  const pricePerKgMax = product ? product.priceMax / priceUnitFactor : 0;
+    let active = true;
+    productService
+      .getReviewEligibility(id)
+      .then((response) => {
+        if (active) {
+          setReviewEligibility({
+            canReview: Boolean(response?.data?.canReview),
+            alreadyReviewed: Boolean(response?.data?.alreadyReviewed),
+            hasPurchased: Boolean(response?.data?.hasPurchased),
+          });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setReviewEligibility({ canReview: false, alreadyReviewed: false, hasPurchased: false });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id, isEnterprise]);
+
+  const availability = getProductAvailability(product);
+  const committedPct = availability.committedPct;
+  const remainPct = availability.remainPct;
+  const remainingQuantity = availability.remainingQuantity;
+  const remainingKg = availability.remainingKg;
+  const quantityStep = getQuantityStep(product?.unit);
   const region = product
     ? REGIONS[product.region.toUpperCase()] || REGIONS.SOUTH
     : REGIONS.SOUTH;
@@ -347,9 +450,9 @@ const ProductDetail = ({ context = "public" }) => {
     };
   });
 
-  const alreadyReviewed = reviews.some(
-    (review) => normalizeIdentity(review.reviewerId) === currentUserId
-  );
+  const alreadyReviewed =
+    reviewEligibility.alreadyReviewed ||
+    reviews.some((review) => normalizeIdentity(review.reviewerId) === currentUserId);
 
   const handleSubmitReview = async () => {
     if (!myReviewText.trim()) {
@@ -368,6 +471,7 @@ const ProductDetail = ({ context = "public" }) => {
         setReviews((current) => [response.data.review, ...current]);
         setMyReviewText("");
         setMyRating(5);
+        setReviewEligibility({ canReview: false, alreadyReviewed: true, hasPurchased: true });
         toast.success("Đánh giá của bạn đã được ghi nhận!");
       }
     } catch (error) {
@@ -443,7 +547,11 @@ const ProductDetail = ({ context = "public" }) => {
       </button>
     ));
 
-  const roleClass = isEnterprise ? "product-detail-page--enterprise" : "product-detail-page--farmer";
+  const roleClass = isEnterprise
+    ? "product-detail-page--enterprise"
+    : isFarmer
+      ? "product-detail-page--farmer"
+      : "product-detail-page--public";
   const embeddedClass = navigation.embedded ? "product-detail-page--embedded" : "";
 
   const pageContent = (
@@ -504,7 +612,7 @@ const ProductDetail = ({ context = "public" }) => {
           </section>
         ) : (
           <>
-            <section className="pd-product-layout">
+            <section className={`pd-product-layout ${isOwner ? "pd-product-layout--farmer-owner" : ""}`}>
               <motion.div
                 className="pd-media-card"
                 initial={{ scale: 0.98, opacity: 0 }}
@@ -549,6 +657,41 @@ const ProductDetail = ({ context = "public" }) => {
                     <strong>{formatDisplayDate(product.expectedDate)}</strong>
                   </div>
                 </div>
+
+                {isOwner && (
+                  <div className="pd-owner-commitments-compact">
+                    <div className="pd-owner-commitments-compact__heading">
+                      <div className="pd-owner-commitments-compact__title">
+                        <span><FiShield /></span>
+                        <div>
+                          <small>Cam kết giao dịch</small>
+                          <strong>Minh bạch và an toàn</strong>
+                        </div>
+                      </div>
+
+                      <span className="pd-owner-commitments-compact__badge">
+                        <FiAward />
+                        PreOnic bảo đảm
+                      </span>
+                    </div>
+
+                    <div className="pd-owner-commitments-compact__list">
+                      {(product.commitments || []).slice(0, 3).map((commitment, index) => (
+                        <div key={`${commitment}-${index}`}>
+                          <FiCheckCircle />
+                          <span>{commitment}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pd-owner-commitments-compact__footnote">
+                      <FiShield />
+                      <span>
+                        Hợp đồng và thanh toán được theo dõi qua ký quỹ, giúp hai bên kiểm soát tiến độ rõ ràng.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </motion.div>
 
               <motion.aside
@@ -592,7 +735,7 @@ const ProductDetail = ({ context = "public" }) => {
                   <div className="pd-availability-grid">
                     <div>
                       <span>Còn có thể giao dịch</span>
-                      <strong>{remainingKg.toLocaleString("vi-VN")} kg</strong>
+                      <strong>{remainingKg.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} kg</strong>
                     </div>
                     <div>
                       <span>Tỷ lệ còn trống</span>
@@ -625,30 +768,38 @@ const ProductDetail = ({ context = "public" }) => {
 
                 {isEnterprise && (
                   <div className="pd-enterprise-actions">
-                    <label htmlFor="pd-quantity">Số lượng dự kiến (kg)</label>
+                    <label htmlFor="pd-quantity">Số lượng dự kiến ({product.unit})</label>
                     <div className="pd-quantity-control">
                       <button
                         type="button"
-                        onClick={() => setQuantity((current) => Math.max(1, current - 500))}
+                        onClick={() =>
+                          setQuantity((current) =>
+                            Math.max(Math.min(quantityStep, remainingQuantity || quantityStep), current - quantityStep)
+                          )
+                        }
                       >
                         −
                       </button>
                       <input
                         id="pd-quantity"
                         type="number"
-                        min="1"
-                        max={remainingKg || undefined}
+                        min={Math.min(quantityStep, remainingQuantity || quantityStep)}
+                        step={quantityStep}
+                        max={remainingQuantity || undefined}
                         value={quantity}
                         onChange={(event) => {
-                          const nextValue = Math.max(1, asNumber(event.target.value, 1));
-                          setQuantity(remainingKg ? Math.min(remainingKg, nextValue) : nextValue);
+                          const minQuantity = Math.min(quantityStep, remainingQuantity || quantityStep);
+                          const nextValue = Math.max(minQuantity, asNumber(event.target.value, minQuantity));
+                          setQuantity(remainingQuantity ? Math.min(remainingQuantity, nextValue) : nextValue);
                         }}
                       />
                       <button
                         type="button"
                         onClick={() =>
                           setQuantity((current) =>
-                            remainingKg ? Math.min(remainingKg, current + 500) : current + 500
+                            remainingQuantity
+                              ? Math.min(remainingQuantity, current + quantityStep)
+                              : current + quantityStep
                           )
                         }
                       >
@@ -656,9 +807,21 @@ const ProductDetail = ({ context = "public" }) => {
                       </button>
                     </div>
                     <p className="pd-estimate">
-                      Giá trị dự kiến: <strong>{formatPrice(quantity * pricePerKgMin)}</strong>
-                      {pricePerKgMax !== pricePerKgMin && (
-                        <> – <strong>{formatPrice(quantity * pricePerKgMax)}</strong></>
+                      Giá trị dự kiến:{" "}
+                      <strong>
+                        {formatPrice(
+                          estimateValueByUnits(quantity, product.unit, product.priceMin, product.priceUnit)
+                        )}
+                      </strong>
+                      {product.priceMax !== product.priceMin && (
+                        <>
+                          {" – "}
+                          <strong>
+                            {formatPrice(
+                              estimateValueByUnits(quantity, product.unit, product.priceMax, product.priceUnit)
+                            )}
+                          </strong>
+                        </>
                       )}
                     </p>
 
@@ -730,37 +893,39 @@ const ProductDetail = ({ context = "public" }) => {
                 )}
               </motion.aside>
 
-              <article className="pd-section-card pd-section-card--commitments">
-                <div className="pd-section-heading">
-                  <span><FiShield /></span>
-                  <div>
-                    <small>Cam kết giao dịch</small>
-                    <h2>Minh bạch và an toàn</h2>
+              {!isOwner && (
+                <article className="pd-section-card pd-section-card--commitments">
+                  <div className="pd-section-heading">
+                    <span><FiShield /></span>
+                    <div>
+                      <small>Cam kết giao dịch</small>
+                      <h2>Minh bạch và an toàn</h2>
+                    </div>
                   </div>
-                </div>
-                <div className="pd-commitment-list">
-                  {product.commitments.map((commitment, index) => (
-                    <motion.div
-                      key={`${commitment}-${index}`}
-                      initial={{ opacity: 0, x: 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.06 }}
-                    >
-                      <FiCheckCircle />
-                      <p>{commitment}</p>
-                    </motion.div>
-                  ))}
-                </div>
-                <div className="pd-guarantee-card">
-                  <FiAward />
-                  <div>
-                    <strong>Bảo đảm bởi PreOnic</strong>
-                    <p>
-                      Hợp đồng và thanh toán được quản lý qua hệ thống ký quỹ, giúp hai bên theo dõi rõ nghĩa vụ và tiến độ thực hiện.
-                    </p>
+                  <div className="pd-commitment-list">
+                    {(product.commitments || []).map((commitment, index) => (
+                      <motion.div
+                        key={`${commitment}-${index}`}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.06 }}
+                      >
+                        <FiCheckCircle />
+                        <p>{commitment}</p>
+                      </motion.div>
+                    ))}
                   </div>
-                </div>
-              </article>
+                  <div className="pd-guarantee-card">
+                    <FiAward />
+                    <div>
+                      <strong>Bảo đảm bởi PreOnic</strong>
+                      <p>
+                        Hợp đồng và thanh toán được quản lý qua hệ thống ký quỹ, giúp hai bên theo dõi rõ nghĩa vụ và tiến độ thực hiện.
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              )}
             </section>
 
             <article className="pd-section-card pd-section-card--description">
@@ -834,7 +999,7 @@ const ProductDetail = ({ context = "public" }) => {
                 </div>
               </div>
 
-              {isEnterprise && !alreadyReviewed && (
+              {isEnterprise && reviewEligibility.canReview && !alreadyReviewed && (
                 <div className="pd-review-form">
                   <div>
                     <h3>Chia sẻ đánh giá của bạn</h3>
@@ -862,6 +1027,12 @@ const ProductDetail = ({ context = "public" }) => {
               {isEnterprise && alreadyReviewed && (
                 <div className="pd-review-notice">
                   <FiCheckCircle /> Bạn đã gửi đánh giá cho sản phẩm này.
+                </div>
+              )}
+
+              {isEnterprise && !alreadyReviewed && !reviewEligibility.hasPurchased && (
+                <div className="pd-review-notice">
+                  <FiShield /> Bạn có thể đánh giá sau khi hoàn tất nhận hàng của sản phẩm này.
                 </div>
               )}
 

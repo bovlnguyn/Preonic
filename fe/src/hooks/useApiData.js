@@ -5,4 +5,6 @@ export const formatMoney = (value) => {
 };
 
 // Có thể bổ sung thêm các hook fetch data dùng chung tại đây sau này
-export default { formatMoney };
+const useApiData = { formatMoney };
+
+export default useApiData;

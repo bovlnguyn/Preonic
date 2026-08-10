@@ -38,14 +38,15 @@ function FarmerContracts() {
 
   return (
     <div className="farmer-stack">
-      <section className="farmer-card">
+      <section className="farmer-card fct-shell">
         <SectionHeader
+          breadcrumb="Hợp đồng"
           eyebrow="Hợp đồng"
           title="Theo dõi hợp đồng bao tiêu và hợp đồng mua bán"
           desc="Ký xác nhận hoặc từ chối các đề xuất hợp đồng từ doanh nghiệp."
         />
 
-        <div className="farmer-filter-row">
+        <div className="farmer-filter-row fct-filters">
           {TABS.map((t) => (
             <button key={t.key} type="button"
               className={tab === t.key ? 'active' : ''}
@@ -62,8 +63,8 @@ function FarmerContracts() {
             desc="Các đề xuất hợp đồng từ doanh nghiệp sẽ hiển thị tại đây."
           />
         ) : (
-          <div className="farmer-table-wrap">
-            <table className="farmer-table">
+          <div className="farmer-table-wrap fct-table-wrap">
+            <table className="farmer-table fct-table">
               <thead>
                 <tr>
                   <th>Mã HĐ</th>

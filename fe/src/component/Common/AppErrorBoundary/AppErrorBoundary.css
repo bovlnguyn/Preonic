@@ -1,0 +1,65 @@
+.app-error-boundary {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #fffbea 100%);
+  font-family: inherit;
+}
+
+.app-error-boundary__card {
+  width: min(560px, 100%);
+  padding: 36px;
+  border: 1px solid rgba(22, 101, 52, 0.14);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 22px 60px rgba(5, 46, 22, 0.09);
+  text-align: center;
+}
+
+.app-error-boundary__badge {
+  display: inline-flex;
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: #15803d;
+  background: #dcfce7;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+}
+
+.app-error-boundary h1 {
+  margin: 16px 0 10px;
+  color: #052e16;
+  font-size: clamp(26px, 4vw, 36px);
+  font-weight: 900;
+}
+
+.app-error-boundary p {
+  margin: 0;
+  color: #657568;
+  line-height: 1.7;
+}
+
+.app-error-boundary__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.app-error-boundary__actions button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid #15803d;
+  border-radius: 12px;
+  color: #fff;
+  background: #15803d;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.app-error-boundary__actions .is-secondary {
+  color: #166534;
+  background: #fff;
+}

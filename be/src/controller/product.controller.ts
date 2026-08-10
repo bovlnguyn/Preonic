@@ -9,23 +9,52 @@ const parseUploadedFiles = (req: AuthRequest) => {
     certifications?: Express.Multer.File[];
   } | undefined;
 
-  const imagePaths = (files?.images || []).map(f => f.path);
-
+  const imagePaths = (files?.images || []).map((file) => file.path);
   const certFiles = files?.certifications || [];
+
+  let existingCertifications: { value: string; fileUrl?: string }[] = [];
+  if (Object.prototype.hasOwnProperty.call(req.body, 'existingCertifications')) {
+    try {
+      const parsed = JSON.parse(req.body.existingCertifications || '[]');
+      if (Array.isArray(parsed)) {
+        existingCertifications = parsed
+          .map((certification) => ({
+            value: String(certification?.value || '').trim(),
+            fileUrl: certification?.fileUrl ? String(certification.fileUrl) : undefined,
+          }))
+          .filter((certification) => certification.value);
+      }
+    } catch {
+      existingCertifications = [];
+    }
+  }
 
   let certNames: string[] = [];
   if (req.body.certificationNames) {
     try {
-      certNames = JSON.parse(req.body.certificationNames);
+      const parsed = JSON.parse(req.body.certificationNames);
+      certNames = Array.isArray(parsed)
+        ? parsed.map((value) => String(value || '').trim())
+        : [];
     } catch {
       certNames = [];
     }
   }
 
-  const certifications = certNames.map((value, index) => ({
-    value,
-    fileUrl: certFiles[index]?.path,
-  }));
+  // File mới và tên mới phải cùng thứ tự. Nếu thiếu tên, dùng originalname làm fallback.
+  const uploadedCertifications = certFiles
+    .map((file, index) => ({
+      value: certNames[index] || file.originalname || `Chứng chỉ ${index + 1}`,
+      fileUrl: file.path,
+    }))
+    .filter((certification) => certification.value?.trim());
+
+  const certifications = [...existingCertifications, ...uploadedCertifications];
+
+  const hasCertificationPayload =
+    Object.prototype.hasOwnProperty.call(req.body, 'existingCertifications') ||
+    Object.prototype.hasOwnProperty.call(req.body, 'certificationNames') ||
+    certFiles.length > 0;
 
   let commitments: string[] = [];
   if (req.body.commitments) {
@@ -36,7 +65,12 @@ const parseUploadedFiles = (req: AuthRequest) => {
     }
   }
 
-  return { imagePaths, certifications, commitments };
+  return {
+    imagePaths,
+    certifications,
+    commitments,
+    hasCertificationPayload,
+  };
 };
 
 // ══════════════════════════════════════════
@@ -194,34 +228,34 @@ export const create = async (req: AuthRequest, res: Response) => {
 export const update = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { imagePaths, certifications, commitments } = parseUploadedFiles(req);
+    const { imagePaths, certifications, commitments, hasCertificationPayload } = parseUploadedFiles(req);
     const body = req.body;
 
     const updateDto: Record<string, any> = {};
 
-    if (body.name)          updateDto.name = body.name;
-    if (body.category)      updateDto.category = body.category;
-    if (body.region)        updateDto.region = body.region;
-    if (body.type)          updateDto.type = body.type;
-    if (body.location)      updateDto.location = body.location;
-    if (body.farm)          updateDto.farm = body.farm;
-    if (body.variety)       updateDto.variety = body.variety;
-    if (body.area)          updateDto.area = Number(body.area);
-    if (body.priceMin)      updateDto.priceMin = Number(body.priceMin);
-    if (body.priceMax)      updateDto.priceMax = Number(body.priceMax);
-    if (body.unit)          updateDto.unit = body.unit;
-    if (body.priceUnit)     updateDto.priceUnit = body.priceUnit;
-    if (body.totalQuantity) updateDto.totalQuantity = Number(body.totalQuantity);
-    if (body.plantDate)     updateDto.plantDate = body.plantDate;
-    if (body.expectedDate)  updateDto.expectedDate = body.expectedDate;
-    if (body.description)   updateDto.description = body.description;
-    if (body.nutritionInfo) updateDto.nutritionInfo = body.nutritionInfo;
-    if (body.note)          updateDto.note = body.note;
-    if (body.badge)         updateDto.badge = body.badge;
+    if (body.name !== undefined)          updateDto.name = body.name;
+    if (body.category !== undefined)      updateDto.category = body.category;
+    if (body.region !== undefined)        updateDto.region = body.region;
+    if (body.type !== undefined)          updateDto.type = body.type;
+    if (body.location !== undefined)      updateDto.location = body.location;
+    if (body.farm !== undefined)          updateDto.farm = body.farm;
+    if (body.variety !== undefined)       updateDto.variety = body.variety;
+    if (body.area !== undefined)          updateDto.area = body.area === '' ? null : Number(body.area);
+    if (body.priceMin !== undefined)      updateDto.priceMin = body.priceMin === '' ? null : Number(body.priceMin);
+    if (body.priceMax !== undefined)      updateDto.priceMax = body.priceMax === '' ? null : Number(body.priceMax);
+    if (body.unit !== undefined)          updateDto.unit = body.unit;
+    if (body.priceUnit !== undefined)     updateDto.priceUnit = body.priceUnit;
+    if (body.totalQuantity !== undefined) updateDto.totalQuantity = body.totalQuantity === '' ? null : Number(body.totalQuantity);
+    if (body.plantDate !== undefined)     updateDto.plantDate = body.plantDate === '' ? null : body.plantDate;
+    if (body.expectedDate !== undefined)  updateDto.expectedDate = body.expectedDate === '' ? null : body.expectedDate;
+    if (body.description !== undefined)   updateDto.description = body.description;
+    if (body.nutritionInfo !== undefined) updateDto.nutritionInfo = body.nutritionInfo;
+    if (body.note !== undefined)          updateDto.note = body.note;
+    if (body.badge !== undefined)         updateDto.badge = body.badge;
 
     if (imagePaths.length > 0)      updateDto.imagePaths = imagePaths;
     if (commitments.length > 0)     updateDto.commitments = commitments;
-    if (certifications.length > 0)  updateDto.certifications = certifications;
+    if (hasCertificationPayload)          updateDto.certifications = certifications;
 
     const product = await productService.update(req.params.id, userId, updateDto);
 

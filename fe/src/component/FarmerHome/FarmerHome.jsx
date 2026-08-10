@@ -34,13 +34,6 @@ const stagger = {
   show: { transition: { staggerChildren: 0.09 } },
 };
 
-const formatMoney = (value = 0) => {
-  const number = Number(value) || 0;
-  if (number >= 1_000_000_000) return `${(number / 1_000_000_000).toFixed(1)} tỷ`;
-  if (number >= 1_000_000) return `${Math.round(number / 1_000_000)} triệu`;
-  return number.toLocaleString("vi-VN");
-};
-
 const getCropQuantity = (crop) => {
   const quantity = Number(crop?.quantity || crop?.expectedQuantity || crop?.stockQuantity || 0);
   const unit = crop?.unit || crop?.quantityUnit || "tấn";

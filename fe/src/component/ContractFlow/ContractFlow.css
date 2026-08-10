@@ -1,41 +1,85 @@
-/* ── ContractFlow — thanh tien trinh hop dong dung chung ── */
+/* ── ContractFlow — thanh tiến trình hợp đồng đồng bộ Farmer / Enterprise dashboard ── */
 .cf-steps {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
+  padding: 6px 0;
   flex-wrap: wrap;
 }
 
-.cf-step { display: flex; align-items: center; gap: 6px; }
+.cf-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 .cf-step__dot {
-  width: 32px; height: 32px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: #f1f5f9; border: 2px solid #cbd5e1;
-  color: #64748b; font-size: 13px; font-weight: 700;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2px solid rgba(22, 163, 74, 0.18);
+  color: #64748b;
+  box-shadow: 0 8px 18px rgba(5, 46, 22, 0.05);
+  font-size: 13px;
+  font-weight: 800;
   transition: all .2s;
 }
 
-.cf-step--active .cf-step__dot {
-  background: #2563eb; border-color: #2563eb; color: #fff;
-}
-
+.cf-step--active .cf-step__dot,
 .cf-step--done .cf-step__dot {
-  background: #2563eb; border-color: #2563eb; color: #fff;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border-color: #16a34a;
+  color: #fff;
 }
 
 .cf-step--cancelled .cf-step__dot {
-  background: #dc2626; border-color: #dc2626; color: #fff;
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
 }
 
-.cf-step__label { font-size: 12px; font-weight: 600; color: #64748b; white-space: nowrap; }
-.cf-step--active .cf-step__label { color: #1d4ed8; }
-.cf-step--done   .cf-step__label { color: #2563eb; }
-.cf-step--cancelled .cf-step__label { color: #dc2626; }
+.cf-step__label {
+  font-size: 12px;
+  font-weight: 750;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.cf-step--active .cf-step__label,
+.cf-step--done .cf-step__label {
+  color: #15803d;
+}
+
+.cf-step--cancelled .cf-step__label {
+  color: #dc2626;
+}
 
 .cf-step__line {
-  width: 48px; height: 2px; background: #e2e8f0; margin: 0 6px; flex-shrink: 0;
+  width: 68px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(203,213,225,1), rgba(203,213,225,0.65));
+  margin: 0 10px;
+  flex-shrink: 0;
 }
-.cf-step__line--done { background: #2563eb; }
+
+.cf-step__line--done {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+@media (max-width: 640px) {
+  .cf-steps {
+    justify-content: flex-start;
+    gap: 10px 0;
+  }
+
+  .cf-step__line {
+    width: 36px;
+    margin: 0 8px;
+  }
+}

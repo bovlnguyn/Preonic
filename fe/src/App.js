@@ -7,21 +7,23 @@ import { AuthProvider } from './contexts/AuthContext';
 import { MessagingWidgetProvider } from './contexts/MessagingWidgetContext';
 import FloatingChatWidget from './component/Messaging/FloatingChatWidget';
 import ServiceStatusBanner from './component/Common/ServiceStatusBanner/ServiceStatusBanner';
-
+import AppErrorBoundary from './component/Common/AppErrorBoundary/AppErrorBoundary';
 import AppRoutes from './routes';
 
 const App = () => (
-  <AuthProvider>
-    <ToastProvider>
-      <MessagingWidgetProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-        <FloatingChatWidget />
-        <ServiceStatusBanner />
-      </MessagingWidgetProvider>
-    </ToastProvider>
-  </AuthProvider>
+  <AppErrorBoundary>
+    <AuthProvider>
+      <ToastProvider>
+        <MessagingWidgetProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+          <FloatingChatWidget />
+          <ServiceStatusBanner />
+        </MessagingWidgetProvider>
+      </ToastProvider>
+    </AuthProvider>
+  </AppErrorBoundary>
 );
 
 export default App;

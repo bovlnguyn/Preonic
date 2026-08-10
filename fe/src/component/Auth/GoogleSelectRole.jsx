@@ -1,56 +1,77 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import authService from '../../services/auth.service';
 
-export default function GoogleSelectRole() {
-  const navigate  = useNavigate();
-  const location  = useLocation();
-  const { login } = useAuth();
+const parseProfile = (search) => {
+  const params = new URLSearchParams(search);
+  const value = params.get('profile');
+  if (!value) return null;
 
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
-
-  // Lấy profile từ URL params
-  const params  = new URLSearchParams(location.search);
-  const profileString = params.get('profile');
-  
-  let profile = null;
   try {
-    profile = profileString ? JSON.parse(decodeURIComponent(profileString)) : null;
+    return JSON.parse(value);
   } catch {
-    profile = null;
-  }
-
-  if (!profile) {
-    navigate('/auth', { replace: true });
-    return null;
-  }
-
- const handleSelectRole = async (role) => {
-  setLoading(true);
-  setError('');
-  try {
-    const response = await authService.googleRegister({
-      email:     profile.email,
-      firstName: profile.firstName,
-      lastName:  profile.lastName,
-      avatar:    profile.avatar,
-      role,
-    });
-
-    if (response.success) {
-      const { user, accessToken } = response.data;
-      login(accessToken, user);
-      if (role === 'farmer') navigate('/farmer-home', { replace: true });
-      else navigate('/enterprise-home', { replace: true });
+    try {
+      return JSON.parse(decodeURIComponent(value));
+    } catch {
+      return null;
     }
-  } catch (err) {
-    setError(err?.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
-  } finally {
-    setLoading(false);
   }
 };
+
+export default function GoogleSelectRole() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const profile = useMemo(() => parseProfile(location.search), [location.search]);
+
+  useEffect(() => {
+    if (!profile) {
+      navigate('/auth?error=google_profile_invalid', { replace: true });
+    }
+  }, [profile, navigate]);
+
+  if (!profile) return null;
+
+  const handleSelectRole = async (role) => {
+    if (loading) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await authService.googleRegister({
+        email: profile.email,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        avatar: profile.avatar,
+        role,
+      });
+
+      if (!response?.success) {
+        throw new Error(response?.message || 'Không thể tạo tài khoản Google.');
+      }
+
+      const { user, accessToken } = response.data || {};
+      if (!user || !accessToken) {
+        throw new Error('Máy chủ không trả về phiên đăng nhập hợp lệ.');
+      }
+
+      login(accessToken, user);
+
+      if (user.role === 'farmer') navigate('/farmer-home', { replace: true });
+      else if (user.role === 'enterprise') navigate('/enterprise-home', { replace: true });
+      else if (user.role === 'admin') navigate('/admin', { replace: true });
+      else navigate('/', { replace: true });
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{
@@ -70,79 +91,59 @@ export default function GoogleSelectRole() {
         boxShadow: '0 20px 60px rgba(0,0,0,0.1)',
         textAlign: 'center',
       }}>
-        {/* Avatar */}
         {profile.avatar && (
           <img
             src={profile.avatar}
-            alt="avatar"
-            style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 16 }}
+            alt={`${profile.firstName || 'Người dùng'} avatar`}
+            referrerPolicy="no-referrer"
+            style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: '50%', marginBottom: 16 }}
           />
         )}
 
-        {/* Greeting */}
         <h2 style={{ fontWeight: 800, fontSize: 24, marginBottom: 8 }}>
-          Chào mừng, {profile.firstName}! 👋
+          Chào mừng{profile.firstName ? `, ${profile.firstName}` : ''}! 👋
         </h2>
         <p style={{ color: '#6b7c70', marginBottom: 32 }}>
           Bạn đang đăng ký với email <strong>{profile.email}</strong>.<br />
           Vui lòng chọn vai trò của bạn:
         </p>
 
-        {/* Error */}
         {error && (
-          <div style={{
-            background: '#fef2f2', border: '1px solid #fecaca',
-            color: '#b91c1c', padding: '10px 16px',
-            borderRadius: 8, marginBottom: 20, fontSize: 14,
+          <div role="alert" style={{
+            background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c',
+            padding: '10px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14,
           }}>
             {error}
           </div>
         )}
 
-        {/* Role buttons */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-          {/* Farmer */}
           <button
+            type="button"
             onClick={() => handleSelectRole('farmer')}
             disabled={loading}
             style={{
-              flex: 1, padding: '20px 16px',
-              border: '2px solid #16a34a',
-              borderRadius: 16, background: '#fff',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-              transition: 'all 0.2s',
+              flex: 1, padding: '20px 16px', border: '2px solid #16a34a', borderRadius: 16,
+              background: '#fff', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1,
             }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
-            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
           >
             <div style={{ fontSize: 40, marginBottom: 8 }}>🌾</div>
             <div style={{ fontWeight: 700, color: '#16a34a', fontSize: 16 }}>Nông dân</div>
-            <div style={{ fontSize: 12, color: '#6b7c70', marginTop: 4 }}>
-              Đăng bán nông sản, nhận hợp đồng bao tiêu
-            </div>
+            <div style={{ fontSize: 12, color: '#6b7c70', marginTop: 4 }}>Đăng bán nông sản, nhận hợp đồng bao tiêu</div>
           </button>
 
-          {/* Enterprise */}
           <button
+            type="button"
             onClick={() => handleSelectRole('enterprise')}
             disabled={loading}
             style={{
-              flex: 1, padding: '20px 16px',
-              border: '2px solid #2563eb',
-              borderRadius: 16, background: '#fff',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-              transition: 'all 0.2s',
+              flex: 1, padding: '20px 16px', border: '2px solid #2563eb', borderRadius: 16,
+              background: '#fff', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1,
             }}
-            onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
           >
             <div style={{ fontSize: 40, marginBottom: 8 }}>🏢</div>
             <div style={{ fontWeight: 700, color: '#2563eb', fontSize: 16 }}>Doanh nghiệp</div>
-            <div style={{ fontSize: 12, color: '#6b7c70', marginTop: 4 }}>
-              Tìm nguồn cung, ký hợp đồng bao tiêu
-            </div>
+            <div style={{ fontSize: 12, color: '#6b7c70', marginTop: 4 }}>Tìm nguồn cung, ký hợp đồng bao tiêu</div>
           </button>
         </div>
 
@@ -156,7 +157,9 @@ export default function GoogleSelectRole() {
         <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 16 }}>
           Đã có tài khoản?{' '}
           <button
-            onClick={() => navigate('/auth')}
+            type="button"
+            disabled={loading}
+            onClick={() => navigate('/auth', { replace: true })}
             style={{ background: 'none', border: 'none', color: '#16a34a', fontWeight: 700, cursor: 'pointer' }}
           >
             Đăng nhập

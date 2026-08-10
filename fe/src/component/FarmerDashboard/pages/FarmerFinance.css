@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(220,252,231,0.38), transparent 18%),
+    linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,252,245,0.98));
 }
 
 .ff-header-row {
@@ -11,25 +14,36 @@
   gap: 18px;
 }
 
+.ff-header-row .farmer-section-header {
+  margin-bottom: 0;
+}
+
+.ff-header-row .farmer-section-header h2 {
+  max-width: 720px;
+}
+
 .ff-quick-links {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+  padding-top: 2px;
 }
 
 .ff-quick-links button,
 .ff-detail-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
+  min-height: 40px;
   border: 1px solid var(--farmer-border);
   border-radius: 999px;
-  background: #fff;
+  background: rgba(255,255,255,0.95);
   color: var(--farmer-green-700);
   font-size: 13px;
   font-weight: 900;
-  padding: 10px 14px;
+  padding: 0 15px;
 }
 
 .ff-quick-links button:hover,
@@ -47,10 +61,10 @@
 
 .ff-summary-grid article {
   border: 1px solid var(--farmer-border);
-  border-radius: 22px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fef4 100%);
-  padding: 18px;
-  box-shadow: 0 18px 35px rgba(5, 46, 22, 0.08);
+  border-radius: 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fff6 100%);
+  padding: 20px;
+  box-shadow: 0 18px 35px rgba(5, 46, 22, 0.07);
 }
 
 .ff-summary-grid span {
@@ -79,16 +93,17 @@
 
 .ff-chart-card {
   border: 1px solid var(--farmer-border);
-  border-radius: 24px;
+  border-radius: 26px;
   padding: 18px;
   background: #fff;
+  box-shadow: 0 18px 34px rgba(5, 46, 22, 0.06);
 }
 
 .ff-chart-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .ff-chart-title span {
@@ -113,8 +128,27 @@
 }
 
 .ff-detail-btn {
-  padding: 8px 12px;
+  padding: 0 14px;
   cursor: pointer;
+}
+
+.ff-overview-card .farmer-filter-row {
+  margin-bottom: 0;
+}
+
+.ff-overview-card .farmer-table-wrap {
+  overflow: hidden;
+  border: 1px solid rgba(22, 101, 52, 0.1);
+  border-radius: 24px;
+  background: rgba(255,255,255,0.98);
+}
+
+.ff-overview-card .farmer-table th {
+  background: linear-gradient(180deg, #f2fcef 0%, #ebf9ef 100%);
+}
+
+.ff-overview-card .farmer-table td:last-child {
+  white-space: nowrap;
 }
 
 .ff-pagination {
@@ -123,7 +157,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 4px;
 }
 
 .ff-pagination span {
@@ -141,13 +175,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 40px;
   border: 1px solid var(--farmer-border);
   border-radius: 999px;
   background: #fff;
   color: var(--farmer-green-700);
   font-size: 13px;
   font-weight: 900;
-  padding: 8px 14px;
+  padding: 0 14px;
 }
 
 .ff-pagination-btns button:hover:not(:disabled) {
