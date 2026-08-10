@@ -115,13 +115,14 @@ function EnterpriseRatings() {
   return (
     <div className="ent-stack">
       <SectionHeader
-        eyebrow={<><FiShield size={12} /> Rating đối tác 2 chiều</>}
-        title="Đánh giá chéo Doanh nghiệp - Nông dân theo từng hợp đồng"
-        desc="Sau mỗi hợp đồng hoàn tất giao hàng, hai bên có thể đánh giá nhau theo bộ tiêu chí riêng để xây dựng điểm tin cậy và giảm rủi ro hợp tác cho mùa vụ tiếp theo."
+        breadcrumb="Đánh giá đối tác"
+        eyebrow={<><FiShield size={12} /> Đánh giá đối tác</>}
+        title="Đánh giá chất lượng hợp tác theo từng hợp đồng"
+        desc="Sau mỗi hợp đồng hoàn tất, doanh nghiệp có thể đánh giá nhà cung cấp theo các tiêu chí chất lượng, tiến độ và sản lượng để xây dựng điểm tin cậy."
       />
 
       {loading ? (
-        <div className="spinner-border text-success" role="status" />
+        <div className="spinner-border text-primary" role="status" />
       ) : (
         <div className="er-page-split">
           <section className="ent-card er-form-card">

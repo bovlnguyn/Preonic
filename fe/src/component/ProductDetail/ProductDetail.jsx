@@ -216,7 +216,7 @@ const getNavigationConfig = (context) => {
   if (context === ROLE.ENTERPRISE) {
     return {
       homeRoute: "/enterprise",
-      homeLabel: "Dashboard",
+      homeLabel: "Trang chủ",
       listRoute: "/enterprise/products",
       listLabel: "Danh sách sản phẩm",
       detailRoute: (id) => `/enterprise/products/${id}`,

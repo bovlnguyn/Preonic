@@ -109,6 +109,44 @@
   font-weight: 800;
 }
 
+
+.wi-shell--enterprise .wi-breadcrumb {
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.wi-shell--enterprise .wi-breadcrumb span:first-child {
+  color: var(--wi-primary-strong);
+  font-weight: 850;
+}
+
+.wi-shell--enterprise .wi-page-eyebrow {
+  width: fit-content;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 13px;
+  margin-bottom: 9px;
+  border-radius: 999px;
+  color: var(--wi-primary-strong);
+  background: var(--wi-soft-strong);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .6px;
+}
+
+.wi-shell--enterprise .wi-page-header h2 {
+  font-size: clamp(28px, 2.8vw, 40px);
+  font-weight: 950;
+}
+
+.wi-shell--enterprise .wi-page-header p {
+  max-width: 780px;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
 .wi-error-banner {
   display: flex;
   align-items: center;

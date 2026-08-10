@@ -8,6 +8,7 @@ import {
 import { useToast } from '../../../contexts/ToastContext';
 import walletService from '../../../services/wallet.service';
 import { formatMoney } from '../utils';
+import SectionHeader from '../components/SectionHeader';
 import './EnterpriseWallet.css';
 
 const TABS = [
@@ -344,6 +345,13 @@ function EnterpriseWallet() {
 
   return (
     <div className="ent-stack">
+      <SectionHeader
+        breadcrumb="Ví & Thanh toán"
+        eyebrow="Ví doanh nghiệp"
+        title="Quản lý số dư và thanh toán hợp đồng"
+        desc="Theo dõi số dư khả dụng, nạp tiền, rút tiền và toàn bộ giao dịch phục vụ ký quỹ hợp đồng."
+      />
+
       {/* Hero balance */}
       <section className="ewt-hero">
         <div>
@@ -387,7 +395,7 @@ function EnterpriseWallet() {
       </nav>
 
       {loading ? (
-        <div className="spinner-border text-success" role="status" />
+        <div className="spinner-border text-primary" role="status" />
       ) : (
         <>
           {/* ── Tổng quan ── */}

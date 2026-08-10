@@ -8,6 +8,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import enterpriseService from '../../../services/enterprise.service';
 import productService from '../../../services/product.service';
 import ContractFlow from '../../ContractFlow/ContractFlow';
+import SectionHeader from '../components/SectionHeader';
 import './EnterpriseCreateContract.css';
 
 // ── Hằng số ───────────────────────────────────────────────
@@ -297,19 +298,27 @@ export default function EnterpriseCreateContract() {
   // ── Render ─────────────────────────────────────────────
   return (
     <div className="ecc-page">
-      {/* Header */}
-      <div className="ecc-page__top">
-        <button className="ecc-back" onClick={() => navigate(-1)}>
-          <FiArrowLeft size={14} /> Quay lại
+      <div className="ent-page-top-actions ecc-page__top">
+        <button type="button" className="ent-back-button" onClick={() => navigate(-1)}>
+          <FiArrowLeft size={16} /> Quay lại
         </button>
       </div>
 
-      <div className="ecc-page__heading">
-        <h1>Tạo Hợp Đồng Bao Tiêu</h1>
-        <p>Luồng ký hợp đồng qua trung gian <strong>PreOnic</strong> -- đảm bảo quyền lợi hai bên</p>
-      </div>
+      <SectionHeader
+        breadcrumb={{
+          items: [
+            { label: 'Hợp đồng', to: '/enterprise/contracts' },
+            { label: 'Tạo hợp đồng' },
+          ],
+        }}
+        eyebrow="Hợp đồng mới"
+        title="Tạo hợp đồng bao tiêu nông sản"
+        desc="Hoàn thiện điều khoản, kiểm tra thông tin và gửi đề xuất hợp đồng cho nông dân qua PreOnic."
+      />
 
-      <ContractFlow steps={STEPS} currentIndex={step} />
+      <div className="ecc-flow-shell">
+        <ContractFlow steps={STEPS} currentIndex={step} />
+      </div>
 
       <div className="ecc-body">
 

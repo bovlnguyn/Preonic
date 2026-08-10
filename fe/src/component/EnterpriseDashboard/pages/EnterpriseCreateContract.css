@@ -14,27 +14,69 @@
 
 /* ── Page ── */
 .ecc-page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 24px 32px 48px;
+  /* Trang tạo hợp đồng phải dùng cùng bề rộng với content area của Enterprise.
+     Không khóa max-width ở đây vì chính wrapper này từng làm toàn bộ header/form
+     bị lọt thỏm vào giữa dù ecc-body đã width: 100%. */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 48px;
   font-family: "Inter", system-ui, sans-serif;
   color: var(--ecc-text);
 }
-.ecc-page__top  { margin-bottom: 16px; }
-.ecc-page__heading { text-align: center; margin-bottom: 28px; }
-.ecc-page__heading h1 {
-  font-size: 1.6rem; font-weight: 800; color: var(--ecc-blue-900); margin: 0 0 6px;
-}
-.ecc-page__heading p { color: var(--ecc-muted); font-size: 14px; margin: 0; }
 
-.ecc-back {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: none; border: 1.5px solid var(--ecc-border);
-  border-radius: 8px; padding: 8px 14px;
-  font-size: 13px; font-weight: 600; color: var(--ecc-blue-700);
-  cursor: pointer; transition: background .15s;
+.ecc-page__top {
+  margin: 2px 0 14px;
 }
-.ecc-back:hover { background: var(--ecc-blue-50); }
+
+.ecc-flow-shell,
+.ecc-body {
+  /* Đồng bộ tỷ lệ với phần nội dung chi tiết hợp đồng Farmer:
+     header vẫn full content, còn progress + form + navigation được gom
+     vào một shell vừa mắt để các input không bị kéo quá dài. */
+  width: min(100%, 860px);
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ecc-flow-shell {
+  margin-bottom: 22px;
+}
+
+/* ── Enterprise create-contract progress: trải đều theo content area ── */
+.ecc-page .cf-steps {
+  width: 100%;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+
+.ecc-page .cf-step {
+  flex: 0 0 auto;
+}
+
+.ecc-page .cf-step__line {
+  width: auto;
+  min-width: 34px;
+  max-width: none;
+  flex: 1 1 0;
+  margin: 0 14px;
+}
+
+@media (max-width: 760px) {
+  .ecc-page .cf-steps {
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 8px;
+  }
+
+  .ecc-page .cf-step__line {
+    width: 36px;
+    min-width: 36px;
+    flex: 0 0 36px;
+    margin: 0 8px;
+  }
+}
 
 /* ── Body ── */
 .ecc-body { display: flex; flex-direction: column; gap: 16px; }
@@ -43,9 +85,9 @@
 .ecc-card {
   background: #fff;
   border: 1px solid var(--ecc-border);
-  border-radius: var(--ecc-radius);
-  padding: 32px 36px;
-  box-shadow: 0 4px 24px rgba(30, 58, 138, 0.07);
+  border-radius: 22px;
+  padding: 30px 34px;
+  box-shadow: 0 16px 42px rgba(30, 58, 138, 0.07);
 }
 .ecc-card--center { text-align: center; }
 .ecc-card__title { font-size: 1.1rem; font-weight: 800; color: var(--ecc-blue-900); margin: 0 0 24px; }

@@ -68,19 +68,15 @@ function EnterpriseEscrow() {
 
   return (
     <div className="ent-stack">
-      <div className="ee-breadcrumb">
-        <span onClick={() => navigate('/enterprise')} style={{ cursor: 'pointer' }}>Trang chủ</span>
-        <span> › </span>
-        <span>Thanh toán trung gian</span>
-      </div>
-
       <SectionHeader
+        breadcrumb="Thanh toán trung gian"
+        eyebrow="Ký quỹ & Giải ngân"
         title="Thanh toán trung gian"
-        desc="Theo dõi toàn bộ giao dịch ký quỹ và các mốc giải ngân"
+        desc="Theo dõi toàn bộ giao dịch ký quỹ, số tiền đang được bảo vệ và các mốc giải ngân."
       />
 
       {loading ? (
-        <div className="spinner-border text-success" role="status" />
+        <div className="spinner-border text-primary" role="status" />
       ) : (
         <>
           <div className="ee-stats-row">

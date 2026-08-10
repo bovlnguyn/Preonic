@@ -438,6 +438,115 @@
 
 .ent-section-header__action { flex: 0 0 auto; }
 
+/* =========================================================
+   SHARED ENTERPRISE PAGE HEADER
+   Breadcrumb -> eyebrow -> page title -> description.
+   Đồng bộ nhịp bố cục với Farmer dashboard, giữ palette Enterprise.
+   ========================================================= */
+.ent-section-header__content {
+  min-width: 0;
+}
+
+.ent-section-header--page {
+  margin-bottom: 24px;
+}
+
+.ent-page-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+  color: var(--ent-muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.ent-page-breadcrumb a {
+  color: var(--ent-blue-700);
+  font-weight: 850;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.ent-page-breadcrumb a:hover {
+  color: var(--ent-blue-900);
+}
+
+.ent-section-header--page .ent-eyebrow {
+  min-height: 30px;
+  padding: 0 13px;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.ent-section-header--page h2 {
+  margin: 9px 0 8px;
+  font-size: clamp(28px, 2.8vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.9px;
+}
+
+.ent-section-header--page p {
+  max-width: 780px;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* Hàng thao tác riêng cho các trang chi tiết. */
+.ent-page-top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ent-back-button,
+.ent-page-action-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 15px;
+  border: 1px solid var(--ent-border);
+  border-radius: 14px;
+  color: var(--ent-blue-950);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 7px 22px rgba(30, 58, 138, 0.06);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.ent-back-button:hover {
+  color: #fff;
+  border-color: var(--ent-blue-700);
+  background: var(--ent-blue-700);
+  box-shadow: 0 10px 24px rgba(29, 78, 216, 0.18);
+  transform: translateX(-2px);
+}
+
+.ent-page-action-button {
+  color: var(--ent-blue-800);
+}
+
+.ent-page-action-button:hover {
+  color: #fff;
+  border-color: var(--ent-blue-700);
+  background: var(--ent-blue-700);
+  box-shadow: 0 10px 24px rgba(29, 78, 216, 0.18);
+  transform: translateY(-1px);
+}
+
+.ent-page-shell {
+  overflow: hidden;
+}
+
 /* ── StatCard ── */
 .ent-stat {
   min-height: 142px;
@@ -964,6 +1073,10 @@
   .ent-main { padding: 16px 14px 34px; }
   .ent-hero-card { padding: 22px; }
   .ent-section-header { display: grid; }
+  .ent-section-header__action { width: 100%; }
+  .ent-section-header__action > button,
+  .ent-section-header__action > a { width: 100%; }
+  .ent-page-top-actions { align-items: stretch; }
   .ent-product-grid,
   .ent-escrow-grid,
   .ent-supplier-grid,
@@ -1085,33 +1198,52 @@
 }
 
 .ent-btn-primary {
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background .15s;
-}
-.ent-btn-primary:hover { background: #1d4ed8; }
-
-.ent-btn-outline {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: #fff;
-  color: var(--ent-blue-700);
-  border: 1px solid var(--ent-blue-700);
-  border-radius: 10px;
-  padding: 9px 18px;
-  font-size: 14px;
-  font-weight: 700;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border: 1px solid #2563eb;
+  border-radius: 14px;
+  color: #fff;
+  background: #2563eb;
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.18);
+  font-size: 13px;
+  font-weight: 850;
   cursor: pointer;
-  transition: background .15s;
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
-.ent-btn-outline:hover { background: #eff6ff; }
+.ent-btn-primary:hover {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  box-shadow: 0 14px 30px rgba(29, 78, 216, 0.22);
+  transform: translateY(-1px);
+}
+
+.ent-btn-outline {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid var(--ent-border);
+  border-radius: 14px;
+  color: var(--ent-blue-800);
+  background: #fff;
+  box-shadow: 0 7px 20px rgba(30, 58, 138, 0.05);
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: color .18s ease, background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.ent-btn-outline:hover {
+  color: #fff;
+  border-color: var(--ent-blue-700);
+  background: var(--ent-blue-700);
+  transform: translateY(-1px);
+}
 /* ── Avatar thật trong Enterprise topbar ── */
 .ent-profile-chip {
   min-width: 188px;
@@ -1395,4 +1527,33 @@
   .et-summary-grid {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* ── ContractFlow theme: Enterprise ── */
+.ent-dashboard .cdv-page--enterprise .cf-step__dot,
+.ent-dashboard .ecc-page .cf-step__dot {
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: 0 8px 18px rgba(30, 58, 138, 0.06);
+}
+
+.ent-dashboard .cdv-page--enterprise .cf-step--active .cf-step__dot,
+.ent-dashboard .cdv-page--enterprise .cf-step--done .cf-step__dot,
+.ent-dashboard .ecc-page .cf-step--active .cf-step__dot,
+.ent-dashboard .ecc-page .cf-step--done .cf-step__dot {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+.ent-dashboard .cdv-page--enterprise .cf-step--active .cf-step__label,
+.ent-dashboard .cdv-page--enterprise .cf-step--done .cf-step__label,
+.ent-dashboard .ecc-page .cf-step--active .cf-step__label,
+.ent-dashboard .ecc-page .cf-step--done .cf-step__label {
+  color: #1d4ed8;
+}
+
+.ent-dashboard .cdv-page--enterprise .cf-step__line--done,
+.ent-dashboard .ecc-page .cf-step__line--done {
+  background: linear-gradient(90deg, #60a5fa, #1d4ed8);
 }
