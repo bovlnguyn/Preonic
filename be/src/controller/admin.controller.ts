@@ -255,6 +255,30 @@ export const getTransactions = async (req: Request, res: Response) => {
   }
 };
 
+export const getCommissions = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, search, status } = req.query;
+    const result = await adminService.getCommissions({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      search: search as string,
+      status: status as string,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result.commissions,
+      pagination: result.pagination,
+      stats: result.stats,
+    });
+  } catch (err: any) {
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Lấy danh sách hoa hồng thất bại',
+    });
+  }
+};
+
 export const getSystemLogs = async (req: Request, res: Response) => {
   try {
     const { page, limit, category, level, userId, from, to, search } = req.query;

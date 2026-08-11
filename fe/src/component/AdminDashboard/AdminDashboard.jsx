@@ -9,6 +9,7 @@ import QuanLyNguoiDung from "./sections/QuanLyNguoiDung";
 import QuanLyHopDong from "./sections/QuanLyHopDong";
 import QuanLyKhieuNai from "./sections/QuanLyKhieuNai";
 import QuanLyGiaoDich from "./sections/QuanLyGiaoDich";
+import QuanLyHoaHong from "./sections/QuanLyHoaHong";
 import QuanLyRutTien from "./sections/QuanLyRutTien";
 import QuanLyNhatKy from "./sections/QuanLyNhatKy";
 import "./AdminDashboard.css";
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { key: "hopdong",    label: "Quản lý Hợp đồng",     icon: "HD" },
   { key: "khieuuai",  label: "Quản lý Khiếu nại",    icon: "KN" },
   { key: "giaodich",  label: "Quản lý Giao dịch",    icon: "GD" },
+  { key: "hoahong",   label: "Quản lý Hoa hồng",     icon: "HH" },
   { key: "ruttien",   label: "Quản lý Rút tiền",     icon: "RT" },
   { key: "nhatky",    label: "Nhật ký hệ thống",     icon: "NK" },
 ];
@@ -110,6 +112,7 @@ export default function AdminDashboard() {
           {activeNav === "hopdong"    && <QuanLyHopDong />}
           {activeNav === "khieuuai"  && <QuanLyKhieuNai />}
           {activeNav === "giaodich"  && <QuanLyGiaoDich />}
+          {activeNav === "hoahong"   && <QuanLyHoaHong />}
           {activeNav === "ruttien"   && <QuanLyRutTien />}
           {activeNav === "nhatky"    && <QuanLyNhatKy />}
         </div>

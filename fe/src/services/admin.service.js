@@ -64,6 +64,12 @@ const adminService = {
     return response.data;
   },
 
+  // ── Commissions ──
+  getCommissions: async (params = {}) => {
+    const response = await api.get('/admin/commissions', { params });
+    return response.data;
+  },
+
   // ── System Logs ──
   getSystemLogs: async (params = {}) => {
     const response = await api.get('/admin/system-logs', { params });
