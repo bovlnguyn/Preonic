@@ -4,39 +4,50 @@ import { AuthRequest } from '../types';
 import { sendResetPasswordEmail } from '../services/email.service';
 import * as emailService from '../services/email.service';
 import { logAction, logError } from '../services/systemLog.service';
-import { isDatabaseConnected } from '../config/database';
-import { sendError } from '../utils/controller.util';
-// ── Cookie options cho refresh token ──
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  maxAge: 30 * 24 * 60 * 60 * 1000,
-};
+import {
+  isDatabaseConnected,
+  isDatabaseUnavailableError,
+  markDatabaseUnhealthy,
+} from '../config/database';
+import {
+  getRefreshCookieOptions,
+  getRefreshCookieClearOptions,
+  getGoogleOnboardingCookieOptions,
+  getGoogleOnboardingCookieClearOptions,
+  REFRESH_COOKIE_NAME,
+  GOOGLE_ONBOARDING_COOKIE_NAME,
+} from '../utils/auth-cookie.util';
 
-const COOKIE_CLEAR_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-};
+const errorResponse = (res: Response, err: any, fallback: string, fallbackStatus = 500) =>
+  res.status(err.statusCode || fallbackStatus).json({
+    success: false,
+    ...(err.code ? { code: err.code } : {}),
+    message: err.message || fallback,
+  });
 
-// ══════════════════════════════════════════
-// ĐĂNG KÝ
-// ══════════════════════════════════════════
 export const register = async (req: Request, res: Response) => {
   try {
     const result = await authService.register(req.body);
 
-    // Gửi email verify
     if (result?.user && result?.verifyToken) {
       try {
         await emailService.sendVerifyEmail(
           result.user.email,
           result.verifyToken,
-          `${result.user.firstName} ${result.user.lastName}`
+          `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim()
         );
       } catch (emailErr: any) {
-        console.error('Lỗi gửi email verify:', emailErr.message);
+        logError({
+          category: 'auth',
+          action: 'verification_email_failed',
+          level: 'warn',
+          message: 'Không thể gửi email xác minh sau đăng ký',
+          userId: result.user.id,
+          targetType: 'User',
+          targetId: result.user.id,
+          ipAddress: req.ip,
+          error: emailErr,
+        });
       }
     }
 
@@ -46,13 +57,10 @@ export const register = async (req: Request, res: Response) => {
       data: { user: result?.user },
     });
   } catch (err: any) {
-    sendError(res, err, 'Đăng ký thất bại');
+    errorResponse(res, err, 'Đăng ký thất bại');
   }
 };
 
-// ══════════════════════════════════════════
-// ĐĂNG NHẬP
-// ══════════════════════════════════════════
 export const login = async (req: Request, res: Response) => {
   try {
     const { emailOrPhone, password } = req.body;
@@ -61,15 +69,14 @@ export const login = async (req: Request, res: Response) => {
     logAction({
       category: 'auth',
       action: 'login_success',
-      message: `${user?.email || emailOrPhone} đăng nhập thành công`,
+      message: `${user?.email || 'user'} đăng nhập thành công`,
       userId: user?.id,
       targetType: 'User',
       targetId: user?.id,
       ipAddress: req.ip,
     });
 
-    // Lưu refreshToken vào httpOnly cookie
-    res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
+    res.cookie(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions());
 
     res.status(200).json({
       success: true,
@@ -81,21 +88,37 @@ export const login = async (req: Request, res: Response) => {
       category: 'auth',
       action: 'login_failed',
       level: 'warn',
-      message: `Đăng nhập thất bại (${req.body?.emailOrPhone}): ${err.message || 'lỗi không xác định'}`,
-      metadata: { emailOrPhone: req.body?.emailOrPhone },
+      message: `Đăng nhập thất bại: ${err.message || 'lỗi không xác định'}`,
+      metadata: { identifierType: String(req.body?.emailOrPhone || '').includes('@') ? 'email' : 'phone_or_other' },
       ipAddress: req.ip,
       error: err,
     });
-    sendError(res, err, 'Đăng nhập thất bại');
+    errorResponse(res, err, 'Đăng nhập thất bại');
+  }
+};
+
+export const getGoogleOnboarding = async (req: Request, res: Response) => {
+  try {
+    const token = req.cookies?.[GOOGLE_ONBOARDING_COOKIE_NAME];
+    const profile = authService.getGoogleOnboardingProfile(token);
+    res.status(200).json({ success: true, data: { profile } });
+  } catch (err: any) {
+    res.clearCookie(GOOGLE_ONBOARDING_COOKIE_NAME, getGoogleOnboardingCookieClearOptions());
+    errorResponse(res, err, 'Phiên đăng ký Google không hợp lệ', 401);
   }
 };
 
 export const googleRegister = async (req: Request, res: Response) => {
   try {
-    const { email, firstName, lastName, role, avatar } = req.body;
-    const { user, accessToken } = await authService.googleRegister({
-      email, firstName, lastName, role, avatar,
-    });
+    const onboardingToken = req.cookies?.[GOOGLE_ONBOARDING_COOKIE_NAME];
+    const { role } = req.body;
+    const { user, accessToken, refreshToken } = await authService.googleRegister(
+      onboardingToken,
+      role
+    );
+
+    res.clearCookie(GOOGLE_ONBOARDING_COOKIE_NAME, getGoogleOnboardingCookieClearOptions());
+    res.cookie(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions());
 
     res.status(201).json({
       success: true,
@@ -103,25 +126,65 @@ export const googleRegister = async (req: Request, res: Response) => {
       data: { user, accessToken },
     });
   } catch (err: any) {
-    sendError(res, err, 'Tạo tài khoản thất bại');
+    errorResponse(res, err, 'Tạo tài khoản Google thất bại');
   }
 };
 
-// ══════════════════════════════════════════
-// ĐĂNG XUẤT
-// ══════════════════════════════════════════
-export const logout = (req: Request, res: Response) => {
-  const refreshToken = req.cookies?.refreshToken;
+export const googleOAuthCallback = async (req: Request, res: Response) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-  // Xóa cookie và trả kết quả ngay. Logout không được phụ thuộc vào trạng thái DB.
-  res.clearCookie('refreshToken', COOKIE_CLEAR_OPTIONS);
+  try {
+    const oauthUser = req.user as any;
+    if (!oauthUser) {
+      return res.redirect(`${frontendUrl}/auth?error=google_failed`);
+    }
+
+    if (oauthUser.isNewUser) {
+      const onboardingToken = authService.createGoogleOnboardingToken({
+        googleId: oauthUser.googleId,
+        email: oauthUser.email,
+        firstName: oauthUser.firstName,
+        lastName: oauthUser.lastName,
+        avatar: oauthUser.avatar,
+      });
+
+      res.cookie(
+        GOOGLE_ONBOARDING_COOKIE_NAME,
+        onboardingToken,
+        getGoogleOnboardingCookieOptions()
+      );
+      return res.redirect(`${frontendUrl}/auth/google/select-role`);
+    }
+
+    const { refreshToken } = await authService.createGoogleLoginSession(oauthUser.id);
+    res.clearCookie(GOOGLE_ONBOARDING_COOKIE_NAME, getGoogleOnboardingCookieClearOptions());
+    res.cookie(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions());
+
+    // No access token or serialized user is exposed in the URL anymore.
+    return res.redirect(`${frontendUrl}/auth/google/callback?success=1`);
+  } catch (err: any) {
+    logError({
+      category: 'auth',
+      action: 'google_callback_failed',
+      level: 'warn',
+      message: err.message || 'Google callback thất bại',
+      ipAddress: req.ip,
+      error: err,
+    });
+    return res.redirect(`${frontendUrl}/auth?error=google_failed`);
+  }
+};
+
+export const logout = (req: Request, res: Response) => {
+  const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+
+  res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions());
+  res.clearCookie(GOOGLE_ONBOARDING_COOKIE_NAME, getGoogleOnboardingCookieClearOptions());
   res.status(200).json({
     success: true,
     message: 'Đăng xuất thành công',
   });
 
-  // Thu hồi token trong DB theo kiểu best-effort. Khi DB đang gián đoạn, cookie
-  // phía client đã bị xóa nên người dùng vẫn đăng xuất bình thường.
   if (refreshToken && isDatabaseConnected()) {
     void authService.logoutByRefreshToken(refreshToken).catch((error: any) => {
       logError({
@@ -136,59 +199,70 @@ export const logout = (req: Request, res: Response) => {
   }
 };
 
-// ══════════════════════════════════════════
-// REFRESH TOKEN
-// ══════════════════════════════════════════
 export const refreshToken = async (req: Request, res: Response) => {
   try {
-    // Lấy token từ cookie hoặc body
-    const token = req.cookies?.refreshToken || req.body?.refreshToken;
+    const token = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
     const { accessToken, refreshToken: newRefreshToken } =
       await authService.refreshAccessToken(token);
 
-    // Cập nhật cookie với token mới
-    res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
-
+    res.cookie(REFRESH_COOKIE_NAME, newRefreshToken, getRefreshCookieOptions());
     res.status(200).json({
       success: true,
       data: { accessToken },
     });
   } catch (err: any) {
-    sendError(res, err, 'Refresh token thất bại', 401);
+    if (isDatabaseUnavailableError(err)) {
+      markDatabaseUnhealthy(err);
+      res.setHeader('Retry-After', '5');
+      return res.status(503).json({
+        success: false,
+        status: 'error',
+        code: 'DATABASE_UNAVAILABLE',
+        message: 'Kết nối dữ liệu đang tạm thời gián đoạn. Phiên đăng nhập của bạn vẫn được giữ nguyên.',
+      });
+    }
+
+    // Clear only an actually rejected/expired refresh token, never on server errors.
+    if ((err.statusCode || 500) === 401) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions());
+    }
+    return errorResponse(res, err, 'Refresh token thất bại', 401);
   }
 };
 
-// ══════════════════════════════════════════
-// LẤY THÔNG TIN USER HIỆN TẠI
-// ══════════════════════════════════════════
 export const getMe = async (req: AuthRequest, res: Response) => {
   try {
     const user = await authService.getMe(req.user!.id);
-    res.status(200).json({
-      success: true,
-      data: { user },
-    });
+    res.status(200).json({ success: true, data: { user } });
   } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: 'Lấy thông tin thất bại',
-    });
+    errorResponse(res, err, 'Lấy thông tin thất bại');
   }
 };
 
-// ══════════════════════════════════════════
-// QUÊN MẬT KHẨU
-// ══════════════════════════════════════════
 export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const result = await authService.forgotPassword(req.body.email);
 
     if (result) {
-      await sendResetPasswordEmail(
-        result.user.email,
-        result.rawToken,
-        `${result.user.firstName} ${result.user.lastName}`
-      );
+      try {
+        await sendResetPasswordEmail(
+          result.user.email,
+          result.rawToken,
+          `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim()
+        );
+      } catch (emailErr: any) {
+        logError({
+          category: 'auth',
+          action: 'reset_email_failed',
+          level: 'warn',
+          message: 'Không thể gửi email đặt lại mật khẩu',
+          userId: result.user.id,
+          targetType: 'User',
+          targetId: result.user.id,
+          ipAddress: req.ip,
+          error: emailErr,
+        });
+      }
     }
 
     res.status(200).json({
@@ -196,36 +270,66 @@ export const forgotPassword = async (req: Request, res: Response) => {
       message: 'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi',
     });
   } catch (err: any) {
-    sendError(res, err, 'Gửi email thất bại');
+    errorResponse(res, err, 'Gửi email thất bại');
   }
 };
 
-// ══════════════════════════════════════════
-// ĐẶT LẠI MẬT KHẨU
-// ══════════════════════════════════════════
 export const resetPassword = async (req: Request, res: Response) => {
   try {
     const { token, password } = req.body;
     await authService.resetPassword(token, password);
 
+    // Any refresh session belonging to the account has been revoked in DB.
+    res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions());
     res.status(200).json({
       success: true,
-      message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.',
+      message: 'Đặt lại mật khẩu thành công. Tất cả phiên cũ đã được thu hồi, vui lòng đăng nhập lại.',
     });
   } catch (err: any) {
-    sendError(res, err, 'Đặt lại mật khẩu thất bại');
+    errorResponse(res, err, 'Đặt lại mật khẩu thất bại');
   }
 };
 
-// ══════════════════════════════════════════
-// CẬP NHẬT HỒ SƠ (đã đăng nhập)
-// ══════════════════════════════════════════
+export const resendVerification = async (req: Request, res: Response) => {
+  try {
+    const result = await authService.resendVerification(req.body.emailOrPhone);
+
+    if (result) {
+      try {
+        await emailService.sendVerifyEmail(
+          result.user.email,
+          result.verifyToken,
+          `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim()
+        );
+      } catch (emailErr: any) {
+        logError({
+          category: 'auth',
+          action: 'resend_verification_failed',
+          level: 'warn',
+          message: 'Không thể gửi lại email xác minh',
+          userId: result.user.id,
+          targetType: 'User',
+          targetId: result.user.id,
+          ipAddress: req.ip,
+          error: emailErr,
+        });
+      }
+    }
+
+    // Generic message prevents account enumeration.
+    res.status(200).json({
+      success: true,
+      message: 'Nếu tài khoản cần xác minh, email xác minh mới đã được gửi.',
+    });
+  } catch (err: any) {
+    errorResponse(res, err, 'Không thể gửi lại email xác minh');
+  }
+};
+
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const avatarFile = (req as any).file as Express.Multer.File | undefined;
-    const dto = avatarFile
-      ? { ...req.body, avatar: avatarFile.path }
-      : req.body;
+    const dto = avatarFile ? { ...req.body, avatar: avatarFile.path } : req.body;
     const user = await authService.updateProfile(req.user!.id, dto);
     res.status(200).json({
       success: true,
@@ -233,38 +337,36 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       data: { user },
     });
   } catch (err: any) {
-    sendError(res, err, 'Cập nhật hồ sơ thất bại');
+    errorResponse(res, err, 'Cập nhật hồ sơ thất bại');
   }
 };
 
-// ══════════════════════════════════════════
-// CẬP NHẬT MẬT KHẨU (đã đăng nhập)
-// ══════════════════════════════════════════
 export const updatePassword = async (req: AuthRequest, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const { accessToken, refreshToken: newRefreshToken, authProvider } =
       await authService.updatePassword(req.user!.id, currentPassword, newPassword);
 
-    res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
-
+    res.cookie(REFRESH_COOKIE_NAME, newRefreshToken, getRefreshCookieOptions());
     res.status(200).json({
       success: true,
       message: 'Cập nhật mật khẩu thành công',
       data: { accessToken, authProvider },
     });
   } catch (err: any) {
-    sendError(res, err, 'Cập nhật mật khẩu thất bại');
+    errorResponse(res, err, 'Cập nhật mật khẩu thất bại');
   }
 };
+
 export const verifyEmail = async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
     await authService.verifyEmail(token);
-
-    // Redirect về FE trang verify thành công
-    res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=success`);
+    res.status(200).json({
+      success: true,
+      message: 'Email đã được xác minh thành công.',
+    });
   } catch (err: any) {
-    res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=error&message=${encodeURIComponent(err.message)}`);
+    errorResponse(res, err, 'Xác minh email thất bại', 400);
   }
 };

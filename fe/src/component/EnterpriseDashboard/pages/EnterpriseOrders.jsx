@@ -1,20 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiMapPin, FiTruck } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiMapPin, FiTruck } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
-import StatusBadge   from '../components/StatusBadge';
-import EmptyState    from '../components/EmptyState';
+import StatusBadge from '../components/StatusBadge';
+import EmptyState from '../components/EmptyState';
 import contractService from '../../../services/contract.service';
 import escrowService from '../../../services/escrow.service';
 import { getOrderStatusLabel, getActiveMilestone } from '../../../constants/escrow';
 import { formatDate } from '../utils';
 
 const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
+const ORDERS_PER_PAGE = 4;
 
 function EnterpriseOrders() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     Promise.all([
@@ -45,10 +47,25 @@ function EnterpriseOrders() {
               : 'Chờ nạp ký quỹ để bắt đầu theo dõi',
           };
         }));
+        setPage(1);
       })
-      .catch(() => setOrders([]))
+      .catch(() => {
+        setOrders([]);
+        setPage(1);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
+
+  useEffect(() => {
+    setPage((current) => Math.min(Math.max(1, current), totalPages));
+  }, [totalPages]);
+
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * ORDERS_PER_PAGE;
+    return orders.slice(start, start + ORDERS_PER_PAGE);
+  }, [orders, page]);
 
   return (
     <div className="ent-stack">
@@ -68,36 +85,76 @@ function EnterpriseOrders() {
             desc="Đơn hàng sẽ xuất hiện khi hợp đồng được kích hoạt."
           />
         ) : (
-          <div className="ent-order-list">
-            {orders.map((o) => (
-              <article
-                className="ent-order-card"
-                key={o.id}
-                onClick={() => navigate(`/enterprise/contracts/${o.contractId}`)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="ent-order-card__icon"><FiTruck /></div>
-                <div className="ent-order-card__body">
-                  <div className="ent-order-card__head">
-                    <div>
-                      <span>{o.id}</span>
-                      <h3>{o.product}</h3>
+          <>
+            <div className="ent-order-list">
+              {paginatedOrders.map((o) => (
+                <article
+                  className="ent-order-card"
+                  key={o.id}
+                  onClick={() => navigate(`/enterprise/contracts/${o.contractId}`)}
+                >
+                  <div className="ent-order-card__top">
+                    <div className="ent-order-card__identity">
+                      <div className="ent-order-card__icon"><FiTruck /></div>
+                      <div className="ent-order-card__title">
+                        <span>{o.id}</span>
+                        <h3>{o.product}</h3>
+                      </div>
                     </div>
                     <StatusBadge status={o.status} />
                   </div>
-                  <div className="ent-order-card__grid">
-                    <p><strong>Nông dân:</strong> {o.farmer}</p>
-                    <p><strong>Số lượng:</strong> {o.quantity}</p>
-                    <p><strong>Hạn giao:</strong> {formatDate(o.deliveryDate)}</p>
-                    <p><FiMapPin /> {o.address}</p>
+
+                  <div className="ent-order-card__meta">
+                    <div>
+                      <span>Nông dân</span>
+                      <strong>{o.farmer || 'Chưa cập nhật'}</strong>
+                    </div>
+                    <div>
+                      <span>Số lượng</span>
+                      <strong>{o.quantity || 'Chưa cập nhật'}</strong>
+                    </div>
+                    <div>
+                      <span>Hạn giao</span>
+                      <strong>{formatDate(o.deliveryDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Địa điểm giao nhận</span>
+                      <strong className="ent-order-card__location">
+                        <FiMapPin /> {o.address || 'Chưa cập nhật'}
+                      </strong>
+                    </div>
                   </div>
-                  <p style={{ marginTop: 12, color: 'var(--ent-blue-700)', fontWeight: 900, fontSize: 13 }}>
-                    {o.milestone}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
+
+                  <div className="ent-order-card__milestone">
+                    <span>Tiến độ hiện tại</span>
+                    <strong>{o.milestone}</strong>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="et-pagination ent-order-pagination">
+              <span>
+                Trang {page} / {totalPages} — {orders.length.toLocaleString('vi-VN')} đơn hàng
+              </span>
+              <div className="et-pagination-btns">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  <FiChevronLeft size={14} /> Trước
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                >
+                  Sau <FiChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </section>
     </div>

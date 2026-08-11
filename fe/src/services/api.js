@@ -12,7 +12,8 @@ const DATABASE_UNAVAILABLE_CODE = 'DATABASE_UNAVAILABLE';
 
 export const SERVICE_STATUS_EVENT = 'preonic:service-status';
 
-const GET_CACHE_TTL_MS = 10 * 60 * 1000;
+const PRODUCT_GET_CACHE_TTL_MS = 60 * 1000;
+const WEATHER_GET_CACHE_TTL_MS = 10 * 60 * 1000;
 const GET_CACHE_MAX_ENTRIES = 80;
 const responseCache = new Map();
 
@@ -36,6 +37,15 @@ const shouldCacheRequest = (config) => {
   const isWeatherRead = url.startsWith('/weather');
 
   return isPublicProductRead || isWeatherRead;
+};
+
+const getCacheTtlMs = (config) => {
+  const url = config?.url || '';
+  // Product.remaining thay đổi khi hợp đồng được ký/hủy ở một browser khác.
+  // Giữ cache ngắn để tránh hiển thị tồn kho cũ quá lâu; weather có thể cache dài hơn.
+  if (url.startsWith('/products')) return PRODUCT_GET_CACHE_TTL_MS;
+  if (url.startsWith('/weather')) return WEATHER_GET_CACHE_TTL_MS;
+  return 0;
 };
 
 const getCacheKey = (config) => {
@@ -76,7 +86,8 @@ const readResponseCache = (config) => {
   const cached = responseCache.get(key);
   if (!cached) return null;
 
-  if (Date.now() - cached.savedAt > GET_CACHE_TTL_MS) {
+  const ttlMs = getCacheTtlMs(config);
+  if (ttlMs <= 0 || Date.now() - cached.savedAt > ttlMs) {
     responseCache.delete(key);
     return null;
   }
@@ -184,6 +195,8 @@ const isAuthEntryRequest = (config) => {
     '/auth/reset-password',
     '/auth/google',
     '/auth/google-register',
+    '/auth/google-onboarding',
+    '/auth/resend-verification',
     '/auth/verify-email',
   ].some((path) => url.includes(path));
 };

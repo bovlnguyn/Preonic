@@ -1,4 +1,4 @@
-import { DeepPartial, LessThan } from 'typeorm';
+import { DeepPartial, EntityManager, LessThan } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { CONTRACT_CONFIG, UNIT_TO_KG } from '../constants';
 import { Contract } from '../models/Contract.entity';
@@ -9,6 +9,7 @@ import { logAction } from './systemLog.service';
 import { displayName } from '../utils/user.util';
 import { makeError } from '../utils/error.util';
 import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
+import { lockById, lockByIdOrFail, runLockedTransaction } from '../utils/transaction-lock.util';
 
 const toKg = (value: number, unit?: string | null) => value * (UNIT_TO_KG[unit || 'kg'] ?? 1);
 
@@ -49,6 +50,97 @@ export interface ListContractsQuery {
   page?: number;
   limit?: number;
 }
+
+const roundQuantity = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+const inventoryToleranceKg = (unit?: string | null) => {
+  const unitFactor = UNIT_TO_KG[unit || 'kg'] ?? 1;
+  // Product quantity is stored with scale=2, so half of the smallest representable
+  // product-unit increment is a safe tolerance when converting to kilograms.
+  return Math.max(1e-9, unitFactor * 0.005);
+};
+
+/**
+ * Reserve/release product inventory while both Contract and Product are row-locked.
+ * Lock order for contract lifecycle operations is always Contract -> Product.
+ */
+const adjustProductInventory = async (
+  manager: EntityManager,
+  contract: Contract,
+  mode: 'reserve' | 'restore'
+) => {
+  const txProductRepo = manager.getRepository(Product);
+  const product = await lockByIdOrFail(
+    manager,
+    Product,
+    contract.productId,
+    () => makeError('Khong tim thay san pham cua hop dong', 404)
+  );
+
+  if (mode === 'reserve' && !product.isActive) {
+    throw makeError('San pham khong con hoat dong, khong the hoan tat hop dong', 409);
+  }
+
+  // Some legacy/demo products may not track quantity. Preserve that behavior instead
+  // of inventing stock values that do not exist in the database.
+  if (product.remaining == null) {
+    return product;
+  }
+
+  const currentRemaining = Number(product.remaining);
+  const contractQuantity = Number(contract.quantity);
+  const productUnit = product.unit || 'kg';
+  const contractUnit = contract.unit || productUnit;
+
+  if (!Number.isFinite(currentRemaining) || currentRemaining < 0) {
+    throw makeError('Du lieu ton kho san pham khong hop le', 409);
+  }
+  if (!Number.isFinite(contractQuantity) || contractQuantity <= 0) {
+    throw makeError('So luong hop dong khong hop le', 409);
+  }
+
+  const unitFactor = UNIT_TO_KG[productUnit] ?? 1;
+  const currentKg = toKg(currentRemaining, productUnit);
+  const contractKg = toKg(contractQuantity, contractUnit);
+  const toleranceKg = inventoryToleranceKg(productUnit);
+
+  if (!Number.isFinite(currentKg) || !Number.isFinite(contractKg) || contractKg <= 0) {
+    throw makeError('Khong the quy doi so luong hop dong/san pham', 409);
+  }
+
+  if (mode === 'reserve') {
+    const nextKg = currentKg - contractKg;
+    if (nextKg < -toleranceKg) {
+      throw makeError('San pham khong con du so luong de hoan tat hop dong nay', 409);
+    }
+
+    product.remaining = roundQuantity(Math.max(0, nextKg) / unitFactor);
+  } else {
+    let nextKg = currentKg + contractKg;
+
+    if (product.totalQuantity != null) {
+      const totalQuantity = Number(product.totalQuantity);
+      if (!Number.isFinite(totalQuantity) || totalQuantity < 0) {
+        throw makeError('Tong san luong san pham khong hop le', 409);
+      }
+
+      const totalKg = toKg(totalQuantity, productUnit);
+      if (nextKg > totalKg + toleranceKg) {
+        throw makeError(
+          'Du lieu ton kho khong nhat quan: hoan so luong hop dong se vuot tong san luong',
+          409
+        );
+      }
+      // Avoid tiny floating-point overshoots at the decimal(18,2) boundary.
+      nextKg = Math.min(nextKg, totalKg);
+    }
+
+    product.remaining = roundQuantity(nextKg / unitFactor);
+  }
+
+  await txProductRepo.save(product);
+  return product;
+};
 
 export interface CreateContractDto {
   productId: string;
@@ -241,31 +333,48 @@ const withRelations = (id: string) =>
 
 // Enterprise gui de xuat 'draft' cho Farmer -- tu day Farmer moi thay va ky duoc.
 export const submitContractProposal = async (id: string, enterpriseId: string) => {
-  const contract = await contractRepo().findOne({ where: { id } });
-  if (!contract) throw makeError('Khong tim thay hop dong', 404);
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const txContractRepo = manager.getRepository(Contract);
+      const contract = await lockByIdOrFail(
+        manager,
+        Contract,
+        id,
+        () => makeError('Khong tim thay hop dong', 404)
+      );
 
-  if (contract.enterpriseId !== enterpriseId) {
-    throw makeError('Ban khong co quyen gui hop dong nay', 403);
-  }
+      if (contract.enterpriseId !== enterpriseId) {
+        throw makeError('Ban khong co quyen gui hop dong nay', 403);
+      }
 
-  if (contract.status !== 'draft') {
-    throw makeError('Hop dong da duoc gui truoc do', 400);
-  }
+      if (contract.status !== 'draft') {
+        throw makeError('Hop dong da duoc gui truoc do', 400);
+      }
 
-  contract.status = 'pending';
-  contract.updatedBy = enterpriseId;
-  await contractRepo().save(contract);
+      contract.status = 'pending';
+      contract.updatedBy = enterpriseId;
+      await txContractRepo.save(contract);
+
+      return {
+        id: contract.id,
+        farmerId: contract.farmerId,
+        enterpriseName: contract.enterpriseName,
+        contractCode: contract.contractCode,
+      };
+    },
+    { label: 'contract.submitProposal' }
+  );
 
   const proposalTitle = 'De xuat hop dong moi';
-  const proposalMessage = `${contract.enterpriseName || 'Doanh nghiep'} da gui de xuat hop dong ${contract.contractCode} cho ban. Vui long xem va ky xac nhan.`;
+  const proposalMessage = `${result.enterpriseName || 'Doanh nghiep'} da gui de xuat hop dong ${result.contractCode} cho ban. Vui long xem va ky xac nhan.`;
 
   await notificationRepo().save(
     notificationRepo().create({
-      userId: contract.farmerId,
+      userId: result.farmerId,
       type: 'contract_proposal_sent',
       title: proposalTitle,
       message: proposalMessage,
-      relatedId: contract.id,
+      relatedId: result.id,
       relatedModel: 'Contract',
       severity: 'info',
       isRead: false,
@@ -273,8 +382,8 @@ export const submitContractProposal = async (id: string, enterpriseId: string) =
     })
   );
 
-  const farmer = await userRepo().findOne({ where: { id: contract.farmerId } });
-  await notifyEmail(farmer, 'farmer', proposalTitle, proposalMessage, contract.id);
+  const farmer = await userRepo().findOne({ where: { id: result.farmerId } });
+  await notifyEmail(farmer, 'farmer', proposalTitle, proposalMessage, result.id);
 
   return withRelations(id);
 };
@@ -403,84 +512,95 @@ export const getContractForUser = async (id: string, userId: string) => {
 };
 
 export const signContract = async (id: string, userId: string, role: string) => {
-  const contract = await contractRepo().findOne({ where: { id } });
-  if (!contract) throw makeError('Khong tim thay hop dong', 404);
-
-  const isFarmer = role === 'farmer' && contract.farmerId === userId;
-  const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
-  if (!isFarmer && !isEnterprise) {
-    throw makeError('Ban khong co quyen ky hop dong nay', 403);
-  }
-
-  if (TERMINAL_STATUSES.includes(contract.status)) {
-    throw makeError('Hop dong da ket thuc, khong the ky');
-  }
-
-  if (isFarmer && contract.status === 'draft') {
-    throw makeError('Hop dong chua duoc gui de xac nhan', 400);
-  }
-
-  if (isFarmer) {
-    if (contract.signedByFarmer) throw makeError('Ban da ky hop dong nay roi');
-    contract.signedByFarmer = true;
-  } else {
-    if (contract.signedByEnterprise) throw makeError('Ban da ky hop dong nay roi');
-    if (!contract.signedByFarmer) {
-      throw makeError('Cho nong dan xac nhan hop dong truoc khi doanh nghiep ky');
-    }
-    contract.signedByEnterprise = true;
-  }
-
-  const bothSigned = contract.signedByFarmer && contract.signedByEnterprise;
-  if (bothSigned) {
-    contract.status = 'approved';
-    contract.signedAt = new Date();
-  } else {
-    contract.status = 'pending';
-  }
-  contract.updatedBy = userId;
-
-  // Ca hai ben da ky -- hop dong chinh thuc co hieu luc nen tru ngay so luong da
-  // ban vao san luong con lai cua san pham, tranh cac de xuat khac ban vuot ton kho.
-  if (bothSigned) {
-    await AppDataSource.transaction(async (manager) => {
+  const result = await runLockedTransaction(
+    async (manager) => {
       const txContractRepo = manager.getRepository(Contract);
-      const txProductRepo = manager.getRepository(Product);
 
+      // Contract is always locked first. If this signature completes the contract,
+      // Product is locked second before stock is reserved. This matches the global
+      // Contract -> Product ordering used by cancellation and reduces deadlocks.
+      const contract = await lockByIdOrFail(
+        manager,
+        Contract,
+        id,
+        () => makeError('Khong tim thay hop dong', 404)
+      );
+
+      const isFarmer = role === 'farmer' && contract.farmerId === userId;
+      const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
+      if (!isFarmer && !isEnterprise) {
+        throw makeError('Ban khong co quyen ky hop dong nay', 403);
+      }
+
+      if (TERMINAL_STATUSES.includes(contract.status)) {
+        throw makeError('Hop dong da ket thuc, khong the ky');
+      }
+
+      if (isFarmer && contract.status === 'draft') {
+        throw makeError('Hop dong chua duoc gui de xac nhan', 400);
+      }
+
+      // Signature is only a legal transition while the proposal is pending.
+      // This also blocks signing while a cancellation is being processed.
+      if (contract.status !== 'pending') {
+        throw makeError('Hop dong khong o trang thai cho phep ky', 409);
+      }
+
+      if (isFarmer) {
+        if (contract.signedByFarmer) throw makeError('Ban da ky hop dong nay roi');
+        contract.signedByFarmer = true;
+      } else {
+        if (contract.signedByEnterprise) throw makeError('Ban da ky hop dong nay roi');
+        if (!contract.signedByFarmer) {
+          throw makeError('Cho nong dan xac nhan hop dong truoc khi doanh nghiep ky');
+        }
+        contract.signedByEnterprise = true;
+      }
+
+      const bothSigned = contract.signedByFarmer && contract.signedByEnterprise;
+
+      if (bothSigned) {
+        // Product row is locked and the latest remaining quantity is re-read HERE,
+        // inside the same transaction. Two contracts competing for the last stock
+        // therefore cannot both succeed on a stale Remaining value.
+        await adjustProductInventory(manager, contract, 'reserve');
+        contract.status = 'approved';
+        contract.signedAt = new Date();
+      } else {
+        contract.status = 'pending';
+      }
+
+      contract.updatedBy = userId;
       await txContractRepo.save(contract);
 
-      const product = await txProductRepo.findOne({ where: { id: contract.productId } });
-      if (product && product.remaining != null) {
-        const remainingKg =
-          toKg(Number(product.remaining), product.unit) - toKg(Number(contract.quantity), contract.unit);
-        if (remainingKg < 0) {
-          throw makeError('San pham khong con du so luong de hoan tat hop dong nay', 400);
-        }
-        const unitFactor = UNIT_TO_KG[product.unit || 'kg'] ?? 1;
-        product.remaining = Math.round((remainingKg / unitFactor) * 100) / 100;
-        await txProductRepo.save(product);
-      }
-    });
-  } else {
-    await contractRepo().save(contract);
-  }
+      const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
+      const partnerRole: 'farmer' | 'enterprise' = isFarmer ? 'enterprise' : 'farmer';
+      const signerName = isFarmer ? contract.farmerName : contract.enterpriseName;
 
-  const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
-  const partnerRole = isFarmer ? 'enterprise' : 'farmer';
-  const signerName = isFarmer ? contract.farmerName : contract.enterpriseName;
+      return {
+        contractId: contract.id,
+        contractCode: contract.contractCode,
+        partnerId,
+        partnerRole,
+        signerName,
+        bothSigned,
+      };
+    },
+    { label: 'contract.sign' }
+  );
 
-  const signTitle = bothSigned ? 'Hop dong da duoc ky du hai ben' : 'Hop dong cho ban xac nhan ky';
-  const signMessage = bothSigned
-    ? `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Hop dong da duoc ky du hai ben, dang cho Doanh nghiep khoa ky quy de chinh thuc co hieu luc.`
-    : `${signerName || 'Doi tac'} da ky hop dong ${contract.contractCode}. Vui long xac nhan ky de hop dong co hieu luc.`;
+  const signTitle = result.bothSigned ? 'Hop dong da duoc ky du hai ben' : 'Hop dong cho ban xac nhan ky';
+  const signMessage = result.bothSigned
+    ? `${result.signerName || 'Doi tac'} da ky hop dong ${result.contractCode}. Hop dong da duoc ky du hai ben, dang cho Doanh nghiep khoa ky quy de chinh thuc co hieu luc.`
+    : `${result.signerName || 'Doi tac'} da ky hop dong ${result.contractCode}. Vui long xac nhan ky de hop dong co hieu luc.`;
 
   await notificationRepo().save(
     notificationRepo().create({
-      userId: partnerId,
-      type: bothSigned ? 'contract_signed' : 'contract_sign_pending',
+      userId: result.partnerId,
+      type: result.bothSigned ? 'contract_signed' : 'contract_sign_pending',
       title: signTitle,
       message: signMessage,
-      relatedId: contract.id,
+      relatedId: result.contractId,
       relatedModel: 'Contract',
       severity: 'info',
       isRead: false,
@@ -488,41 +608,58 @@ export const signContract = async (id: string, userId: string, role: string) => 
     })
   );
 
-  const partner = await userRepo().findOne({ where: { id: partnerId } });
-  await notifyEmail(partner, partnerRole, signTitle, signMessage, contract.id);
+  const partner = await userRepo().findOne({ where: { id: result.partnerId } });
+  await notifyEmail(partner, result.partnerRole, signTitle, signMessage, result.contractId);
 
   return withRelations(id);
 };
 
 // Hop dong 'draft' chua tung gui cho Farmer nen khong can luong huy (khong co ai de
 // thong bao/xac nhan) -- Enterprise xoa han thay vi huy, xem deleteContract() ben duoi.
-const CANCELLABLE_STATUSES = ['pending', 'approved', 'active'];
+const CANCELLABLE_STATUSES = ['pending', 'approved'];
 
 // Enterprise xoa han hop dong con o trang thai 'draft' (chua gui cho Farmer).
 // Khac voi cancelContract: khong doi status, khong gui thong bao -- vi Farmer
 // chua bao gio thay hop dong nay.
 export const deleteContract = async (id: string, userId: string, role: string) => {
-  const contract = await contractRepo().findOne({ where: { id } });
-  if (!contract) throw makeError('Khong tim thay hop dong', 404);
+  const deleted = await runLockedTransaction(
+    async (manager) => {
+      const txContractRepo = manager.getRepository(Contract);
+      const contract = await lockByIdOrFail(
+        manager,
+        Contract,
+        id,
+        () => makeError('Khong tim thay hop dong', 404)
+      );
 
-  if (role !== 'enterprise' || contract.enterpriseId !== userId) {
-    throw makeError('Ban khong co quyen xoa hop dong nay', 403);
-  }
+      if (role !== 'enterprise' || contract.enterpriseId !== userId) {
+        throw makeError('Ban khong co quyen xoa hop dong nay', 403);
+      }
 
-  if (contract.status !== 'draft') {
-    throw makeError('Chi co the xoa hop dong o trang thai nhap, chua gui cho nong dan', 400);
-  }
+      if (contract.status !== 'draft') {
+        throw makeError('Chi co the xoa hop dong o trang thai nhap, chua gui cho nong dan', 400);
+      }
 
-  await contractRepo().remove(contract);
+      const snapshot = {
+        id: contract.id,
+        contractCode: contract.contractCode,
+        enterpriseName: contract.enterpriseName,
+      };
+
+      await txContractRepo.remove(contract);
+      return snapshot;
+    },
+    { label: 'contract.deleteDraft' }
+  );
 
   logAction({
     category: 'contract',
     action: 'contract_deleted',
-    message: `${contract.enterpriseName || 'Doanh nghiep'} da xoa hop dong nhap ${contract.contractCode}`,
+    message: `${deleted.enterpriseName || 'Doanh nghiep'} da xoa hop dong nhap ${deleted.contractCode}`,
     userId,
     targetType: 'Contract',
-    targetId: id,
-    metadata: { contractCode: contract.contractCode },
+    targetId: deleted.id,
+    metadata: { contractCode: deleted.contractCode },
   });
 };
 
@@ -537,101 +674,111 @@ export const cancelContract = async (
   if (!reason) {
     throw makeError('Vui long nhap ly do huy hop dong', 400);
   }
-
   if (reason.length < 5) {
     throw makeError('Ly do huy hop dong phai co it nhat 5 ky tu', 400);
   }
-
   if (reason.length > 500) {
     throw makeError('Ly do huy hop dong khong duoc vuot qua 500 ky tu', 400);
   }
 
-  const contract = await contractRepo().findOne({
-    where: { id },
-    relations: ['product', 'farmer', 'enterprise'],
-  });
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const txContractRepo = manager.getRepository(Contract);
+      const contract = await lockByIdOrFail(
+        manager,
+        Contract,
+        id,
+        () => makeError('Khong tim thay hop dong', 404)
+      );
 
-  if (!contract) {
-    throw makeError('Khong tim thay hop dong', 404);
-  }
+      const isFarmer = role === 'farmer' && contract.farmerId === userId;
+      const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
+      if (!isFarmer && !isEnterprise) {
+        throw makeError('Ban khong co quyen huy hop dong nay', 403);
+      }
 
-  const isFarmer = role === 'farmer' && contract.farmerId === userId;
-  const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
+      if (!CANCELLABLE_STATUSES.includes(contract.status)) {
+        throw makeError('Hop dong o trang thai hien tai khong the huy', 400);
+      }
 
-  if (!isFarmer && !isEnterprise) {
-    throw makeError('Ban khong co quyen huy hop dong nay', 403);
-  }
+      // Active contracts are intentionally not cancellable here. In the normal flow
+      // active means escrow is funded; disputes must settle the money first.
+      if (contract.escrowStatus === 'funded' || Number(contract.paidAmount || 0) > 0) {
+        throw makeError('Hop dong da phat sinh thanh toan, khong the huy truc tiep', 400);
+      }
 
-  if (!CANCELLABLE_STATUSES.includes(contract.status)) {
-    throw makeError('Hop dong o trang thai hien tai khong the huy', 400);
-  }
+      const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
+      const partnerRole: 'farmer' | 'enterprise' = isFarmer ? 'enterprise' : 'farmer';
+      const cancelledByName = isFarmer ? contract.farmerName : contract.enterpriseName;
+      const requiresConfirmation = contract.status === 'approved';
 
-  if (contract.escrowStatus === 'funded' || Number(contract.paidAmount || 0) > 0) {
-    throw makeError('Hop dong da phat sinh thanh toan, khong the huy truc tiep', 400);
-  }
+      contract.updatedBy = userId;
 
-  const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
-  const partnerRole = isFarmer ? 'enterprise' : 'farmer';
-  const partnerUser = isFarmer ? contract.enterprise : contract.farmer;
-  const cancelledByName = isFarmer ? contract.farmerName : contract.enterpriseName;
+      if (requiresConfirmation) {
+        // Inventory remains reserved while the other party is deciding. It is restored
+        // atomically only in confirmCancelContract().
+        contract.status = 'cancel_pending';
+        contract.cancelReason = reason;
+        contract.cancelRequestedBy = userId;
+      } else {
+        // pending contracts have never reserved product inventory.
+        contract.status = 'cancelled';
+        contract.cancelReason = reason;
+        contract.cancelledAt = new Date();
+      }
 
-  contract.updatedBy = userId;
+      await txContractRepo.save(contract);
 
-  // Hop dong da approved (ca 2 ben da ky nhung chua khoa ky quy) -- can ben con lai
-  // xac nhan moi huy chinh thuc. Hop dong chua approved (draft/pending) -- chua co
-  // rang buoc, huy ngay khong can xac nhan. Hop dong active (da khoa ky quy) khong
-  // the huy truc tiep o day -- bi chan boi guard escrowStatus==='funded' phia tren,
-  // phai xu ly qua dispute de dam bao tien trong escrow duoc giai quyet dung.
-  if (contract.status === 'approved') {
-    contract.status = 'cancel_pending';
-    contract.cancelReason = reason;
-    contract.cancelRequestedBy = userId;
+      return {
+        contractId: contract.id,
+        contractCode: contract.contractCode,
+        partnerId,
+        partnerRole,
+        cancelledByName,
+        requiresConfirmation,
+      };
+    },
+    { label: 'contract.cancelRequest' }
+  );
 
-    await contractRepo().save(contract);
+  const partnerUser = await userRepo().findOne({ where: { id: result.partnerId } });
 
+  if (result.requiresConfirmation) {
     const requestTitle = 'Yeu cau huy hop dong';
-    const requestMessage = `${cancelledByName || 'Doi tac'} muon huy hop dong ${contract.contractCode}. Ly do: ${reason}. Vui long xac nhan hoac tu choi.`;
+    const requestMessage = `${result.cancelledByName || 'Doi tac'} muon huy hop dong ${result.contractCode}. Ly do: ${reason}. Vui long xac nhan hoac tu choi.`;
 
     await notificationRepo().save(
       notificationRepo().create({
-        userId: partnerId,
+        userId: result.partnerId,
         type: 'contract_cancel_requested',
         title: requestTitle,
         message: requestMessage,
-        relatedId: contract.id,
+        relatedId: result.contractId,
         relatedModel: 'Contract',
         severity: 'warning',
         isRead: false,
         emailSent: false,
       })
     );
-
-    await notifyEmail(partnerUser, partnerRole, requestTitle, requestMessage, contract.id);
+    await notifyEmail(partnerUser, result.partnerRole, requestTitle, requestMessage, result.contractId);
   } else {
-    contract.status = 'cancelled';
-    contract.cancelReason = reason;
-    contract.cancelledAt = new Date();
-
-    await contractRepo().save(contract);
-
     const cancelledTitle = 'Hop dong da bi huy';
-    const cancelledMessage = `${cancelledByName || 'Doi tac'} da huy hop dong ${contract.contractCode}. Ly do: ${reason}`;
+    const cancelledMessage = `${result.cancelledByName || 'Doi tac'} da huy hop dong ${result.contractCode}. Ly do: ${reason}`;
 
     await notificationRepo().save(
       notificationRepo().create({
-        userId: partnerId,
+        userId: result.partnerId,
         type: 'contract_cancelled',
         title: cancelledTitle,
         message: cancelledMessage,
-        relatedId: contract.id,
+        relatedId: result.contractId,
         relatedModel: 'Contract',
         severity: 'warning',
         isRead: false,
         emailSent: false,
       })
     );
-
-    await notifyEmail(partnerUser, partnerRole, cancelledTitle, cancelledMessage, contract.id);
+    await notifyEmail(partnerUser, result.partnerRole, cancelledTitle, cancelledMessage, result.contractId);
   }
 
   return withRelations(id);
@@ -639,43 +786,66 @@ export const cancelContract = async (
 
 // Ben khong yeu cau huy xac nhan dong y -- hop dong chuyen sang 'cancelled' chinh thuc.
 export const confirmCancelContract = async (id: string, userId: string, role: string) => {
-  const contract = await contractRepo().findOne({ where: { id } });
-  if (!contract) throw makeError('Khong tim thay hop dong', 404);
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const txContractRepo = manager.getRepository(Contract);
+      const contract = await lockByIdOrFail(
+        manager,
+        Contract,
+        id,
+        () => makeError('Khong tim thay hop dong', 404)
+      );
 
-  const isFarmer = role === 'farmer' && contract.farmerId === userId;
-  const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
-  if (!isFarmer && !isEnterprise) {
-    throw makeError('Ban khong co quyen xac nhan huy hop dong nay', 403);
-  }
+      const isFarmer = role === 'farmer' && contract.farmerId === userId;
+      const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
+      if (!isFarmer && !isEnterprise) {
+        throw makeError('Ban khong co quyen xac nhan huy hop dong nay', 403);
+      }
+      if (contract.status !== 'cancel_pending') {
+        throw makeError('Hop dong khong o trang thai cho xac nhan huy', 400);
+      }
+      if (contract.cancelRequestedBy === userId) {
+        throw makeError('Ban la nguoi gui yeu cau huy, khong the tu xac nhan', 400);
+      }
+      if (contract.escrowStatus === 'funded' || Number(contract.paidAmount || 0) > 0) {
+        throw makeError('Hop dong da phat sinh thanh toan, khong the huy truc tiep', 409);
+      }
 
-  if (contract.status !== 'cancel_pending') {
-    throw makeError('Hop dong khong o trang thai cho xac nhan huy', 400);
-  }
+      const requesterId = contract.cancelRequestedBy;
+      const confirmerName = isFarmer ? contract.farmerName : contract.enterpriseName;
 
-  if (contract.cancelRequestedBy === userId) {
-    throw makeError('Ban la nguoi gui yeu cau huy, khong the tu xac nhan', 400);
-  }
+      // cancel_pending is only entered from approved, and approved means inventory was
+      // reserved when the second signature committed. Restore it BEFORE marking the
+      // contract cancelled, in the same Contract -> Product locked transaction.
+      await adjustProductInventory(manager, contract, 'restore');
 
-  const requesterId = contract.cancelRequestedBy;
-  const confirmerName = isFarmer ? contract.farmerName : contract.enterpriseName;
+      contract.status = 'cancelled';
+      contract.cancelledAt = new Date();
+      contract.updatedBy = userId;
+      await txContractRepo.save(contract);
 
-  contract.status = 'cancelled';
-  contract.cancelledAt = new Date();
-  contract.updatedBy = userId;
+      return {
+        contractId: contract.id,
+        contractCode: contract.contractCode,
+        farmerId: contract.farmerId,
+        requesterId,
+        confirmerName,
+      };
+    },
+    { label: 'contract.confirmCancel' }
+  );
 
-  await contractRepo().save(contract);
-
-  if (requesterId) {
+  if (result.requesterId) {
     const confirmTitle = 'Yeu cau huy hop dong da duoc chap nhan';
-    const confirmMessage = `${confirmerName || 'Doi tac'} da dong y huy hop dong ${contract.contractCode}.`;
+    const confirmMessage = `${result.confirmerName || 'Doi tac'} da dong y huy hop dong ${result.contractCode}.`;
 
     await notificationRepo().save(
       notificationRepo().create({
-        userId: requesterId,
+        userId: result.requesterId,
         type: 'contract_cancel_confirmed',
         title: confirmTitle,
         message: confirmMessage,
-        relatedId: contract.id,
+        relatedId: result.contractId,
         relatedModel: 'Contract',
         severity: 'warning',
         isRead: false,
@@ -683,9 +853,9 @@ export const confirmCancelContract = async (id: string, userId: string, role: st
       })
     );
 
-    const requesterRole = requesterId === contract.farmerId ? 'farmer' : 'enterprise';
-    const requester = await userRepo().findOne({ where: { id: requesterId } });
-    await notifyEmail(requester, requesterRole, confirmTitle, confirmMessage, contract.id);
+    const requesterRole: 'farmer' | 'enterprise' = result.requesterId === result.farmerId ? 'farmer' : 'enterprise';
+    const requester = await userRepo().findOne({ where: { id: result.requesterId } });
+    await notifyEmail(requester, requesterRole, confirmTitle, confirmMessage, result.contractId);
   }
 
   return withRelations(id);
@@ -693,44 +863,61 @@ export const confirmCancelContract = async (id: string, userId: string, role: st
 
 // Ben khong yeu cau huy tu choi -- hop dong quay lai 'approved' nhu cu.
 export const declineCancelContract = async (id: string, userId: string, role: string) => {
-  const contract = await contractRepo().findOne({ where: { id } });
-  if (!contract) throw makeError('Khong tim thay hop dong', 404);
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const txContractRepo = manager.getRepository(Contract);
+      const contract = await lockByIdOrFail(
+        manager,
+        Contract,
+        id,
+        () => makeError('Khong tim thay hop dong', 404)
+      );
 
-  const isFarmer = role === 'farmer' && contract.farmerId === userId;
-  const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
-  if (!isFarmer && !isEnterprise) {
-    throw makeError('Ban khong co quyen phan hoi yeu cau huy nay', 403);
-  }
+      const isFarmer = role === 'farmer' && contract.farmerId === userId;
+      const isEnterprise = role === 'enterprise' && contract.enterpriseId === userId;
+      if (!isFarmer && !isEnterprise) {
+        throw makeError('Ban khong co quyen phan hoi yeu cau huy nay', 403);
+      }
+      if (contract.status !== 'cancel_pending') {
+        throw makeError('Hop dong khong o trang thai cho xac nhan huy', 400);
+      }
+      if (contract.cancelRequestedBy === userId) {
+        throw makeError('Ban la nguoi gui yeu cau huy, khong the tu choi', 400);
+      }
 
-  if (contract.status !== 'cancel_pending') {
-    throw makeError('Hop dong khong o trang thai cho xac nhan huy', 400);
-  }
+      const requesterId = contract.cancelRequestedBy;
+      const declinerName = isFarmer ? contract.farmerName : contract.enterpriseName;
 
-  if (contract.cancelRequestedBy === userId) {
-    throw makeError('Ban la nguoi gui yeu cau huy, khong the tu choi', 400);
-  }
+      // Inventory was never released while cancel_pending, so declining only restores
+      // the state machine to approved; no Product update is required.
+      contract.status = 'approved';
+      contract.cancelReason = null as any;
+      contract.cancelRequestedBy = null as any;
+      contract.updatedBy = userId;
+      await txContractRepo.save(contract);
 
-  const requesterId = contract.cancelRequestedBy;
-  const declinerName = isFarmer ? contract.farmerName : contract.enterpriseName;
+      return {
+        contractId: contract.id,
+        contractCode: contract.contractCode,
+        farmerId: contract.farmerId,
+        requesterId,
+        declinerName,
+      };
+    },
+    { label: 'contract.declineCancel' }
+  );
 
-  contract.status = 'approved';
-  contract.cancelReason = null as any;
-  contract.cancelRequestedBy = null as any;
-  contract.updatedBy = userId;
-
-  await contractRepo().save(contract);
-
-  if (requesterId) {
+  if (result.requesterId) {
     const declineTitle = 'Yeu cau huy hop dong bi tu choi';
-    const declineMessage = `${declinerName || 'Doi tac'} khong dong y huy hop dong ${contract.contractCode}. Hop dong tiep tuc co hieu luc.`;
+    const declineMessage = `${result.declinerName || 'Doi tac'} khong dong y huy hop dong ${result.contractCode}. Hop dong tiep tuc co hieu luc.`;
 
     await notificationRepo().save(
       notificationRepo().create({
-        userId: requesterId,
+        userId: result.requesterId,
         type: 'contract_cancel_declined',
         title: declineTitle,
         message: declineMessage,
-        relatedId: contract.id,
+        relatedId: result.contractId,
         relatedModel: 'Contract',
         severity: 'info',
         isRead: false,
@@ -738,47 +925,67 @@ export const declineCancelContract = async (id: string, userId: string, role: st
       })
     );
 
-    const requesterRole = requesterId === contract.farmerId ? 'farmer' : 'enterprise';
-    const requester = await userRepo().findOne({ where: { id: requesterId } });
-    await notifyEmail(requester, requesterRole, declineTitle, declineMessage, contract.id);
+    const requesterRole: 'farmer' | 'enterprise' = result.requesterId === result.farmerId ? 'farmer' : 'enterprise';
+    const requester = await userRepo().findOne({ where: { id: result.requesterId } });
+    await notifyEmail(requester, requesterRole, declineTitle, declineMessage, result.contractId);
   }
 
   return withRelations(id);
 };
 
 export const rejectContract = async (id: string, userId: string, reason?: string) => {
-  const contract = await contractRepo().findOne({ where: { id } });
-  if (!contract) throw makeError('Khong tim thay hop dong', 404);
-  if (contract.farmerId !== userId) {
-    throw makeError('Ban khong co quyen tu choi hop dong nay', 403);
-  }
-  if (TERMINAL_STATUSES.includes(contract.status)) {
-    throw makeError('Hop dong da ket thuc, khong the tu choi');
-  }
-  if (contract.status === 'draft') {
-    throw makeError('Hop dong chua duoc gui de xac nhan', 400);
-  }
-  if (contract.signedByFarmer) {
-    throw makeError('Ban da ky hop dong nay, khong the tu choi');
-  }
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const txContractRepo = manager.getRepository(Contract);
+      const contract = await lockByIdOrFail(
+        manager,
+        Contract,
+        id,
+        () => makeError('Khong tim thay hop dong', 404)
+      );
 
-  contract.status = 'cancelled';
-  contract.cancelReason = reason ?? '';
-  contract.cancelledAt = new Date();
-  contract.updatedBy = userId;
+      if (contract.farmerId !== userId) {
+        throw makeError('Ban khong co quyen tu choi hop dong nay', 403);
+      }
+      if (TERMINAL_STATUSES.includes(contract.status)) {
+        throw makeError('Hop dong da ket thuc, khong the tu choi');
+      }
+      if (contract.status === 'draft') {
+        throw makeError('Hop dong chua duoc gui de xac nhan', 400);
+      }
+      if (contract.status !== 'pending') {
+        throw makeError('Hop dong khong o trang thai cho phep tu choi', 409);
+      }
+      if (contract.signedByFarmer) {
+        throw makeError('Ban da ky hop dong nay, khong the tu choi');
+      }
 
-  await contractRepo().save(contract);
+      contract.status = 'cancelled';
+      contract.cancelReason = reason ?? '';
+      contract.cancelledAt = new Date();
+      contract.updatedBy = userId;
+      await txContractRepo.save(contract);
+
+      return {
+        contractId: contract.id,
+        contractCode: contract.contractCode,
+        farmerName: contract.farmerName,
+        enterpriseId: contract.enterpriseId,
+      };
+    },
+    { label: 'contract.reject' }
+  );
 
   const rejectTitle = 'Hop dong bi tu choi';
-  const rejectMessage = `${contract.farmerName || 'Nong dan'} da tu choi hop dong ${contract.contractCode}.${reason ? ` Ly do: ${reason}` : ''}`;
+  const rejectMessage = `${result.farmerName || 'Nong dan'} da tu choi hop dong ${result.contractCode}.${reason ? ` Ly do: ${reason}` : ''}`;
 
   await notificationRepo().save(
     notificationRepo().create({
-      userId: contract.enterpriseId,
+      userId: result.enterpriseId,
       type: 'contract_rejected',
       title: rejectTitle,
       message: rejectMessage,
-      relatedId: contract.id,
+      relatedId: result.contractId,
       relatedModel: 'Contract',
       severity: 'warning',
       isRead: false,
@@ -786,54 +993,86 @@ export const rejectContract = async (id: string, userId: string, reason?: string
     })
   );
 
-  const enterprise = await userRepo().findOne({ where: { id: contract.enterpriseId } });
-  await notifyEmail(enterprise, 'enterprise', rejectTitle, rejectMessage, contract.id);
+  const enterprise = await userRepo().findOne({ where: { id: result.enterpriseId } });
+  await notifyEmail(enterprise, 'enterprise', rejectTitle, rejectMessage, result.contractId);
 
   return withRelations(id);
 };
 
 // Dung cho cron job: hop dong da gui cho Farmer ('pending') nhung Farmer chua ky
-// qua han CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS ke tu ngay tao thi tu dong
-// chuyen 'cancelled'. Hop dong con 'draft' (Enterprise chua gui) khong tinh vao day
-// vi Farmer chua he thay/hanh dong duoc tren hop dong do.
+// qua han CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS ke tu luc GUI DE XUAT thi tu dong
+// chuyen 'cancelled'. updatedAt duoc cap nhat khi draft -> pending, nen draft nam lau
+// khong bi tinh nham vao thoi gian Farmer co de phan hoi.
 export const expireUnsignedContracts = async () => {
   const deadline = new Date(
     Date.now() - CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS * 24 * 60 * 60 * 1000
   );
 
-  const expiredContracts = await contractRepo().find({
-    where: { status: 'pending', signedByFarmer: false, createdAt: LessThan(deadline) },
+  // Preliminary scan only. Every candidate is locked and re-checked below before
+  // changing state, so a Farmer signing concurrently can never be overwritten by cron.
+  const candidates = await contractRepo().find({
+    where: { status: 'pending', signedByFarmer: false, updatedAt: LessThan(deadline) },
+    select: ['id'],
   });
 
-  for (const contract of expiredContracts) {
-    contract.status = 'cancelled';
-    contract.cancelReason = `Tu dong huy: nong dan khong xac nhan ky hop dong trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay`;
-    contract.cancelledAt = new Date();
+  let expiredCount = 0;
 
-    await contractRepo().save(contract);
+  for (const candidate of candidates) {
+    const result = await runLockedTransaction(
+      async (manager) => {
+        const txContractRepo = manager.getRepository(Contract);
+        const contract = await lockById(manager, Contract, candidate.id);
+        if (!contract) return null;
 
-    const farmerMessage = `Hop dong ${contract.contractCode} da tu dong chuyen sang trang thai huy do ban khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`;
-    const enterpriseMessage = `Hop dong ${contract.contractCode} da tu dong chuyen sang trang thai huy do nong dan khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`;
+        const updatedAt = contract.updatedAt ? new Date(contract.updatedAt).getTime() : 0;
+        if (
+          contract.status !== 'pending' ||
+          contract.signedByFarmer ||
+          updatedAt >= deadline.getTime()
+        ) {
+          return null;
+        }
+
+        contract.status = 'cancelled';
+        contract.cancelReason = `Tu dong huy: nong dan khong xac nhan ky hop dong trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay`;
+        contract.cancelledAt = new Date();
+        await txContractRepo.save(contract);
+
+        return {
+          contractId: contract.id,
+          contractCode: contract.contractCode,
+          farmerId: contract.farmerId,
+          enterpriseId: contract.enterpriseId,
+        };
+      },
+      { label: 'contract.expireUnsigned' }
+    );
+
+    if (!result) continue;
+    expiredCount += 1;
+
+    const farmerMessage = `Hop dong ${result.contractCode} da tu dong chuyen sang trang thai huy do ban khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`;
+    const enterpriseMessage = `Hop dong ${result.contractCode} da tu dong chuyen sang trang thai huy do nong dan khong xac nhan ky trong vong ${CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS} ngay.`;
     const autoCancelTitle = 'Hop dong da tu dong huy';
 
     await notificationRepo().save([
       notificationRepo().create({
-        userId: contract.farmerId,
+        userId: result.farmerId,
         type: 'contract_auto_cancelled',
         title: autoCancelTitle,
         message: farmerMessage,
-        relatedId: contract.id,
+        relatedId: result.contractId,
         relatedModel: 'Contract',
         severity: 'warning',
         isRead: false,
         emailSent: false,
       }),
       notificationRepo().create({
-        userId: contract.enterpriseId,
+        userId: result.enterpriseId,
         type: 'contract_auto_cancelled',
         title: autoCancelTitle,
         message: enterpriseMessage,
-        relatedId: contract.id,
+        relatedId: result.contractId,
         relatedModel: 'Contract',
         severity: 'warning',
         isRead: false,
@@ -842,12 +1081,12 @@ export const expireUnsignedContracts = async () => {
     ]);
 
     const [farmer, enterprise] = await Promise.all([
-      userRepo().findOne({ where: { id: contract.farmerId } }),
-      userRepo().findOne({ where: { id: contract.enterpriseId } }),
+      userRepo().findOne({ where: { id: result.farmerId } }),
+      userRepo().findOne({ where: { id: result.enterpriseId } }),
     ]);
-    await notifyEmail(farmer, 'farmer', autoCancelTitle, farmerMessage, contract.id);
-    await notifyEmail(enterprise, 'enterprise', autoCancelTitle, enterpriseMessage, contract.id);
+    await notifyEmail(farmer, 'farmer', autoCancelTitle, farmerMessage, result.contractId);
+    await notifyEmail(enterprise, 'enterprise', autoCancelTitle, enterpriseMessage, result.contractId);
   }
 
-  return expiredContracts.length;
+  return expiredCount;
 };

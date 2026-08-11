@@ -1,4 +1,4 @@
-import { In } from 'typeorm';
+import { EntityManager, In } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Product } from '../models/Product.entity';
 import { ProductCertification } from '../models/ProductCertification.entity';
@@ -10,6 +10,7 @@ import { Escrow } from '../models/Escrow.entity';
 import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { PRODUCT_CONFIG } from '../constants';
 import { makeError } from '../utils/error.util';
+import { lockByIdOrFail, runLockedTransaction } from '../utils/transaction-lock.util';
 
 const productRepo   = () => AppDataSource.getRepository(Product);
 const certRepo      = () => AppDataSource.getRepository(ProductCertification);
@@ -40,10 +41,11 @@ const hasReceivedGoods = async (productId: string, enterpriseId: string) => {
 
 // Trạng thái hợp đồng đã vượt qua đề xuất ban đầu ('draft') và chưa bị hủy —
 // một khi tồn tại, sản phẩm liên quan không còn được sửa/xóa nữa.
-const LOCKED_CONTRACT_STATUSES = ['pending', 'approved', 'active', 'completed', 'disputed'];
+const LOCKED_CONTRACT_STATUSES = ['pending', 'approved', 'active', 'cancel_pending', 'completed', 'disputed'];
 
-const assertNoLockedContract = async (productId: string) => {
-  const count = await contractRepo().count({
+const assertNoLockedContract = async (productId: string, manager?: EntityManager) => {
+  const repo = manager ? manager.getRepository(Contract) : contractRepo();
+  const count = await repo.count({
     where: { productId, status: In(LOCKED_CONTRACT_STATUSES) },
   });
   if (count > 0) {
@@ -248,83 +250,97 @@ export const create = async (userId: string, dto: CreateProductDto) => {
     throw makeError('Giá tối thiểu không được lớn hơn giá tối đa');
   }
 
+  if (dto.totalQuantity != null && (!Number.isFinite(dto.totalQuantity) || dto.totalQuantity < 0)) {
+    throw makeError('Tổng sản lượng không hợp lệ');
+  }
+
   const user = await userRepo().findOne({ where: { id: userId } });
   if (!user) throw makeError('Không tìm thấy người dùng', 404);
   if (user.role !== 'farmer') throw makeError('Chỉ Nông dân mới có thể đăng bán sản phẩm', 403);
 
   const imagePaths = dto.imagePaths || [];
   const mainImage  = imagePaths[0] || null;
-
   const sellerName = user.fullName?.trim() || PRODUCT_CONFIG.DEFAULT_SELLER_NAME;
 
-  const product = productRepo().create({
-    name:          dto.name.trim(),
-    category:      dto.category,
-    region:        dto.region,
-    type:          dto.type,
-    // farm/location là snapshot từ hồ sơ người bán, không nhận từ client
-    farm:          user.farmName?.trim() || undefined,
-    location:      [user.ward, user.district, user.province].filter(Boolean).join(', ') || undefined,
-    variety:       dto.variety?.trim(),
-    area:          dto.area ?? null,
+  const savedProductId = await runLockedTransaction(
+    async (manager) => {
+      const txProductRepo = manager.getRepository(Product);
+      const txCommitRepo = manager.getRepository(ProductCommitment);
+      const txCertRepo = manager.getRepository(ProductCertification);
 
-    priceMin:      dto.priceMin ?? null,
-    priceMax:      dto.priceMax ?? null,
-    unit:          dto.unit?.trim(),
-    priceUnit:     dto.priceUnit?.trim() || dto.unit?.trim(),
-    totalQuantity: dto.totalQuantity ?? null,
-    remaining:     dto.totalQuantity ?? null,
-    progress:      0,
-    plantDate:     dto.plantDate ? new Date(dto.plantDate) : undefined,
-    expectedDate:  dto.expectedDate ? new Date(dto.expectedDate) : undefined,
-    description:   dto.description?.trim(),
-    nutritionInfo: dto.nutritionInfo?.trim(),
-    note:          dto.note?.trim(),
-    badge:         dto.badge?.trim(),
+      const product = txProductRepo.create({
+        name:          dto.name.trim(),
+        category:      dto.category,
+        region:        dto.region,
+        type:          dto.type,
+        // farm/location là snapshot từ hồ sơ người bán, không nhận từ client
+        farm:          user.farmName?.trim() || undefined,
+        location:      [user.ward, user.district, user.province].filter(Boolean).join(', ') || undefined,
+        variety:       dto.variety?.trim(),
+        area:          dto.area ?? null,
 
-    image:  mainImage,
-    images: imagePaths.length > 0 ? JSON.stringify(imagePaths) : null,
+        priceMin:      dto.priceMin ?? null,
+        priceMax:      dto.priceMax ?? null,
+        unit:          dto.unit?.trim(),
+        priceUnit:     dto.priceUnit?.trim() || dto.unit?.trim(),
+        totalQuantity: dto.totalQuantity ?? null,
+        remaining:     dto.totalQuantity ?? null,
+        progress:      0,
+        plantDate:     dto.plantDate ? new Date(dto.plantDate) : undefined,
+        expectedDate:  dto.expectedDate ? new Date(dto.expectedDate) : undefined,
+        description:   dto.description?.trim(),
+        nutritionInfo: dto.nutritionInfo?.trim(),
+        note:          dto.note?.trim(),
+        badge:         dto.badge?.trim(),
 
-    sellerUserId:         user.id,
-    sellerName:           sellerName,
-    sellerAvatar:         user.avatar,
-    sellerRating:         user.reputationScore ?? PRODUCT_CONFIG.DEFAULT_SELLER_RATING,
-    sellerTotalContracts: PRODUCT_CONFIG.DEFAULT_TOTAL_CONTRACTS,
+        image:  mainImage,
+        images: imagePaths.length > 0 ? JSON.stringify(imagePaths) : null,
 
-    createdBy: user.id,
-    isActive:  true,
-  } as Partial<Product>);
+        sellerUserId:         user.id,
+        sellerName,
+        sellerAvatar:         user.avatar,
+        sellerRating:         user.reputationScore ?? PRODUCT_CONFIG.DEFAULT_SELLER_RATING,
+        sellerTotalContracts: PRODUCT_CONFIG.DEFAULT_TOTAL_CONTRACTS,
 
-  const savedProduct = await productRepo().save(product);
+        createdBy: user.id,
+        isActive:  true,
+      } as Partial<Product>);
 
-  if (dto.commitments && dto.commitments.length > 0) {
-    const commitEntities = dto.commitments
-      .filter(c => c?.trim())
-      .map((value, index) =>
-        commitRepo().create({
-          productId: savedProduct.id,
-          value:     value.trim(),
-          sortOrder: index,
-        })
-      );
-    await commitRepo().save(commitEntities);
-  }
+      const savedProduct = await txProductRepo.save(product);
 
-  if (dto.certifications && dto.certifications.length > 0) {
-    const certEntities = dto.certifications
-      .filter(c => c?.value?.trim())
-      .map((c, index) =>
-        certRepo().create({
-          productId: savedProduct.id,
-          value:     c.value.trim(),
-          fileUrl:   c.fileUrl,
-          sortOrder: index,
-        })
-      );
-    await certRepo().save(certEntities);
-  }
+      if (dto.commitments && dto.commitments.length > 0) {
+        const commitEntities = dto.commitments
+          .filter(c => c?.trim())
+          .map((value, index) =>
+            txCommitRepo.create({
+              productId: savedProduct.id,
+              value: value.trim(),
+              sortOrder: index,
+            })
+          );
+        if (commitEntities.length > 0) await txCommitRepo.save(commitEntities);
+      }
 
-  return getById(savedProduct.id);
+      if (dto.certifications && dto.certifications.length > 0) {
+        const certEntities = dto.certifications
+          .filter(c => c?.value?.trim())
+          .map((c, index) =>
+            txCertRepo.create({
+              productId: savedProduct.id,
+              value: c.value.trim(),
+              fileUrl: c.fileUrl,
+              sortOrder: index,
+            })
+          );
+        if (certEntities.length > 0) await txCertRepo.save(certEntities);
+      }
+
+      return savedProduct.id;
+    },
+    { label: 'product.create' }
+  );
+
+  return getById(savedProductId);
 };
 
 // ══════════════════════════════════════════
@@ -335,62 +351,98 @@ export const update = async (
   userId: string,
   dto: UpdateProductDto
 ) => {
-  const product = await productRepo().findOne({ where: { id: productId } });
-  if (!product) throw makeError('Sản phẩm không tồn tại', 404);
+  await runLockedTransaction(
+    async (manager) => {
+      const txProductRepo = manager.getRepository(Product);
+      const txCommitRepo = manager.getRepository(ProductCommitment);
+      const txCertRepo = manager.getRepository(ProductCertification);
 
-  if (product.createdBy !== userId) {
-    throw makeError('Bạn không có quyền chỉnh sửa sản phẩm này', 403);
-  }
-
-  await assertNoLockedContract(productId);
-
-  if (dto.priceMin != null && dto.priceMax != null && dto.priceMin > dto.priceMax) {
-    throw makeError('Giá tối thiểu không được lớn hơn giá tối đa');
-  }
-
-  const updatePayload: Record<string, any> = {};
-  for (const field of UPDATABLE_FIELDS) {
-    if ((dto as any)[field] !== undefined) {
-      updatePayload[field] = (dto as any)[field];
-    }
-  }
-
-  if (dto.imagePaths) {
-    updatePayload.image  = dto.imagePaths[0] || null;
-    updatePayload.images = dto.imagePaths.length > 0 ? JSON.stringify(dto.imagePaths) : null;
-  }
-
-  if (dto.plantDate) {
-    updatePayload.plantDate = new Date(dto.plantDate);
-  }
-
-  if (dto.expectedDate) {
-    updatePayload.expectedDate = new Date(dto.expectedDate);
-  }
-
-  if (Object.keys(updatePayload).length > 0) {
-    await productRepo().update({ id: productId }, updatePayload);
-  }
-
-  if (dto.commitments) {
-    await commitRepo().delete({ productId });
-    const commitEntities = dto.commitments
-      .filter(c => c?.trim())
-      .map((value, index) =>
-        commitRepo().create({ productId, value: value.trim(), sortOrder: index })
+      const product = await lockByIdOrFail(
+        manager,
+        Product,
+        productId,
+        () => makeError('Sản phẩm không tồn tại', 404)
       );
-    if (commitEntities.length > 0) await commitRepo().save(commitEntities);
-  }
 
-  if (dto.certifications) {
-    await certRepo().delete({ productId });
-    const certEntities = dto.certifications
-      .filter(c => c?.value?.trim())
-      .map((c, index) =>
-        certRepo().create({ productId, value: c.value.trim(), fileUrl: c.fileUrl, sortOrder: index })
-      );
-    if (certEntities.length > 0) await certRepo().save(certEntities);
-  }
+      if (!product.isActive) {
+        throw makeError('Sản phẩm không tồn tại', 404);
+      }
+
+      if (product.createdBy !== userId) {
+        throw makeError('Bạn không có quyền chỉnh sửa sản phẩm này', 403);
+      }
+
+      // Kiểm tra trong CÙNG transaction sau khi Product đã bị khóa, tránh
+      // xóa/chèn commitments/certifications rồi mới phát hiện hợp đồng thay đổi trạng thái.
+      await assertNoLockedContract(productId, manager);
+
+      const effectiveMin = dto.priceMin !== undefined ? dto.priceMin : product.priceMin;
+      const effectiveMax = dto.priceMax !== undefined ? dto.priceMax : product.priceMax;
+      if (effectiveMin != null && effectiveMax != null && Number(effectiveMin) > Number(effectiveMax)) {
+        throw makeError('Giá tối thiểu không được lớn hơn giá tối đa');
+      }
+
+      if (
+        dto.totalQuantity !== undefined &&
+        dto.totalQuantity !== null &&
+        (!Number.isFinite(Number(dto.totalQuantity)) || Number(dto.totalQuantity) < 0)
+      ) {
+        throw makeError('Tổng sản lượng không hợp lệ');
+      }
+
+      const updatePayload: Record<string, any> = {};
+      for (const field of UPDATABLE_FIELDS) {
+        if ((dto as any)[field] !== undefined) {
+          updatePayload[field] = (dto as any)[field];
+        }
+      }
+
+      if (dto.imagePaths) {
+        updatePayload.image  = dto.imagePaths[0] || null;
+        updatePayload.images = dto.imagePaths.length > 0 ? JSON.stringify(dto.imagePaths) : null;
+      }
+
+      if (dto.plantDate !== undefined) {
+        updatePayload.plantDate = dto.plantDate ? new Date(dto.plantDate) : null;
+      }
+
+      if (dto.expectedDate !== undefined) {
+        updatePayload.expectedDate = dto.expectedDate ? new Date(dto.expectedDate) : null;
+      }
+
+      // Khi chưa có hợp đồng khóa sản phẩm, remaining phải đi cùng totalQuantity.
+      // FE hiện chỉ gửi totalQuantity; nếu không đồng bộ, edit 1.000 -> 1.500 kg
+      // sẽ để remaining cũ 1.000 kg và giao diện/contract dùng số liệu sai.
+      if (dto.totalQuantity !== undefined) {
+        updatePayload.remaining = dto.totalQuantity;
+      }
+
+      if (Object.keys(updatePayload).length > 0) {
+        await txProductRepo.update({ id: productId }, updatePayload);
+      }
+
+      if (dto.commitments !== undefined) {
+        await txCommitRepo.delete({ productId });
+        const commitEntities = dto.commitments
+          .filter(c => c?.trim())
+          .map((value, index) =>
+            txCommitRepo.create({ productId, value: value.trim(), sortOrder: index })
+          );
+        if (commitEntities.length > 0) await txCommitRepo.save(commitEntities);
+      }
+
+      if (dto.certifications !== undefined) {
+        await txCertRepo.delete({ productId });
+        const certEntities = dto.certifications
+          .filter(c => c?.value?.trim())
+          .map((c, index) =>
+            txCertRepo.create({ productId, value: c.value.trim(), fileUrl: c.fileUrl, sortOrder: index })
+          );
+        if (certEntities.length > 0) await txCertRepo.save(certEntities);
+      }
+    },
+    { label: 'product.update' }
+  );
 
   return getById(productId);
 };
@@ -399,16 +451,30 @@ export const update = async (
 // XÓA SẢN PHẨM (soft delete, chỉ chủ sở hữu)
 // ══════════════════════════════════════════
 export const remove = async (productId: string, userId: string) => {
-  const product = await productRepo().findOne({ where: { id: productId } });
-  if (!product) throw makeError('Sản phẩm không tồn tại', 404);
+  await runLockedTransaction(
+    async (manager) => {
+      const txProductRepo = manager.getRepository(Product);
+      const product = await lockByIdOrFail(
+        manager,
+        Product,
+        productId,
+        () => makeError('Sản phẩm không tồn tại', 404)
+      );
 
-  if (product.createdBy !== userId) {
-    throw makeError('Bạn không có quyền xóa sản phẩm này', 403);
-  }
+      if (!product.isActive) {
+        throw makeError('Sản phẩm không tồn tại', 404);
+      }
 
-  await assertNoLockedContract(productId);
+      if (product.createdBy !== userId) {
+        throw makeError('Bạn không có quyền xóa sản phẩm này', 403);
+      }
 
-  await productRepo().update({ id: productId }, { isActive: false });
+      await assertNoLockedContract(productId, manager);
+      product.isActive = false;
+      await txProductRepo.save(product);
+    },
+    { label: 'product.remove' }
+  );
 };
 
 // ══════════════════════════════════════════

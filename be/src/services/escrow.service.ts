@@ -10,6 +10,7 @@ import { buildMilestones, getMilestoneRequiredRole, MILESTONE_CONFIG } from '../
 import { logAction, logError } from './systemLog.service';
 import { makeError } from '../utils/error.util';
 import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
+import { lockByIdOrFail, lockOne, lockOneOrFail, runLockedTransaction } from '../utils/transaction-lock.util';
 
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -32,166 +33,228 @@ const withEscrowRelations = async (id: string) => {
 };
 
 export const depositEscrow = async (contractId: string, enterpriseId: string) => {
-  const contract = await contractRepo().findOne({ where: { id: contractId } });
-  if (!contract) throw makeError('Khong tim thay hop dong', 404);
+  let failedContractCode = contractId;
+  let failedAmount: number | undefined;
 
-  if (contract.enterpriseId !== enterpriseId) {
-    throw makeError('Ban khong co quyen nap ky quy cho hop dong nay', 403);
-  }
-
-  if (contract.status !== 'approved') {
-    throw makeError('Hop dong chua duoc ky du hai ben hoac chua o trang thai cho khoa ky quy', 400);
-  }
-
-  if (contract.escrowStatus && contract.escrowStatus !== 'none') {
-    throw makeError('Hop dong da duoc nap ky quy', 400);
-  }
-
-  const existingEscrow = await escrowRepo().findOne({ where: { contractId } });
-  if (existingEscrow) {
-    throw makeError('Hop dong da co tai khoan ky quy', 400);
-  }
-
-  const amount = Number(contract.totalValue);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw makeError('Gia tri hop dong khong hop le', 400);
-  }
-
-  const enterprise = await userRepo().findOne({ where: { id: enterpriseId } });
-  if (!enterprise) throw makeError('Khong tim thay doanh nghiep', 404);
-  if (Number(enterprise.virtualBalance) < amount) {
-    throw makeError('So du khong du de nap ky quy hop dong', 400);
-  }
-
-  const escrowFundedTitle = 'Hop dong da duoc nap ky quy';
-  const escrowFundedMessage = `${contract.enterpriseName || 'Doanh nghiep'} da nap ky quy ${amount.toLocaleString('vi-VN')} VND cho hop dong ${contract.contractCode}. Hop dong chinh thuc co hieu luc, bat dau theo doi tien do cac moc thanh toan.`;
-
-  let escrowId: string;
   try {
-    escrowId = await AppDataSource.transaction(async (manager) => {
-    const txUserRepo = manager.getRepository(User);
-    const txContractRepo = manager.getRepository(Contract);
-    const txEscrowRepo = manager.getRepository(Escrow);
-    const txMilestoneRepo = manager.getRepository(EscrowMilestone);
-    const txTransactionRepo = manager.getRepository(EscrowTransaction);
-    const txNotificationRepo = manager.getRepository(Notification);
+    const result = await runLockedTransaction(
+      async (manager) => {
+        const txUserRepo = manager.getRepository(User);
+        const txContractRepo = manager.getRepository(Contract);
+        const txEscrowRepo = manager.getRepository(Escrow);
+        const txMilestoneRepo = manager.getRepository(EscrowMilestone);
+        const txTransactionRepo = manager.getRepository(EscrowTransaction);
+        const txNotificationRepo = manager.getRepository(Notification);
 
-    enterprise.virtualBalance = Number(enterprise.virtualBalance) - amount;
-    await txUserRepo.save(enterprise);
+        // Contract la "gate row" cua luong nap ky quy. Hai request nap cho cung mot
+        // hop dong buoc phai noi duoi nhau tai day truoc khi kiem tra trang thai.
+        const contract = await lockByIdOrFail(
+          manager,
+          Contract,
+          contractId,
+          () => makeError('Khong tim thay hop dong', 404)
+        );
 
-    // Cơ chế: doanh nghiệp nạp 100% total vào escrow, hệ thống giải ngân ngay theo điều khoản.
-    // Step 1 (Ký quỹ) hoàn tất ngay khi nạp và giải ngân ngay phần release của step 1 cho nông dân.
-    const milestonesData = buildMilestones(contract.paymentTerms, amount);
-    const step1ReleaseAmount = Number(milestonesData.find((m) => m.step === 1)?.releaseAmount ?? 0);
+        failedContractCode = contract.contractCode || contractId;
 
-    const escrow = await txEscrowRepo.save(
-      txEscrowRepo.create({
-        contractId: contract.id,
-        farmerId: contract.farmerId,
-        enterpriseId: contract.enterpriseId,
-        totalAmount: amount,
-        depositedAmount: amount,
-        releasedAmount: step1ReleaseAmount,
-        // Escrows.Status chi cho phep: pending/active/completed/disputed/refunded/cancelled
-        // (CK_Escrows_Status) -- 'active' nghia la da ky quy va dang theo doi milestone.
-        status: 'active',
-      })
-    );
+        if (contract.enterpriseId !== enterpriseId) {
+          throw makeError('Ban khong co quyen nap ky quy cho hop dong nay', 403);
+        }
 
-    // buildMilestones() tra ve requiredBy la vai tro (farmer/enterprise/system),
-    // khong phai deadline nen khong gan vao cot EscrowMilestone.requiredBy (datetime2).
-    const milestones = milestonesData.map(({ requiredBy, ...m }) => {
-      const entity = txMilestoneRepo.create({ ...m, escrowId: escrow.id });
-      if (m.step === 1) {
-        entity.status = 'completed';
-        entity.enterpriseConfirmed = true;
-        entity.enterpriseConfirmedAt = new Date();
-        entity.completedAt = new Date();
-      }
-      return entity;
-    });
-    await txMilestoneRepo.save(milestones);
+        if (contract.status !== 'approved') {
+          throw makeError('Hop dong chua duoc ky du hai ben hoac chua o trang thai cho khoa ky quy', 400);
+        }
 
-    await txTransactionRepo.save(
-      txTransactionRepo.create({
-        escrowId: escrow.id,
-        type: 'deposit',
-        amount,
-        fromUserId: enterpriseId,
-        description: `Doanh nghiep nap ky quy hop dong ${contract.contractCode}`,
-      })
-    );
+        if (contract.escrowStatus && contract.escrowStatus !== 'none') {
+          throw makeError('Hop dong da duoc nap ky quy', 400);
+        }
 
-    if (step1ReleaseAmount > 0) {
-      const farmer = await txUserRepo.findOne({ where: { id: contract.farmerId } });
-      if (!farmer) throw makeError('Khong tim thay nong dan', 404);
-      farmer.virtualBalance = Number(farmer.virtualBalance) + step1ReleaseAmount;
-      await txUserRepo.save(farmer);
+        // Defense-in-depth: ContractId cua Escrow da UNIQUE trong DB. Kiem tra lai
+        // ben trong transaction de request thu hai khong the tao escrow thu hai.
+        const existingEscrow = await lockOne(manager, Escrow, { contractId });
+        if (existingEscrow) {
+          throw makeError('Hop dong da co tai khoan ky quy', 400);
+        }
 
-      await txTransactionRepo.save(
-        txTransactionRepo.create({
+        const amount = Number(contract.totalValue);
+        failedAmount = amount;
+        if (!Number.isFinite(amount) || amount <= 0) {
+          throw makeError('Gia tri hop dong khong hop le', 400);
+        }
+
+        // Lock doanh nghiep TRUOC khi doc balance. Khong su dung object User duoc
+        // doc ngoai transaction, vi withdrawal/topup co the thay doi balance dong thoi.
+        const enterprise = await lockByIdOrFail(
+          manager,
+          User,
+          enterpriseId,
+          () => makeError('Khong tim thay doanh nghiep', 404)
+        );
+
+        const enterpriseBalance = Number(enterprise.virtualBalance);
+        if (!Number.isFinite(enterpriseBalance) || enterpriseBalance < amount) {
+          throw makeError('So du khong du de nap ky quy hop dong', 400);
+        }
+
+        const milestonesData = buildMilestones(contract.paymentTerms, amount);
+        const step1ReleaseAmount = Number(
+          milestonesData.find((m) => m.step === 1)?.releaseAmount ?? 0
+        );
+
+        if (!Number.isFinite(step1ReleaseAmount) || step1ReleaseAmount < 0 || step1ReleaseAmount > amount) {
+          throw makeError('Cau hinh giai ngan moc ky quy khong hop le', 500);
+        }
+
+        // Neu moc 1 giai ngan ngay, lock nong dan truoc khi thay doi so du.
+        // Lock nay cung nam trong transaction nen moi phep cong tien khac phai cho.
+        let farmer: User | null = null;
+        if (step1ReleaseAmount > 0) {
+          farmer = await lockByIdOrFail(
+            manager,
+            User,
+            contract.farmerId,
+            () => makeError('Khong tim thay nong dan', 404)
+          );
+        }
+
+        enterprise.virtualBalance = enterpriseBalance - amount;
+        await txUserRepo.save(enterprise);
+
+        // Doanh nghiep nap 100% total vao escrow. Step 1 co the giai ngan ngay
+        // tuy paymentTerms, phan con lai duoc giu lai cho cac milestone sau.
+        const escrow = await txEscrowRepo.save(
+          txEscrowRepo.create({
+            contractId: contract.id,
+            farmerId: contract.farmerId,
+            enterpriseId: contract.enterpriseId,
+            totalAmount: amount,
+            depositedAmount: amount,
+            releasedAmount: step1ReleaseAmount,
+            status: 'active',
+          })
+        );
+
+        const now = new Date();
+        const milestones = milestonesData.map(({ requiredBy, ...m }) => {
+          const entity = txMilestoneRepo.create({ ...m, escrowId: escrow.id });
+          if (m.step === 1) {
+            entity.status = 'completed';
+            entity.enterpriseConfirmed = true;
+            entity.enterpriseConfirmedAt = now;
+            entity.completedAt = now;
+          }
+          return entity;
+        });
+        await txMilestoneRepo.save(milestones);
+
+        await txTransactionRepo.save(
+          txTransactionRepo.create({
+            escrowId: escrow.id,
+            type: 'deposit',
+            amount,
+            fromUserId: enterpriseId,
+            description: `Doanh nghiep nap ky quy hop dong ${contract.contractCode}`,
+          })
+        );
+
+        if (step1ReleaseAmount > 0 && farmer) {
+          const farmerBalance = Number(farmer.virtualBalance);
+          if (!Number.isFinite(farmerBalance)) {
+            throw makeError('So du nong dan khong hop le', 500);
+          }
+
+          farmer.virtualBalance = farmerBalance + step1ReleaseAmount;
+          await txUserRepo.save(farmer);
+
+          await txTransactionRepo.save(
+            txTransactionRepo.create({
+              escrowId: escrow.id,
+              type: 'release',
+              amount: step1ReleaseAmount,
+              fromUserId: enterpriseId,
+              toUserId: contract.farmerId,
+              milestoneStep: 1,
+              description: `Giai ngan moc 1 (Ky quy) hop dong ${contract.contractCode}`,
+            })
+          );
+        }
+
+        contract.status = 'active';
+        contract.escrowStatus = 'funded';
+        contract.paidAmount = amount;
+        contract.remainingAmount = Number(contract.totalValue) - amount;
+        contract.updatedBy = enterpriseId;
+        await txContractRepo.save(contract);
+
+        const escrowFundedTitle = 'Hop dong da duoc nap ky quy';
+        const escrowFundedMessage = `${contract.enterpriseName || 'Doanh nghiep'} da nap ky quy ${amount.toLocaleString('vi-VN')} VND cho hop dong ${contract.contractCode}. Hop dong chinh thuc co hieu luc, bat dau theo doi tien do cac moc thanh toan.`;
+
+        await txNotificationRepo.save(
+          txNotificationRepo.create({
+            userId: contract.farmerId,
+            type: 'escrow_funded',
+            title: escrowFundedTitle,
+            message: escrowFundedMessage,
+            relatedId: contract.id,
+            relatedModel: 'Contract',
+            severity: 'info',
+            isRead: false,
+            emailSent: false,
+          })
+        );
+
+        return {
           escrowId: escrow.id,
-          type: 'release',
-          amount: step1ReleaseAmount,
-          fromUserId: enterpriseId,
-          toUserId: contract.farmerId,
-          milestoneStep: 1,
-          description: `Giai ngan moc 1 (Ky quy) hop dong ${contract.contractCode}`,
-        })
-      );
-    }
-
-    contract.status = 'active';
-    contract.escrowStatus = 'funded';
-    contract.paidAmount = amount;
-    contract.remainingAmount = Number(contract.totalValue) - amount;
-    contract.updatedBy = enterpriseId;
-    await txContractRepo.save(contract);
-
-    await txNotificationRepo.save(
-      txNotificationRepo.create({
-        userId: contract.farmerId,
-        type: 'escrow_funded',
-        title: escrowFundedTitle,
-        message: escrowFundedMessage,
-        relatedId: contract.id,
-        relatedModel: 'Contract',
-        severity: 'info',
-        isRead: false,
-        emailSent: false,
-      })
+          contractId: contract.id,
+          contractCode: contract.contractCode,
+          farmerId: contract.farmerId,
+          amount,
+          enterpriseDisplayName: enterprise.fullName || enterprise.email,
+          escrowFundedTitle,
+          escrowFundedMessage,
+        };
+      },
+      { label: 'escrow.deposit' }
     );
 
-    return escrow.id;
+    // Side effects ngoai DB chi chay SAU COMMIT. runLockedTransaction co the retry
+    // khi deadlock nen khong gui email/log ben trong callback transaction.
+    logAction({
+      category: 'escrow',
+      action: 'escrow_deposit',
+      message: `${result.enterpriseDisplayName} da nap ky quy ${result.amount.toLocaleString('vi-VN')} VND cho hop dong ${result.contractCode}`,
+      userId: enterpriseId,
+      targetType: 'Escrow',
+      targetId: result.escrowId,
+      metadata: { contractCode: result.contractCode, amount: result.amount },
     });
+
+    const farmer = await userRepo().findOne({ where: { id: result.farmerId } });
+    await notifyEmail(
+      farmer,
+      'farmer',
+      result.escrowFundedTitle,
+      result.escrowFundedMessage,
+      result.contractId
+    );
+
+    return withEscrowRelations(result.escrowId);
   } catch (err: any) {
     logError({
       category: 'payment',
       action: 'escrow_deposit_failed',
-      message: `Loi nap ky quy hop dong ${contract.contractCode}: ${err.message || err}`,
+      message: `Loi nap ky quy hop dong ${failedContractCode}: ${err.message || err}`,
       userId: enterpriseId,
       targetType: 'Contract',
-      targetId: contract.id,
-      metadata: { contractCode: contract.contractCode, amount },
+      targetId: contractId,
+      metadata: {
+        contractCode: failedContractCode,
+        ...(failedAmount != null ? { amount: failedAmount } : {}),
+      },
       error: err,
     });
     throw err;
   }
-
-  logAction({
-    category: 'escrow',
-    action: 'escrow_deposit',
-    message: `${enterprise.fullName || enterprise.email} da nap ky quy ${amount.toLocaleString('vi-VN')} VND cho hop dong ${contract.contractCode}`,
-    userId: enterpriseId,
-    targetType: 'Escrow',
-    targetId: escrowId,
-    metadata: { contractCode: contract.contractCode, amount },
-  });
-
-  const farmer = await userRepo().findOne({ where: { id: contract.farmerId } });
-  await notifyEmail(farmer, 'farmer', escrowFundedTitle, escrowFundedMessage, contract.id);
-
-  return withEscrowRelations(escrowId);
 };
 
 export const getEscrowByContract = async (contractId: string, userId: string) => {
@@ -237,220 +300,332 @@ export const confirmMilestone = async (
     throw makeError('Moc thanh toan khong hop le', 400);
   }
 
-  const escrow = await escrowRepo().findOne({
-    where: { contractId },
-    relations: ['milestones', 'contract'],
-  });
-  if (!escrow) throw makeError('Hop dong chua duoc nap ky quy', 404);
+  let failedContractCode = contractId;
+  let failedReleaseAmount = 0;
 
-  if (escrow.status !== 'active') {
-    throw makeError('Ky quy khong o trang thai co the xac nhan moc', 400);
-  }
-
-  const isFarmer = role === 'farmer' && escrow.farmerId === userId;
-  const isEnterprise = role === 'enterprise' && escrow.enterpriseId === userId;
-  if (!isFarmer && !isEnterprise) {
-    throw makeError('Ban khong co quyen xac nhan moc cua hop dong nay', 403);
-  }
-
-  const milestone = escrow.milestones.find((m) => m.step === step);
-  if (!milestone) throw makeError('Khong tim thay moc thanh toan', 404);
-
-  const requiredRole = getMilestoneRequiredRole(step);
-  if (!requiredRole) {
-    throw makeError('Moc thanh toan khong hop le', 400);
-  }
-  // Moc cuoi (Hoan tat) can CA HAI ben bam xac nhan moi giai ngan — con lai
-  // (step 1-4) chi can dung mot ben (nguoi duoc chi dinh) xac nhan la xong ngay.
-  const requiresBoth = requiredRole === 'both';
-  if (!requiresBoth) {
-    if (requiredRole === 'farmer' && !isFarmer) {
-      throw makeError('Moc nay can nong dan xac nhan', 403);
-    }
-    if (requiredRole === 'enterprise' && !isEnterprise) {
-      throw makeError('Moc nay can doanh nghiep xac nhan', 403);
-    }
-  }
-
-  if (milestone.status === 'completed') {
-    throw makeError('Moc nay da duoc xac nhan truoc do', 400);
-  }
-  if (milestone.status === 'disputed') {
-    throw makeError('Moc dang trong tranh chap, khong the xac nhan', 400);
-  }
-  if (isFarmer && milestone.farmerConfirmed) {
-    throw makeError('Ban da xac nhan moc nay roi, dang cho ben con lai xac nhan', 400);
-  }
-  if (isEnterprise && milestone.enterpriseConfirmed) {
-    throw makeError('Ban da xac nhan moc nay roi, dang cho ben con lai xac nhan', 400);
-  }
-
-  if (step > 1) {
-    const previous = escrow.milestones.find((m) => m.step === step - 1);
-    if (!previous || previous.status !== 'completed') {
-      throw makeError('Vui long hoan tat moc truoc do', 400);
-    }
-  }
-
-  // Voi moc "ca hai ben": chi thuc su hoan tat + giai ngan khi ben con lai
-  // da xac nhan tu truoc; neu day la nguoi dau tien xac nhan thi chi ghi
-  // nhan phan cua ho va cho ben kia.
-  const otherSideAlreadyConfirmed = isFarmer ? milestone.enterpriseConfirmed : milestone.farmerConfirmed;
-  const willComplete = !requiresBoth || otherSideAlreadyConfirmed;
-
-  const releaseAmount = willComplete ? Number(milestone.releaseAmount || 0) : 0;
-  const contractCode = escrow.contract?.contractCode ?? '';
-
-  const confirmerName = isFarmer ? 'Nong dan' : 'Doanh nghiep';
-  const partnerId = isFarmer ? escrow.enterpriseId : escrow.farmerId;
-  const partnerRole: 'farmer' | 'enterprise' = isFarmer ? 'enterprise' : 'farmer';
-  const milestoneTitle = willComplete ? `Da xac nhan moc: ${milestone.name}` : `Cho ban xac nhan: ${milestone.name}`;
-  const milestoneMessage = willComplete
-    ? (releaseAmount > 0
-        ? `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). He thong da giai ngan ${releaseAmount.toLocaleString('vi-VN')} VND cho nong dan.`
-        : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}).`)
-    : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contractCode}). Vui long xac nhan de hoan tat va giai ngan so du con lai.`;
-  const completedTitle = 'Hop dong da hoan tat';
-  const completedMessage = `Hop dong ${contractCode} da giai ngan het ky quy va chuyen sang trang thai Hoan tat.`;
-
-  let escrowId: string;
   try {
-    escrowId = await AppDataSource.transaction(async (manager) => {
-    const txMilestoneRepo = manager.getRepository(EscrowMilestone);
-    const txEscrowRepo = manager.getRepository(Escrow);
-    const txUserRepo = manager.getRepository(User);
-    const txTransactionRepo = manager.getRepository(EscrowTransaction);
-    const txNotificationRepo = manager.getRepository(Notification);
-    const txContractRepo = manager.getRepository(Contract);
+    const result = await runLockedTransaction(
+      async (manager) => {
+        const txMilestoneRepo = manager.getRepository(EscrowMilestone);
+        const txEscrowRepo = manager.getRepository(Escrow);
+        const txUserRepo = manager.getRepository(User);
+        const txTransactionRepo = manager.getRepository(EscrowTransaction);
+        const txNotificationRepo = manager.getRepository(Notification);
+        const txContractRepo = manager.getRepository(Contract);
 
-    const now = new Date();
-    if (isFarmer) {
-      milestone.farmerConfirmed = true;
-      milestone.farmerConfirmedAt = now;
-    } else {
-      milestone.enterpriseConfirmed = true;
-      milestone.enterpriseConfirmedAt = now;
-    }
-    if (willComplete) {
-      milestone.status = 'completed';
-      milestone.completedAt = now;
-    } else {
-      milestone.status = 'waiting_confirmation';
-    }
-    if (dto.evidence) milestone.evidence = dto.evidence;
-    await txMilestoneRepo.save(milestone);
+        // Thu tu lock co dinh: Contract -> Escrow -> Milestone -> User.
+        // Moi confirm tren cung hop dong se noi duoi nhau tai Escrow, do do hai request
+        // khong the cung doc mot milestone cu va giai ngan hai lan.
+        const contract = await lockByIdOrFail(
+          manager,
+          Contract,
+          contractId,
+          () => makeError('Khong tim thay hop dong', 404)
+        );
+        failedContractCode = contract.contractCode || contractId;
 
-    if (releaseAmount > 0) {
-      const farmer = await txUserRepo.findOne({ where: { id: escrow.farmerId } });
-      if (!farmer) throw makeError('Khong tim thay nong dan', 404);
-      farmer.virtualBalance = Number(farmer.virtualBalance) + releaseAmount;
-      await txUserRepo.save(farmer);
+        const escrow = await lockOneOrFail(
+          manager,
+          Escrow,
+          { contractId },
+          () => makeError('Hop dong chua duoc nap ky quy', 404)
+        );
 
-      escrow.releasedAmount = Number(escrow.releasedAmount) + releaseAmount;
-      if (escrow.releasedAmount >= Number(escrow.depositedAmount)) {
-        escrow.status = 'completed';
-
-        // Da giai ngan het ky quy (thuong la sau khi ca hai ben xac nhan moc 5 "Hoan tat")
-        // -- hop dong chinh thuc chuyen sang trang thai 'completed'.
-        const finishedContract = escrow.contract;
-        if (finishedContract) {
-          finishedContract.status = 'completed';
-          finishedContract.completedAt = now;
-          finishedContract.escrowStatus = 'released';
-          finishedContract.paidAmount = Number(escrow.releasedAmount);
-          finishedContract.remainingAmount = 0;
-          finishedContract.updatedBy = userId;
-          await txContractRepo.save(finishedContract);
+        if (escrow.status !== 'active') {
+          throw makeError('Ky quy khong o trang thai co the xac nhan moc', 400);
         }
-      }
-      await txEscrowRepo.save(escrow);
 
-      await txTransactionRepo.save(
-        txTransactionRepo.create({
-          escrowId: escrow.id,
-          type: 'release',
-          amount: releaseAmount,
-          fromUserId: escrow.enterpriseId,
-          toUserId: escrow.farmerId,
-          milestoneStep: step,
-          description: `Giai ngan moc ${step} (${milestone.name}) hop dong ${contractCode}`,
-        })
-      );
-    }
+        const isFarmer = role === 'farmer' && escrow.farmerId === userId;
+        const isEnterprise = role === 'enterprise' && escrow.enterpriseId === userId;
+        if (!isFarmer && !isEnterprise) {
+          throw makeError('Ban khong co quyen xac nhan moc cua hop dong nay', 403);
+        }
 
-    await txNotificationRepo.save(
-      txNotificationRepo.create({
-        userId: partnerId,
-        type: 'milestone_confirmed',
-        title: milestoneTitle,
-        message: milestoneMessage,
-        relatedId: escrow.contractId,
-        relatedModel: 'Contract',
-        severity: 'info',
-        isRead: false,
-        emailSent: false,
-      })
-    );
+        const milestone = await lockOneOrFail(
+          manager,
+          EscrowMilestone,
+          { escrowId: escrow.id, step },
+          () => makeError('Khong tim thay moc thanh toan', 404)
+        );
 
-    if (escrow.status === 'completed') {
-      await txNotificationRepo.save(
-        [escrow.farmerId, escrow.enterpriseId].map((uid) =>
+        const requiredRole = getMilestoneRequiredRole(step);
+        if (!requiredRole) {
+          throw makeError('Moc thanh toan khong hop le', 400);
+        }
+
+        // Moc cuoi can ca hai ben. Step 1-4 chi nguoi duoc chi dinh duoc confirm.
+        const requiresBoth = requiredRole === 'both';
+        if (!requiresBoth) {
+          if (requiredRole === 'farmer' && !isFarmer) {
+            throw makeError('Moc nay can nong dan xac nhan', 403);
+          }
+          if (requiredRole === 'enterprise' && !isEnterprise) {
+            throw makeError('Moc nay can doanh nghiep xac nhan', 403);
+          }
+        }
+
+        // Toan bo validation trang thai duoc thuc hien SAU KHI row da lock.
+        if (milestone.status === 'completed') {
+          throw makeError('Moc nay da duoc xac nhan truoc do', 400);
+        }
+        if (milestone.status === 'disputed') {
+          throw makeError('Moc dang trong tranh chap, khong the xac nhan', 400);
+        }
+        if (isFarmer && milestone.farmerConfirmed) {
+          throw makeError('Ban da xac nhan moc nay roi, dang cho ben con lai xac nhan', 400);
+        }
+        if (isEnterprise && milestone.enterpriseConfirmed) {
+          throw makeError('Ban da xac nhan moc nay roi, dang cho ben con lai xac nhan', 400);
+        }
+
+        if (step > 1) {
+          const previous = await lockOne(
+            manager,
+            EscrowMilestone,
+            { escrowId: escrow.id, step: step - 1 }
+          );
+          if (!previous || previous.status !== 'completed') {
+            throw makeError('Vui long hoan tat moc truoc do', 400);
+          }
+        }
+
+        // Voi moc ca hai ben: request dau tien chi ghi nhan xac nhan; request thu hai
+        // (sau khi cho lock) doc duoc trang thai moi va moi duoc phep giai ngan.
+        const otherSideAlreadyConfirmed = isFarmer
+          ? milestone.enterpriseConfirmed
+          : milestone.farmerConfirmed;
+        const willComplete = !requiresBoth || otherSideAlreadyConfirmed;
+        const releaseAmount = willComplete ? Number(milestone.releaseAmount || 0) : 0;
+        failedReleaseAmount = releaseAmount;
+
+        if (!Number.isFinite(releaseAmount) || releaseAmount < 0) {
+          throw makeError('So tien giai ngan cua moc khong hop le', 500);
+        }
+
+        const now = new Date();
+        if (isFarmer) {
+          milestone.farmerConfirmed = true;
+          milestone.farmerConfirmedAt = now;
+        } else {
+          milestone.enterpriseConfirmed = true;
+          milestone.enterpriseConfirmedAt = now;
+        }
+
+        if (willComplete) {
+          milestone.status = 'completed';
+          milestone.completedAt = now;
+        } else {
+          milestone.status = 'waiting_confirmation';
+        }
+        if (dto.evidence) milestone.evidence = dto.evidence;
+
+        let escrowCompleted = false;
+
+        if (releaseAmount > 0) {
+          // Defense-in-depth cho du lieu cu/bat thuong: neu da co release transaction
+          // cho cung milestone thi tuyet doi khong cong tien lan nua.
+          const existingRelease = await txTransactionRepo.findOne({
+            where: {
+              escrowId: escrow.id,
+              type: 'release',
+              milestoneStep: step,
+            },
+          });
+          if (existingRelease) {
+            throw makeError('Moc nay da duoc giai ngan truoc do', 409);
+          }
+
+          const farmer = await lockByIdOrFail(
+            manager,
+            User,
+            escrow.farmerId,
+            () => makeError('Khong tim thay nong dan', 404)
+          );
+
+          const farmerBalance = Number(farmer.virtualBalance);
+          const releasedBefore = Number(escrow.releasedAmount || 0);
+          const depositedAmount = Number(escrow.depositedAmount || 0);
+
+          if (
+            !Number.isFinite(farmerBalance) ||
+            !Number.isFinite(releasedBefore) ||
+            !Number.isFinite(depositedAmount) ||
+            depositedAmount < 0
+          ) {
+            throw makeError('Du lieu so du ky quy khong hop le', 500);
+          }
+
+          let releasedAfter = releasedBefore + releaseAmount;
+          // Cho phep sai so toi da 1 xu do cot decimal(18,2), nhung khong bao gio
+          // duoc giai ngan vuot depositedAmount mot cach thuc su.
+          if (releasedAfter > depositedAmount + 0.01) {
+            throw makeError('So tien giai ngan vuot qua so tien da ky quy', 409);
+          }
+          if (Math.abs(releasedAfter - depositedAmount) <= 0.01) {
+            releasedAfter = depositedAmount;
+          }
+
+          farmer.virtualBalance = farmerBalance + releaseAmount;
+          await txUserRepo.save(farmer);
+
+          escrow.releasedAmount = releasedAfter;
+          if (releasedAfter >= depositedAmount) {
+            escrow.status = 'completed';
+            escrowCompleted = true;
+
+            contract.status = 'completed';
+            contract.completedAt = now;
+            contract.escrowStatus = 'released';
+            contract.paidAmount = releasedAfter;
+            contract.remainingAmount = 0;
+            contract.updatedBy = userId;
+            await txContractRepo.save(contract);
+          }
+
+          await txEscrowRepo.save(escrow);
+
+          await txTransactionRepo.save(
+            txTransactionRepo.create({
+              escrowId: escrow.id,
+              type: 'release',
+              amount: releaseAmount,
+              fromUserId: escrow.enterpriseId,
+              toUserId: escrow.farmerId,
+              milestoneStep: step,
+              description: `Giai ngan moc ${step} (${milestone.name}) hop dong ${contract.contractCode}`,
+            })
+          );
+        }
+
+        await txMilestoneRepo.save(milestone);
+
+        const confirmerName = isFarmer ? 'Nong dan' : 'Doanh nghiep';
+        const partnerId = isFarmer ? escrow.enterpriseId : escrow.farmerId;
+        const partnerRole: 'farmer' | 'enterprise' = isFarmer ? 'enterprise' : 'farmer';
+        const milestoneTitle = willComplete
+          ? `Da xac nhan moc: ${milestone.name}`
+          : `Cho ban xac nhan: ${milestone.name}`;
+        const milestoneMessage = willComplete
+          ? releaseAmount > 0
+            ? `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contract.contractCode}). He thong da giai ngan ${releaseAmount.toLocaleString('vi-VN')} VND cho nong dan.`
+            : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contract.contractCode}).`
+          : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contract.contractCode}). Vui long xac nhan de hoan tat va giai ngan so du con lai.`;
+
+        const completedTitle = 'Hop dong da hoan tat';
+        const completedMessage = `Hop dong ${contract.contractCode} da giai ngan het ky quy va chuyen sang trang thai Hoan tat.`;
+
+        await txNotificationRepo.save(
           txNotificationRepo.create({
-            userId: uid,
-            type: 'contract_completed',
-            title: completedTitle,
-            message: completedMessage,
+            userId: partnerId,
+            type: 'milestone_confirmed',
+            title: milestoneTitle,
+            message: milestoneMessage,
             relatedId: escrow.contractId,
             relatedModel: 'Contract',
             severity: 'info',
             isRead: false,
             emailSent: false,
           })
-        )
+        );
+
+        if (escrowCompleted) {
+          await txNotificationRepo.save(
+            [escrow.farmerId, escrow.enterpriseId].map((uid) =>
+              txNotificationRepo.create({
+                userId: uid,
+                type: 'contract_completed',
+                title: completedTitle,
+                message: completedMessage,
+                relatedId: escrow.contractId,
+                relatedModel: 'Contract',
+                severity: 'info',
+                isRead: false,
+                emailSent: false,
+              })
+            )
+          );
+        }
+
+        return {
+          escrowId: escrow.id,
+          contractId: escrow.contractId,
+          contractCode: contract.contractCode,
+          farmerId: escrow.farmerId,
+          enterpriseId: escrow.enterpriseId,
+          partnerId,
+          partnerRole,
+          milestoneTitle,
+          milestoneMessage,
+          completedTitle,
+          completedMessage,
+          releaseAmount,
+          escrowCompleted,
+        };
+      },
+      { label: `escrow.confirmMilestone.${step}` }
+    );
+
+    // Log/email chi chay mot lan sau khi transaction da COMMIT thanh cong.
+    if (result.releaseAmount > 0) {
+      logAction({
+        category: 'escrow',
+        action: 'escrow_release',
+        message: `Giai ngan moc ${step} (${result.releaseAmount.toLocaleString('vi-VN')} VND) cho hop dong ${result.contractCode}`,
+        userId,
+        targetType: 'Escrow',
+        targetId: result.escrowId,
+        metadata: {
+          contractCode: result.contractCode,
+          step,
+          releaseAmount: result.releaseAmount,
+        },
+      });
+    }
+
+    const partner = await userRepo().findOne({ where: { id: result.partnerId } });
+    await notifyEmail(
+      partner,
+      result.partnerRole,
+      result.milestoneTitle,
+      result.milestoneMessage,
+      result.contractId
+    );
+
+    if (result.escrowCompleted) {
+      const [farmer, enterprise] = await Promise.all([
+        userRepo().findOne({ where: { id: result.farmerId } }),
+        userRepo().findOne({ where: { id: result.enterpriseId } }),
+      ]);
+      await notifyEmail(
+        farmer,
+        'farmer',
+        result.completedTitle,
+        result.completedMessage,
+        result.contractId
+      );
+      await notifyEmail(
+        enterprise,
+        'enterprise',
+        result.completedTitle,
+        result.completedMessage,
+        result.contractId
       );
     }
 
-    return escrow.id;
-    });
+    return withEscrowRelations(result.escrowId);
   } catch (err: any) {
     logError({
       category: 'payment',
       action: 'escrow_release_failed',
-      message: `Loi giai ngan moc ${step} hop dong ${contractCode}: ${err.message || err}`,
+      message: `Loi giai ngan moc ${step} hop dong ${failedContractCode}: ${err.message || err}`,
       userId,
       targetType: 'Contract',
       targetId: contractId,
-      metadata: { step, releaseAmount },
+      metadata: { step, releaseAmount: failedReleaseAmount },
       error: err,
     });
     throw err;
   }
-
-  if (releaseAmount > 0) {
-    logAction({
-      category: 'escrow',
-      action: 'escrow_release',
-      message: `Giai ngan moc ${step} (${releaseAmount.toLocaleString('vi-VN')} VND) cho hop dong ${contractCode}`,
-      userId,
-      targetType: 'Escrow',
-      targetId: escrowId,
-      metadata: { contractCode, step, releaseAmount },
-    });
-  }
-
-  const partner = await userRepo().findOne({ where: { id: partnerId } });
-  await notifyEmail(partner, partnerRole, milestoneTitle, milestoneMessage, escrow.contractId);
-
-  if ((escrow.status as string) === 'completed') {
-    const [farmer, enterprise] = await Promise.all([
-      userRepo().findOne({ where: { id: escrow.farmerId } }),
-      userRepo().findOne({ where: { id: escrow.enterpriseId } }),
-    ]);
-    await notifyEmail(farmer, 'farmer', completedTitle, completedMessage, escrow.contractId);
-    await notifyEmail(enterprise, 'enterprise', completedTitle, completedMessage, escrow.contractId);
-  }
-
-  return withEscrowRelations(escrowId);
 };
 
 const QUALITY_CHECK_REMINDER_DELAY_MS = 2 * 24 * 60 * 60 * 1000; // 2 ngay ke tu khi giao hang

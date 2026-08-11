@@ -1,22 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-
-const parseUserFromUrl = (value) => {
-  if (!value) return null;
-
-  // URLSearchParams đã decode query một lần; chỉ fallback decodeURIComponent
-  // để tương thích callback cũ từng encode hai lần.
-  try {
-    return JSON.parse(value);
-  } catch {
-    try {
-      return JSON.parse(decodeURIComponent(value));
-    } catch {
-      return null;
-    }
-  }
-};
+import authService from '../../services/auth.service';
 
 const getRedirectByRole = (role) => {
   if (role === 'farmer') return '/farmer-home';
@@ -35,24 +20,38 @@ export default function GoogleCallback() {
     if (processedRef.current) return;
     processedRef.current = true;
 
-    const params = new URLSearchParams(location.search);
-    const token = params.get('token');
-    const user = parseUserFromUrl(params.get('user'));
+    const completeGoogleLogin = async () => {
+      try {
+        const params = new URLSearchParams(location.search);
+        if (params.get('success') !== '1') {
+          throw new Error('Google callback không hợp lệ');
+        }
 
-    if (!token || !user?.id || !user?.role) {
-      navigate('/auth?error=google_failed', { replace: true });
-      return;
-    }
+        // Backend has already stored a refresh token in a secure httpOnly cookie.
+        // Exchange it for a short-lived access token; no JWT is exposed in the URL.
+        const refreshResponse = await authService.refreshToken();
+        const accessToken = refreshResponse?.data?.accessToken;
+        if (!accessToken) throw new Error('Không nhận được phiên đăng nhập hợp lệ');
 
-    login(token, user);
-    navigate(getRedirectByRole(user.role), { replace: true });
+        const meResponse = await authService.getMe();
+        const user = meResponse?.data?.user;
+        if (!user?.id || !user?.role) throw new Error('Không lấy được thông tin tài khoản');
+
+        login(accessToken, user);
+        navigate(getRedirectByRole(user.role), { replace: true });
+      } catch {
+        navigate('/auth?error=google_failed', { replace: true });
+      }
+    };
+
+    void completeGoogleLogin();
   }, [location.search, login, navigate]);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
         <div className="spinner-border text-success" role="status" aria-label="Đang xử lý đăng nhập" />
-        <p className="mt-3 text-muted">Đang xử lý đăng nhập Google...</p>
+        <p className="mt-3 text-muted">Đang hoàn tất đăng nhập Google...</p>
       </div>
     </div>
   );

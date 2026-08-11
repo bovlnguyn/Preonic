@@ -3,8 +3,12 @@ import { User } from '../models/User.entity';
 import { PaymentTransaction } from '../models/PaymentTransaction.entity';
 import { logAction, logError } from './systemLog.service';
 import { makeError } from '../utils/error.util';
+import {
+  lockByIdOrFail,
+  lockOneOrFail,
+  runLockedTransaction,
+} from '../utils/transaction-lock.util';
 
-const userRepo = () => AppDataSource.getRepository(User);
 const paymentTransactionRepo = () => AppDataSource.getRepository(PaymentTransaction);
 
 const WITHDRAW_ALLOWED_ROLES = ['farmer', 'enterprise'];
@@ -36,8 +40,13 @@ export interface CreateWithdrawalRequestDto {
   bankAccountHolder?: string;
 }
 
-// Tao yeu cau rut tien o trang thai 'pending' — KHONG tru so du ngay, chi tru khi
-// admin xac nhan da chuyen khoan (xem approveWithdrawalRequest).
+/**
+ * Tạo yêu cầu rút tiền ở trạng thái pending.
+ *
+ * Không trừ số dư ngay. Tuy nhiên User được khóa trước khi tính tổng các yêu cầu pending,
+ * nhờ đó hai request tạo withdrawal chạy đồng thời cho cùng một user không thể cùng đọc
+ * một availableBalance cũ rồi tạo tổng số tiền pending vượt quá số dư ví.
+ */
 export const createWithdrawalRequest = async (
   userId: string,
   role: string,
@@ -60,59 +69,85 @@ export const createWithdrawalRequest = async (
     if (!dto.bankAccountHolder?.trim()) throw makeError('Vui long nhap ten chu tai khoan', 400);
   }
 
-  const user = await userRepo().findOne({ where: { id: userId } });
-  if (!user) {
-    throw makeError('Khong tim thay nguoi dung', 404);
-  }
-
-  const balance = Number(user.virtualBalance || 0);
-
-  const { pendingTotal } = await paymentTransactionRepo()
-    .createQueryBuilder('payment')
-    .select('COALESCE(SUM(payment.amount), 0)', 'pendingTotal')
-    .where('payment.userId = :userId', { userId })
-    .andWhere("payment.type = 'withdraw'")
-    .andWhere("payment.status = 'pending'")
-    .getRawOne();
-
-  const availableBalance = balance - Number(pendingTotal || 0);
-
-  if (amount > availableBalance) {
-    throw makeError('So du kha dung khong du de tao yeu cau rut tien nay', 400);
-  }
-
+  // Giữ cùng một orderCode khi transaction bị retry do deadlock.
   const orderCode = `RUT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  const transaction = paymentTransactionRepo().create({
-    userId: user.id,
-    type: 'withdraw',
-    amount,
-    status: 'pending',
-    paymentMethod: isDemo ? 'demo' : 'bank_transfer',
-    orderCode,
-    description: dto.note?.trim() || (isDemo ? 'Yeu cau rut tien demo' : 'Yeu cau rut tien qua ngan hang'),
-    bankName: isDemo ? null : dto.bankName!.trim(),
-    bankAccountNumber: isDemo ? null : dto.bankAccountNumber!.trim(),
-    bankAccountHolder: isDemo ? null : dto.bankAccountHolder!.trim().toUpperCase(),
-    balanceBefore: balance,
-    metadata: JSON.stringify({ source: isDemo ? 'demo_withdraw' : 'bank_withdraw', createdBy: user.id }),
-  } as Partial<PaymentTransaction>);
+  const result = await runLockedTransaction(
+    async (manager) => {
+      // User là "account lock" gốc cho mọi thao tác withdrawal của cùng một người dùng.
+      const user = await lockByIdOrFail(
+        manager,
+        User,
+        userId,
+        () => makeError('Khong tim thay nguoi dung', 404)
+      );
 
-  const saved = await paymentTransactionRepo().save(transaction);
+      const txRepo = manager.getRepository(PaymentTransaction);
+      const balance = Number(user.virtualBalance || 0);
 
+      // Query này chạy SAU khi đã lock User. Mọi create/approve/reject withdrawal trong
+      // service này đều khóa User trước, vì vậy pendingTotal không còn bị race cùng user.
+      const pendingRow = await txRepo
+        .createQueryBuilder('payment')
+        .select('COALESCE(SUM(payment.amount), 0)', 'pendingTotal')
+        .where('payment.userId = :userId', { userId })
+        .andWhere("payment.type = 'withdraw'")
+        .andWhere("payment.status = 'pending'")
+        .getRawOne<{ pendingTotal: string | number }>();
+
+      const pendingTotal = Number(pendingRow?.pendingTotal || 0);
+      const availableBalance = balance - pendingTotal;
+
+      if (amount > availableBalance) {
+        throw makeError('So du kha dung khong du de tao yeu cau rut tien nay', 400);
+      }
+
+      const transaction = txRepo.create({
+        userId: user.id,
+        type: 'withdraw',
+        amount,
+        status: 'pending',
+        paymentMethod: isDemo ? 'demo' : 'bank_transfer',
+        orderCode,
+        description:
+          dto.note?.trim() ||
+          (isDemo ? 'Yeu cau rut tien demo' : 'Yeu cau rut tien qua ngan hang'),
+        bankName: isDemo ? null : dto.bankName!.trim(),
+        bankAccountNumber: isDemo ? null : dto.bankAccountNumber!.trim(),
+        bankAccountHolder: isDemo ? null : dto.bankAccountHolder!.trim().toUpperCase(),
+        balanceBefore: balance,
+        metadata: JSON.stringify({
+          source: isDemo ? 'demo_withdraw' : 'bank_withdraw',
+          createdBy: user.id,
+        }),
+      } as Partial<PaymentTransaction>);
+
+      const saved = await txRepo.save(transaction);
+
+      return {
+        userId: user.id,
+        userEmail: user.email,
+        balance,
+        transaction: saved,
+      };
+    },
+    { label: 'withdrawal.create' }
+  );
+
+  // Log sau COMMIT. Không log bên trong transaction vì transaction có thể retry.
   logAction({
     category: 'payment',
     action: 'wallet_withdraw_requested',
-    message: `${user.email} tao yeu cau rut ${amount.toLocaleString('vi-VN')} VND (${orderCode})`,
-    userId: user.id,
+    message: `${result.userEmail} tao yeu cau rut ${amount.toLocaleString('vi-VN')} VND (${orderCode})`,
+    userId: result.userId,
     targetType: 'PaymentTransaction',
-    targetId: saved.id,
+    targetId: result.transaction.id,
     metadata: { amount, orderCode, isDemo },
   });
 
   return {
-    wallet: { balance, currency: 'VND' },
-    transaction: formatTransactionForUser(saved),
+    wallet: { balance: result.balance, currency: 'VND' },
+    transaction: formatTransactionForUser(result.transaction),
   };
 };
 
@@ -178,93 +213,175 @@ export const listWithdrawalRequestsForAdmin = async (query: AdminWithdrawalQuery
   };
 };
 
-// Admin xac nhan DA CHUYEN KHOAN — tai thoi diem nay moi thuc su tru so du nguoi dung.
+/**
+ * Admin xác nhận đã chuyển khoản.
+ *
+ * Lock order cố định: User -> PaymentTransaction.
+ * create / approve / reject đều dùng cùng thứ tự này để hạn chế deadlock.
+ * Chỉ sau khi lock mới re-check status và số dư rồi mới trừ tiền.
+ */
 export const approveWithdrawalRequest = async (adminId: string, id: string) => {
-  const transaction = await paymentTransactionRepo().findOne({ where: { id, type: 'withdraw' } });
-  if (!transaction) {
+  // Chỉ đọc sơ bộ userId để biết account lock cần lấy. Mọi dữ liệu nghiệp vụ quan trọng
+  // (status, amount, balance) đều được đọc lại sau khi đã lock trong transaction.
+  const lookup = await paymentTransactionRepo().findOne({
+    where: { id, type: 'withdraw' },
+    select: { id: true, userId: true },
+  });
+
+  if (!lookup) {
     throw makeError('Khong tim thay yeu cau rut tien', 404);
   }
-  if (transaction.status !== 'pending') {
-    throw makeError('Yeu cau nay da duoc xu ly', 400);
-  }
-
-  const user = await userRepo().findOne({ where: { id: transaction.userId } });
-  if (!user) {
-    throw makeError('Khong tim thay nguoi dung cho yeu cau nay', 404);
-  }
-
-  const balanceBefore = Number(user.virtualBalance || 0);
-  const amount = Number(transaction.amount || 0);
-
-  if (amount > balanceBefore) {
-    throw makeError('So du hien tai cua nguoi dung khong du de hoan tat rut tien', 400);
-  }
-
-  const balanceAfter = balanceBefore - amount;
 
   try {
-    await AppDataSource.transaction(async (manager) => {
-      user.virtualBalance = balanceAfter;
-      await manager.getRepository(User).save(user);
+    const result = await runLockedTransaction(
+      async (manager) => {
+        const user = await lockByIdOrFail(
+          manager,
+          User,
+          lookup.userId,
+          () => makeError('Khong tim thay nguoi dung cho yeu cau nay', 404)
+        );
 
-      transaction.status = 'completed';
-      transaction.balanceBefore = balanceBefore;
-      transaction.balanceAfter = balanceAfter;
-      transaction.processedBy = adminId;
-      transaction.processedAt = new Date();
-      transaction.completedAt = new Date();
-      await manager.getRepository(PaymentTransaction).save(transaction);
+        const transaction = await lockOneOrFail(
+          manager,
+          PaymentTransaction,
+          { id, type: 'withdraw' },
+          () => makeError('Khong tim thay yeu cau rut tien', 404)
+        );
+
+        // Phòng trường hợp dữ liệu bất thường bị đổi UserId giữa lookup và lúc lock.
+        if (transaction.userId !== user.id) {
+          throw makeError('Yeu cau rut tien da thay doi, vui long tai lai du lieu', 409);
+        }
+
+        if (transaction.status !== 'pending') {
+          throw makeError('Yeu cau nay da duoc xu ly', 400);
+        }
+
+        const balanceBefore = Number(user.virtualBalance || 0);
+        const amount = Number(transaction.amount || 0);
+
+        if (!Number.isFinite(amount) || amount <= 0) {
+          throw makeError('So tien rut khong hop le', 400);
+        }
+
+        if (amount > balanceBefore) {
+          throw makeError('So du hien tai cua nguoi dung khong du de hoan tat rut tien', 400);
+        }
+
+        const balanceAfter = balanceBefore - amount;
+        const now = new Date();
+
+        user.virtualBalance = balanceAfter;
+        await manager.getRepository(User).save(user);
+
+        transaction.status = 'completed';
+        transaction.balanceBefore = balanceBefore;
+        transaction.balanceAfter = balanceAfter;
+        transaction.processedBy = adminId;
+        transaction.processedAt = now;
+        transaction.completedAt = now;
+        await manager.getRepository(PaymentTransaction).save(transaction);
+
+        return {
+          transaction,
+          amount,
+          targetUserId: user.id,
+          userEmail: user.email,
+        };
+      },
+      { label: 'withdrawal.approve' }
+    );
+
+    logAction({
+      category: 'payment',
+      action: 'wallet_withdraw_approved',
+      message: `Admin xac nhan da chuyen ${result.amount.toLocaleString('vi-VN')} VND cho ${result.userEmail}`,
+      userId: adminId,
+      targetType: 'PaymentTransaction',
+      targetId: result.transaction.id,
+      metadata: { amount: result.amount, targetUserId: result.targetUserId },
     });
+
+    return formatTransactionForUser(result.transaction);
   } catch (err: any) {
     logError({
       category: 'payment',
       action: 'wallet_withdraw_approve_failed',
-      message: `Loi xac nhan rut tien cho user ${user.email}: ${err.message || err}`,
+      message: `Loi xac nhan rut tien ${id}: ${err.message || err}`,
       userId: adminId,
       targetType: 'PaymentTransaction',
-      targetId: transaction.id,
+      targetId: id,
       error: err,
     });
     throw err;
   }
-
-  logAction({
-    category: 'payment',
-    action: 'wallet_withdraw_approved',
-    message: `Admin xac nhan da chuyen ${amount.toLocaleString('vi-VN')} VND cho ${user.email}`,
-    userId: adminId,
-    targetType: 'PaymentTransaction',
-    targetId: transaction.id,
-    metadata: { amount, targetUserId: user.id },
-  });
-
-  return formatTransactionForUser(transaction);
 };
 
+/**
+ * Admin từ chối yêu cầu rút tiền.
+ *
+ * Reject cũng lock User -> PaymentTransaction giống approve. Nhờ vậy approve và reject
+ * không thể cùng đọc status=pending rồi ghi hai kết quả mâu thuẫn cho cùng một request.
+ */
 export const rejectWithdrawalRequest = async (adminId: string, id: string, reason?: string) => {
-  const transaction = await paymentTransactionRepo().findOne({ where: { id, type: 'withdraw' } });
-  if (!transaction) {
+  const lookup = await paymentTransactionRepo().findOne({
+    where: { id, type: 'withdraw' },
+    select: { id: true, userId: true },
+  });
+
+  if (!lookup) {
     throw makeError('Khong tim thay yeu cau rut tien', 404);
   }
-  if (transaction.status !== 'pending') {
-    throw makeError('Yeu cau nay da duoc xu ly', 400);
-  }
 
-  transaction.status = 'rejected';
-  transaction.rejectReason = reason?.trim() || null as any;
-  transaction.processedBy = adminId;
-  transaction.processedAt = new Date();
-  await paymentTransactionRepo().save(transaction);
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const user = await lockByIdOrFail(
+        manager,
+        User,
+        lookup.userId,
+        () => makeError('Khong tim thay nguoi dung cho yeu cau nay', 404)
+      );
+
+      const transaction = await lockOneOrFail(
+        manager,
+        PaymentTransaction,
+        { id, type: 'withdraw' },
+        () => makeError('Khong tim thay yeu cau rut tien', 404)
+      );
+
+      if (transaction.userId !== user.id) {
+        throw makeError('Yeu cau rut tien da thay doi, vui long tai lai du lieu', 409);
+      }
+
+      if (transaction.status !== 'pending') {
+        throw makeError('Yeu cau nay da duoc xu ly', 400);
+      }
+
+      transaction.status = 'rejected';
+      transaction.rejectReason = reason?.trim() || (null as any);
+      transaction.processedBy = adminId;
+      transaction.processedAt = new Date();
+
+      const saved = await manager.getRepository(PaymentTransaction).save(transaction);
+
+      return {
+        transaction: saved,
+        targetUserId: user.id,
+      };
+    },
+    { label: 'withdrawal.reject' }
+  );
 
   logAction({
     category: 'payment',
     action: 'wallet_withdraw_rejected',
-    message: `Admin tu choi yeu cau rut ${Number(transaction.amount).toLocaleString('vi-VN')} VND (${transaction.id})`,
+    message: `Admin tu choi yeu cau rut ${Number(result.transaction.amount).toLocaleString('vi-VN')} VND (${result.transaction.id})`,
     userId: adminId,
     targetType: 'PaymentTransaction',
-    targetId: transaction.id,
-    metadata: { reason: reason || null, targetUserId: transaction.userId },
+    targetId: result.transaction.id,
+    metadata: { reason: reason || null, targetUserId: result.targetUserId },
   });
 
-  return formatTransactionForUser(transaction);
+  return formatTransactionForUser(result.transaction);
 };

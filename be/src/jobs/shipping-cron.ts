@@ -4,10 +4,13 @@ import { remindPendingQualityChecks } from '../services/escrow.service';
 import { logError } from '../services/systemLog.service';
 
 const log = createLogger('ShippingCron');
+let shippingCronStarted = false;
 
 // Chay moi gio: nhac doanh nghiep xac nhan "Kiem tra chat luong" (moc 4)
 // neu nong dan da xac nhan "Giao hang" (moc 3) tu 2 ngay truoc ma van chua xu ly.
 export const startShippingCron = () => {
+  if (shippingCronStarted) return;
+
   cron.schedule('0 * * * *', async () => {
     try {
       const count = await remindPendingQualityChecks();
@@ -25,5 +28,6 @@ export const startShippingCron = () => {
     }
   });
 
+  shippingCronStarted = true;
   log.info('Da dang ky cron job nhac kiem tra chat luong (chay moi gio, tai phut 0)');
 };

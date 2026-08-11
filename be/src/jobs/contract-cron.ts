@@ -4,10 +4,13 @@ import { expireUnsignedContracts } from '../services/contract.service';
 import { logError } from '../services/systemLog.service';
 
 const log = createLogger('ContractCron');
+let contractCronStarted = false;
 
 // Chay moi gio: tu dong huy hop dong con o trang thai 'draft' (nong dan chua ky)
 // qua han CONTRACT_CONFIG.FARMER_SIGN_DEADLINE_DAYS ke tu ngay tao.
 export const startContractExpiryCron = () => {
+  if (contractCronStarted) return;
+
   cron.schedule('0 * * * *', async () => {
     try {
       const count = await expireUnsignedContracts();
@@ -25,5 +28,6 @@ export const startContractExpiryCron = () => {
     }
   });
 
+  contractCronStarted = true;
   log.info('Da dang ky cron job kiem tra hop dong qua han ky (chay moi gio, tai phut 0)');
 };

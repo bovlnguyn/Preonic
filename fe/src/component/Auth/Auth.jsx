@@ -46,6 +46,9 @@ const Auth = () => {
   const [forgotEmail,     setForgotEmail]     = useState("");
   const [forgotLoading,   setForgotLoading]   = useState(false);
   const [forgotSuccess,   setForgotSuccess]   = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   const [formData, setFormData] = useState({
     emailOrPhone: "",
@@ -62,6 +65,8 @@ const Auth = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setNeedsVerification(false);
+    setResendMessage("");
     setLoading(true);
 
     try {
@@ -88,6 +93,9 @@ const Auth = () => {
       }
     } catch (err) {
       setError(err?.message || "Đăng nhập thất bại. Vui lòng thử lại.");
+      if (err?.code === "EMAIL_NOT_VERIFIED") {
+        setNeedsVerification(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -112,6 +120,23 @@ const Auth = () => {
     setShowForgotModal(false);
     setForgotEmail("");
     setForgotSuccess(false);
+  };
+
+  const handleResendVerification = async () => {
+    if (!formData.emailOrPhone.trim() || resendLoading) return;
+
+    setResendLoading(true);
+    setResendMessage("");
+    try {
+      const response = await authService.resendVerification({
+        emailOrPhone: formData.emailOrPhone.trim(),
+      });
+      setResendMessage(response?.message || "Email xác minh mới đã được gửi nếu tài khoản cần xác minh.");
+    } catch (err) {
+      setResendMessage(err?.message || "Không thể gửi lại email xác minh. Vui lòng thử lại.");
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   return (
@@ -201,6 +226,41 @@ const Auth = () => {
                 >
                   <FiAlertTriangle /> {error}
                 </motion.div>
+              )}
+
+              {needsVerification && (
+                <div style={{
+                  marginTop: -4,
+                  marginBottom: 14,
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  color: '#166534',
+                  fontSize: 13,
+                }}>
+                  <div style={{ marginBottom: 8 }}>
+                    Tài khoản đã tồn tại nhưng cần xác minh email trước khi đăng nhập.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={resendLoading}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 0,
+                      color: '#15803d',
+                      fontWeight: 800,
+                      cursor: resendLoading ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {resendLoading ? 'Đang gửi lại...' : 'Gửi lại email xác minh'}
+                  </button>
+                  {resendMessage && (
+                    <div style={{ marginTop: 8, color: '#4b5563' }}>{resendMessage}</div>
+                  )}
+                </div>
               )}
 
               {/* Email / SĐT */}

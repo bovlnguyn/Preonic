@@ -1,9 +1,6 @@
-import { Router } from 'express';
-import '../config/passport'; // khởi tạo strategy
+import { Router, RequestHandler } from 'express';
+import '../config/passport';
 import passport from 'passport';
-import { RequestHandler } from 'express';
-import { validateGoogleRegister } from '../middlewares/validation';
-import { signAccessToken } from '../services/auth.service';
 
 import {
   logout,
@@ -15,8 +12,11 @@ import {
   resetPassword,
   updateProfile,
   updatePassword,
-  googleRegister,
   verifyEmail,
+  googleRegister,
+  googleOAuthCallback,
+  getGoogleOnboarding,
+  resendVerification,
 } from '../controller/auth.controller';
 
 import {
@@ -26,11 +26,12 @@ import {
   validateResetPassword,
   validateUpdateProfile,
   validateUpdatePassword,
+  validateGoogleRegister,
+  validateResendVerification,
 } from '../middlewares/validation';
 
 import { protect } from '../middlewares/auth.middlewares';
 import { uploadAvatar } from '../middlewares/uploads.middlewares';
-
 import {
   authLimiter,
   registerLimiter,
@@ -39,48 +40,36 @@ import {
 
 const router = Router();
 
-// ── Public routes ──
-router.post('/register',        registerLimiter,      validateRegister,       register);
-router.post('/login',           authLimiter,          validateLogin,          login);
-router.post('/refresh-token',   authLimiter,                                  refreshToken);
+router.post('/register', registerLimiter, validateRegister, register);
+router.post('/login', authLimiter, validateLogin, login);
+router.post('/refresh-token', authLimiter, refreshToken);
 router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, forgotPassword);
-router.post('/reset-password',                        validateResetPassword,  resetPassword);
-router.post('/google-register', validateGoogleRegister, googleRegister as RequestHandler);
-// Verify email
+router.post('/reset-password', passwordResetLimiter, validateResetPassword, resetPassword);
+router.post('/resend-verification', passwordResetLimiter, validateResendVerification, resendVerification);
 router.get('/verify-email/:token', verifyEmail as RequestHandler);
 
-// ── Protected routes ──
-router.get  ('/me',     protect as RequestHandler, getMe as RequestHandler);
-router.patch('/me',     protect as RequestHandler, uploadAvatar, validateUpdateProfile, updateProfile as RequestHandler);
-router.put  ('/update-password', protect as RequestHandler, validateUpdatePassword, updatePassword as RequestHandler);
-router.post ('/logout', logout as RequestHandler);
-// Google OAuth routes
 router.get('/google',
-  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+    prompt: 'select_account',
+  })
 );
 
 router.get('/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}/auth?error=google_failed` }),
-  (req: any, res: any) => {
-    const user = req.user;
-
-    // User mới → redirect về trang chọn role
-    if (user.isNewUser) {
-      const profile = encodeURIComponent(JSON.stringify({
-        email:     user.email,
-        firstName: user.firstName,
-        lastName:  user.lastName,
-        avatar:    user.avatar,
-      }));
-      return res.redirect(`${process.env.FRONTEND_URL}/auth/google/select-role?profile=${profile}`);
-    }
-
-    // User cũ → tạo token và redirect
-    const accessToken = signAccessToken(user.id, user.role);
-    // Gửi nguyên đối tượng user (đã qua toJSON() lọc field nhạy cảm) thay vì
-    // chỉ vài field, để không ghi đè mất các thông tin hồ sơ đã cập nhật trước đó.
-    const userData = encodeURIComponent(JSON.stringify(user));
-    res.redirect(`${process.env.FRONTEND_URL}/auth/google/callback?token=${accessToken}&user=${userData}`);
-  }
+  passport.authenticate('google', {
+    session: false,
+    failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth?error=google_failed`,
+  }),
+  googleOAuthCallback as RequestHandler
 );
+
+router.get('/google-onboarding', getGoogleOnboarding as RequestHandler);
+router.post('/google-register', authLimiter, validateGoogleRegister, googleRegister as RequestHandler);
+
+router.get('/me', protect as RequestHandler, getMe as RequestHandler);
+router.patch('/me', protect as RequestHandler, uploadAvatar, validateUpdateProfile, updateProfile as RequestHandler);
+router.put('/update-password', protect as RequestHandler, validateUpdatePassword, updatePassword as RequestHandler);
+router.post('/logout', logout as RequestHandler);
+
 export default router;

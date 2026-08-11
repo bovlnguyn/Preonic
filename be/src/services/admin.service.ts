@@ -11,6 +11,11 @@ import { Notification } from '../models/Notification.entity';
 import { AppError } from '../middlewares/error.middleware';
 import { logAction } from './systemLog.service';
 import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
+import {
+  lockByIdOrFail,
+  lockOne,
+  runLockedTransaction,
+} from '../utils/transaction-lock.util';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const contractRepo = () => AppDataSource.getRepository(Contract);
@@ -371,169 +376,387 @@ export const resolveDispute = async (
     throw new AppError('Phán quyết không hợp lệ', 400);
   }
 
-  const dispute = await disputeRepo().findOne({ where: { id: disputeId } });
-  if (!dispute) {
-    throw new AppError('Không tìm thấy khiếu nại', 404);
-  }
-  if (!RESOLVABLE_DISPUTE_STATUSES.includes(dispute.status)) {
-    throw new AppError('Khiếu nại này đã được giải quyết trước đó', 400);
-  }
-
-  const escrow = await escrowRepo().findOne({ where: { id: dispute.escrowId } });
-  if (!escrow) {
-    throw new AppError('Không tìm thấy ký quỹ liên quan', 404);
-  }
-
-  const contract = await contractRepo().findOne({ where: { id: dispute.contractId } });
-  if (!contract) {
-    throw new AppError('Không tìm thấy hợp đồng', 404);
-  }
-
-  const remaining =
-    Number(escrow.depositedAmount) - Number(escrow.releasedAmount) - Number(escrow.refundedAmount || 0);
-
-  await AppDataSource.transaction(async (manager) => {
-    const txUserRepo = manager.getRepository(User);
-    const txEscrowRepo = manager.getRepository(Escrow);
-    const txContractRepo = manager.getRepository(Contract);
-    const txMilestoneRepo = manager.getRepository(EscrowMilestone);
-    const txTransactionRepo = manager.getRepository(EscrowTransaction);
-    const txDisputeRepo = manager.getRepository(Dispute);
-    const txNotificationRepo = manager.getRepository(Notification);
-
-    const now = new Date();
-
-    if (resolution === 'farmer') {
-      if (remaining > 0) {
-        const farmer = await txUserRepo.findOne({ where: { id: escrow.farmerId } });
-        if (!farmer) throw new AppError('Không tìm thấy nông dân', 404);
-        farmer.virtualBalance = Number(farmer.virtualBalance) + remaining;
-        await txUserRepo.save(farmer);
-
-        escrow.releasedAmount = Number(escrow.releasedAmount) + remaining;
-
-        await txTransactionRepo.save(
-          txTransactionRepo.create({
-            escrowId: escrow.id,
-            type: 'release',
-            amount: remaining,
-            fromUserId: escrow.enterpriseId,
-            toUserId: escrow.farmerId,
-            milestoneStep: dispute.milestoneStep ?? undefined,
-            description: `Giải quyết khiếu nại: giải ngân số dư còn lại cho nông dân (hợp đồng ${contract.contractCode})`,
-          })
-        );
-      }
-      escrow.status = 'completed';
-      contract.status = 'completed';
-      contract.completedAt = now;
-    } else {
-      if (remaining > 0) {
-        const enterprise = await txUserRepo.findOne({ where: { id: escrow.enterpriseId } });
-        if (!enterprise) throw new AppError('Không tìm thấy doanh nghiệp', 404);
-        enterprise.virtualBalance = Number(enterprise.virtualBalance) + remaining;
-        await txUserRepo.save(enterprise);
-
-        escrow.refundedAmount = Number(escrow.refundedAmount || 0) + remaining;
-
-        await txTransactionRepo.save(
-          txTransactionRepo.create({
-            escrowId: escrow.id,
-            type: 'refund',
-            amount: remaining,
-            fromUserId: escrow.farmerId,
-            toUserId: escrow.enterpriseId,
-            milestoneStep: dispute.milestoneStep ?? undefined,
-            description: `Giải quyết khiếu nại: hoàn tiền số dư còn lại cho doanh nghiệp (hợp đồng ${contract.contractCode})`,
-          })
-        );
-      }
-      escrow.status = 'refunded';
-      contract.status = 'cancelled';
-      contract.cancelledAt = now;
-      contract.cancelReason = adminNotes?.trim() || 'Giải quyết khiếu nại: hoàn tiền cho doanh nghiệp';
-    }
-
-    contract.paidAmount = Number(escrow.releasedAmount);
-    contract.remainingAmount = 0;
-    await txContractRepo.save(contract);
-    await txEscrowRepo.save(escrow);
-
-    if (dispute.milestoneStep) {
-      const milestone = await txMilestoneRepo.findOne({
-        where: { escrowId: escrow.id, step: dispute.milestoneStep },
-      });
-      if (milestone && milestone.status === 'disputed') {
-        milestone.status = 'completed';
-        milestone.completedAt = now;
-        await txMilestoneRepo.save(milestone);
-      }
-    }
-
-    dispute.status = 'resolved';
-    dispute.resolution = resolution;
-    dispute.adminNotes = adminNotes?.trim() || dispute.adminNotes;
-    dispute.resolvedAt = now;
-    await txDisputeRepo.save(dispute);
-
-    const message =
-      resolution === 'farmer'
-        ? `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: giải ngân số dư còn lại cho nông dân.`
-        : `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: hoàn tiền số dư còn lại cho doanh nghiệp.`;
-
-    await txNotificationRepo.save([
-      txNotificationRepo.create({
-        userId: dispute.raisedBy,
-        type: 'dispute_resolved',
-        title: 'Khiếu nại đã được giải quyết',
-        message,
-        relatedId: dispute.id,
-        relatedModel: 'Dispute',
-        severity: 'info',
-        isRead: false,
-        emailSent: false,
-      }),
-      txNotificationRepo.create({
-        userId: dispute.againstUserId,
-        type: 'dispute_resolved',
-        title: 'Khiếu nại đã được giải quyết',
-        message,
-        relatedId: dispute.id,
-        relatedModel: 'Dispute',
-        severity: 'info',
-        isRead: false,
-        emailSent: false,
-      }),
-    ]);
+  // Chỉ đọc sơ bộ để biết Contract/Escrow nào cần lock đầu tiên. Mọi dữ liệu dùng
+  // để quyết định giải ngân/hoàn tiền sẽ được đọc lại SAU KHI row đã được khóa.
+  const preliminaryDispute = await disputeRepo().findOne({
+    where: { id: disputeId },
+    select: {
+      id: true,
+      contractId: true,
+      escrowId: true,
+    },
   });
 
-  const resolvedTitle = 'Khiếu nại đã được giải quyết';
-  const resolvedMessage =
-    resolution === 'farmer'
-      ? `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: giải ngân số dư còn lại cho nông dân.`
-      : `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: hoàn tiền số dư còn lại cho doanh nghiệp.`;
+  if (!preliminaryDispute) {
+    throw new AppError('Không tìm thấy khiếu nại', 404);
+  }
 
-  const raisedByRole = dispute.raisedByRole === 'farmer' ? 'farmer' : 'enterprise';
+  const normalizedAdminNotes = adminNotes?.trim() || undefined;
+
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const txUserRepo = manager.getRepository(User);
+      const txContractRepo = manager.getRepository(Contract);
+      const txEscrowRepo = manager.getRepository(Escrow);
+      const txMilestoneRepo = manager.getRepository(EscrowMilestone);
+      const txTransactionRepo = manager.getRepository(EscrowTransaction);
+      const txDisputeRepo = manager.getRepository(Dispute);
+      const txNotificationRepo = manager.getRepository(Notification);
+
+      // Giữ cùng thứ tự lock với escrow.service.ts:
+      // Contract -> Escrow -> (Dispute) -> Milestone -> User.
+      // Nhờ đó resolve dispute và confirm milestone trên cùng hợp đồng không thể
+      // cùng dùng trạng thái/số dư cũ để giải ngân hai lần.
+      const contract = await lockByIdOrFail(
+        manager,
+        Contract,
+        preliminaryDispute.contractId,
+        () => new AppError('Không tìm thấy hợp đồng', 404)
+      );
+
+      const escrow = await lockByIdOrFail(
+        manager,
+        Escrow,
+        preliminaryDispute.escrowId,
+        () => new AppError('Không tìm thấy ký quỹ liên quan', 404)
+      );
+
+      const dispute = await lockByIdOrFail(
+        manager,
+        Dispute,
+        disputeId,
+        () => new AppError('Không tìm thấy khiếu nại', 404)
+      );
+
+      // Không tin các foreign key đã đọc trước transaction. Kiểm tra lại sau lock
+      // để tránh xử lý nhầm dữ liệu nếu bản ghi không nhất quán.
+      if (dispute.contractId !== contract.id || dispute.escrowId !== escrow.id) {
+        throw new AppError('Dữ liệu khiếu nại không khớp với hợp đồng/ký quỹ', 409);
+      }
+      if (escrow.contractId !== contract.id) {
+        throw new AppError('Dữ liệu ký quỹ không khớp với hợp đồng', 409);
+      }
+
+      // Đây là gate idempotency chính. Request resolve thứ hai phải chờ lock,
+      // sau đó sẽ nhìn thấy status=resolved và dừng trước mọi thay đổi số dư.
+      if (!RESOLVABLE_DISPUTE_STATUSES.includes(dispute.status)) {
+        throw new AppError('Khiếu nại này đã được giải quyết trước đó', 400);
+      }
+
+      // Tranh chấp hợp lệ thông thường ở active/disputed. completed/refunded chỉ
+      // được chấp nhận để đóng một dispute khác còn sót lại trên cùng escrow và
+      // bắt buộc phải cùng hướng với kết quả tài chính đã chốt trước đó.
+      const terminalEscrowStatus = escrow.status === 'completed' || escrow.status === 'refunded';
+      if (!['active', 'disputed', 'completed', 'refunded'].includes(escrow.status)) {
+        throw new AppError('Ký quỹ không ở trạng thái có thể giải quyết tranh chấp', 409);
+      }
+      if (escrow.status === 'completed' && resolution !== 'farmer') {
+        throw new AppError('Ký quỹ đã được giải ngân; không thể đổi phán quyết sang hoàn tiền', 409);
+      }
+      if (escrow.status === 'refunded' && resolution !== 'enterprise') {
+        throw new AppError('Ký quỹ đã được hoàn tiền; không thể đổi phán quyết sang giải ngân', 409);
+      }
+
+      const depositedAmount = Number(escrow.depositedAmount || 0);
+      const releasedAmount = Number(escrow.releasedAmount || 0);
+      const refundedAmount = Number(escrow.refundedAmount || 0);
+
+      if (
+        !Number.isFinite(depositedAmount) ||
+        !Number.isFinite(releasedAmount) ||
+        !Number.isFinite(refundedAmount) ||
+        depositedAmount < 0 ||
+        releasedAmount < 0 ||
+        refundedAmount < 0
+      ) {
+        throw new AppError('Dữ liệu số tiền ký quỹ không hợp lệ', 500);
+      }
+
+      let remaining = depositedAmount - releasedAmount - refundedAmount;
+      if (remaining < -0.01) {
+        throw new AppError('Dữ liệu ký quỹ không nhất quán: tổng chi vượt số tiền đã nạp', 409);
+      }
+      if (Math.abs(remaining) <= 0.01) remaining = 0;
+
+      if (terminalEscrowStatus && remaining > 0) {
+        throw new AppError(
+          'Dữ liệu ký quỹ không nhất quán: trạng thái đã kết thúc nhưng vẫn còn số dư chưa xử lý',
+          409
+        );
+      }
+
+      // Nếu dispute gắn với milestone, lock milestone trước User để giữ cùng thứ tự
+      // với confirmMilestone(). Không để confirm và admin resolution chạy chồng nhau.
+      let milestone: EscrowMilestone | null = null;
+      if (dispute.milestoneStep) {
+        milestone = await lockOne(manager, EscrowMilestone, {
+          escrowId: escrow.id,
+          step: dispute.milestoneStep,
+        });
+      }
+
+      const now = new Date();
+
+      if (!terminalEscrowStatus && remaining > 0) {
+        const beneficiaryId = resolution === 'farmer' ? escrow.farmerId : escrow.enterpriseId;
+        const beneficiary = await lockByIdOrFail(
+          manager,
+          User,
+          beneficiaryId,
+          () => new AppError(
+            resolution === 'farmer' ? 'Không tìm thấy nông dân' : 'Không tìm thấy doanh nghiệp',
+            404
+          )
+        );
+
+        const balanceBefore = Number(beneficiary.virtualBalance);
+        if (!Number.isFinite(balanceBefore)) {
+          throw new AppError('Số dư người nhận không hợp lệ', 500);
+        }
+
+        beneficiary.virtualBalance = balanceBefore + remaining;
+        await txUserRepo.save(beneficiary);
+
+        if (resolution === 'farmer') {
+          escrow.releasedAmount = releasedAmount + remaining;
+          await txTransactionRepo.save(
+            txTransactionRepo.create({
+              escrowId: escrow.id,
+              type: 'release',
+              amount: remaining,
+              fromUserId: escrow.enterpriseId,
+              toUserId: escrow.farmerId,
+              milestoneStep: dispute.milestoneStep ?? undefined,
+              description: `Giải quyết khiếu nại: giải ngân số dư còn lại cho nông dân (hợp đồng ${contract.contractCode})`,
+            })
+          );
+        } else {
+          escrow.refundedAmount = refundedAmount + remaining;
+          await txTransactionRepo.save(
+            txTransactionRepo.create({
+              escrowId: escrow.id,
+              type: 'refund',
+              amount: remaining,
+              fromUserId: escrow.farmerId,
+              toUserId: escrow.enterpriseId,
+              milestoneStep: dispute.milestoneStep ?? undefined,
+              description: `Giải quyết khiếu nại: hoàn tiền số dư còn lại cho doanh nghiệp (hợp đồng ${contract.contractCode})`,
+            })
+          );
+        }
+      }
+
+      if (resolution === 'farmer') {
+        escrow.status = 'completed';
+        contract.status = 'completed';
+        contract.escrowStatus = 'released';
+        contract.completedAt = contract.completedAt || now;
+      } else {
+        escrow.status = 'refunded';
+        contract.status = 'cancelled';
+        contract.escrowStatus = 'refunded';
+        contract.cancelledAt = contract.cancelledAt || now;
+        contract.cancelReason = normalizedAdminNotes || 'Giải quyết khiếu nại: hoàn tiền cho doanh nghiệp';
+      }
+
+      contract.paidAmount = Number(escrow.releasedAmount || 0);
+      contract.remainingAmount = 0;
+      if (adminId) contract.updatedBy = adminId;
+
+      await txContractRepo.save(contract);
+      await txEscrowRepo.save(escrow);
+
+      if (milestone && milestone.status === 'disputed') {
+        milestone.status = 'completed';
+        milestone.completedAt = milestone.completedAt || now;
+        await txMilestoneRepo.save(milestone);
+      }
+
+      dispute.status = 'resolved';
+      dispute.resolution = resolution;
+      dispute.adminNotes = normalizedAdminNotes || dispute.adminNotes;
+      dispute.resolvedAt = now;
+      await txDisputeRepo.save(dispute);
+
+      const message =
+        resolution === 'farmer'
+          ? `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: giải ngân số dư còn lại cho nông dân.`
+          : `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: hoàn tiền số dư còn lại cho doanh nghiệp.`;
+
+      await txNotificationRepo.save([
+        txNotificationRepo.create({
+          userId: dispute.raisedBy,
+          type: 'dispute_resolved',
+          title: 'Khiếu nại đã được giải quyết',
+          message,
+          relatedId: dispute.id,
+          relatedModel: 'Dispute',
+          severity: 'info',
+          isRead: false,
+          emailSent: false,
+        }),
+        txNotificationRepo.create({
+          userId: dispute.againstUserId,
+          type: 'dispute_resolved',
+          title: 'Khiếu nại đã được giải quyết',
+          message,
+          relatedId: dispute.id,
+          relatedModel: 'Dispute',
+          severity: 'info',
+          isRead: false,
+          emailSent: false,
+        }),
+      ]);
+
+      return {
+        contractId: contract.id,
+        contractCode: contract.contractCode,
+        raisedBy: dispute.raisedBy,
+        raisedByRole: dispute.raisedByRole,
+        againstUserId: dispute.againstUserId,
+        message,
+        amountMoved: terminalEscrowStatus ? 0 : remaining,
+      };
+    },
+    {
+      label: 'admin.resolveDispute',
+    }
+  );
+
+  // Email/log nằm ngoài transaction vì transaction helper có thể retry khi deadlock.
+  // Nếu để side effect bên trong callback, một deadlock có thể làm gửi mail/log hai lần.
+  const resolvedTitle = 'Khiếu nại đã được giải quyết';
+  const raisedByRole = result.raisedByRole === 'farmer' ? 'farmer' : 'enterprise';
   const againstRole = raisedByRole === 'farmer' ? 'enterprise' : 'farmer';
 
   const [raisedByUser, againstUser] = await Promise.all([
-    userRepo().findOne({ where: { id: dispute.raisedBy } }),
-    userRepo().findOne({ where: { id: dispute.againstUserId } }),
+    userRepo().findOne({ where: { id: result.raisedBy } }),
+    userRepo().findOne({ where: { id: result.againstUserId } }),
   ]);
-  await notifyEmail(raisedByUser, raisedByRole, resolvedTitle, resolvedMessage, contract.id);
-  await notifyEmail(againstUser, againstRole, resolvedTitle, resolvedMessage, contract.id);
+
+  await notifyEmail(
+    raisedByUser,
+    raisedByRole,
+    resolvedTitle,
+    result.message,
+    result.contractId
+  );
+  await notifyEmail(
+    againstUser,
+    againstRole,
+    resolvedTitle,
+    result.message,
+    result.contractId
+  );
 
   logAction({
     category: 'dispute',
     action: 'dispute_resolved',
-    message: `Admin da giai quyet tranh chap ${disputeId} (hop dong ${contract.contractCode}) nghieng ve ${resolution === 'farmer' ? 'nong dan' : 'doanh nghiep'}`,
+    message: `Admin da giai quyet tranh chap ${disputeId} (hop dong ${result.contractCode}) nghieng ve ${resolution === 'farmer' ? 'nong dan' : 'doanh nghiep'}`,
     userId: adminId,
     targetType: 'Dispute',
     targetId: disputeId,
-    metadata: { resolution, contractCode: contract.contractCode, adminNotes },
+    metadata: {
+      resolution,
+      contractCode: result.contractCode,
+      amountMoved: result.amountMoved,
+      ...(normalizedAdminNotes ? { adminNotes: normalizedAdminNotes } : {}),
+    },
   });
 
   return getDisputeDetail(disputeId);
+};
+
+
+// ════════════════════════════════════════
+// Commissions
+// ════════════════════════════════════════
+export interface AdminCommissionFilters {
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Danh sach hoa hong nen tang duoc snapshot ngay tren Contract.
+ * Khong tu tao giao dich tien moi o day; endpoint nay chi doc/bao cao du lieu.
+ */
+export const getCommissions = async (filters: AdminCommissionFilters = {}) => {
+  const page = Math.max(1, Number(filters.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(filters.limit) || 20));
+
+  const qb = contractRepo()
+    .createQueryBuilder('contract')
+    .where('COALESCE(contract.Commission, 0) > 0');
+
+  if (filters.search?.trim()) {
+    const search = `%${filters.search.trim()}%`;
+    qb.andWhere(
+      '(contract.ContractCode LIKE :search OR contract.FarmerName LIKE :search OR contract.EnterpriseName LIKE :search OR contract.ProductName LIKE :search)',
+      { search }
+    );
+  }
+
+  if (filters.status?.trim()) {
+    qb.andWhere('contract.Status = :status', { status: filters.status.trim() });
+  }
+
+  qb.orderBy('contract.createdAt', 'DESC')
+    .skip((page - 1) * limit)
+    .take(limit);
+
+  const [contracts, total] = await qb.getManyAndCount();
+
+  const aggregate = await contractRepo()
+    .createQueryBuilder('contract')
+    .select('COUNT(*)', 'totalContracts')
+    .addSelect('COALESCE(SUM(contract.Commission), 0)', 'totalCommission')
+    .addSelect(
+      "COALESCE(SUM(CASE WHEN contract.Status = 'completed' THEN contract.Commission ELSE 0 END), 0)",
+      'completedCommission'
+    )
+    .addSelect(
+      "COALESCE(SUM(CASE WHEN contract.Status IN ('approved', 'active', 'cancel_pending', 'disputed') THEN contract.Commission ELSE 0 END), 0)",
+      'inProgressCommission'
+    )
+    .addSelect(
+      "COALESCE(SUM(CASE WHEN contract.Status = 'cancelled' THEN contract.Commission ELSE 0 END), 0)",
+      'cancelledCommission'
+    )
+    .where('COALESCE(contract.Commission, 0) > 0')
+    .getRawOne();
+
+  const commissions = contracts.map((contract) => ({
+    id: contract.id,
+    contractId: contract.id,
+    contractCode: contract.contractCode,
+    farmerName: contract.farmerName,
+    enterpriseName: contract.enterpriseName,
+    productName: contract.productName,
+    totalValue: Number(contract.totalValue || 0),
+    commission: Number(contract.commission || 0),
+    commissionRate: Number(contract.commissionRate || 0),
+    status: contract.status,
+    createdAt: contract.createdAt,
+    completedAt: contract.completedAt,
+  }));
+
+  return {
+    commissions,
+    pagination: {
+      page,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+    stats: {
+      totalContracts: Number(aggregate?.totalContracts || 0),
+      totalCommission: Number(aggregate?.totalCommission || 0),
+      completedCommission: Number(aggregate?.completedCommission || 0),
+      inProgressCommission: Number(aggregate?.inProgressCommission || 0),
+      cancelledCommission: Number(aggregate?.cancelledCommission || 0),
+    },
+  };
 };
 
 // ════════════════════════════════════════
@@ -624,84 +847,5 @@ export const getTransactions = async (filters: AdminTransactionFilters = {}) => 
       totalPages: Math.max(1, Math.ceil(total / limit)),
     },
     stats,
-  };
-};
-
-// ════════════════════════════════════════
-// Commissions
-// ════════════════════════════════════════
-export interface AdminCommissionFilters {
-  search?: string;
-  status?: string;
-  page?: number;
-  limit?: number;
-}
-
-const COMMISSION_LOST_STATUSES = ['cancelled'];
-
-export const getCommissions = async (filters: AdminCommissionFilters = {}) => {
-  const page = Number(filters.page) || 1;
-  const limit = Number(filters.limit) || 20;
-
-  const qb = contractRepo().createQueryBuilder('contract').where('contract.Commission > 0');
-
-  if (filters.search) {
-    const search = `%${filters.search.trim()}%`;
-    qb.andWhere(
-      '(contract.ContractCode LIKE :search OR contract.FarmerName LIKE :search OR contract.EnterpriseName LIKE :search)',
-      { search }
-    );
-  }
-
-  if (filters.status) {
-    qb.andWhere('contract.Status = :status', { status: filters.status });
-  }
-
-  qb.orderBy('contract.createdAt', 'DESC');
-  qb.skip((page - 1) * limit).take(limit);
-
-  const [contracts, total] = await qb.getManyAndCount();
-
-  const commissions = contracts.map((c) => ({
-    id: c.id,
-    contractCode: c.contractCode,
-    farmerName: c.farmerName,
-    enterpriseName: c.enterpriseName,
-    totalValue: Number(c.totalValue || 0),
-    commissionRate: Number(c.commissionRate || 0),
-    commission: Number(c.commission || 0),
-    status: c.status,
-    createdAt: c.createdAt,
-    completedAt: c.completedAt,
-  }));
-
-  const statsRaw = await contractRepo()
-    .createQueryBuilder('contract')
-    .select('contract.Status', 'status')
-    .addSelect('SUM(contract.Commission)', 'totalAmount')
-    .addSelect('COUNT(*)', 'count')
-    .where('contract.Commission > 0')
-    .groupBy('contract.Status')
-    .getRawMany();
-
-  const byStatus: Record<string, { totalAmount: number; count: number }> = {};
-  for (const row of statsRaw) {
-    byStatus[row.status] = { totalAmount: Number(row.totalAmount || 0), count: Number(row.count || 0) };
-  }
-
-  const collected = byStatus['completed']?.totalAmount || 0;
-  const lost = COMMISSION_LOST_STATUSES.reduce((sum, s) => sum + (byStatus[s]?.totalAmount || 0), 0);
-  const expected = Object.entries(byStatus)
-    .filter(([status]) => status !== 'completed' && !COMMISSION_LOST_STATUSES.includes(status))
-    .reduce((sum, [, v]) => sum + v.totalAmount, 0);
-
-  return {
-    commissions,
-    pagination: {
-      page,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
-    },
-    stats: { byStatus, collected, expected, lost },
   };
 };

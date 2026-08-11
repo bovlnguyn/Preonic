@@ -51,20 +51,21 @@ export const protect = async (
   }
 
   try {
-    const activeUser = await userRepo().findOne({
-      where: { id: decoded.id },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        fullName: true,
-        isActive: true,
-      },
-    });
+    const activeUser = await userRepo()
+      .createQueryBuilder('user')
+      .addSelect('user.passwordChangedAt')
+      .where('user.id = :id', { id: decoded.id })
+      .getOne();
 
     if (!activeUser || !activeUser.isActive) {
       return next(
         new AppError('Tài khoản không còn khả dụng hoặc đã bị vô hiệu hóa', 401)
+      );
+    }
+
+    if (decoded.iat && activeUser.changedPasswordAfter(decoded.iat)) {
+      return next(
+        new AppError('Phiên đăng nhập đã bị thu hồi sau khi mật khẩu thay đổi. Vui lòng đăng nhập lại.', 401)
       );
     }
 
