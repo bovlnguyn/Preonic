@@ -1,17 +1,20 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 import farmerService from '../../../services/farmer.service';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import ProgressBar from '../components/ProgressBar';
 import { formatDate, formatMoney } from '../utils';
 
+const PRODUCTS_PER_PAGE = 9;
+
 function FarmerCrops() {
   const navigate = useNavigate();
   const [filter,       setFilter]       = useState('Tất cả');
   const [cropProducts, setCropProducts] = useState([]);
   const [loading,      setLoading]      = useState(true);
+  const [currentPage,  setCurrentPage]  = useState(1);
 
   useEffect(() => {
     farmerService.getMyCrops()
@@ -28,6 +31,21 @@ function FarmerCrops() {
   const filtered = filter === 'Tất cả'
     ? cropProducts
     : cropProducts.filter(item => item.category === filter);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * PRODUCTS_PER_PAGE;
+  const paginatedProducts = filtered.slice(pageStart, pageStart + PRODUCTS_PER_PAGE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <div className="farmer-stack">
@@ -78,7 +96,7 @@ function FarmerCrops() {
               </div>
             ) : (
               <div className="farmer-product-grid fc-crops-grid">
-                {filtered.map(item => (
+                {paginatedProducts.map(item => (
                   <article
                     className="farmer-product-card fc-product-card"
                     key={item.id}
@@ -118,6 +136,34 @@ function FarmerCrops() {
                     </div>
                   </article>
                 ))}
+              </div>
+            )}
+
+            {filtered.length > 0 && (
+              <div className="farmer-pagination" aria-label="Phân trang sản phẩm">
+                <span>
+                  Trang {safePage} / {totalPages} — {filtered.length} sản phẩm
+                </span>
+
+                <div className="farmer-pagination__buttons">
+                  <button
+                    type="button"
+                    disabled={safePage <= 1}
+                    onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                  >
+                    <FiChevronLeft />
+                    Trước
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                  >
+                    Sau
+                    <FiChevronRight />
+                  </button>
+                </div>
               </div>
             )}
           </>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiCreditCard, FiFileText, FiPackage, FiPlus, FiStar } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiCreditCard, FiFileText, FiPackage, FiPlus, FiStar } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
@@ -17,6 +17,7 @@ import { getOrderStatusLabel } from '../../../constants/escrow';
 import { formatDate, formatMoney } from '../utils';
 
 const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
+const ORDERS_PER_PAGE = 10;
 
 function FarmerOverview() {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ function FarmerOverview() {
   const [contracts, setContracts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [ordersPage, setOrdersPage] = useState(1);
   const [reputation, setReputation] = useState({ average: 0, count: 0 });
   const [contractSummary, setContractSummary] = useState({
     totalContracts: 0,
@@ -94,6 +96,19 @@ function FarmerOverview() {
   const activeProductsCount = cropProducts.filter((p) => p.isActive).length;
   const activeContractsCount = contracts.filter((c) => c.status === 'active').length;
   const pendingContractsCount = contracts.filter((c) => c.status === 'pending').length;
+
+  const ordersTotalPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
+  const safeOrdersPage = Math.min(ordersPage, ordersTotalPages);
+  const paginatedOrders = orders.slice(
+    (safeOrdersPage - 1) * ORDERS_PER_PAGE,
+    safeOrdersPage * ORDERS_PER_PAGE
+  );
+
+  useEffect(() => {
+    if (ordersPage > ordersTotalPages) {
+      setOrdersPage(ordersTotalPages);
+    }
+  }, [ordersPage, ordersTotalPages]);
 
   const stats = [
     {
@@ -200,7 +215,7 @@ function FarmerOverview() {
                     </span>
                     <ProgressBar value={item.progress} />
                   </div>
-                  <StatusBadge status={item.isActive ? 'active' : 'inactive'} />
+                  <StatusBadge status={item.isActive ? 'Đang hoạt động' : 'Tạm ngừng'} />
                 </article>
               ))}
             </div>
@@ -264,7 +279,7 @@ function FarmerOverview() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((item) => (
+                {paginatedOrders.map((item) => (
                   <tr
                     key={item.id}
                     onClick={() => navigate(`/farmer/contracts/${item.contractId}`)}
@@ -279,6 +294,28 @@ function FarmerOverview() {
                 ))}
               </tbody>
             </table>
+
+            <div className="farmer-pagination">
+              <span>
+                Trang {safeOrdersPage} / {ordersTotalPages} — {orders.length.toLocaleString('vi-VN')} đơn hàng
+              </span>
+              <div className="farmer-pagination__buttons">
+                <button
+                  type="button"
+                  onClick={() => setOrdersPage((page) => Math.max(1, page - 1))}
+                  disabled={safeOrdersPage <= 1}
+                >
+                  <FiChevronLeft size={14} /> Trước
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrdersPage((page) => Math.min(ordersTotalPages, page + 1))}
+                  disabled={safeOrdersPage >= ordersTotalPages}
+                >
+                  Sau <FiChevronRight size={14} />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </section>

@@ -637,7 +637,8 @@
   font-weight: 900;
 }
 
-.farmer-mini-item span {
+/* Chỉ áp spacing cho dòng mô tả trực tiếp, không áp nhầm vào badge/progress */
+.farmer-mini-item > div > span {
   display: block;
   margin: 4px 0 10px;
   color: var(--farmer-muted);
@@ -655,26 +656,33 @@
 .farmer-progress span {
   display: block;
   height: 100%;
+  margin: 0;
+  padding: 0;
   border-radius: inherit;
   background: linear-gradient(90deg, #16a34a, #bef264);
 }
 
 .farmer-badge {
   width: fit-content;
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 29px;
-  padding: 0 11px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 6px 12px;
   border-radius: 999px;
   white-space: nowrap;
+  vertical-align: middle;
   font-size: 12px;
+  line-height: 1;
   font-weight: 900;
 }
 
 .farmer-badge--success { color: #166534; background: #dcfce7; }
 .farmer-badge--warning { color: #92400e; background: #fef3c7; }
 .farmer-badge--info { color: #1d4ed8; background: #dbeafe; }
+.farmer-badge--dispute { color: #c2410c; background: #ffedd5; }
 .farmer-badge--danger { color: #b91c1c; background: #fee2e2; }
 .farmer-badge--neutral { color: #475569; background: #f1f5f9; }
 
@@ -718,6 +726,55 @@
 
 .farmer-table__progress {
   min-width: 150px;
+}
+
+/* ===== Pagination dùng chung cho các bảng Farmer Dashboard ===== */
+.farmer-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.farmer-pagination > span {
+  color: var(--farmer-muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.farmer-pagination__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.farmer-pagination__buttons button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--farmer-border);
+  border-radius: 999px;
+  color: var(--farmer-green-700);
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  transition: 0.2s ease;
+}
+
+.farmer-pagination__buttons button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--farmer-green-100);
+  border-color: rgba(22, 163, 74, 0.36);
+}
+
+.farmer-pagination__buttons button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .farmer-action-group {
@@ -1361,61 +1418,248 @@
     linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,253,247,0.98));
 }
 
+/* Desktop: 2 đơn hàng / 1 dòng */
 .fo-order-list {
-  gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .fo-order-card {
-  align-items: flex-start;
-  padding: 22px 20px;
-  border-radius: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 100%;
+  padding: 18px;
+  border-radius: 24px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfef8 100%);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .fo-order-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(22, 163, 74, 0.22);
-  box-shadow: 0 24px 44px rgba(5, 46, 22, 0.08);
+  border-color: rgba(22, 163, 74, 0.28);
+  background: linear-gradient(180deg, #ffffff 0%, #f7fff8 100%);
+  box-shadow: 0 22px 54px rgba(5, 46, 22, 0.10);
+}
+
+.fo-order-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.fo-order-card__identity {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
 }
 
 .fo-order-card__icon {
-  width: 54px;
-  height: 54px;
-  border-radius: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  flex: 0 0 auto;
 }
 
-.fo-order-card__head {
-  align-items: center;
+.fo-order-card__title-wrap {
+  min-width: 0;
+}
+
+.fo-order-card__code {
+  display: block;
+  color: var(--farmer-green-700);
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
 }
 
 .fo-order-card__title {
-  margin-top: 8px !important;
+  margin: 5px 0 0 !important;
+  color: var(--farmer-green-950);
+  font-size: 18px !important;
+  font-weight: 950;
+  line-height: 1.25;
+  letter-spacing: -0.3px;
 }
 
 .fo-order-card__grid {
-  margin-top: 14px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: #f7fbf4;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+  padding: 0;
+  background: transparent;
 }
 
-.fo-order-card__grid p {
-  margin: 0;
+.fo-order-card__grid > div {
+  min-width: 0;
+  padding: 12px 13px;
+  border-radius: 16px;
+  background: #f0fdf4;
 }
 
-.fo-order-card__grid p strong {
+.fo-order-card__grid span {
+  display: block;
+  color: var(--farmer-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.fo-order-card__grid strong {
+  display: block;
+  margin-top: 5px;
   color: var(--farmer-green-950);
-  font-weight: 850;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
-.fo-order-card__grid p:last-child {
-  padding-top: 6px;
-  border-top: 1px dashed rgba(22, 101, 52, 0.12);
+.fo-order-card__location {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.fo-order-card__location svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--farmer-green-600);
+}
+
+.fo-order-card__milestone {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(22, 101, 52, 0.12);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fbfef8, #f0fdf4);
+}
+
+.fo-order-card__milestone span {
+  color: var(--farmer-muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+
+.fo-order-card__milestone strong {
+  color: var(--farmer-green-700);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.fo-order-pagination {
+  padding-top: 14px;
+  border-top: 1px solid rgba(22, 101, 52, 0.08);
+}
+
+@media (max-width: 1100px) {
+  .fo-order-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 620px) {
-  .fo-order-card__grid {
-    padding: 12px 14px;
+  .fo-order-card {
+    padding: 16px;
   }
+
+  .fo-order-card__top {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .fo-order-card__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.farmer-mini-item {
+  position: relative;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease;
+}
+
+/* Khi rê chuột vào card */
+.farmer-mini-item:hover {
+  transform: translateY(-3px);
+
+  border-color: rgba(22, 163, 74, 0.3);
+
+  background: linear-gradient(
+    135deg,
+    #ffffff 0%,
+    #f7fff9 100%
+  );
+
+  box-shadow:
+    0 10px 28px rgba(15, 92, 46, 0.09),
+    0 3px 8px rgba(15, 92, 46, 0.05);
+}
+
+/* Tiêu đề card nổi bật nhẹ khi hover */
+.farmer-mini-item:hover strong {
+  color: #15803d;
+}
+
+/* Progress track */
+.farmer-mini-item .farmer-progress {
+  transition:
+    background-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+/* Progress nổi rõ hơn */
+.farmer-mini-item:hover .farmer-progress {
+  background-color: #e4f1e7;
+
+  box-shadow:
+    inset 0 0 0 1px rgba(22, 163, 74, 0.05);
+}
+
+/* Thanh progress bên trong */
+.farmer-mini-item .farmer-progress > span {
+  transition:
+    filter 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.farmer-mini-item:hover .farmer-progress > span {
+  filter: saturate(1.12);
+
+  box-shadow:
+    0 0 8px rgba(34, 197, 94, 0.16);
+}
+
+/* Badge phản hồi nhẹ khi hover card */
+.farmer-mini-item .farmer-badge {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.farmer-mini-item:hover .farmer-badge {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 3px 10px rgba(15, 92, 46, 0.07);
 }
