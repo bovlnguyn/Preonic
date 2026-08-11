@@ -527,10 +527,16 @@
 }
 
 .fcp-media-layout {
+  width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(290px, 0.88fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   align-items: start;
+}
+
+.fcp-media-layout > .fcp-field {
+  width: 100%;
+  min-width: 0;
 }
 
 .fcp-media-title-row {
@@ -548,13 +554,14 @@
 }
 
 .fcp-upload-zone {
-  min-height: 118px;
+  width: 100%;
+  min-height: 132px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 20px;
+  padding: 22px 24px;
   border: 1.5px dashed rgba(22, 101, 52, 0.25);
   border-radius: 16px;
   color: #627167;
@@ -584,10 +591,13 @@
 }
 
 .fcp-upload-zone--cert {
-  min-height: 96px;
+  width: 100%;
+  min-height: 105px;
   flex-direction: row;
+  align-items: center;
   justify-content: flex-start;
-  padding: 18px;
+  gap: 14px;
+  padding: 18px 22px;
   text-align: left;
 }
 
