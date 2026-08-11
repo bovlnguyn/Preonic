@@ -69,6 +69,19 @@ const normalizeUnit = (value, fallback = "kg") => {
 const toKg = (quantity, unit) =>
   asNumber(quantity) * (UNIT_TO_KG[normalizeUnit(unit)] || 1);
 
+const formatKgQuantity = (value) =>
+  asNumber(value).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+
+const parseKgQuantity = (value, fallback = 0) => {
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+
+  return asNumber(normalized, fallback);
+};
+
 const estimateValueByUnits = (quantity, quantityUnit, price, priceUnit) => {
   const quantityKg = toKg(quantity, quantityUnit);
   const normalizedPriceUnit = normalizeUnit(priceUnit);
@@ -314,13 +327,13 @@ const ProductDetail = ({ context = "public" }) => {
 
         setProduct(nextProduct);
         const availability = getProductAvailability(nextProduct);
-        const quantityStep = getQuantityStep(nextProduct.unit);
-        const availableQuantity = availability.remainingQuantity || nextProduct.totalQuantity;
-        const preferredQuantity = nextProduct.unit === "kg" ? 1000 : nextProduct.unit === "tạ" ? 10 : 1;
+        const quantityStepKg = toKg(getQuantityStep(nextProduct.unit), nextProduct.unit);
+        const availableKg = availability.remainingKg || toKg(nextProduct.totalQuantity, nextProduct.unit);
+        const preferredQuantityKg = 1000;
         setQuantity(
           Math.max(
-            Math.min(quantityStep, availableQuantity || quantityStep),
-            Math.min(preferredQuantity, availableQuantity || preferredQuantity)
+            Math.min(quantityStepKg, availableKg || quantityStepKg),
+            Math.min(preferredQuantityKg, availableKg || preferredQuantityKg)
           )
         );
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -430,9 +443,8 @@ const ProductDetail = ({ context = "public" }) => {
   const availability = getProductAvailability(product);
   const committedPct = availability.committedPct;
   const remainPct = availability.remainPct;
-  const remainingQuantity = availability.remainingQuantity;
   const remainingKg = availability.remainingKg;
-  const quantityStep = getQuantityStep(product?.unit);
+  const quantityStepKg = toKg(getQuantityStep(product?.unit), product?.unit);
   const region = product
     ? REGIONS[product.region.toUpperCase()] || REGIONS.SOUTH
     : REGIONS.SOUTH;
@@ -768,13 +780,16 @@ const ProductDetail = ({ context = "public" }) => {
 
                 {isEnterprise && (
                   <div className="pd-enterprise-actions">
-                    <label htmlFor="pd-quantity">Số lượng dự kiến ({product.unit})</label>
+                    <label htmlFor="pd-quantity">Số lượng dự kiến (kg)</label>
                     <div className="pd-quantity-control">
                       <button
                         type="button"
                         onClick={() =>
                           setQuantity((current) =>
-                            Math.max(Math.min(quantityStep, remainingQuantity || quantityStep), current - quantityStep)
+                            Math.max(
+                              Math.min(quantityStepKg, remainingKg || quantityStepKg),
+                              current - quantityStepKg
+                            )
                           )
                         }
                       >
@@ -782,24 +797,26 @@ const ProductDetail = ({ context = "public" }) => {
                       </button>
                       <input
                         id="pd-quantity"
-                        type="number"
-                        min={Math.min(quantityStep, remainingQuantity || quantityStep)}
-                        step={quantityStep}
-                        max={remainingQuantity || undefined}
-                        value={quantity}
+                        type="text"
+                        inputMode="decimal"
+                        value={formatKgQuantity(quantity)}
+                        aria-label="Số lượng dự kiến theo kilogram"
                         onChange={(event) => {
-                          const minQuantity = Math.min(quantityStep, remainingQuantity || quantityStep);
-                          const nextValue = Math.max(minQuantity, asNumber(event.target.value, minQuantity));
-                          setQuantity(remainingQuantity ? Math.min(remainingQuantity, nextValue) : nextValue);
+                          const minQuantityKg = Math.min(quantityStepKg, remainingKg || quantityStepKg);
+                          const nextValue = Math.max(
+                            minQuantityKg,
+                            parseKgQuantity(event.target.value, minQuantityKg)
+                          );
+                          setQuantity(remainingKg ? Math.min(remainingKg, nextValue) : nextValue);
                         }}
                       />
                       <button
                         type="button"
                         onClick={() =>
                           setQuantity((current) =>
-                            remainingQuantity
-                              ? Math.min(remainingQuantity, current + quantityStep)
-                              : current + quantityStep
+                            remainingKg
+                              ? Math.min(remainingKg, current + quantityStepKg)
+                              : current + quantityStepKg
                           )
                         }
                       >
@@ -810,7 +827,7 @@ const ProductDetail = ({ context = "public" }) => {
                       Giá trị dự kiến:{" "}
                       <strong>
                         {formatPrice(
-                          estimateValueByUnits(quantity, product.unit, product.priceMin, product.priceUnit)
+                          estimateValueByUnits(quantity, "kg", product.priceMin, product.priceUnit)
                         )}
                       </strong>
                       {product.priceMax !== product.priceMin && (
@@ -818,7 +835,7 @@ const ProductDetail = ({ context = "public" }) => {
                           {" – "}
                           <strong>
                             {formatPrice(
-                              estimateValueByUnits(quantity, product.unit, product.priceMax, product.priceUnit)
+                              estimateValueByUnits(quantity, "kg", product.priceMax, product.priceUnit)
                             )}
                           </strong>
                         </>
