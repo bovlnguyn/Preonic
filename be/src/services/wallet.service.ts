@@ -1120,4 +1120,3 @@ export const handleSepayWebhook = async (payload: any, apiKey: string | undefine
 
   return { success: true, matched: true, orderCode, amount: result.amount };
 };
-

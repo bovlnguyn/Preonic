@@ -341,4 +341,3 @@ export const markConversationAsRead = async (conversationId: string, userId: str
     { label: 'messaging.markConversationAsRead' }
   );
 };
-
