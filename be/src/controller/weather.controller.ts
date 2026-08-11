@@ -11,6 +11,7 @@ import {
   getUnreadAlertCount,
   getWeatherThresholds,
 } from '../services/weather.service';
+import { sendError } from '../utils/controller.util';
 
 export const getWeather = async (req: Request, res: Response) => {
   try {
@@ -29,10 +30,7 @@ export const getWeather = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error?.message ?? 'Không thể lấy dữ liệu thời tiết',
-    });
+    sendError(res, error, 'Không thể lấy dữ liệu thời tiết');
   }
 };
 
@@ -43,10 +41,7 @@ export const getCurrentWeather = async (req: Request, res: Response) => {
 
     res.status(200).json({ success: true, data: weather });
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error?.message ?? 'Không thể lấy thời tiết hiện tại',
-    });
+    sendError(res, error, 'Không thể lấy thời tiết hiện tại');
   }
 };
 
@@ -57,10 +52,7 @@ export const getDailyForecast = async (req: Request, res: Response) => {
 
     res.status(200).json({ success: true, data: forecast });
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error?.message ?? 'Không thể lấy dự báo thời tiết',
-    });
+    sendError(res, error, 'Không thể lấy dự báo thời tiết');
   }
 };
 
@@ -83,10 +75,7 @@ export const getWeatherAlerts = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json({ success: true, data: result });
   } catch (error: any) {
-    res.status(error?.statusCode || 500).json({
-      success: false,
-      message: error?.message ?? 'Không thể lấy danh sách cảnh báo thời tiết',
-    });
+    sendError(res, error, 'Không thể lấy danh sách cảnh báo thời tiết');
   }
 };
 
@@ -96,10 +85,7 @@ export const getWeatherUnreadCount = async (req: AuthRequest, res: Response) => 
 
     res.status(200).json({ success: true, data: { unreadCount } });
   } catch (error: any) {
-    res.status(error?.statusCode || 500).json({
-      success: false,
-      message: error?.message ?? 'Không thể lấy số cảnh báo chưa đọc',
-    });
+    sendError(res, error, 'Không thể lấy số cảnh báo chưa đọc');
   }
 };
 
@@ -113,10 +99,7 @@ export const markWeatherAlertRead = async (req: AuthRequest, res: Response) => {
       data: { alert },
     });
   } catch (error: any) {
-    res.status(error?.statusCode || 500).json({
-      success: false,
-      message: error?.message ?? 'Không thể đánh dấu cảnh báo là đã đọc',
-    });
+    sendError(res, error, 'Không thể đánh dấu cảnh báo là đã đọc');
   }
 };
 
@@ -129,9 +112,6 @@ export const markAllWeatherAlertsRead = async (req: AuthRequest, res: Response) 
       message: 'Đã đánh dấu tất cả cảnh báo là đã đọc',
     });
   } catch (error: any) {
-    res.status(error?.statusCode || 500).json({
-      success: false,
-      message: error?.message ?? 'Không thể đánh dấu tất cả cảnh báo',
-    });
+    sendError(res, error, 'Không thể đánh dấu tất cả cảnh báo');
   }
 };

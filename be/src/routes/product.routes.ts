@@ -1,7 +1,6 @@
-import { getMyProducts, getByRegion } from './../controller/product.controller';
 import { Router, RequestHandler } from 'express';
 import {
-  getAll, getById,getSimilar,
+  getAll, getById, getSimilar, getByRegion, getMyProducts,
   create, update, remove,
   getReviews, addReview, getReviewEligibility,
 } from '../controller/product.controller';

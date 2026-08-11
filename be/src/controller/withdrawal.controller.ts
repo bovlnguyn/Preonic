@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as withdrawalService from '../services/withdrawal.service';
+import { sendError } from '../utils/controller.util';
 
 export const createWithdrawal = async (req: AuthRequest, res: Response) => {
   try {
@@ -23,10 +24,7 @@ export const createWithdrawal = async (req: AuthRequest, res: Response) => {
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tạo yêu cầu rút tiền thất bại',
-    });
+    sendError(res, err, 'Tạo yêu cầu rút tiền thất bại');
   }
 };
 
@@ -43,10 +41,7 @@ export const getAdminWithdrawals = async (req: AuthRequest, res: Response) => {
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy danh sách yêu cầu rút tiền thất bại',
-    });
+    sendError(res, err, 'Lấy danh sách yêu cầu rút tiền thất bại');
   }
 };
 
@@ -60,10 +55,7 @@ export const completeAdminWithdrawal = async (req: AuthRequest, res: Response) =
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Xác nhận rút tiền thất bại',
-    });
+    sendError(res, err, 'Xác nhận rút tiền thất bại');
   }
 };
 
@@ -81,9 +73,6 @@ export const rejectAdminWithdrawal = async (req: AuthRequest, res: Response) => 
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Từ chối yêu cầu rút tiền thất bại',
-    });
+    sendError(res, err, 'Từ chối yêu cầu rút tiền thất bại');
   }
 };

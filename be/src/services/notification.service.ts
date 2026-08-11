@@ -1,13 +1,8 @@
 import { AppDataSource } from '../config/database';
 import { Notification } from '../models/Notification.entity';
+import { makeError } from '../utils/error.util';
 
 const notificationRepo = () => AppDataSource.getRepository(Notification);
-
-const makeError = (message: string, statusCode = 400) => {
-  const err: any = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-};
 
 export interface ListNotificationsQuery {
   page?: number;

@@ -6,8 +6,9 @@ import { Product } from '../models/Product.entity';
 import { User } from '../models/User.entity';
 import { Notification } from '../models/Notification.entity';
 import { logAction } from './systemLog.service';
-import { sendNotificationEmail, buildContractUrl } from './email.service';
 import { displayName } from '../utils/user.util';
+import { makeError } from '../utils/error.util';
+import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
 
 const toKg = (value: number, unit?: string | null) => value * (UNIT_TO_KG[unit || 'kg'] ?? 1);
 
@@ -49,12 +50,6 @@ export interface ListContractsQuery {
   limit?: number;
 }
 
-const makeError = (message: string, statusCode = 400) => {
-  const err: any = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-};
-
 export interface CreateContractDto {
   productId: string;
   quantity: number;
@@ -81,22 +76,6 @@ export interface CreateContractDto {
 export interface CancelContractDto {
   reason: string;
 }
-
-// Email khong duoc lam gian doan luong nghiep vu hop dong -- loi gui mail chi log, khong throw.
-const notifyEmail = async (
-  user: User | null | undefined,
-  role: 'farmer' | 'enterprise',
-  title: string,
-  message: string,
-  contractId: string
-) => {
-  if (!user?.email) return;
-  try {
-    await sendNotificationEmail(user.email, displayName(user), title, message, buildContractUrl(role, contractId));
-  } catch (err: any) {
-    console.error('Loi gui email thong bao hop dong:', err.message || err);
-  }
-};
 
 const ensurePaymentTerms = (value: string): PaymentTerms => {
   if (!PAYMENT_TERMS.includes(value as PaymentTerms)) {

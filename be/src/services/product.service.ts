@@ -9,6 +9,7 @@ import { Contract } from '../models/Contract.entity';
 import { Escrow } from '../models/Escrow.entity';
 import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { PRODUCT_CONFIG } from '../constants';
+import { makeError } from '../utils/error.util';
 
 const productRepo   = () => AppDataSource.getRepository(Product);
 const certRepo      = () => AppDataSource.getRepository(ProductCertification);
@@ -35,12 +36,6 @@ const hasReceivedGoods = async (productId: string, enterpriseId: string) => {
     .getOne();
 
   return Boolean(received);
-};
-
-const makeError = (message: string, statusCode = 400) => {
-  const err: any = new Error(message);
-  err.statusCode = statusCode;
-  return err;
 };
 
 // Trạng thái hợp đồng đã vượt qua đề xuất ban đầu ('draft') và chưa bị hủy —

@@ -10,26 +10,9 @@ import { EscrowTransaction } from '../models/EscrowTransaction.entity';
 import { Notification } from '../models/Notification.entity';
 import { AppError } from '../middlewares/error.middleware';
 import { logAction } from './systemLog.service';
-import { sendNotificationEmail, buildContractUrl } from './email.service';
-import { displayName } from '../utils/user.util';
+import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
 
 const userRepo = () => AppDataSource.getRepository(User);
-
-// Email khong duoc lam gian doan luong nghiep vu admin -- loi gui mail chi log, khong throw.
-const notifyEmail = async (
-  user: User | null | undefined,
-  role: 'farmer' | 'enterprise',
-  title: string,
-  message: string,
-  contractId: string
-) => {
-  if (!user?.email) return;
-  try {
-    await sendNotificationEmail(user.email, displayName(user), title, message, buildContractUrl(role, contractId));
-  } catch (err: any) {
-    console.error('Loi gui email thong bao admin:', err.message || err);
-  }
-};
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const paymentRepo = () => AppDataSource.getRepository(PaymentTransaction);
 const disputeRepo = () => AppDataSource.getRepository(Dispute);

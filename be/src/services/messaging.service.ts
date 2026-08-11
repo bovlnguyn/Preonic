@@ -6,6 +6,8 @@ import { Message } from '../models/Message.entity';
 import { MessageReadBy } from '../models/MessageReadBy.entity';
 import { Notification } from '../models/Notification.entity';
 import { User } from '../models/User.entity';
+import { makeError } from '../utils/error.util';
+import { displayName } from '../utils/user.util';
 
 const conversationRepo = () => AppDataSource.getRepository(Conversation);
 const participantRepo = () => AppDataSource.getRepository(ConversationParticipant);
@@ -16,15 +18,6 @@ const userRepo = () => AppDataSource.getRepository(User);
 
 const MAX_MESSAGE_LENGTH = 4000;
 const NOTIFICATION_PREVIEW_LENGTH = 140;
-
-const makeError = (message: string, statusCode = 400) => {
-  const err: any = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-};
-
-const displayName = (user: User) =>
-  user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
 
 const ensureParticipant = async (conversationId: string, userId: string) => {
   const participant = await participantRepo().findOne({ where: { conversationId, userId } });

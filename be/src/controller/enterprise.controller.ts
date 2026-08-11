@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as enterpriseService from '../services/enterprise.service';
+import { sendError } from '../utils/controller.util';
 
 export const getSuppliers = async (req: AuthRequest, res: Response) => {
   try {
@@ -11,10 +12,7 @@ export const getSuppliers = async (req: AuthRequest, res: Response) => {
       data: { suppliers },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay danh sach nha cung cap that bai',
-    });
+    sendError(res, err, 'Lay danh sach nha cung cap that bai');
   }
 };
 
@@ -27,9 +25,6 @@ export const getSupplierDetail = async (req: AuthRequest, res: Response) => {
       data: { supplier },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay thong tin nha cung cap that bai',
-    });
+    sendError(res, err, 'Lay thong tin nha cung cap that bai');
   }
 };

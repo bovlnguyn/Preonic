@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as contractService from '../services/contract.service';
+import { sendError } from '../utils/controller.util';
 
 const toNumber = (value: any) =>
   value === undefined || value === null || value === '' ? undefined : Number(value);
@@ -121,10 +122,7 @@ export const createContract = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tao de xuat hop dong that bai',
-    });
+    sendError(res, err, 'Tao de xuat hop dong that bai');
   }
 };
 
@@ -141,10 +139,7 @@ export const submitContract = async (req: AuthRequest, res: Response) => {
       data: { contract: formatContract(contract) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Gui de xuat hop dong that bai',
-    });
+    sendError(res, err, 'Gui de xuat hop dong that bai');
   }
 };
 
@@ -171,10 +166,7 @@ export const listContracts = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay danh sach hop dong that bai',
-    });
+    sendError(res, err, 'Lay danh sach hop dong that bai');
   }
 };
 
@@ -192,10 +184,7 @@ export const getContractSummary = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay tong quan hop dong that bai',
-    });
+    sendError(res, err, 'Lay tong quan hop dong that bai');
   }
 };
 
@@ -208,10 +197,7 @@ export const getContract = async (req: AuthRequest, res: Response) => {
       data: { contract: formatContract(contract) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay hop dong that bai',
-    });
+    sendError(res, err, 'Lay hop dong that bai');
   }
 };
 
@@ -229,10 +215,7 @@ export const signContract = async (req: AuthRequest, res: Response) => {
       data: { contract: formatContract(contract) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Ky hop dong that bai',
-    });
+    sendError(res, err, 'Ky hop dong that bai');
   }
 };
 export const deleteContract = async (req: AuthRequest, res: Response) => {
@@ -244,10 +227,7 @@ export const deleteContract = async (req: AuthRequest, res: Response) => {
       message: 'Xoa hop dong thanh cong',
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Xoa hop dong that bai',
-    });
+    sendError(res, err, 'Xoa hop dong that bai');
   }
 };
 
@@ -270,10 +250,7 @@ export const cancelContract = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Huy hop dong that bai',
-    });
+    sendError(res, err, 'Huy hop dong that bai');
   }
 };
 export const confirmCancelContract = async (req: AuthRequest, res: Response) => {
@@ -290,10 +267,7 @@ export const confirmCancelContract = async (req: AuthRequest, res: Response) => 
       data: { contract: formatContract(contract) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Xac nhan huy hop dong that bai',
-    });
+    sendError(res, err, 'Xac nhan huy hop dong that bai');
   }
 };
 
@@ -311,10 +285,7 @@ export const declineCancelContract = async (req: AuthRequest, res: Response) => 
       data: { contract: formatContract(contract) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tu choi yeu cau huy hop dong that bai',
-    });
+    sendError(res, err, 'Tu choi yeu cau huy hop dong that bai');
   }
 };
 
@@ -332,11 +303,6 @@ export const rejectContract = async (req: AuthRequest, res: Response) => {
       data: { contract: formatContract(contract) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tu choi hop dong that bai',
-    });
+    sendError(res, err, 'Tu choi hop dong that bai');
   }
-
-
 };

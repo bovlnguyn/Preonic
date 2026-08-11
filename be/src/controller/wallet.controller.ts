@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../types';
 import * as walletService from '../services/wallet.service';
+import { sendError } from '../utils/controller.util';
 
 export const getWallet = async (req: AuthRequest, res: Response) => {
   try {
@@ -13,10 +14,7 @@ export const getWallet = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy thông tin ví thất bại',
-    });
+    sendError(res, err, 'Lấy thông tin ví thất bại');
   }
 };
 
@@ -33,10 +31,7 @@ export const getWalletTransactions = async (req: AuthRequest, res: Response) => 
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy lịch sử giao dịch thất bại',
-    });
+    sendError(res, err, 'Lấy lịch sử giao dịch thất bại');
   }
 };
 
@@ -58,10 +53,7 @@ export const getTransactionsOverview = async (req: AuthRequest, res: Response) =
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay tong quan giao dich that bai',
-    });
+    sendError(res, err, 'Lay tong quan giao dich that bai');
   }
 };
 
@@ -82,10 +74,7 @@ export const topupWallet = async (req: AuthRequest, res: Response) => {
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Nap tien demo that bai',
-    });
+    sendError(res, err, 'Nap tien demo that bai');
   }
 };
 
@@ -103,10 +92,7 @@ export const createSepayTopup = async (req: AuthRequest, res: Response) => {
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tao lenh nap tien SePay that bai',
-    });
+    sendError(res, err, 'Tao lenh nap tien SePay that bai');
   }
 };
 
@@ -122,10 +108,7 @@ export const getSepayTopupStatus = async (req: AuthRequest, res: Response) => {
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay trang thai lenh nap tien that bai',
-    });
+    sendError(res, err, 'Lay trang thai lenh nap tien that bai');
   }
 };
 
@@ -143,10 +126,7 @@ export const createDemoQrTopup = async (req: AuthRequest, res: Response) => {
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tao lenh nap tien demo that bai',
-    });
+    sendError(res, err, 'Tao lenh nap tien demo that bai');
   }
 };
 
@@ -162,10 +142,7 @@ export const confirmDemoQrTopup = async (req: AuthRequest, res: Response) => {
       data: result,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Xac nhan nap tien demo that bai',
-    });
+    sendError(res, err, 'Xac nhan nap tien demo that bai');
   }
 };
 
@@ -177,9 +154,6 @@ export const sepayWebhook = async (req: Request, res: Response) => {
     const result = await walletService.handleSepayWebhook(req.body, apiKey);
     res.status(200).json(result);
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Xu ly webhook SePay that bai',
-    });
+    sendError(res, err, 'Xu ly webhook SePay that bai');
   }
 };

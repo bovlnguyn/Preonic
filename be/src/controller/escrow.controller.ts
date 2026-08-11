@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as escrowService from '../services/escrow.service';
 import { getMilestoneRequiredRole } from '../utils/milestone.util';
+import { sendError } from '../utils/controller.util';
 
 const formatMilestone = (m: any) => ({
   id: m.id,
@@ -71,10 +72,7 @@ export const listEscrows = async (req: AuthRequest, res: Response) => {
       data: { escrows: escrows.map((e) => formatEscrowListItem(e, req.user!.id)) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay danh sach ky quy that bai',
-    });
+    sendError(res, err, 'Lay danh sach ky quy that bai');
   }
 };
 
@@ -88,10 +86,7 @@ export const depositEscrow = async (req: AuthRequest, res: Response) => {
       data: { escrow: formatEscrow(escrow) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Nap ky quy that bai',
-    });
+    sendError(res, err, 'Nap ky quy that bai');
   }
 };
 
@@ -104,10 +99,7 @@ export const getEscrow = async (req: AuthRequest, res: Response) => {
       data: { escrow: formatEscrow(escrow) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay thong tin ky quy that bai',
-    });
+    sendError(res, err, 'Lay thong tin ky quy that bai');
   }
 };
 
@@ -128,9 +120,6 @@ export const confirmMilestone = async (req: AuthRequest, res: Response) => {
       data: { escrow: formatEscrow(escrow) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Xac nhan moc thanh toan that bai',
-    });
+    sendError(res, err, 'Xac nhan moc thanh toan that bai');
   }
 };

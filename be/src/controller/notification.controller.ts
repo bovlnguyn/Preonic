@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as notificationService from '../services/notification.service';
+import { sendError } from '../utils/controller.util';
 
 export const listNotifications = async (req: AuthRequest, res: Response) => {
   try {
@@ -19,10 +20,7 @@ export const listNotifications = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay danh sach thong bao that bai',
-    });
+    sendError(res, err, 'Lay danh sach thong bao that bai');
   }
 };
 
@@ -35,10 +33,7 @@ export const getUnreadCount = async (req: AuthRequest, res: Response) => {
       data: { unreadCount },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay so thong bao chua doc that bai',
-    });
+    sendError(res, err, 'Lay so thong bao chua doc that bai');
   }
 };
 
@@ -55,10 +50,7 @@ export const markNotificationAsRead = async (req: AuthRequest, res: Response) =>
       data: { notification },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Danh dau thong bao la da doc that bai',
-    });
+    sendError(res, err, 'Danh dau thong bao la da doc that bai');
   }
 };
 
@@ -71,9 +63,6 @@ export const markAllNotificationsAsRead = async (req: AuthRequest, res: Response
       message: 'Da danh dau tat ca thong bao la da doc',
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Danh dau tat ca thong bao that bai',
-    });
+    sendError(res, err, 'Danh dau tat ca thong bao that bai');
   }
 };

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as partnerRatingService from '../services/partner-rating.service';
+import { sendError } from '../utils/controller.util';
 
 const formatRating = (rating: any) => ({
   id: rating.id,
@@ -48,10 +49,7 @@ export const getEligiblePartners = async (req: AuthRequest, res: Response) => {
       data: { partners },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay danh sach doi tac de danh gia that bai',
-    });
+    sendError(res, err, 'Lay danh sach doi tac de danh gia that bai');
   }
 };
 
@@ -74,10 +72,7 @@ export const createRating = async (req: AuthRequest, res: Response) => {
       data: { rating: formatRating(rating) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Danh gia doi tac that bai',
-    });
+    sendError(res, err, 'Danh gia doi tac that bai');
   }
 };
 
@@ -96,9 +91,6 @@ export const getMyRatings = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay danh sach danh gia that bai',
-    });
+    sendError(res, err, 'Lay danh sach danh gia that bai');
   }
 };
