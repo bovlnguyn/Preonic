@@ -19,6 +19,8 @@ let databaseHealthy = false;
 let healthCheckRunning = false;
 let monitorTimer: NodeJS.Timeout | null = null;
 let shutdownHandlerRegistered = false;
+let databaseReadyHandler: (() => void) | null = null;
+let databaseReadyHandlerCalled = false;
 
 function validateEnv(): void {
   const required = ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
@@ -147,7 +149,19 @@ const createFreshDataSource = (): void => {
   AppDataSource = new DataSource(buildOptions());
 };
 
-async function attempt(start: number, onFirstConnected?: () => void): Promise<void> {
+const notifyDatabaseReadyOnce = (): void => {
+  if (databaseReadyHandlerCalled || !databaseReadyHandler) return;
+
+  databaseReadyHandlerCalled = true;
+  try {
+    databaseReadyHandler();
+  } catch (error: any) {
+    // Cron/bootstrap callback failure must NOT make a healthy SQL connection look broken.
+    log.error(`Database ready callback failed: ${error?.message || error}`);
+  }
+};
+
+async function attempt(start: number): Promise<void> {
   if (isConnecting) return;
   isConnecting = true;
 
@@ -173,7 +187,9 @@ async function attempt(start: number, onFirstConnected?: () => void): Promise<vo
         log.info(`SQL Server Connected: ${options.host}:${options.port ?? 1433}`);
         log.info(`Database: ${options.database}`);
 
-        if (firstConnection) onFirstConnected?.();
+        if (firstConnection) {
+          notifyDatabaseReadyOnce();
+        }
         return;
       } catch (error: any) {
         markDatabaseUnhealthy(error);
@@ -236,9 +252,18 @@ const registerShutdownHandler = (): void => {
 
 export async function connectDB(onConnected?: () => void): Promise<void> {
   validateEnv();
+
+  if (onConnected) {
+    databaseReadyHandler = onConnected;
+    // Defensive case: connectDB() is called after another bootstrap already connected.
+    if (hasConnectedOnce && databaseHealthy) {
+      notifyDatabaseReadyOnce();
+    }
+  }
+
   registerShutdownHandler();
   monitorConnection();
-  await attempt(0, onConnected);
+  await attempt(0);
 }
 
 export default connectDB;

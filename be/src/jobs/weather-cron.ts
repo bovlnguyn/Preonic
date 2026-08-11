@@ -33,10 +33,15 @@ export async function runWeatherCronJob(): Promise<void> {
   }
 }
 
+let weatherCronStarted = false;
+
 export function startWeatherCron(): void {
+  if (weatherCronStarted) return;
   cron.schedule(WEATHER_CRON_SCHEDULE, () => {
     runWeatherCronJob();
   });
+
+  weatherCronStarted = true;
 
   log.info('Scheduled to run every 6 hours');
 

@@ -1,4 +1,4 @@
-import { In } from 'typeorm';
+import { EntityManager, In } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Conversation } from '../models/Conversation.entity';
 import { ConversationParticipant } from '../models/ConversationParticipant.entity';
@@ -8,16 +8,26 @@ import { Notification } from '../models/Notification.entity';
 import { User } from '../models/User.entity';
 import { makeError } from '../utils/error.util';
 import { displayName } from '../utils/user.util';
+import { lockByIdOrFail, lockManyByIds, runLockedTransaction } from '../utils/transaction-lock.util';
 
 const conversationRepo = () => AppDataSource.getRepository(Conversation);
 const participantRepo = () => AppDataSource.getRepository(ConversationParticipant);
 const messageRepo = () => AppDataSource.getRepository(Message);
-const readByRepo = () => AppDataSource.getRepository(MessageReadBy);
-const notificationRepo = () => AppDataSource.getRepository(Notification);
-const userRepo = () => AppDataSource.getRepository(User);
 
 const MAX_MESSAGE_LENGTH = 4000;
 const NOTIFICATION_PREVIEW_LENGTH = 140;
+
+const ensureParticipantWithManager = async (
+  manager: EntityManager,
+  conversationId: string,
+  userId: string
+) => {
+  const participant = await manager.getRepository(ConversationParticipant).findOne({
+    where: { conversationId, userId },
+  });
+  if (!participant) throw makeError('Ban khong phai thanh vien cua cuoc hoi thoai nay', 403);
+  return participant;
+};
 
 const ensureParticipant = async (conversationId: string, userId: string) => {
   const participant = await participantRepo().findOne({ where: { conversationId, userId } });
@@ -123,38 +133,57 @@ export const getOrCreateConversation = async (
   if (!partnerId) throw makeError('Thieu thong tin doi tac can nhan tin');
   if (partnerId === userId) throw makeError('Khong the nhan tin cho chinh minh');
 
-  const partner = await userRepo().findOne({ where: { id: partnerId } });
-  if (!partner) throw makeError('Khong tim thay nguoi dung', 404);
+  const conversationId = await runLockedTransaction(
+    async (manager) => {
+      // Khóa 2 user theo thứ tự ID ổn định. Mọi request tạo direct-conversation
+      // cho cùng một cặp Farmer/Enterprise sẽ phải xếp hàng tại đây, tránh tạo trùng.
+      const lockedUsers = await lockManyByIds(manager, User, [userId, partnerId]);
+      const currentUser = lockedUsers.get(String(userId));
+      const partner = lockedUsers.get(String(partnerId));
 
-  const validPair =
-    (role === 'farmer' && partner.role === 'enterprise') ||
-    (role === 'enterprise' && partner.role === 'farmer');
-  if (!validPair) {
-    throw makeError('Chi co the nhan tin truc tiep giua nong dan va doanh nghiep', 400);
-  }
+      if (!currentUser) throw makeError('Khong tim thay nguoi dung', 404);
+      if (!partner) throw makeError('Khong tim thay nguoi dung doi tac', 404);
 
-  const myConversationIds = (await participantRepo().find({ where: { userId } })).map(
-    (p) => p.conversationId
+      // Không tin hoàn toàn role được truyền từ controller/token snapshot; dùng role mới nhất trong DB.
+      if (currentUser.role !== role) {
+        throw makeError('Vai tro nguoi dung da thay doi, vui long dang nhap lai', 401);
+      }
+
+      const validPair =
+        (currentUser.role === 'farmer' && partner.role === 'enterprise') ||
+        (currentUser.role === 'enterprise' && partner.role === 'farmer');
+      if (!validPair) {
+        throw makeError('Chi co the nhan tin truc tiep giua nong dan va doanh nghiep', 400);
+      }
+
+      const txConversationRepo = manager.getRepository(Conversation);
+      const txParticipantRepo = manager.getRepository(ConversationParticipant);
+
+      const myConversationIds = (await txParticipantRepo.find({ where: { userId } })).map(
+        (p) => p.conversationId
+      );
+
+      if (myConversationIds.length > 0) {
+        const existing = await txParticipantRepo.findOne({
+          where: { userId: partnerId, conversationId: In(myConversationIds) },
+        });
+        if (existing) return existing.conversationId;
+      }
+
+      const conversation = await txConversationRepo.save(txConversationRepo.create({}));
+      const now = new Date();
+
+      await txParticipantRepo.save([
+        txParticipantRepo.create({ conversationId: conversation.id, userId, joinedAt: now }),
+        txParticipantRepo.create({ conversationId: conversation.id, userId: partnerId, joinedAt: now }),
+      ]);
+
+      return conversation.id;
+    },
+    { label: 'messaging.getOrCreateConversation' }
   );
 
-  if (myConversationIds.length > 0) {
-    const existing = await participantRepo().findOne({
-      where: { userId: partnerId, conversationId: In(myConversationIds) },
-    });
-    if (existing) {
-      return buildConversationDetail(existing.conversationId, userId);
-    }
-  }
-
-  const conversation = await conversationRepo().save(conversationRepo().create({}));
-
-  const now = new Date();
-  await participantRepo().save([
-    participantRepo().create({ conversationId: conversation.id, userId, joinedAt: now }),
-    participantRepo().create({ conversationId: conversation.id, userId: partnerId, joinedAt: now }),
-  ]);
-
-  return buildConversationDetail(conversation.id, userId);
+  return buildConversationDetail(conversationId, userId);
 };
 
 export interface ListMessagesQuery {
@@ -207,72 +236,109 @@ export const sendMessage = async (conversationId: string, userId: string, text: 
     throw makeError(`Tin nhan qua dai (toi da ${MAX_MESSAGE_LENGTH} ky tu)`);
   }
 
-  await ensureParticipant(conversationId, userId);
+  const messageId = await runLockedTransaction(
+    async (manager) => {
+      // Serialize send trong cùng conversation để LastMessage/LastMessageAt luôn khớp
+      // với message vừa commit sau cùng, thay vì request chậm ghi đè request mới hơn.
+      const conversation = await lockByIdOrFail(
+        manager,
+        Conversation,
+        conversationId,
+        () => makeError('Khong tim thay cuoc hoi thoai', 404)
+      );
 
-  const savedMessage = await messageRepo().save(
-    messageRepo().create({ conversationId, senderId: userId, text: trimmed })
+      await ensureParticipantWithManager(manager, conversationId, userId);
+
+      const txMessageRepo = manager.getRepository(Message);
+      const txReadByRepo = manager.getRepository(MessageReadBy);
+      const txParticipantRepo = manager.getRepository(ConversationParticipant);
+      const txNotificationRepo = manager.getRepository(Notification);
+      const txUserRepo = manager.getRepository(User);
+      const txConversationRepo = manager.getRepository(Conversation);
+
+      const savedMessage = await txMessageRepo.save(
+        txMessageRepo.create({ conversationId, senderId: userId, text: trimmed })
+      );
+
+      conversation.lastMessage = trimmed;
+      conversation.lastMessageAt = savedMessage.createdAt;
+      await txConversationRepo.save(conversation);
+
+      await txReadByRepo.save(
+        txReadByRepo.create({ messageId: savedMessage.id, userId, readAt: new Date() })
+      );
+
+      const participants = await txParticipantRepo.find({ where: { conversationId } });
+      const recipients = participants.filter((p) => p.userId !== userId);
+
+      if (recipients.length > 0) {
+        const sender = await txUserRepo.findOne({ where: { id: userId } });
+        const senderName = sender ? displayName(sender) : 'Doi tac';
+        const preview =
+          trimmed.length > NOTIFICATION_PREVIEW_LENGTH
+            ? `${trimmed.slice(0, NOTIFICATION_PREVIEW_LENGTH)}...`
+            : trimmed;
+
+        await txNotificationRepo.save(
+          recipients.map((recipient) =>
+            txNotificationRepo.create({
+              userId: recipient.userId,
+              type: 'new_message',
+              title: `Tin nhan moi tu ${senderName}`,
+              message: preview,
+              relatedId: conversationId,
+              relatedModel: 'Conversation',
+              severity: 'info',
+              isRead: false,
+              emailSent: false,
+            })
+          )
+        );
+      }
+
+      return savedMessage.id;
+    },
+    { label: 'messaging.sendMessage' }
   );
-
-  await conversationRepo().update(conversationId, {
-    lastMessage: trimmed,
-    lastMessageAt: savedMessage.createdAt,
-  });
-
-  await readByRepo().save(
-    readByRepo().create({ messageId: savedMessage.id, userId, readAt: new Date() })
-  );
-
-  const participants = await participantRepo().find({ where: { conversationId } });
-  const recipients = participants.filter((p) => p.userId !== userId);
-
-  if (recipients.length > 0) {
-    const sender = await userRepo().findOne({ where: { id: userId } });
-    const senderName = sender ? displayName(sender) : 'Doi tac';
-    const preview =
-      trimmed.length > NOTIFICATION_PREVIEW_LENGTH
-        ? `${trimmed.slice(0, NOTIFICATION_PREVIEW_LENGTH)}...`
-        : trimmed;
-
-    await notificationRepo().save(
-      recipients.map((recipient) =>
-        notificationRepo().create({
-          userId: recipient.userId,
-          type: 'new_message',
-          title: `Tin nhan moi tu ${senderName}`,
-          message: preview,
-          relatedId: conversationId,
-          relatedModel: 'Conversation',
-          severity: 'info',
-          isRead: false,
-          emailSent: false,
-        })
-      )
-    );
-  }
 
   return messageRepo().findOne({
-    where: { id: savedMessage.id },
+    where: { id: messageId },
     relations: ['sender'],
   });
 };
 
 export const markConversationAsRead = async (conversationId: string, userId: string) => {
-  await ensureParticipant(conversationId, userId);
+  await runLockedTransaction(
+    async (manager) => {
+      await lockByIdOrFail(
+        manager,
+        Conversation,
+        conversationId,
+        () => makeError('Khong tim thay cuoc hoi thoai', 404)
+      );
+      await ensureParticipantWithManager(manager, conversationId, userId);
 
-  const unreadMessages = await messageRepo()
-    .createQueryBuilder('message')
-    .leftJoin('message.readBy', 'readBy', 'readBy.userId = :userId', { userId })
-    .where('message.conversationId = :conversationId', { conversationId })
-    .andWhere('message.senderId != :userId', { userId })
-    .andWhere('readBy.userId IS NULL')
-    .getMany();
+      const txMessageRepo = manager.getRepository(Message);
+      const txReadByRepo = manager.getRepository(MessageReadBy);
 
-  if (unreadMessages.length === 0) return;
+      const unreadMessages = await txMessageRepo
+        .createQueryBuilder('message')
+        .leftJoin('message.readBy', 'readBy', 'readBy.userId = :userId', { userId })
+        .where('message.conversationId = :conversationId', { conversationId })
+        .andWhere('message.senderId != :userId', { userId })
+        .andWhere('readBy.userId IS NULL')
+        .getMany();
 
-  const now = new Date();
-  await readByRepo().save(
-    unreadMessages.map((message) =>
-      readByRepo().create({ messageId: message.id, userId, readAt: now })
-    )
+      if (unreadMessages.length === 0) return;
+
+      const now = new Date();
+      await txReadByRepo.save(
+        unreadMessages.map((message) =>
+          txReadByRepo.create({ messageId: message.id, userId, readAt: now })
+        )
+      );
+    },
+    { label: 'messaging.markConversationAsRead' }
   );
 };
+

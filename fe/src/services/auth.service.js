@@ -150,9 +150,9 @@ const authService = {
    * Resend email verification link
    * @returns {Promise}
    */
-  resendVerification: async () => {
+  resendVerification: async (data) => {
     try {
-      const response = await api.post('/auth/resend-verification');
+      const response = await api.post('/auth/resend-verification', data);
       return response.data;
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Gửi lại email thất bại' };
@@ -267,14 +267,30 @@ const authService = {
   isLoggedIn: () => !!sessionStorage.getItem(ACCESS_TOKEN),
 
   getAccessToken: () => sessionStorage.getItem(ACCESS_TOKEN),
+
+  getGoogleOnboardingProfile: async () => {
+    try {
+      const response = await api.get('/auth/google-onboarding', {
+        skipAuthToken: true,
+        skipAuthRefresh: true,
+      });
+      return response.data;
+    } catch (error) {
+      throw extractErrorMessage(error, 'Phiên đăng ký Google không hợp lệ');
+    }
+  },
+
   googleRegister: async (data) => {
-  try {
-    const response = await api.post('/auth/google-register', data);
-    return response.data;
-  } catch (error) {
-    throw extractErrorMessage(error, 'Tạo tài khoản thất bại');
-  }
-},
+    try {
+      // Security: backend takes Google email/name/avatar only from the signed
+      // httpOnly onboarding cookie. FE is allowed to submit only the selected role.
+      const response = await api.post('/auth/google-register', { role: data?.role });
+      if (response.data.success) persistAuth(response.data.data);
+      return response.data;
+    } catch (error) {
+      throw extractErrorMessage(error, 'Tạo tài khoản thất bại');
+    }
+  },
 };
 
 

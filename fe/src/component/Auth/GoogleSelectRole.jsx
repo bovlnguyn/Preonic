@@ -1,55 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import authService from '../../services/auth.service';
 
-const parseProfile = (search) => {
-  const params = new URLSearchParams(search);
-  const value = params.get('profile');
-  if (!value) return null;
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    try {
-      return JSON.parse(decodeURIComponent(value));
-    } catch {
-      return null;
-    }
-  }
-};
-
 export default function GoogleSelectRole() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
+  const loadedRef = useRef(false);
+  const [profile, setProfile] = useState(null);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const profile = useMemo(() => parseProfile(location.search), [location.search]);
-
   useEffect(() => {
-    if (!profile) {
-      navigate('/auth?error=google_profile_invalid', { replace: true });
-    }
-  }, [profile, navigate]);
+    if (loadedRef.current) return;
+    loadedRef.current = true;
 
-  if (!profile) return null;
+    const loadProfile = async () => {
+      try {
+        const response = await authService.getGoogleOnboardingProfile();
+        const nextProfile = response?.data?.profile;
+        if (!nextProfile?.email) throw new Error('Phiên đăng ký Google không hợp lệ');
+        setProfile(nextProfile);
+      } catch {
+        navigate('/auth?error=google_profile_invalid', { replace: true });
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    void loadProfile();
+  }, [navigate]);
 
   const handleSelectRole = async (role) => {
-    if (loading) return;
+    if (loading || !profile) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const response = await authService.googleRegister({
-        email: profile.email,
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        avatar: profile.avatar,
-        role,
-      });
+      // Only the role is submitted. Google identity is read by backend from the
+      // signed httpOnly onboarding cookie created after Google verification.
+      const response = await authService.googleRegister({ role });
 
       if (!response?.success) {
         throw new Error(response?.message || 'Không thể tạo tài khoản Google.');
@@ -67,11 +59,22 @@ export default function GoogleSelectRole() {
       else if (user.role === 'admin') navigate('/admin', { replace: true });
       else navigate('/', { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      setError(err?.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (initialLoading || !profile) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner-border text-success" role="status" aria-label="Đang tải thông tin Google" />
+          <p className="mt-3 text-muted">Đang xác minh phiên Google...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{

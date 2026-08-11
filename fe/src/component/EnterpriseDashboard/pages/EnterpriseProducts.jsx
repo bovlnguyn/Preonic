@@ -183,23 +183,27 @@ function EnterpriseProducts() {
               ))}
             </div>
 
-            {pagination.totalPages > 1 && (
-              <div className="ent-pagination">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  <FiChevronLeft />
-                </button>
-                <span>Trang {page} / {pagination.totalPages}</span>
-                <button
-                  type="button"
-                  disabled={page >= pagination.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  <FiChevronRight />
-                </button>
+            {pagination.total > 0 && (
+              <div className="et-pagination">
+                <span>
+                  Trang {pagination.page || page} / {pagination.totalPages || 1} — {Number(pagination.total || 0).toLocaleString('vi-VN')} sản phẩm
+                </span>
+                <div className="et-pagination-btns">
+                  <button
+                    type="button"
+                    disabled={(pagination.page || page) <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <FiChevronLeft size={14} /> Trước
+                  </button>
+                  <button
+                    type="button"
+                    disabled={(pagination.page || page) >= (pagination.totalPages || 1)}
+                    onClick={() => setPage((p) => Math.min(pagination.totalPages || 1, p + 1))}
+                  >
+                    Sau <FiChevronRight size={14} />
+                  </button>
+                </div>
               </div>
             )}
           </>

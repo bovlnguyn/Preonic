@@ -15,6 +15,7 @@ import { getOrderStatusLabel, getActiveMilestone } from '../../../constants/escr
 import { formatDate, formatMoney } from '../utils';
 
 const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
+const CONTRACTS_PER_PAGE = 10;
 
 const STAT_ICONS = {
   'total-contracts': FiFileText,
@@ -26,6 +27,7 @@ const STAT_ICONS = {
 function EnterpriseOverview() {
   const navigate = useNavigate();
   const [contracts, setContracts] = useState([]);
+  const [contractsPage, setContractsPage] = useState(1);
   const [orders, setOrders] = useState([]);
   const [escrowLocked, setEscrowLocked] = useState(0);
   const [reputation, setReputation] = useState({ average: 0, count: 0 });
@@ -90,6 +92,16 @@ function EnterpriseOverview() {
         setContractSummary({ totalContracts: 0, totalContractValue: 0 });
       });
   }, []);
+
+  const totalContractPages = Math.max(1, Math.ceil(contracts.length / CONTRACTS_PER_PAGE));
+  const paginatedContracts = contracts.slice(
+    (contractsPage - 1) * CONTRACTS_PER_PAGE,
+    contractsPage * CONTRACTS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setContractsPage((currentPage) => Math.min(currentPage, totalContractPages));
+  }, [totalContractPages]);
 
   const activeContractsCount = contracts.filter((c) => c.status === 'active').length;
 
@@ -258,7 +270,7 @@ function EnterpriseOverview() {
                 </tr>
               </thead>
               <tbody>
-                {contracts.map((c) => (
+                {paginatedContracts.map((c) => (
                   <tr
                     key={c.id}
                     onClick={() => navigate(`/enterprise/contracts/${c.id}`)}
@@ -275,6 +287,31 @@ function EnterpriseOverview() {
                 ))}
               </tbody>
             </table>
+
+            {contracts.length > CONTRACTS_PER_PAGE && (
+              <div className="et-pagination">
+                <span>
+                  Trang {contractsPage} / {totalContractPages} — {contracts.length} hợp đồng
+                </span>
+
+                <div className="et-pagination-btns">
+                  <button
+                    type="button"
+                    onClick={() => setContractsPage((page) => Math.max(1, page - 1))}
+                    disabled={contractsPage === 1}
+                  >
+                    Trước
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setContractsPage((page) => Math.min(totalContractPages, page + 1))}
+                    disabled={contractsPage === totalContractPages}
+                  >
+                    Sau
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>

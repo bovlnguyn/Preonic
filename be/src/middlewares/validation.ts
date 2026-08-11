@@ -19,8 +19,9 @@ const handleValidationErrors = (
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const errorMessages = errors.array().map((err) => err.msg);
-    console.log('Validation errors:', errors.array());
-    console.log('Request body:', req.body);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Validation errors:', errorMessages);
+    }
     res.status(400).json({
       success: false,
       status: 'error',
@@ -80,7 +81,13 @@ body('lastName')
 
   body('confirmPassword')
     .notEmpty()
-    .withMessage('Vui lòng xác nhận mật khẩu'),
+    .withMessage('Vui lòng xác nhận mật khẩu')
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error('Mật khẩu xác nhận không khớp');
+      }
+      return true;
+    }),
 
   body('role')
     .notEmpty()
@@ -120,24 +127,6 @@ export const validateLogin = [
 ]; 
 
 export const validateGoogleRegister = [
-  body('firstName')
-    .trim()
-    .notEmpty()
-    .withMessage('Vui lòng nhập tên'),
-
-  body('lastName')
-    .trim()
-    .notEmpty()
-    .withMessage('Vui lòng nhập họ'),
-
-  body('email')
-    .trim()
-    .notEmpty()
-    .withMessage('Vui lòng nhập email')
-    .isEmail()
-    .withMessage('Email không hợp lệ')
-    .toLowerCase(),
-
   body('role')
     .notEmpty()
     .withMessage('Vui lòng chọn vai trò')
@@ -146,6 +135,16 @@ export const validateGoogleRegister = [
 
   handleValidationErrors,
 ];
+
+export const validateResendVerification = [
+  body('emailOrPhone')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập email hoặc số điện thoại'),
+
+  handleValidationErrors,
+];
+
 /**
  * Validate Forgot Password
  */

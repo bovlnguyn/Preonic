@@ -5,6 +5,11 @@ import { EscrowTransaction } from '../models/EscrowTransaction.entity';
 import { Contract } from '../models/Contract.entity';
 import { Escrow } from '../models/Escrow.entity';
 import { logAction, logError } from './systemLog.service';
+import {
+  lockByIdOrFail,
+  lockOneOrFail,
+  runLockedTransaction,
+} from '../utils/transaction-lock.util';
 import crypto from 'crypto';
 import { makeError } from '../utils/error.util';
 
@@ -23,10 +28,21 @@ export interface WalletTransactionQuery {
 const WALLET_TRANSACTION_TYPES = [
   'topup',
   'withdraw',
+  'deposit',
+  'release',
+  // aliases cu de giu tuong thich neu client/admin cu van gui ten nay
   'escrow_deposit',
   'escrow_release',
   'refund',
 ] as const;
+
+const PAYMENT_TRANSACTION_TYPES = new Set(['topup', 'withdraw', 'refund']);
+
+const normalizeWalletFilterType = (type?: string) => {
+  if (type === 'escrow_deposit') return 'deposit';
+  if (type === 'escrow_release') return 'release';
+  return type;
+};
 
 const normalizeTransactionType = (type: string) => {
   if (type === 'topup') return 'Nạp tiền';
@@ -78,17 +94,24 @@ export const getWalletTransactions = async (
     throw makeError('Loại giao dịch không hợp lệ', 400);
   }
 
+  const normalizedFilterType = normalizeWalletFilterType(query.type);
+  const isPaymentFilter = Boolean(
+    normalizedFilterType && PAYMENT_TRANSACTION_TYPES.has(normalizedFilterType)
+  );
+  const isEscrowFilter = normalizedFilterType === 'deposit' || normalizedFilterType === 'release';
+
   const paymentQb = paymentTransactionRepo()
     .createQueryBuilder('payment')
     .where('payment.userId = :userId', { userId });
 
-  if (query.type) {
-    paymentQb.andWhere('payment.type = :type', { type: query.type });
+  if (normalizedFilterType) {
+    if (isPaymentFilter) {
+      paymentQb.andWhere('payment.type = :type', { type: normalizedFilterType });
+    } else {
+      // Khi lọc deposit/release thì không query nhầm PaymentTransactions.
+      paymentQb.andWhere('1 = 0');
+    }
   }
-
-  const paymentTransactions = await paymentQb
-    .orderBy('payment.createdAt', 'DESC')
-    .getMany();
 
   const escrowQb = escrowTransactionRepo()
     .createQueryBuilder('escrowTx')
@@ -97,13 +120,19 @@ export const getWalletTransactions = async (
       { userId }
     );
 
-  if (query.type) {
-    escrowQb.andWhere('escrowTx.type = :type', { type: query.type });
+  if (normalizedFilterType) {
+    if (isEscrowFilter) {
+      escrowQb.andWhere('escrowTx.type = :type', { type: normalizedFilterType });
+    } else {
+      // Khi lọc topup/withdraw/refund thì EscrowTransactions không có các type này.
+      escrowQb.andWhere('1 = 0');
+    }
   }
 
-  const escrowTransactions = await escrowQb
-    .orderBy('escrowTx.createdAt', 'DESC')
-    .getMany();
+  const [paymentTransactions, escrowTransactions] = await Promise.all([
+    paymentQb.orderBy('payment.createdAt', 'DESC').getMany(),
+    escrowQb.orderBy('escrowTx.createdAt', 'DESC').getMany(),
+  ]);
 
   const normalizedPaymentTransactions = paymentTransactions.map((item: any) => ({
     id: item.id,
@@ -554,56 +583,77 @@ export const demoTopupWallet = async (
     throw makeError('So tien nap demo khong duoc vuot qua 100,000,000 VND', 400);
   }
 
-  const user = await userRepo().findOne({
-    where: { id: userId },
-  });
-
-  if (!user) {
-    throw makeError('Khong tim thay nguoi dung', 404);
-  }
-
-  if (!TOPUP_ALLOWED_ROLES.includes(user.role)) {
-    throw makeError('Vai tro nay khong the nap tien demo', 403);
-  }
-
-  const balanceBefore = Number(user.virtualBalance || 0);
-  const balanceAfter = balanceBefore + amount;
+  // Tao ma mot lan ben ngoai transaction. Neu transaction bi deadlock va retry,
+  // cung orderCode se duoc dung lai; attempt truoc da rollback nen khong tao ban ghi trung.
   const orderCode = `TOPUP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  let savedTransaction: PaymentTransaction;
+  let result: {
+    savedTransaction: PaymentTransaction;
+    balanceAfter: number;
+    userId: string;
+    userEmail: string;
+  };
+
   try {
-    savedTransaction = await AppDataSource.transaction(async (manager) => {
-      user.virtualBalance = balanceAfter;
-      await manager.getRepository(User).save(user);
+    result = await runLockedTransaction(
+      async (manager) => {
+        const user = await lockByIdOrFail(
+          manager,
+          User,
+          userId,
+          () => makeError('Khong tim thay nguoi dung', 404)
+        );
 
-      const transaction = manager.getRepository(PaymentTransaction).create({
-        userId: user.id,
-        type: 'topup',
-        amount,
-        status: 'completed',
-        paymentMethod: 'demo',
-        gatewayRef: orderCode,
-        orderCode,
-        description: dto.note?.trim() || 'Nap tien demo vao vi ao',
-        balanceBefore,
-        balanceAfter,
-        metadata: JSON.stringify({
-          source: 'demo_topup',
-          createdBy: user.id,
-        }),
-        completedAt: new Date(),
-      } as Partial<PaymentTransaction>);
+        if (!TOPUP_ALLOWED_ROLES.includes(user.role)) {
+          throw makeError('Vai tro nay khong the nap tien demo', 403);
+        }
 
-      return manager.getRepository(PaymentTransaction).save(transaction);
-    });
+        // So du phai duoc doc SAU khi User row da bi lock.
+        const balanceBefore = Number(user.virtualBalance || 0);
+        const balanceAfter = balanceBefore + amount;
+
+        user.virtualBalance = balanceAfter;
+        await manager.getRepository(User).save(user);
+
+        const transaction = manager.getRepository(PaymentTransaction).create({
+          userId: user.id,
+          type: 'topup',
+          amount,
+          status: 'completed',
+          paymentMethod: 'demo',
+          gatewayRef: orderCode,
+          orderCode,
+          description: dto.note?.trim() || 'Nap tien demo vao vi ao',
+          balanceBefore,
+          balanceAfter,
+          metadata: JSON.stringify({
+            source: 'demo_topup',
+            createdBy: user.id,
+          }),
+          completedAt: new Date(),
+        } as Partial<PaymentTransaction>);
+
+        const savedTransaction = await manager
+          .getRepository(PaymentTransaction)
+          .save(transaction);
+
+        return {
+          savedTransaction,
+          balanceAfter,
+          userId: user.id,
+          userEmail: user.email,
+        };
+      },
+      { label: 'wallet.demoTopup' }
+    );
   } catch (err: any) {
     logError({
       category: 'payment',
       action: 'wallet_topup_failed',
-      message: `Loi nap tien vi cho user ${user.email}: ${err.message || err}`,
-      userId: user.id,
+      message: `Loi nap tien vi cho user ${userId}: ${err.message || err}`,
+      userId,
       targetType: 'User',
-      targetId: user.id,
+      targetId: userId,
       metadata: { amount, orderCode },
       error: err,
     });
@@ -613,30 +663,30 @@ export const demoTopupWallet = async (
   logAction({
     category: 'payment',
     action: 'wallet_topup',
-    message: `${user.email} nap ${amount.toLocaleString('vi-VN')} VND vao vi (demo)`,
-    userId: user.id,
+    message: `${result.userEmail} nap ${amount.toLocaleString('vi-VN')} VND vao vi (demo)`,
+    userId: result.userId,
     targetType: 'PaymentTransaction',
-    targetId: savedTransaction.id,
+    targetId: result.savedTransaction.id,
     metadata: { amount, orderCode },
   });
 
   return {
     wallet: {
-      balance: balanceAfter,
+      balance: result.balanceAfter,
       currency: 'VND',
     },
     transaction: {
-      id: savedTransaction.id,
-      type: savedTransaction.type,
-      amount: Number(savedTransaction.amount || 0),
-      status: savedTransaction.status,
-      paymentMethod: savedTransaction.paymentMethod,
-      orderCode: savedTransaction.orderCode,
-      description: savedTransaction.description,
-      balanceBefore: Number(savedTransaction.balanceBefore || 0),
-      balanceAfter: Number(savedTransaction.balanceAfter || 0),
-      createdAt: savedTransaction.createdAt,
-      completedAt: savedTransaction.completedAt,
+      id: result.savedTransaction.id,
+      type: result.savedTransaction.type,
+      amount: Number(result.savedTransaction.amount || 0),
+      status: result.savedTransaction.status,
+      paymentMethod: result.savedTransaction.paymentMethod,
+      orderCode: result.savedTransaction.orderCode,
+      description: result.savedTransaction.description,
+      balanceBefore: Number(result.savedTransaction.balanceBefore || 0),
+      balanceAfter: Number(result.savedTransaction.balanceAfter || 0),
+      createdAt: result.savedTransaction.createdAt,
+      completedAt: result.savedTransaction.completedAt,
     },
   };
 };
@@ -808,50 +858,106 @@ export const createDemoQrTopupOrder = async (
 };
 
 export const confirmDemoQrTopup = async (userId: string, orderCode: string) => {
-  const transaction = await paymentTransactionRepo().findOne({
-    where: { userId, orderCode, paymentMethod: 'demo' },
-  });
+  const result = await runLockedTransaction(
+    async (manager) => {
+      // Tat ca thao tac thay doi so du cua User dung cung thu tu lock: User -> PaymentTransaction.
+      // Thu tu on dinh nay giup giam deadlock khi nhieu request den dong thoi.
+      const user = await lockByIdOrFail(
+        manager,
+        User,
+        userId,
+        () => makeError('Khong tim thay nguoi dung', 404)
+      );
 
-  if (!transaction) {
-    throw makeError('Khong tim thay lenh nap tien demo', 404);
-  }
+      const transaction = await lockOneOrFail(
+        manager,
+        PaymentTransaction,
+        {
+          userId,
+          orderCode,
+          paymentMethod: 'demo',
+          type: 'topup',
+        },
+        () => makeError('Khong tim thay lenh nap tien demo', 404)
+      );
 
-  if (transaction.status === 'completed') {
+      if (transaction.status === 'completed') {
+        return {
+          alreadyProcessed: true,
+          orderCode,
+          amount: Number(transaction.amount || 0),
+          transactionId: transaction.id,
+          userId: user.id,
+          userEmail: user.email,
+        };
+      }
+
+      if (transaction.status !== 'pending') {
+        throw makeError(
+          `Lenh nap tien demo da o trang thai ${transaction.status} va khong the xac nhan`,
+          409
+        );
+      }
+
+      const amount = Number(transaction.amount || 0);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw makeError('So tien cua lenh nap demo khong hop le', 409);
+      }
+
+      const balanceBefore = Number(user.virtualBalance || 0);
+      const balanceAfter = balanceBefore + amount;
+
+      user.virtualBalance = balanceAfter;
+      await manager.getRepository(User).save(user);
+
+      transaction.status = 'completed';
+      transaction.balanceBefore = balanceBefore;
+      transaction.balanceAfter = balanceAfter;
+      transaction.gatewayRef = 'demo_qr';
+      transaction.completedAt = new Date();
+      await manager.getRepository(PaymentTransaction).save(transaction);
+
+      return {
+        alreadyProcessed: false,
+        orderCode,
+        amount,
+        transactionId: transaction.id,
+        userId: user.id,
+        userEmail: user.email,
+      };
+    },
+    { label: 'wallet.confirmDemoQrTopup' }
+  );
+
+  if (result.alreadyProcessed) {
     return { success: true, orderCode, alreadyProcessed: true };
   }
 
-  const user = await userRepo().findOne({ where: { id: userId } });
-  if (!user) {
-    throw makeError('Khong tim thay nguoi dung', 404);
-  }
-
-  const balanceBefore = Number(user.virtualBalance || 0);
-  const balanceAfter = balanceBefore + Number(transaction.amount || 0);
-
-  await AppDataSource.transaction(async (manager) => {
-    user.virtualBalance = balanceAfter;
-    await manager.getRepository(User).save(user);
-
-    transaction.status = 'completed';
-    transaction.balanceBefore = balanceBefore;
-    transaction.balanceAfter = balanceAfter;
-    transaction.gatewayRef = 'demo_qr';
-    transaction.completedAt = new Date();
-    await manager.getRepository(PaymentTransaction).save(transaction);
-  });
-
+  // Log sau COMMIT de transaction retry do deadlock khong tao log trung.
   logAction({
     category: 'payment',
     action: 'wallet_topup_sepay_demo',
-    message: `${user.email} nap ${Number(transaction.amount).toLocaleString('vi-VN')} VND vao vi qua QR demo (${orderCode})`,
-    userId: user.id,
+    message: `${result.userEmail} nap ${result.amount.toLocaleString('vi-VN')} VND vao vi qua QR demo (${orderCode})`,
+    userId: result.userId,
     targetType: 'PaymentTransaction',
-    targetId: transaction.id,
-    metadata: { amount: transaction.amount, orderCode },
+    targetId: result.transactionId,
+    metadata: { amount: result.amount, orderCode },
   });
 
-  return { success: true, orderCode, amount: Number(transaction.amount || 0) };
+  return { success: true, orderCode, amount: result.amount };
 };
+
+const sanitizeSepayWebhookPayload = (payload: any) => ({
+  id: payload?.id ?? null,
+  gateway: payload?.gateway ?? null,
+  transactionDate: payload?.transactionDate ?? payload?.transaction_date ?? null,
+  transferType: payload?.transferType ?? payload?.transfer_type ?? null,
+  transferAmount: Number(payload?.transferAmount ?? payload?.amount ?? 0) || 0,
+  referenceCode: String(
+    payload?.referenceCode || payload?.id || payload?.transactionId || ''
+  ).slice(0, 255),
+  content: String(payload?.content || payload?.description || '').slice(0, 500),
+});
 
 const timingSafeEqual = (a: string, b: string) => {
   const bufA = Buffer.from(a);
@@ -873,69 +979,145 @@ export const handleSepayWebhook = async (payload: any, apiKey: string | undefine
   const content: string = String(payload?.content || payload?.description || '').toUpperCase();
   const transferAmount = Number(payload?.transferAmount ?? payload?.amount ?? 0);
   const referenceCode = String(payload?.referenceCode || payload?.id || payload?.transactionId || '');
+  const safeWebhook = sanitizeSepayWebhookPayload(payload);
 
   const match = content.match(/NAP[A-Z0-9]{6,}/);
   if (!match || !Number.isFinite(transferAmount) || transferAmount <= 0) {
     logAction({
       category: 'payment',
       action: 'wallet_topup_sepay_unmatched',
-      message: `Webhook SePay khong khop duoc lenh nap tien nao. content="${payload?.content || ''}"`,
-      metadata: { payload },
+      message: `Webhook SePay khong khop duoc lenh nap tien nao. content="${String(payload?.content || '').slice(0, 200)}"`,
+      metadata: { webhook: safeWebhook },
     });
     return { success: false, matched: false };
   }
 
   const orderCode = match[0];
 
-  const transaction = await paymentTransactionRepo().findOne({
-    where: { orderCode, paymentMethod: 'sepay' },
+  // Chi doc so bo de biet User can lock truoc. Trang thai/so tien KHONG duoc tin tu ban doc nay.
+  // Moi quyet dinh nghiep vu se duoc re-check sau khi User + PaymentTransaction da bi lock.
+  const preliminaryTransaction = await paymentTransactionRepo().findOne({
+    where: { orderCode, paymentMethod: 'sepay', type: 'topup' },
   });
 
-  if (!transaction) {
+  if (!preliminaryTransaction) {
     logAction({
       category: 'payment',
       action: 'wallet_topup_sepay_unmatched',
       message: `Webhook SePay tham chieu lenh khong ton tai: ${orderCode}`,
-      metadata: { payload, orderCode },
+      metadata: { webhook: safeWebhook, orderCode },
     });
     return { success: false, matched: false };
   }
 
-  if (transaction.status === 'completed') {
+  const result = await runLockedTransaction(
+    async (manager) => {
+      // Cung thu tu lock voi cac nghiep vu wallet khac: User -> PaymentTransaction.
+      const user = await lockByIdOrFail(
+        manager,
+        User,
+        preliminaryTransaction.userId,
+        () => makeError('Khong tim thay nguoi dung cho lenh nap tien nay', 404)
+      );
+
+      const transaction = await lockOneOrFail(
+        manager,
+        PaymentTransaction,
+        {
+          id: preliminaryTransaction.id,
+          orderCode,
+          paymentMethod: 'sepay',
+          type: 'topup',
+        },
+        () => makeError('Lenh nap tien SePay khong con ton tai', 404)
+      );
+
+      // Bao ve truong hop du lieu bi thay doi bat thuong giua ban doc so bo va transaction.
+      if (transaction.userId !== user.id) {
+        throw makeError('Lenh nap tien khong khop nguoi dung', 409);
+      }
+
+      // Idempotency: webhook thu hai phai doi lock cua webhook thu nhat,
+      // sau do doc lai completed va KHONG cong tien lan nua.
+      if (transaction.status === 'completed') {
+        return {
+          alreadyProcessed: true,
+          transactionId: transaction.id,
+          userId: user.id,
+          userEmail: user.email,
+          amount: Number(transaction.amount || 0),
+          expectedAmount: Number(transaction.amount || 0),
+          balanceAfter:
+            transaction.balanceAfter != null ? Number(transaction.balanceAfter) : null,
+        };
+      }
+
+      if (transaction.status !== 'pending') {
+        throw makeError(
+          `Lenh nap tien SePay da o trang thai ${transaction.status} va khong the xu ly`,
+          409
+        );
+      }
+
+      const expectedAmount = Number(transaction.amount || 0);
+      const balanceBefore = Number(user.virtualBalance || 0);
+      const balanceAfter = balanceBefore + transferAmount;
+
+      user.virtualBalance = balanceAfter;
+      await manager.getRepository(User).save(user);
+
+      transaction.status = 'completed';
+      // SePay la nguon su that cua so tien da chuyen. Neu nguoi dung chuyen lech so tien QR,
+      // van ghi nhan dung so tien ngan hang thong bao va luu expectedAmount de doi soat.
+      transaction.amount = transferAmount;
+      transaction.balanceBefore = balanceBefore;
+      transaction.balanceAfter = balanceAfter;
+      transaction.gatewayRef = referenceCode || (null as any);
+      transaction.completedAt = new Date();
+      transaction.metadata = JSON.stringify({
+        source: 'sepay_topup',
+        expectedAmount,
+        receivedAmount: transferAmount,
+        amountMatched: expectedAmount === transferAmount,
+        referenceCode: referenceCode || null,
+        webhook: safeWebhook,
+      });
+      await manager.getRepository(PaymentTransaction).save(transaction);
+
+      return {
+        alreadyProcessed: false,
+        transactionId: transaction.id,
+        userId: user.id,
+        userEmail: user.email,
+        amount: transferAmount,
+        expectedAmount,
+        balanceAfter,
+      };
+    },
+    { label: 'wallet.sepayWebhook' }
+  );
+
+  if (result.alreadyProcessed) {
     return { success: true, matched: true, orderCode, alreadyProcessed: true };
   }
 
-  const user = await userRepo().findOne({ where: { id: transaction.userId } });
-  if (!user) {
-    throw makeError('Khong tim thay nguoi dung cho lenh nap tien nay', 404);
-  }
-
-  const balanceBefore = Number(user.virtualBalance || 0);
-  const balanceAfter = balanceBefore + transferAmount;
-
-  await AppDataSource.transaction(async (manager) => {
-    user.virtualBalance = balanceAfter;
-    await manager.getRepository(User).save(user);
-
-    transaction.status = 'completed';
-    transaction.amount = transferAmount;
-    transaction.balanceBefore = balanceBefore;
-    transaction.balanceAfter = balanceAfter;
-    transaction.gatewayRef = referenceCode || null as any;
-    transaction.completedAt = new Date();
-    transaction.metadata = JSON.stringify({ source: 'sepay_topup', webhook: payload });
-    await manager.getRepository(PaymentTransaction).save(transaction);
-  });
-
+  // Log sau COMMIT. Khong log payload ngan hang day du de tranh luu thong tin nhay cam khong can thiet.
   logAction({
     category: 'payment',
     action: 'wallet_topup_sepay',
-    message: `${user.email} nap ${transferAmount.toLocaleString('vi-VN')} VND vao vi qua SePay (${orderCode})`,
-    userId: user.id,
+    message: `${result.userEmail} nap ${result.amount.toLocaleString('vi-VN')} VND vao vi qua SePay (${orderCode})`,
+    userId: result.userId,
     targetType: 'PaymentTransaction',
-    targetId: transaction.id,
-    metadata: { amount: transferAmount, orderCode, referenceCode },
+    targetId: result.transactionId,
+    metadata: {
+      amount: result.amount,
+      expectedAmount: result.expectedAmount,
+      amountMatched: result.amount === result.expectedAmount,
+      orderCode,
+      referenceCode,
+    },
   });
 
-  return { success: true, matched: true, orderCode, amount: transferAmount };
+  return { success: true, matched: true, orderCode, amount: result.amount };
 };
+
