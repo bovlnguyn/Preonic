@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as productService from '../services/product.service';
 import { AuthRequest } from '../types';
+import { sendError } from '../utils/controller.util';
 
 // ── Helper parse multipart files thành imagePaths / certifications ──
 const parseUploadedFiles = (req: AuthRequest) => {
@@ -106,10 +107,7 @@ export const getAll = async (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy danh sách sản phẩm thất bại',
-    });
+    sendError(res, err, 'Lấy danh sách sản phẩm thất bại');
   }
 };
 
@@ -121,10 +119,7 @@ export const getById = async (req: Request, res: Response) => {
     const product = await productService.getById(req.params.id);
     res.status(200).json({ success: true, data: { product } });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy chi tiết sản phẩm thất bại',
-    });
+    sendError(res, err, 'Lấy chi tiết sản phẩm thất bại');
   }
 };
 
@@ -137,10 +132,7 @@ export const getSimilar = async (req: Request, res: Response) => {
     const products = await productService.getSimilar(req.params.id, limit);
     res.status(200).json({ success: true, data: products });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy sản phẩm tương tự thất bại',
-    });
+    sendError(res, err, 'Lấy sản phẩm tương tự thất bại');
   }
 };
 
@@ -152,10 +144,7 @@ export const getByRegion = async (req: Request, res: Response) => {
     const products = await productService.getByRegion(req.params.region);
     res.status(200).json({ success: true, data: products });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy sản phẩm theo vùng miền thất bại',
-    });
+    sendError(res, err, 'Lấy sản phẩm theo vùng miền thất bại');
   }
 };
 
@@ -164,14 +153,10 @@ export const getByRegion = async (req: Request, res: Response) => {
 // ══════════════════════════════════════════
 export const getMyProducts = async (req: AuthRequest, res: Response) => {
   try {
-    console.log('getMyProducts userId:', req.user?.id);
     const products = await productService.getByUser(req.user!.id);
     res.status(200).json({ success: true, data: products });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy sản phẩm của bạn thất bại',
-    });
+    sendError(res, err, 'Lấy sản phẩm của bạn thất bại');
   }
 };
 
@@ -215,10 +200,7 @@ export const create = async (req: AuthRequest, res: Response) => {
       data: { product },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Đăng bán sản phẩm thất bại',
-    });
+    sendError(res, err, 'Đăng bán sản phẩm thất bại');
   }
 };
 
@@ -265,10 +247,7 @@ export const update = async (req: AuthRequest, res: Response) => {
       data: { product },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Cập nhật sản phẩm thất bại',
-    });
+    sendError(res, err, 'Cập nhật sản phẩm thất bại');
   }
 };
 
@@ -285,10 +264,7 @@ export const remove = async (req: AuthRequest, res: Response) => {
       message: 'Đã ẩn sản phẩm khỏi danh sách công khai',
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Xóa sản phẩm thất bại',
-    });
+    sendError(res, err, 'Xóa sản phẩm thất bại');
   }
 };
 
@@ -300,10 +276,7 @@ export const getReviews = async (req: Request, res: Response) => {
     const reviews = await productService.getReviews(req.params.id);
     res.status(200).json({ success: true, data: reviews });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy đánh giá thất bại',
-    });
+    sendError(res, err, 'Lấy đánh giá thất bại');
   }
 };
 
@@ -319,10 +292,7 @@ export const getReviewEligibility = async (req: AuthRequest, res: Response) => {
     );
     res.status(200).json({ success: true, data: eligibility });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Kiểm tra quyền đánh giá thất bại',
-    });
+    sendError(res, err, 'Kiểm tra quyền đánh giá thất bại');
   }
 };
 
@@ -351,9 +321,6 @@ export const addReview = async (req: AuthRequest, res: Response) => {
       data: { review },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Đánh giá sản phẩm thất bại',
-    });
+    sendError(res, err, 'Đánh giá sản phẩm thất bại');
   }
 };

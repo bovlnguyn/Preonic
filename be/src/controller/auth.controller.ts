@@ -5,6 +5,7 @@ import { sendResetPasswordEmail } from '../services/email.service';
 import * as emailService from '../services/email.service';
 import { logAction, logError } from '../services/systemLog.service';
 import { isDatabaseConnected } from '../config/database';
+import { sendError } from '../utils/controller.util';
 // ── Cookie options cho refresh token ──
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -25,9 +26,6 @@ const COOKIE_CLEAR_OPTIONS = {
 export const register = async (req: Request, res: Response) => {
   try {
     const result = await authService.register(req.body);
-    console.log('register result:', result);
-console.log('has user:', !!result?.user);
-console.log('has verifyToken:', !!result?.verifyToken);
 
     // Gửi email verify
     if (result?.user && result?.verifyToken) {
@@ -48,10 +46,7 @@ console.log('has verifyToken:', !!result?.verifyToken);
       data: { user: result?.user },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Đăng ký thất bại',
-    });
+    sendError(res, err, 'Đăng ký thất bại');
   }
 };
 
@@ -91,10 +86,7 @@ export const login = async (req: Request, res: Response) => {
       ipAddress: req.ip,
       error: err,
     });
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Đăng nhập thất bại',
-    });
+    sendError(res, err, 'Đăng nhập thất bại');
   }
 };
 
@@ -111,10 +103,7 @@ export const googleRegister = async (req: Request, res: Response) => {
       data: { user, accessToken },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tạo tài khoản thất bại',
-    });
+    sendError(res, err, 'Tạo tài khoản thất bại');
   }
 };
 
@@ -165,10 +154,7 @@ export const refreshToken = async (req: Request, res: Response) => {
       data: { accessToken },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 401).json({
-      success: false,
-      message: err.message || 'Refresh token thất bại',
-    });
+    sendError(res, err, 'Refresh token thất bại', 401);
   }
 };
 
@@ -194,18 +180,15 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 // QUÊN MẬT KHẨU
 // ══════════════════════════════════════════
 export const forgotPassword = async (req: Request, res: Response) => {
-
   try {
     const result = await authService.forgotPassword(req.body.email);
 
     if (result) {
-      
       await sendResetPasswordEmail(
         result.user.email,
         result.rawToken,
         `${result.user.firstName} ${result.user.lastName}`
       );
-     
     }
 
     res.status(200).json({
@@ -213,11 +196,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
       message: 'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi',
     });
   } catch (err: any) {
-   
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Gửi email thất bại',
-    });
+    sendError(res, err, 'Gửi email thất bại');
   }
 };
 
@@ -234,10 +213,7 @@ export const resetPassword = async (req: Request, res: Response) => {
       message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.',
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Đặt lại mật khẩu thất bại',
-    });
+    sendError(res, err, 'Đặt lại mật khẩu thất bại');
   }
 };
 
@@ -257,10 +233,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       data: { user },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Cập nhật hồ sơ thất bại',
-    });
+    sendError(res, err, 'Cập nhật hồ sơ thất bại');
   }
 };
 
@@ -281,10 +254,7 @@ export const updatePassword = async (req: AuthRequest, res: Response) => {
       data: { accessToken, authProvider },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Cập nhật mật khẩu thất bại',
-    });
+    sendError(res, err, 'Cập nhật mật khẩu thất bại');
   }
 };
 export const verifyEmail = async (req: Request, res: Response) => {

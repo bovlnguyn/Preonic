@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as adminService from '../services/admin.service';
 import * as systemLogService from '../services/systemLog.service';
 import { AuthRequest } from '../types';
+import { sendError } from '../utils/controller.util';
 
 const safeParseJson = (raw: string | null) => {
   if (!raw) return null;
@@ -74,10 +75,7 @@ export const getUsers = async (req: Request, res: Response) => {
       pagination: result.pagination,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy danh sách người dùng thất bại',
-    });
+    sendError(res, err, 'Lấy danh sách người dùng thất bại');
   }
 };
 
@@ -89,10 +87,7 @@ export const getUserDetail = async (req: Request, res: Response) => {
       data: { user: result.user, contractCount: result.contractCount, transactionCount: result.transactionCount },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy chi tiết người dùng thất bại',
-    });
+    sendError(res, err, 'Lấy chi tiết người dùng thất bại');
   }
 };
 
@@ -105,10 +100,7 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response) => {
       message: result.user.isActive ? 'Tài khoản đã được kích hoạt' : 'Tài khoản đã bị vô hiệu hóa',
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Cập nhật trạng thái tài khoản thất bại',
-    });
+    sendError(res, err, 'Cập nhật trạng thái tài khoản thất bại');
   }
 };
 
@@ -120,10 +112,7 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
       message: 'Đã xóa người dùng thành công',
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Xóa người dùng thất bại',
-    });
+    sendError(res, err, 'Xóa người dùng thất bại');
   }
 };
 
@@ -132,10 +121,7 @@ export const getDashboard = async (_req: Request, res: Response) => {
     const result = await adminService.getDashboardStats();
     res.status(200).json({ success: true, data: result });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy dữ liệu tổng quan thất bại',
-    });
+    sendError(res, err, 'Lấy dữ liệu tổng quan thất bại');
   }
 };
 
@@ -155,10 +141,7 @@ export const getContracts = async (req: Request, res: Response) => {
       pagination: result.pagination,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy danh sách hợp đồng thất bại',
-    });
+    sendError(res, err, 'Lấy danh sách hợp đồng thất bại');
   }
 };
 
@@ -167,10 +150,7 @@ export const getContractDetail = async (req: Request, res: Response) => {
     const result = await adminService.getContractDetail(req.params.id);
     res.status(200).json({ success: true, data: result });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy chi tiết hợp đồng thất bại',
-    });
+    sendError(res, err, 'Lấy chi tiết hợp đồng thất bại');
   }
 };
 
@@ -191,10 +171,7 @@ export const getDisputes = async (req: Request, res: Response) => {
       stats: result.stats,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy danh sách khiếu nại thất bại',
-    });
+    sendError(res, err, 'Lấy danh sách khiếu nại thất bại');
   }
 };
 
@@ -203,10 +180,7 @@ export const getDisputeDetail = async (req: Request, res: Response) => {
     const dispute = await adminService.getDisputeDetail(req.params.id);
     res.status(200).json({ success: true, data: { dispute: formatDisputeForAdmin(dispute) } });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy chi tiết khiếu nại thất bại',
-    });
+    sendError(res, err, 'Lấy chi tiết khiếu nại thất bại');
   }
 };
 
@@ -224,10 +198,7 @@ export const resolveDispute = async (req: AuthRequest, res: Response) => {
       message: 'Đã giải quyết khiếu nại thành công',
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Giải quyết khiếu nại thất bại',
-    });
+    sendError(res, err, 'Giải quyết khiếu nại thất bại');
   }
 };
 
@@ -248,10 +219,7 @@ export const getTransactions = async (req: Request, res: Response) => {
       stats: result.stats,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy danh sách giao dịch thất bại',
-    });
+    sendError(res, err, 'Lấy danh sách giao dịch thất bại');
   }
 };
 
@@ -272,10 +240,7 @@ export const getCommissions = async (req: Request, res: Response) => {
       stats: result.stats,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy danh sách hoa hồng thất bại',
-    });
+    sendError(res, err, 'Lấy danh sách hoa hồng thất bại');
   }
 };
 
@@ -300,10 +265,7 @@ export const getSystemLogs = async (req: Request, res: Response) => {
       stats: result.stats,
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy nhật ký hệ thống thất bại',
-    });
+    sendError(res, err, 'Lấy nhật ký hệ thống thất bại');
   }
 };
 
@@ -316,9 +278,6 @@ export const getSystemLogDetail = async (req: Request, res: Response) => {
     }
     res.status(200).json({ success: true, data: formatSystemLogForAdmin(item) });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lấy chi tiết log thất bại',
-    });
+    sendError(res, err, 'Lấy chi tiết log thất bại');
   }
 };

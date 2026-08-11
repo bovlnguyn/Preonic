@@ -2,15 +2,10 @@ import { AppDataSource } from '../config/database';
 import { User } from '../models/User.entity';
 import { PaymentTransaction } from '../models/PaymentTransaction.entity';
 import { logAction, logError } from './systemLog.service';
+import { makeError } from '../utils/error.util';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const paymentTransactionRepo = () => AppDataSource.getRepository(PaymentTransaction);
-
-const makeError = (message: string, statusCode = 400) => {
-  const err: any = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-};
 
 const WITHDRAW_ALLOWED_ROLES = ['farmer', 'enterprise'];
 

@@ -8,36 +8,14 @@ import { EscrowTransaction } from '../models/EscrowTransaction.entity';
 import { Notification } from '../models/Notification.entity';
 import { buildMilestones, getMilestoneRequiredRole, MILESTONE_CONFIG } from '../utils/milestone.util';
 import { logAction, logError } from './systemLog.service';
-import { sendNotificationEmail, buildContractUrl } from './email.service';
-import { displayName } from '../utils/user.util';
+import { makeError } from '../utils/error.util';
+import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
 
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const userRepo = () => AppDataSource.getRepository(User);
 const escrowRepo = () => AppDataSource.getRepository(Escrow);
 const milestoneRepo = () => AppDataSource.getRepository(EscrowMilestone);
 const notificationRepo = () => AppDataSource.getRepository(Notification);
-
-const makeError = (message: string, statusCode = 400) => {
-  const err: any = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-};
-
-// Email khong duoc lam gian doan luong nghiep vu ky quy -- loi gui mail chi log, khong throw.
-const notifyEmail = async (
-  user: User | null | undefined,
-  role: 'farmer' | 'enterprise',
-  title: string,
-  message: string,
-  contractId: string
-) => {
-  if (!user?.email) return;
-  try {
-    await sendNotificationEmail(user.email, displayName(user), title, message, buildContractUrl(role, contractId));
-  } catch (err: any) {
-    console.error('Loi gui email thong bao ky quy:', err.message || err);
-  }
-};
 
 const ESCROW_RELATIONS = ['milestones', 'transactions', 'contract', 'farmer', 'enterprise'];
 

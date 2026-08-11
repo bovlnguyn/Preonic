@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/database';
 import { Contract } from '../models/Contract.entity';
+import { makeError } from '../utils/error.util';
 
 const contractRepo = () => AppDataSource.getRepository(Contract);
 
@@ -75,7 +76,7 @@ export const getSupplierDetail = async (enterpriseId: string, farmerId: string) 
     .getMany();
 
   if (contracts.length === 0) {
-    throw { statusCode: 404, message: 'Khong tim thay nha cung cap' };
+    throw makeError('Khong tim thay nha cung cap', 404);
   }
 
   const [supplier] = aggregateSuppliers(contracts);

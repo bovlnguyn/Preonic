@@ -6,18 +6,13 @@ import { Contract } from '../models/Contract.entity';
 import { Escrow } from '../models/Escrow.entity';
 import { logAction, logError } from './systemLog.service';
 import crypto from 'crypto';
+import { makeError } from '../utils/error.util';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const paymentTransactionRepo = () => AppDataSource.getRepository(PaymentTransaction);
 const escrowTransactionRepo = () => AppDataSource.getRepository(EscrowTransaction);
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const escrowRepo = () => AppDataSource.getRepository(Escrow);
-
-const makeError = (message: string, statusCode = 400) => {
-  const err: any = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-};
 
 export interface WalletTransactionQuery {
   type?: string;
@@ -204,6 +199,105 @@ const buildChartSkeleton = () =>
     cost: 0,
   }));
 
+// Dung chung cho getEnterpriseTransactionsOverview va getFarmerTransactionsOverview
+// (truoc day bi copy y het, chi khac field so huu hop dong/escrow: enterpriseId/farmerId).
+const fetchYearlyFinancialData = (
+  userId: string,
+  ownerField: 'enterpriseId' | 'farmerId',
+  startDate: Date,
+  endDate: Date
+) =>
+  Promise.all([
+    paymentTransactionRepo()
+      .createQueryBuilder('payment')
+      .where('payment.userId = :userId', { userId })
+      .andWhere('payment.createdAt >= :startDate AND payment.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('payment.createdAt', 'DESC')
+      .getMany(),
+
+    escrowTransactionRepo()
+      .createQueryBuilder('escrowTx')
+      .leftJoinAndSelect('escrowTx.escrow', 'escrow')
+      .leftJoinAndSelect('escrow.contract', 'contract')
+      .where('(escrowTx.fromUserId = :userId OR escrowTx.toUserId = :userId)', { userId })
+      .andWhere('escrowTx.createdAt >= :startDate AND escrowTx.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('escrowTx.createdAt', 'DESC')
+      .getMany(),
+
+    contractRepo()
+      .createQueryBuilder('contract')
+      .where(`contract.${ownerField} = :userId`, { userId })
+      .andWhere("contract.status <> 'cancelled'")
+      .andWhere('contract.createdAt >= :startDate AND contract.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('contract.createdAt', 'DESC')
+      .getMany(),
+
+    escrowRepo()
+      .createQueryBuilder('escrow')
+      .where(`escrow.${ownerField} = :userId`, { userId })
+      .andWhere('escrow.createdAt >= :startDate AND escrow.createdAt < :endDate', {
+        startDate,
+        endDate,
+      })
+      .getMany(),
+  ]);
+
+// Dung chung: build danh sach hien thi cho giao dich vi (nap/rut) trong tong quan nam.
+const buildWalletItems = (walletTransactions: PaymentTransaction[]) =>
+  walletTransactions.map((item) => {
+    const incoming = isWalletIncoming(item.type);
+    const outgoing = isWalletOutgoing(item.type);
+    const signedAmount = outgoing ? -Number(item.amount || 0) : Number(item.amount || 0);
+
+    return {
+      id: item.id,
+      referenceId: item.id,
+      type: 'wallet',
+      title: normalizeTransactionType(item.type),
+      description: item.description || item.orderCode || 'Giao dich vi',
+      amount: incoming || outgoing ? signedAmount : Number(item.amount || 0),
+      status: formatOverviewStatus(item.status),
+      createdAt: item.createdAt,
+      detailUrl: null,
+    };
+  });
+
+// Dung chung: build danh sach hien thi cho giao dich escrow, chi khac duong dan chi tiet
+// theo role (enterprise/farmer) nen nhan vao 2 ham build URL.
+const buildEscrowItems = (
+  escrowTransactions: EscrowTransaction[],
+  userId: string,
+  buildContractDetailUrl: (contractId: string) => string,
+  fallbackDetailUrl: string
+) =>
+  escrowTransactions.map((item: any) => {
+    const contract = item.escrow?.contract;
+    const isOutgoing = item.fromUserId === userId;
+    const contractId = item.escrow?.contractId || contract?.id || null;
+
+    return {
+      id: `escrow-${item.id}`,
+      referenceId: item.escrowId,
+      contractId,
+      type: 'escrow',
+      title: normalizeTransactionType(item.type),
+      description: item.description || `Escrow ${contract?.contractCode || item.escrowId}`,
+      amount: isOutgoing ? -Number(item.amount || 0) : Number(item.amount || 0),
+      status: item.escrow?.status || 'completed',
+      createdAt: item.createdAt,
+      detailUrl: contractId ? buildContractDetailUrl(contractId) : fallbackDetailUrl,
+    };
+  });
+
 const ENTERPRISE_TRANSACTION_TYPES = ['wallet', 'contract', 'escrow'] as const;
 
 export interface EnterpriseTransactionsOverviewQuery {
@@ -239,49 +333,8 @@ export const getEnterpriseTransactionsOverview = async (
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year + 1, 0, 1);
 
-  const [walletTransactions, escrowTransactions, contracts, escrows] = await Promise.all([
-    paymentTransactionRepo()
-      .createQueryBuilder('payment')
-      .where('payment.userId = :userId', { userId })
-      .andWhere('payment.createdAt >= :startDate AND payment.createdAt < :endDate', {
-        startDate,
-        endDate,
-      })
-      .orderBy('payment.createdAt', 'DESC')
-      .getMany(),
-
-    escrowTransactionRepo()
-      .createQueryBuilder('escrowTx')
-      .leftJoinAndSelect('escrowTx.escrow', 'escrow')
-      .leftJoinAndSelect('escrow.contract', 'contract')
-      .where('(escrowTx.fromUserId = :userId OR escrowTx.toUserId = :userId)', { userId })
-      .andWhere('escrowTx.createdAt >= :startDate AND escrowTx.createdAt < :endDate', {
-        startDate,
-        endDate,
-      })
-      .orderBy('escrowTx.createdAt', 'DESC')
-      .getMany(),
-
-    contractRepo()
-      .createQueryBuilder('contract')
-      .where('contract.enterpriseId = :userId', { userId })
-      .andWhere("contract.status <> 'cancelled'")
-      .andWhere('contract.createdAt >= :startDate AND contract.createdAt < :endDate', {
-        startDate,
-        endDate,
-      })
-      .orderBy('contract.createdAt', 'DESC')
-      .getMany(),
-
-    escrowRepo()
-      .createQueryBuilder('escrow')
-      .where('escrow.enterpriseId = :userId', { userId })
-      .andWhere('escrow.createdAt >= :startDate AND escrow.createdAt < :endDate', {
-        startDate,
-        endDate,
-      })
-      .getMany(),
-  ]);
+  const [walletTransactions, escrowTransactions, contracts, escrows] =
+    await fetchYearlyFinancialData(userId, 'enterpriseId', startDate, endDate);
 
   const chart = buildChartSkeleton();
 
@@ -303,41 +356,14 @@ export const getEnterpriseTransactionsOverview = async (
     }
   });
 
-  const walletItems = walletTransactions.map((item) => {
-    const incoming = isWalletIncoming(item.type);
-    const outgoing = isWalletOutgoing(item.type);
-    const signedAmount = outgoing ? -Number(item.amount || 0) : Number(item.amount || 0);
+  const walletItems = buildWalletItems(walletTransactions);
 
-    return {
-      id: item.id,
-      referenceId: item.id,
-      type: 'wallet',
-      title: normalizeTransactionType(item.type),
-      description: item.description || item.orderCode || 'Giao dich vi',
-      amount: incoming || outgoing ? signedAmount : Number(item.amount || 0),
-      status: formatOverviewStatus(item.status),
-      createdAt: item.createdAt,
-      detailUrl: null,
-    };
-  });
-
-  const escrowItems = escrowTransactions.map((item: any) => {
-    const contract = item.escrow?.contract;
-    const isOutgoing = item.fromUserId === userId;
-
-    return {
-      id: `escrow-${item.id}`,
-      referenceId: item.escrowId,
-      contractId: item.escrow?.contractId || contract?.id || null,
-      type: 'escrow',
-      title: normalizeTransactionType(item.type),
-      description: item.description || `Escrow ${contract?.contractCode || item.escrowId}`,
-      amount: isOutgoing ? -Number(item.amount || 0) : Number(item.amount || 0),
-      status: item.escrow?.status || 'completed',
-      createdAt: item.createdAt,
-      detailUrl: item.escrow?.contractId ? `/enterprise/escrow?contractId=${item.escrow.contractId}` : '/enterprise/escrow',
-    };
-  });
+  const escrowItems = buildEscrowItems(
+    escrowTransactions,
+    userId,
+    (contractId) => `/enterprise/escrow?contractId=${contractId}`,
+    '/enterprise/escrow'
+  );
 
   const contractItems = contracts.map((item) => ({
     id: item.id,
@@ -427,49 +453,8 @@ export const getFarmerTransactionsOverview = async (
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year + 1, 0, 1);
 
-  const [walletTransactions, escrowTransactions, contracts, escrows] = await Promise.all([
-    paymentTransactionRepo()
-      .createQueryBuilder('payment')
-      .where('payment.userId = :userId', { userId })
-      .andWhere('payment.createdAt >= :startDate AND payment.createdAt < :endDate', {
-        startDate,
-        endDate,
-      })
-      .orderBy('payment.createdAt', 'DESC')
-      .getMany(),
-
-    escrowTransactionRepo()
-      .createQueryBuilder('escrowTx')
-      .leftJoinAndSelect('escrowTx.escrow', 'escrow')
-      .leftJoinAndSelect('escrow.contract', 'contract')
-      .where('(escrowTx.fromUserId = :userId OR escrowTx.toUserId = :userId)', { userId })
-      .andWhere('escrowTx.createdAt >= :startDate AND escrowTx.createdAt < :endDate', {
-        startDate,
-        endDate,
-      })
-      .orderBy('escrowTx.createdAt', 'DESC')
-      .getMany(),
-
-    contractRepo()
-      .createQueryBuilder('contract')
-      .where('contract.farmerId = :userId', { userId })
-      .andWhere("contract.status <> 'cancelled'")
-      .andWhere('contract.createdAt >= :startDate AND contract.createdAt < :endDate', {
-        startDate,
-        endDate,
-      })
-      .orderBy('contract.createdAt', 'DESC')
-      .getMany(),
-
-    escrowRepo()
-      .createQueryBuilder('escrow')
-      .where('escrow.farmerId = :userId', { userId })
-      .andWhere('escrow.createdAt >= :startDate AND escrow.createdAt < :endDate', {
-        startDate,
-        endDate,
-      })
-      .getMany(),
-  ]);
+  const [walletTransactions, escrowTransactions, contracts, escrows] =
+    await fetchYearlyFinancialData(userId, 'farmerId', startDate, endDate);
 
   const chart = buildRevenueChartSkeleton();
 
@@ -484,41 +469,14 @@ export const getFarmerTransactionsOverview = async (
     }
   });
 
-  const walletItems = walletTransactions.map((item) => {
-    const incoming = isWalletIncoming(item.type);
-    const outgoing = isWalletOutgoing(item.type);
-    const signedAmount = outgoing ? -Number(item.amount || 0) : Number(item.amount || 0);
+  const walletItems = buildWalletItems(walletTransactions);
 
-    return {
-      id: item.id,
-      referenceId: item.id,
-      type: 'wallet',
-      title: normalizeTransactionType(item.type),
-      description: item.description || item.orderCode || 'Giao dich vi',
-      amount: incoming || outgoing ? signedAmount : Number(item.amount || 0),
-      status: formatOverviewStatus(item.status),
-      createdAt: item.createdAt,
-      detailUrl: null,
-    };
-  });
-
-  const escrowItems = escrowTransactions.map((item: any) => {
-    const contract = item.escrow?.contract;
-    const isOutgoing = item.fromUserId === userId;
-
-    return {
-      id: `escrow-${item.id}`,
-      referenceId: item.escrowId,
-      contractId: item.escrow?.contractId || contract?.id || null,
-      type: 'escrow',
-      title: normalizeTransactionType(item.type),
-      description: item.description || `Escrow ${contract?.contractCode || item.escrowId}`,
-      amount: isOutgoing ? -Number(item.amount || 0) : Number(item.amount || 0),
-      status: item.escrow?.status || 'completed',
-      createdAt: item.createdAt,
-      detailUrl: item.escrow?.contractId ? `/farmer/contracts/${item.escrow.contractId}` : '/farmer/escrow',
-    };
-  });
+  const escrowItems = buildEscrowItems(
+    escrowTransactions,
+    userId,
+    (contractId) => `/farmer/contracts/${contractId}`,
+    '/farmer/escrow'
+  );
 
   const contractItems = contracts.map((item) => ({
     id: item.id,

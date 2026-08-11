@@ -5,9 +5,8 @@ import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { Dispute } from '../models/Dispute.entity';
 import { DisputeEvidence } from '../models/DisputeEvidence.entity';
 import { Notification } from '../models/Notification.entity';
-import { User } from '../models/User.entity';
-import { sendNotificationEmail, buildContractUrl } from './email.service';
-import { displayName } from '../utils/user.util';
+import { makeError } from '../utils/error.util';
+import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
 
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const escrowRepo = () => AppDataSource.getRepository(Escrow);
@@ -15,28 +14,6 @@ const milestoneRepo = () => AppDataSource.getRepository(EscrowMilestone);
 const disputeRepo = () => AppDataSource.getRepository(Dispute);
 const evidenceRepo = () => AppDataSource.getRepository(DisputeEvidence);
 const notificationRepo = () => AppDataSource.getRepository(Notification);
-
-const makeError = (message: string, statusCode = 400) => {
-  const err: any = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-};
-
-// Email khong duoc lam gian doan luong nghiep vu tranh chap -- loi gui mail chi log, khong throw.
-const notifyEmail = async (
-  user: User | null | undefined,
-  role: 'farmer' | 'enterprise',
-  title: string,
-  message: string,
-  contractId: string
-) => {
-  if (!user?.email) return;
-  try {
-    await sendNotificationEmail(user.email, displayName(user), title, message, buildContractUrl(role, contractId));
-  } catch (err: any) {
-    console.error('Loi gui email thong bao tranh chap:', err.message || err);
-  }
-};
 
 export interface CreateDisputeDto {
   contractId: string;

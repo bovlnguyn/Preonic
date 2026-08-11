@@ -1,12 +1,9 @@
 import { Router } from 'express';
 import '../config/passport'; // khởi tạo strategy
 import passport from 'passport';
-import jwt, {Secret, SignOptions} from 'jsonwebtoken';
 import { RequestHandler } from 'express';
 import { validateGoogleRegister } from '../middlewares/validation';
-import { googleRegister } from '../controller/auth.controller';
-import { verifyEmail } from '../controller/auth.controller';
-
+import { signAccessToken } from '../services/auth.service';
 
 import {
   logout,
@@ -18,6 +15,8 @@ import {
   resetPassword,
   updateProfile,
   updatePassword,
+  googleRegister,
+  verifyEmail,
 } from '../controller/auth.controller';
 
 import {
@@ -77,11 +76,7 @@ router.get('/google/callback',
     }
 
     // User cũ → tạo token và redirect
-    const accessToken = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET as Secret,
-      { expiresIn: (process.env.JWT_EXPIRE || '7d') as SignOptions['expiresIn'] }
-    );
+    const accessToken = signAccessToken(user.id, user.role);
     // Gửi nguyên đối tượng user (đã qua toJSON() lọc field nhạy cảm) thay vì
     // chỉ vài field, để không ghi đè mất các thông tin hồ sơ đã cập nhật trước đó.
     const userData = encodeURIComponent(JSON.stringify(user));

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as disputeService from '../services/dispute.service';
+import { sendError } from '../utils/controller.util';
 
 const parseEvidenceUrls = (value: any): string[] => {
   if (!value) return [];
@@ -93,10 +94,7 @@ export const createDispute = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tao tranh chap that bai',
-    });
+    sendError(res, err, 'Tao tranh chap that bai');
   }
 };
 
@@ -115,10 +113,7 @@ export const getDispute = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay tranh chap that bai',
-    });
+    sendError(res, err, 'Lay tranh chap that bai');
   }
 };
 
@@ -137,9 +132,6 @@ export const listDisputes = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay danh sach tranh chap that bai',
-    });
+    sendError(res, err, 'Lay danh sach tranh chap that bai');
   }
 };

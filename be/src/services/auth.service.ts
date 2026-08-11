@@ -5,15 +5,18 @@ import { User } from '../models/User.entity';
 
 const repo = () => AppDataSource.getRepository(User);
 
-const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 phút
-
 // ── Helpers ──
-const signTokens = (id: string, role: string) => {
-  const accessToken = jwt.sign(
+// Dùng chung cho login/register và cho route Google OAuth callback (auth.routes.ts)
+// -- viec ky JWT thuoc ve service, khong phai route.
+export const signAccessToken = (id: string, role: string) =>
+  jwt.sign(
     { id, role },
     process.env.JWT_SECRET as Secret,
     { expiresIn: (process.env.JWT_EXPIRE || '7d') as SignOptions['expiresIn'] }
   );
+
+const signTokens = (id: string, role: string) => {
+  const accessToken = signAccessToken(id, role);
   const refreshToken = jwt.sign(
     { id },
     process.env.JWT_REFRESH_SECRET as Secret,
@@ -84,13 +87,10 @@ export const register = async (dto: RegisterDto) => {
   await user.hashPassword();
   await r.save(user);
 
-  // ← Thêm tạo verify token
   const rawToken = user.createEmailVerificationToken();
   await r.save(user);
 
-  // Trả về user + token để gửi email
   const savedUser = await r.findOne({ where: { id: user.id } });
-  console.log('=== SERVICE RETURN ===', { user: savedUser?.email, verifyToken: rawToken?.substring(0, 10) });
   return { user: savedUser, verifyToken: rawToken };
 };
 
@@ -118,51 +118,29 @@ export const login = async (emailOrPhone: string, password: string) => {
 
   if (!user) throw makeError('Email/SĐT hoặc mật khẩu không đúng', 401);
 
-// ── Fix lockUntil bị array do query OR ──
-const lockUntil = Array.isArray(user.lockUntil) ? user.lockUntil[0] : user.lockUntil;
-const isLocked = lockUntil && new Date(lockUntil) > new Date();
+  // ── Fix lockUntil bị array do query OR ──
+  const lockUntil = Array.isArray(user.lockUntil) ? user.lockUntil[0] : user.lockUntil;
+  const isLocked = lockUntil && new Date(lockUntil) > new Date();
 
-if (isLocked) {
-  const minutes = Math.ceil((new Date(lockUntil).getTime() - Date.now()) / 60000);
-  throw makeError(`Tài khoản bị khóa. Thử lại sau ${minutes} phút`, 423);
-}
-console.log('lockUntil raw:', user.lockUntil);
-console.log('lockUntil parsed:', lockUntil);
-console.log('isLocked:', isLocked);
-console.log('now:', new Date());
-console.log('lockUntil > now:', lockUntil && new Date(lockUntil) > new Date());
+  if (isLocked) {
+    const minutes = Math.ceil((new Date(lockUntil).getTime() - Date.now()) / 60000);
+    throw makeError(`Tài khoản bị khóa. Thử lại sau ${minutes} phút`, 423);
+  }
 
   // Kiểm tra tài khoản active
   if (!user.isActive) throw makeError('Tài khoản đã bị vô hiệu hóa', 401);
 
   // So sánh password
   const isMatch = await user.comparePassword(password);
- if (!isMatch) {
-  // Lấy loginAttempts hiện tại từ DB
-  const result = await AppDataSource.query(
-    `SELECT LoginAttempts FROM Users WHERE UserId = @0`, [user.id]
-  );
-  const currentAttempts = parseInt(result[0]?.LoginAttempts || 0, 10);
-  const newAttempts = currentAttempts + 1;
+  if (!isMatch) {
+    // user.loginAttempts đã được addSelect ở trên nên incrementLoginAttempts()
+    // (định nghĩa sẵn trong User.entity.ts) có đủ dữ liệu để tự tăng số lần
+    // sai và khoá tài khoản sau 5 lần, không cần round-trip SQL thủ công.
+    user.incrementLoginAttempts();
+    await r.save(user);
 
-  await AppDataSource.query(
-    `UPDATE Users SET LoginAttempts = @0 WHERE UserId = @1`, [newAttempts, user.id]
-  );
-
-  if (newAttempts >= 5) {
-  // Tính mốc khoá bằng JS Date (thay vì GETUTCDATE()/DATEADD phía SQL Server) rồi bind
-  // qua tham số, để cùng đi qua driver mssql (useUTC:false mặc định của TypeORM) như lúc
-  // đọc lại — tránh lệch múi giờ khiến LockUntil bị đọc thành thời điểm đã qua ngay lập tức.
-  const lockUntilAt = new Date(Date.now() + LOCK_DURATION_MS);
-  await AppDataSource.query(
-    `UPDATE Users SET LockUntil = @0 WHERE UserId = @1`, [lockUntilAt, user.id]
-  );
-}
-
-  throw makeError('Email/SĐT hoặc mật khẩu không đúng', 401);
-
-}
-
+    throw makeError('Email/SĐT hoặc mật khẩu không đúng', 401);
+  }
 
   // Đăng nhập thành công
   user.resetLoginAttempts();

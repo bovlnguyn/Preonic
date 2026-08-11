@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as messagingService from '../services/messaging.service';
+import { sendError } from '../utils/controller.util';
 
 const formatMessage = (message: any) => ({
   id: message.id,
@@ -29,10 +30,7 @@ export const listConversations = async (req: AuthRequest, res: Response) => {
       data: { conversations },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay danh sach hoi thoai that bai',
-    });
+    sendError(res, err, 'Lay danh sach hoi thoai that bai');
   }
 };
 
@@ -49,10 +47,7 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
       data: { conversation },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Tao hoi thoai that bai',
-    });
+    sendError(res, err, 'Tao hoi thoai that bai');
   }
 };
 
@@ -75,10 +70,7 @@ export const listMessages = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Lay tin nhan that bai',
-    });
+    sendError(res, err, 'Lay tin nhan that bai');
   }
 };
 
@@ -96,10 +88,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       data: { message: formatMessage(message) },
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Gui tin nhan that bai',
-    });
+    sendError(res, err, 'Gui tin nhan that bai');
   }
 };
 
@@ -112,9 +101,6 @@ export const markConversationAsRead = async (req: AuthRequest, res: Response) =>
       message: 'Da danh dau hoi thoai la da doc',
     });
   } catch (err: any) {
-    res.status(err.statusCode || 500).json({
-      success: false,
-      message: err.message || 'Danh dau hoi thoai that bai',
-    });
+    sendError(res, err, 'Danh dau hoi thoai that bai');
   }
 };
