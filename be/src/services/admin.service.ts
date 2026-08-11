@@ -643,3 +643,82 @@ export const getTransactions = async (filters: AdminTransactionFilters = {}) => 
     stats,
   };
 };
+
+// ════════════════════════════════════════
+// Commissions
+// ════════════════════════════════════════
+export interface AdminCommissionFilters {
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+const COMMISSION_LOST_STATUSES = ['cancelled'];
+
+export const getCommissions = async (filters: AdminCommissionFilters = {}) => {
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 20;
+
+  const qb = contractRepo().createQueryBuilder('contract').where('contract.Commission > 0');
+
+  if (filters.search) {
+    const search = `%${filters.search.trim()}%`;
+    qb.andWhere(
+      '(contract.ContractCode LIKE :search OR contract.FarmerName LIKE :search OR contract.EnterpriseName LIKE :search)',
+      { search }
+    );
+  }
+
+  if (filters.status) {
+    qb.andWhere('contract.Status = :status', { status: filters.status });
+  }
+
+  qb.orderBy('contract.createdAt', 'DESC');
+  qb.skip((page - 1) * limit).take(limit);
+
+  const [contracts, total] = await qb.getManyAndCount();
+
+  const commissions = contracts.map((c) => ({
+    id: c.id,
+    contractCode: c.contractCode,
+    farmerName: c.farmerName,
+    enterpriseName: c.enterpriseName,
+    totalValue: Number(c.totalValue || 0),
+    commissionRate: Number(c.commissionRate || 0),
+    commission: Number(c.commission || 0),
+    status: c.status,
+    createdAt: c.createdAt,
+    completedAt: c.completedAt,
+  }));
+
+  const statsRaw = await contractRepo()
+    .createQueryBuilder('contract')
+    .select('contract.Status', 'status')
+    .addSelect('SUM(contract.Commission)', 'totalAmount')
+    .addSelect('COUNT(*)', 'count')
+    .where('contract.Commission > 0')
+    .groupBy('contract.Status')
+    .getRawMany();
+
+  const byStatus: Record<string, { totalAmount: number; count: number }> = {};
+  for (const row of statsRaw) {
+    byStatus[row.status] = { totalAmount: Number(row.totalAmount || 0), count: Number(row.count || 0) };
+  }
+
+  const collected = byStatus['completed']?.totalAmount || 0;
+  const lost = COMMISSION_LOST_STATUSES.reduce((sum, s) => sum + (byStatus[s]?.totalAmount || 0), 0);
+  const expected = Object.entries(byStatus)
+    .filter(([status]) => status !== 'completed' && !COMMISSION_LOST_STATUSES.includes(status))
+    .reduce((sum, [, v]) => sum + v.totalAmount, 0);
+
+  return {
+    commissions,
+    pagination: {
+      page,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+    stats: { byStatus, collected, expected, lost },
+  };
+};

@@ -11,6 +11,7 @@ import {
   getDisputeDetail,
   resolveDispute,
   getTransactions,
+  getCommissions,
   getSystemLogs,
   getSystemLogDetail,
 } from '../controller/admin.controller';
@@ -57,6 +58,7 @@ router.patch(
 );
 
 router.get('/transactions', getTransactions as RequestHandler);
+router.get('/commissions', getCommissions as RequestHandler);
 
 router.get('/withdrawals', getAdminWithdrawals as RequestHandler);
 router.patch('/withdrawals/:id/complete', completeAdminWithdrawal as RequestHandler);
