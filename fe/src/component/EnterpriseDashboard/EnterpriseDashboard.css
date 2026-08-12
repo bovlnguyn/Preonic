@@ -624,6 +624,7 @@
 .ent-mini-list { display: grid; gap: 12px; }
 
 .ent-mini-item {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0,1fr) auto;
   gap: 14px;
@@ -632,6 +633,21 @@
   border: 1px solid rgba(37,99,235,.1);
   border-radius: 18px;
   background: linear-gradient(180deg, #fff, #f8fbff);
+  cursor: pointer;
+  transition:
+    transform .22s ease,
+    box-shadow .22s ease,
+    border-color .22s ease,
+    background .22s ease;
+}
+
+.ent-mini-item:hover {
+  transform: translateY(-3px);
+  border-color: rgba(37,99,235,.28);
+  background: linear-gradient(135deg, #ffffff 0%, #f5f9ff 100%);
+  box-shadow:
+    0 12px 30px rgba(30,64,175,.10),
+    0 3px 10px rgba(37,99,235,.06);
 }
 
 .ent-mini-item strong {
@@ -639,6 +655,10 @@
   color: var(--ent-blue-950);
   font-size: 15px;
   font-weight: 900;
+}
+
+.ent-mini-item:hover strong {
+  color: var(--ent-blue-700);
 }
 
 /* Chỉ mô tả của mini card nhận margin.
@@ -676,6 +696,40 @@
   margin: 0;
   padding: 0;
   border-radius: inherit;
+}
+
+
+.ent-mini-item .ent-progress {
+  transition:
+    background-color .22s ease,
+    box-shadow .22s ease;
+}
+
+.ent-mini-item:hover .ent-progress {
+  background: rgba(37,99,235,.13);
+  box-shadow: inset 0 0 0 1px rgba(37,99,235,.04);
+}
+
+.ent-mini-item .ent-progress > span {
+  transition:
+    filter .22s ease,
+    box-shadow .22s ease;
+}
+
+.ent-mini-item:hover .ent-progress > span {
+  filter: saturate(1.12);
+  box-shadow: 0 0 9px rgba(37,99,235,.18);
+}
+
+.ent-mini-item > .ent-badge {
+  transition:
+    transform .22s ease,
+    box-shadow .22s ease;
+}
+
+.ent-mini-item:hover > .ent-badge {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30,64,175,.08);
 }
 
 /* ── Table ── */
