@@ -157,13 +157,20 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
           })
         );
 
+        let commissionAmount = 0;
         if (step1ReleaseAmount > 0 && farmer) {
           const farmerBalance = Number(farmer.virtualBalance);
           if (!Number.isFinite(farmerBalance)) {
             throw makeError('So du nong dan khong hop le', 500);
           }
 
-          farmer.virtualBalance = farmerBalance + step1ReleaseAmount;
+          // Dieu khoan "100% tra truoc": moc 1 giai ngan het toan bo gia tri hop dong,
+          // day cung la lan chi tra duy nhat cho nong dan nen phai tru hoa hong ngay tai day.
+          if (step1ReleaseAmount >= amount) {
+            commissionAmount = Math.min(Math.max(Number(contract.commission) || 0, 0), step1ReleaseAmount);
+          }
+
+          farmer.virtualBalance = farmerBalance + step1ReleaseAmount - commissionAmount;
           await txUserRepo.save(farmer);
 
           await txTransactionRepo.save(
@@ -177,6 +184,19 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
               description: `Giai ngan moc 1 (Ky quy) hop dong ${contract.contractCode}`,
             })
           );
+
+          if (commissionAmount > 0) {
+            await txTransactionRepo.save(
+              txTransactionRepo.create({
+                escrowId: escrow.id,
+                type: 'commission',
+                amount: commissionAmount,
+                fromUserId: contract.farmerId,
+                milestoneStep: 1,
+                description: `Phi hoa hong nen tang ${Number(contract.commissionRate) || 0}% hop dong ${contract.contractCode}`,
+              })
+            );
+          }
         }
 
         contract.status = 'active';
@@ -209,6 +229,7 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
           contractCode: contract.contractCode,
           farmerId: contract.farmerId,
           amount,
+          commissionAmount,
           enterpriseDisplayName: enterprise.fullName || enterprise.email,
           escrowFundedTitle,
           escrowFundedMessage,
@@ -226,7 +247,7 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
       userId: enterpriseId,
       targetType: 'Escrow',
       targetId: result.escrowId,
-      metadata: { contractCode: result.contractCode, amount: result.amount },
+      metadata: { contractCode: result.contractCode, amount: result.amount, commissionAmount: result.commissionAmount },
     });
 
     const farmer = await userRepo().findOne({ where: { id: result.farmerId } });
@@ -420,6 +441,7 @@ export const confirmMilestone = async (
         if (dto.evidence) milestone.evidence = dto.evidence;
 
         let escrowCompleted = false;
+        let commissionAmount = 0;
 
         if (releaseAmount > 0) {
           // Defense-in-depth cho du lieu cu/bat thuong: neu da co release transaction
@@ -465,11 +487,18 @@ export const confirmMilestone = async (
             releasedAfter = depositedAmount;
           }
 
-          farmer.virtualBalance = farmerBalance + releaseAmount;
+          const willCompleteEscrow = releasedAfter >= depositedAmount;
+          // Phi hoa hong nen tang duoc snapshot tren Contract luc tao hop dong,
+          // va chi thu MOT LAN tai moc giai ngan lam hop dong hoan tat.
+          if (willCompleteEscrow) {
+            commissionAmount = Math.min(Math.max(Number(contract.commission) || 0, 0), releaseAmount);
+          }
+
+          farmer.virtualBalance = farmerBalance + releaseAmount - commissionAmount;
           await txUserRepo.save(farmer);
 
           escrow.releasedAmount = releasedAfter;
-          if (releasedAfter >= depositedAmount) {
+          if (willCompleteEscrow) {
             escrow.status = 'completed';
             escrowCompleted = true;
 
@@ -495,6 +524,44 @@ export const confirmMilestone = async (
               description: `Giai ngan moc ${step} (${milestone.name}) hop dong ${contract.contractCode}`,
             })
           );
+
+          if (commissionAmount > 0) {
+            await txTransactionRepo.save(
+              txTransactionRepo.create({
+                escrowId: escrow.id,
+                type: 'commission',
+                amount: commissionAmount,
+                fromUserId: escrow.farmerId,
+                milestoneStep: step,
+                description: `Phi hoa hong nen tang ${Number(contract.commissionRate) || 0}% hop dong ${contract.contractCode}`,
+              })
+            );
+          }
+        } else if (step === MILESTONE_CONFIG.COUNT && willComplete) {
+          // Dieu khoan "100% tra truoc": toan bo tien da giai ngan ngay luc nap ky quy
+          // (moc 1), nen moc cuoi "Hoan tat" khong con gi de giai ngan (releaseAmount=0).
+          // Neu khong xu ly rieng, escrow/contract se ket o trang thai 'active' mai mai
+          // du hai ben da xac nhan xong toan bo quy trinh.
+          const releasedBefore = Number(escrow.releasedAmount || 0);
+          const depositedAmount = Number(escrow.depositedAmount || 0);
+          if (
+            Number.isFinite(releasedBefore) &&
+            Number.isFinite(depositedAmount) &&
+            depositedAmount > 0 &&
+            releasedBefore >= depositedAmount - 0.01
+          ) {
+            escrow.status = 'completed';
+            escrowCompleted = true;
+
+            contract.status = 'completed';
+            contract.completedAt = now;
+            contract.escrowStatus = 'released';
+            contract.paidAmount = releasedBefore;
+            contract.remainingAmount = 0;
+            contract.updatedBy = userId;
+            await txContractRepo.save(contract);
+            await txEscrowRepo.save(escrow);
+          }
         }
 
         await txMilestoneRepo.save(milestone);
@@ -505,9 +572,14 @@ export const confirmMilestone = async (
         const milestoneTitle = willComplete
           ? `Da xac nhan moc: ${milestone.name}`
           : `Cho ban xac nhan: ${milestone.name}`;
+        const farmerNetAmount = releaseAmount - commissionAmount;
+        const commissionNote =
+          commissionAmount > 0
+            ? ` (da tru ${commissionAmount.toLocaleString('vi-VN')} VND phi hoa hong nen tang ${Number(contract.commissionRate) || 0}%)`
+            : '';
         const milestoneMessage = willComplete
           ? releaseAmount > 0
-            ? `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contract.contractCode}). He thong da giai ngan ${releaseAmount.toLocaleString('vi-VN')} VND cho nong dan.`
+            ? `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contract.contractCode}). He thong da giai ngan ${farmerNetAmount.toLocaleString('vi-VN')} VND cho nong dan${commissionNote}.`
             : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contract.contractCode}).`
           : `${confirmerName} da xac nhan moc "${milestone.name}" (hop dong ${contract.contractCode}). Vui long xac nhan de hoan tat va giai ngan so du con lai.`;
 
@@ -559,6 +631,7 @@ export const confirmMilestone = async (
           completedTitle,
           completedMessage,
           releaseAmount,
+          commissionAmount,
           escrowCompleted,
         };
       },
@@ -570,7 +643,11 @@ export const confirmMilestone = async (
       logAction({
         category: 'escrow',
         action: 'escrow_release',
-        message: `Giai ngan moc ${step} (${result.releaseAmount.toLocaleString('vi-VN')} VND) cho hop dong ${result.contractCode}`,
+        message: `Giai ngan moc ${step} (${result.releaseAmount.toLocaleString('vi-VN')} VND) cho hop dong ${result.contractCode}${
+          result.commissionAmount > 0
+            ? `, thu hoa hong ${result.commissionAmount.toLocaleString('vi-VN')} VND`
+            : ''
+        }`,
         userId,
         targetType: 'Escrow',
         targetId: result.escrowId,
@@ -578,6 +655,7 @@ export const confirmMilestone = async (
           contractCode: result.contractCode,
           step,
           releaseAmount: result.releaseAmount,
+          commissionAmount: result.commissionAmount,
         },
       });
     }

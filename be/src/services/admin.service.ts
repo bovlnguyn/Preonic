@@ -497,6 +497,8 @@ export const resolveDispute = async (
 
       const now = new Date();
 
+      let commissionAmount = 0;
+
       if (!terminalEscrowStatus && remaining > 0) {
         const beneficiaryId = resolution === 'farmer' ? escrow.farmerId : escrow.enterpriseId;
         const beneficiary = await lockByIdOrFail(
@@ -514,7 +516,14 @@ export const resolveDispute = async (
           throw new AppError('Số dư người nhận không hợp lệ', 500);
         }
 
-        beneficiary.virtualBalance = balanceBefore + remaining;
+        // Nghieng ve nong dan = hop dong hoan tat, thu phi hoa hong nen tang mot lan
+        // tren phan con lai duoc giai ngan. Nghieng ve doanh nghiep la hoan tien nen
+        // khong phat sinh hoa hong.
+        if (resolution === 'farmer') {
+          commissionAmount = Math.min(Math.max(Number(contract.commission) || 0, 0), remaining);
+        }
+
+        beneficiary.virtualBalance = balanceBefore + remaining - commissionAmount;
         await txUserRepo.save(beneficiary);
 
         if (resolution === 'farmer') {
@@ -530,6 +539,18 @@ export const resolveDispute = async (
               description: `Giải quyết khiếu nại: giải ngân số dư còn lại cho nông dân (hợp đồng ${contract.contractCode})`,
             })
           );
+          if (commissionAmount > 0) {
+            await txTransactionRepo.save(
+              txTransactionRepo.create({
+                escrowId: escrow.id,
+                type: 'commission',
+                amount: commissionAmount,
+                fromUserId: escrow.farmerId,
+                milestoneStep: dispute.milestoneStep ?? undefined,
+                description: `Phí hoa hồng nền tảng ${Number(contract.commissionRate) || 0}% (giải quyết khiếu nại) hợp đồng ${contract.contractCode}`,
+              })
+            );
+          }
         } else {
           escrow.refundedAmount = refundedAmount + remaining;
           await txTransactionRepo.save(
@@ -616,6 +637,7 @@ export const resolveDispute = async (
         againstUserId: dispute.againstUserId,
         message,
         amountMoved: terminalEscrowStatus ? 0 : remaining,
+        commissionAmount,
       };
     },
     {
@@ -660,6 +682,7 @@ export const resolveDispute = async (
       resolution,
       contractCode: result.contractCode,
       amountMoved: result.amountMoved,
+      commissionAmount: result.commissionAmount,
       ...(normalizedAdminNotes ? { adminNotes: normalizedAdminNotes } : {}),
     },
   });
@@ -773,6 +796,7 @@ const ESCROW_TX_TYPE_MAP: Record<string, string> = {
   deposit: 'escrow_deposit',
   release: 'escrow_release',
   refund: 'refund',
+  commission: 'commission',
 };
 
 export const getTransactions = async (filters: AdminTransactionFilters = {}) => {
@@ -802,7 +826,7 @@ export const getTransactions = async (filters: AdminTransactionFilters = {}) => 
   }));
 
   const normalizedEscrow = escrowTransactions.map((t) => {
-    const relevantUser = t.type === 'deposit' ? t.fromUser : t.toUser;
+    const relevantUser = t.type === 'deposit' || t.type === 'commission' ? t.fromUser : t.toUser;
     return {
       id: `esc-${t.id}`,
       type: ESCROW_TX_TYPE_MAP[t.type] || t.type,
@@ -829,7 +853,7 @@ export const getTransactions = async (filters: AdminTransactionFilters = {}) => 
   const start = (page - 1) * limit;
   const data = filtered.slice(start, start + limit);
 
-  const statTypes = ['topup', 'escrow_deposit', 'escrow_release', 'refund'];
+  const statTypes = ['topup', 'escrow_deposit', 'escrow_release', 'refund', 'commission'];
   const stats: Record<string, { totalAmount: number; count: number }> = {};
   for (const type of statTypes) {
     const items = fullList.filter((t) => t.type === type && t.status === 'completed');
