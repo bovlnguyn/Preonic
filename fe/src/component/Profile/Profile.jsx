@@ -75,6 +75,15 @@ function Profile() {
   }, [user]);
 
   useEffect(() => {
+    authService.getMe()
+      .then((res) => {
+        if (res.success && res.data?.user) updateUser(res.data.user);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (!avatarFile) { setAvatarPreview(''); return; }
     const url = URL.createObjectURL(avatarFile);
     setAvatarPreview(url);
