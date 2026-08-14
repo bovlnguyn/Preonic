@@ -12,6 +12,10 @@ import { ProductCommitment } from './ProductCommitment.entity';
 @Index(['region'])
 @Index(['isActive'])
 @Index(['createdBy'])
+@Index('IX_Products_CreatedBy_IsActive_CreatedAt', ['createdBy', 'isActive', 'createdAt'])
+@Index('IX_Products_IsActive_CreatedAt', ['isActive', 'createdAt'])
+@Index('IX_Products_IsActive_Category_CreatedAt', ['isActive', 'category', 'createdAt'])
+@Index('IX_Products_IsActive_Region_CreatedAt', ['isActive', 'region', 'createdAt'])
 export class Product {
 
   @PrimaryGeneratedColumn('uuid', { name: 'ProductId' })
@@ -58,6 +62,9 @@ export class Product {
 
   @Column({ name: 'Progress', type: 'decimal', precision: 5, scale: 2, nullable: true, default: 0 })
   progress: number;
+
+  @Column({ name: 'CoverageRate', type: 'tinyint', default: 50 })
+  coverageRate: number;
 
   @Column({ name: 'Remaining', type: 'decimal', precision: 18, scale: 2, nullable: true })
   remaining: number;

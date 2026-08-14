@@ -10,6 +10,8 @@ import { useToast } from '../../contexts/ToastContext';
 import authService from '../../services/auth.service';
 import { resolveImageUrl } from '../../services/product.service';
 import { VN_DISTRICTS, VN_WARDS } from '../../data/vn-locations';
+import { formatReputation } from '../../utils/rating';
+import { getPasswordPolicyChecks, getPasswordPolicyError } from '../../utils/password';
 import './Profile.css';
 
 const VN_PROVINCES = Object.keys(VN_DISTRICTS || {});
@@ -119,14 +121,33 @@ function Profile() {
     const e = {};
     if (!form.firstName.trim()) e.firstName = 'Tên là bắt buộc';
     if (!form.lastName.trim()) e.lastName = 'Họ là bắt buộc';
-    if (form.phone) {
-      const phoneVal = form.phone.trim();
-      if (/[^0-9]/.test(phoneVal)) {
-        e.phone = 'Số điện thoại không được chứa chữ hoặc ký tự đặc biệt';
-      } else if (!/^[0-9]{10,11}$/.test(phoneVal)) {
-        e.phone = 'Số điện thoại phải có 10-11 chữ số';
-      }
+
+    const phoneVal = form.phone.trim();
+    if (!phoneVal) {
+      e.phone = 'Số điện thoại là bắt buộc';
+    } else if (/[^0-9]/.test(phoneVal)) {
+      e.phone = 'Số điện thoại không được chứa chữ hoặc ký tự đặc biệt';
+    } else if (!/^[0-9]{10,11}$/.test(phoneVal)) {
+      e.phone = 'Số điện thoại phải có 10-11 chữ số';
     }
+
+    if (!form.address.trim()) e.address = 'Địa chỉ cụ thể là bắt buộc';
+    else if (form.address.trim().length > 500) e.address = 'Địa chỉ không được vượt quá 500 ký tự';
+    if (!form.province.trim()) e.province = 'Vui lòng chọn tỉnh / thành phố';
+    if (!form.district.trim()) e.district = 'Vui lòng chọn quận / huyện';
+
+    if (user?.role === 'farmer') {
+      if (!form.farmName.trim()) e.farmName = 'Tên trang trại là bắt buộc';
+      else if (form.farmName.trim().length > 255) e.farmName = 'Tên trang trại không được vượt quá 255 ký tự';
+    }
+
+    if (user?.role === 'enterprise') {
+      if (!form.companyName.trim()) e.companyName = 'Tên doanh nghiệp là bắt buộc';
+      else if (form.companyName.trim().length > 255) e.companyName = 'Tên doanh nghiệp không được vượt quá 255 ký tự';
+      if (!form.taxCode.trim()) e.taxCode = 'Mã số thuế là bắt buộc';
+      else if (form.taxCode.trim().length > 20) e.taxCode = 'Mã số thuế không được vượt quá 20 ký tự';
+    }
+
     if (form.farmSize !== '' && Number(form.farmSize) < 0) {
       e.farmSize = 'Diện tích phải là số không âm';
     }
@@ -179,11 +200,7 @@ function Profile() {
     const newPassword = passwordForm.newPassword || '';
 
     return {
-      minLength: newPassword.length >= 6,
-      hasLetter: /[A-Za-z]/.test(newPassword),
-      hasNumber: /\d/.test(newPassword),
-      hasSpecialCharacter: /[^A-Za-z0-9\s]/.test(newPassword),
-      hasNoWhitespace: newPassword.length > 0 && !/\s/.test(newPassword),
+      ...getPasswordPolicyChecks(newPassword),
       differsFromCurrent:
         isGoogleAccount ||
         !currentPassword ||
@@ -203,18 +220,12 @@ function Profile() {
 
     if (!newPassword) {
       passwordErrors.newPassword = 'Vui lòng nhập mật khẩu mới';
-    } else if (!checks.minLength) {
-      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất 6 ký tự';
-    } else if (!checks.hasLetter) {
-      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất một chữ cái';
-    } else if (!checks.hasNumber) {
-      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất một chữ số';
-    } else if (!checks.hasSpecialCharacter) {
-      passwordErrors.newPassword = 'Mật khẩu mới phải có ít nhất một ký tự đặc biệt';
-    } else if (!checks.hasNoWhitespace) {
-      passwordErrors.newPassword = 'Mật khẩu mới không được chứa khoảng trắng';
-    } else if (!checks.differsFromCurrent) {
-      passwordErrors.newPassword = 'Mật khẩu mới không được trùng với mật khẩu hiện tại';
+    } else {
+      const policyError = getPasswordPolicyError(newPassword, 'Mật khẩu mới');
+      if (policyError) passwordErrors.newPassword = policyError;
+      else if (!checks.differsFromCurrent) {
+        passwordErrors.newPassword = 'Mật khẩu mới không được trùng với mật khẩu hiện tại';
+      }
     }
 
     if (!confirmNewPassword) {
@@ -380,7 +391,7 @@ function Profile() {
             </div>
             <div className="profile-meta__row">
               <span><FiStar /> Điểm uy tín</span>
-              <strong>{Number(user?.reputationScore || 0).toFixed(1)}/5</strong>
+              <strong>{formatReputation(user?.reputationScore, user?.totalRatings)}</strong>
             </div>
           </div>
         </aside>
@@ -418,10 +429,11 @@ function Profile() {
               </div>
               <div className="profile-field">
                 <label>Địa chỉ cụ thể <span className="profile-required">*</span></label>
-                <div className="profile-input-icon">
+                <div className={`profile-input-icon ${errors.address ? 'profile-input-icon--invalid' : ''}`}>
                   <FiHome />
                   <input type="text" name="address" value={form.address} onChange={handleChange} placeholder="Số nhà, tên đường..." />
                 </div>
+                {errors.address && <div className="profile-field-error">{errors.address}</div>}
               </div>
             </div>
           </section>
@@ -431,23 +443,25 @@ function Profile() {
             <div className="profile-row">
               <div className="profile-field">
                 <label>Tỉnh / Thành phố <span className="profile-required">*</span></label>
-                <div className="profile-input-icon">
+                <div className={`profile-input-icon ${errors.province ? 'profile-input-icon--invalid' : ''}`}>
                   <FiMapPin />
                   <select name="province" value={form.province} onChange={handleChange}>
                     <option value="">Chọn tỉnh / thành phố</option>
                     {VN_PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
+                {errors.province && <div className="profile-field-error">{errors.province}</div>}
               </div>
               <div className="profile-field">
                 <label>Quận / Huyện <span className="profile-required">*</span></label>
-                <div className="profile-input-icon">
+                <div className={`profile-input-icon ${errors.district ? 'profile-input-icon--invalid' : ''}`}>
                   <FiMapPin />
                   <select name="district" value={form.district} onChange={handleChange} disabled={!form.province}>
                     <option value="">{form.province ? 'Chọn quận / huyện' : '— chọn tỉnh trước —'}</option>
                     {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
+                {errors.district && <div className="profile-field-error">{errors.district}</div>}
               </div>
             </div>
 
@@ -472,11 +486,12 @@ function Profile() {
               <h2>Thông tin trang trại</h2>
               <div className="profile-row">
                 <div className="profile-field">
-                  <label>Tên trang trại</label>
+                  <label>Tên trang trại <span className="profile-required">*</span></label>
                   <div className="profile-input-icon">
                     <FiBriefcase />
                     <input type="text" name="farmName" value={form.farmName} onChange={handleChange} placeholder="VD: Trang trại Xuân Thọ" />
                   </div>
+                  {errors.farmName && <div className="profile-field-error">{errors.farmName}</div>}
                 </div>
                 <div className="profile-field">
                   <label>Diện tích canh tác (ha)</label>
@@ -495,18 +510,20 @@ function Profile() {
               <h2>Thông tin doanh nghiệp</h2>
               <div className="profile-row">
                 <div className="profile-field">
-                  <label>Tên doanh nghiệp</label>
+                  <label>Tên doanh nghiệp <span className="profile-required">*</span></label>
                   <div className="profile-input-icon">
                     <FiBriefcase />
                     <input type="text" name="companyName" value={form.companyName} onChange={handleChange} placeholder="Công ty TNHH..." />
                   </div>
+                  {errors.companyName && <div className="profile-field-error">{errors.companyName}</div>}
                 </div>
                 <div className="profile-field">
-                  <label>Mã số thuế</label>
+                  <label>Mã số thuế <span className="profile-required">*</span></label>
                   <div className="profile-input-icon">
                     <FiHash />
                     <input type="text" name="taxCode" value={form.taxCode} onChange={handleChange} placeholder="VD: 0312345678" />
                   </div>
+                  {errors.taxCode && <div className="profile-field-error">{errors.taxCode}</div>}
                 </div>
               </div>
             </section>

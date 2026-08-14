@@ -31,18 +31,12 @@ const stagger = {
   show: { transition: { staggerChildren: 0.08 } },
 };
 
-const normalizeText = (value = "") =>
-  String(value)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
 const getProductName = (item) => item?.name || item?.productName || item?.title || "Nông sản chưa đặt tên";
 const getRegion = (item) => item?.region || item?.province || item?.location || item?.address || "Chưa cập nhật vùng trồng";
-const getHarvest = (item) => item?.harvestDate || item?.expectedHarvestDate || item?.harvestTime || "Đang cập nhật";
+const getHarvest = (item) => item?.expectedDate || item?.harvestDate || item?.expectedHarvestDate || item?.harvestTime || "Đang cập nhật";
 
 const getQuantity = (item) => {
-  const quantity = Number(item?.quantity || item?.expectedQuantity || item?.stockQuantity || 0);
+  const quantity = Number(item?.totalQuantity || item?.quantity || item?.expectedQuantity || item?.stockQuantity || 0);
   const unit = item?.unit || item?.quantityUnit || "tấn";
   return quantity ? `${quantity.toLocaleString("vi-VN")} ${unit}` : "Đang cập nhật";
 };
@@ -71,50 +65,62 @@ function FarmerProducts() {
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState("all");
+  const [summary, setSummary] = useState({ totalProducts: 0, totalQuantity: 0 });
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
 
-    farmerService
-      .getMyCrops()
-      .then((data) => {
-        if (mounted) setCrops(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (mounted) setCrops([]);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+    // Trang này chỉ hiển thị tối đa 6 card. Search được đẩy xuống SQL và debounce
+    // để không tải 30/toàn bộ sản phẩm rồi lọc ở browser. Summary vẫn là số liệu
+    // toàn bộ nông sản của Farmer nên stat card không bị sai khi có nhiều trang.
+    const timer = setTimeout(() => {
+      farmerService
+        .getMyCropsPage({
+          page: 1,
+          limit: 6,
+          includeSummary: true,
+          ...(keyword.trim() ? { search: keyword.trim() } : {}),
+        })
+        .then((result) => {
+          if (!mounted) return;
+          setCrops(result.products || []);
+          setSummary(result.summary || { totalProducts: 0, totalQuantity: 0 });
+        })
+        .catch(() => {
+          if (!mounted) return;
+          setCrops([]);
+          setSummary({ totalProducts: 0, totalQuantity: 0 });
+        })
+        .finally(() => {
+          if (mounted) setLoading(false);
+        });
+    }, keyword.trim() ? 220 : 0);
 
     return () => {
       mounted = false;
+      clearTimeout(timer);
     };
-  }, []);
+  }, [keyword]);
 
   const stats = useMemo(() => {
-    const active = crops.filter((item) => getStatusMeta(item).className === "active").length;
+    const active = Number(summary.totalProducts || 0);
     const pending = crops.filter((item) => getStatusMeta(item).className === "pending").length;
-    const quantity = crops.reduce((sum, item) => sum + Number(item?.quantity || item?.expectedQuantity || item?.stockQuantity || 0), 0);
+    const quantity = Number(summary.totalQuantity || 0);
 
     return [
-      { label: "Tổng sản phẩm", value: loading ? "--" : crops.length, icon: FiPackage },
+      { label: "Tổng sản phẩm", value: loading ? "--" : active, icon: FiPackage },
       { label: "Đang hiển thị", value: loading ? "--" : active, icon: FiEye },
       { label: "Chờ hoàn thiện", value: loading ? "--" : pending, icon: FiEdit3 },
       { label: "Sản lượng dự kiến", value: loading ? "--" : quantity.toLocaleString("vi-VN"), icon: FiTrendingUp },
     ];
-  }, [crops, loading]);
+  }, [crops, loading, summary]);
 
-  const filteredCrops = useMemo(() => {
-    const text = normalizeText(keyword);
-
-    return crops.filter((item) => {
+  const filteredCrops = useMemo(() =>
+    crops.filter((item) => {
       const status = getStatusMeta(item).className;
-      const matchesFilter = filter === "all" || status === filter;
-      const haystack = normalizeText(`${getProductName(item)} ${getRegion(item)} ${item?.category || ""}`);
-      return matchesFilter && haystack.includes(text);
-    });
-  }, [crops, keyword, filter]);
+      return filter === "all" || status === filter;
+    }), [crops, filter]);
 
   const guidance = [
     "Tên sản phẩm rõ ràng, đúng loại nông sản và vùng trồng.",

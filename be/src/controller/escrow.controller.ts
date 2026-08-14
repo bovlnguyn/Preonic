@@ -65,14 +65,35 @@ const formatEscrowListItem = (escrow: any, userId: string) => {
 
 export const listEscrows = async (req: AuthRequest, res: Response) => {
   try {
-    const escrows = await escrowService.listEscrowsForUser(req.user!.id, req.user!.role);
+    const contractIds = typeof req.query.contractIds === 'string'
+      ? req.query.contractIds.split(',').map((id) => id.trim()).filter(Boolean)
+      : undefined;
+
+    const result = await escrowService.listEscrowsForUser(req.user!.id, req.user!.role, {
+      page: req.query.page ? Number(req.query.page) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      status: typeof req.query.status === 'string' ? req.query.status : undefined,
+      contractIds,
+    });
 
     res.status(200).json({
       success: true,
-      data: { escrows: escrows.map((e) => formatEscrowListItem(e, req.user!.id)) },
+      data: {
+        escrows: result.escrows.map((e) => formatEscrowListItem(e, req.user!.id)),
+        pagination: result.pagination,
+      },
     });
   } catch (err: any) {
     sendError(res, err, 'Lay danh sach ky quy that bai');
+  }
+};
+
+export const getEscrowSummary = async (req: AuthRequest, res: Response) => {
+  try {
+    const summary = await escrowService.getEscrowSummaryForUser(req.user!.id, req.user!.role);
+    res.status(200).json({ success: true, data: { summary } });
+  } catch (err: any) {
+    sendError(res, err, 'Lay tong quan ky quy that bai');
   }
 };
 

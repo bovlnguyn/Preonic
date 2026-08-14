@@ -7,12 +7,25 @@ const messagingService = {
   /**
    * List current user's conversations (newest last-message first)
    */
-  listConversations: async () => {
+  listConversations: async ({ page, limit } = {}) => {
     try {
-      const response = await api.get('/messaging/conversations');
+      const params = {};
+      if (page) params.page = page;
+      if (limit) params.limit = limit;
+      const response = await api.get('/messaging/conversations', { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Lấy danh sách hội thoại thất bại' };
+    }
+  },
+
+
+  getUnreadCount: async () => {
+    try {
+      const response = await api.get('/messaging/unread-count');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Lấy số tin nhắn chưa đọc thất bại' };
     }
   },
 
@@ -31,11 +44,12 @@ const messagingService = {
   /**
    * List messages in a conversation (paginated, oldest -> newest within the page)
    */
-  listMessages: async (conversationId, { page, limit } = {}) => {
+  listMessages: async (conversationId, { page, limit, since } = {}) => {
     try {
       const params = {};
       if (page) params.page = page;
       if (limit) params.limit = limit;
+      if (since) params.since = since;
 
       const response = await api.get(`/messaging/conversations/${conversationId}/messages`, { params });
       return response.data;

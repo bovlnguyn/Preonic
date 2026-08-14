@@ -47,7 +47,7 @@ export class PartnerRating {
   @Column({ name: 'CommittedVolume', type: 'tinyint', nullable: true })
   committedVolume: number;
 
-  @Column({ name: 'OverallRating', type: 'tinyint' })
+  @Column({ name: 'OverallRating', type: 'decimal', precision: 3, scale: 2 })
   overallRating: number;
 
   @Column({ name: 'Comment', type: 'nvarchar', length: 'max', nullable: true })

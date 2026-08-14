@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiChevronRight, FiMapPin, FiTruck } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
@@ -17,15 +17,26 @@ function EnterpriseOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
   useEffect(() => {
-    Promise.all([
-      contractService.list(),
-      escrowService.list().catch(() => ({ data: { escrows: [] } })),
-    ])
-      .then(([contractsRes, escrowsRes]) => {
-        const contracts = (contractsRes?.data?.contracts || [])
-          .filter((c) => ORDER_CONTRACT_STATUSES.includes(c.status));
+    let alive = true;
+    setLoading(true);
+
+    contractService.list(ORDER_CONTRACT_STATUSES.join(','), {
+      page,
+      limit: ORDERS_PER_PAGE,
+    })
+      .then(async (contractsRes) => {
+        if (!alive) return;
+
+        const contracts = contractsRes?.data?.contracts || [];
+        const nextPagination = contractsRes?.data?.pagination || {};
+        const contractIds = contracts.map((contract) => contract.id).filter(Boolean);
+        const escrowsRes = contractIds.length
+          ? await escrowService.list({ contractIds, limit: contractIds.length }).catch(() => null)
+          : null;
+        if (!alive) return;
         const escrowByContract = new Map(
           (escrowsRes?.data?.escrows || []).map((e) => [e.contractId, e])
         );
@@ -40,32 +51,38 @@ function EnterpriseOrders() {
             product: c.product?.name,
             quantity: `${c.quantity} ${c.unit || ''}`.trim(),
             deliveryDate: c.deliveryDate,
-            address: c.farmLocation,
+            address: c.deliveryAddress,
             status: getOrderStatusLabel(c, escrow),
             milestone: escrow
               ? (activeMilestone ? activeMilestone.description : 'Đã hoàn tất tất cả mốc thanh toán')
               : 'Chờ nạp ký quỹ để bắt đầu theo dõi',
           };
         }));
-        setPage(1);
+
+        setPagination({
+          total: Number(nextPagination.total || 0),
+          totalPages: Math.max(1, Number(nextPagination.totalPages || 1)),
+        });
       })
       .catch(() => {
+        if (!alive) return;
         setOrders([]);
-        setPage(1);
+        setPagination({ total: 0, totalPages: 1 });
       })
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
 
-  const totalPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
+    return () => {
+      alive = false;
+    };
+  }, [page]);
+
+  const totalPages = Math.max(1, pagination.totalPages);
 
   useEffect(() => {
-    setPage((current) => Math.min(Math.max(1, current), totalPages));
-  }, [totalPages]);
-
-  const paginatedOrders = useMemo(() => {
-    const start = (page - 1) * ORDERS_PER_PAGE;
-    return orders.slice(start, start + ORDERS_PER_PAGE);
-  }, [orders, page]);
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <div className="ent-stack">
@@ -87,7 +104,7 @@ function EnterpriseOrders() {
         ) : (
           <>
             <div className="ent-order-list">
-              {paginatedOrders.map((o) => (
+              {orders.map((o) => (
                 <article
                   className="ent-order-card"
                   key={o.id}
@@ -135,7 +152,7 @@ function EnterpriseOrders() {
 
             <div className="et-pagination ent-order-pagination">
               <span>
-                Trang {page} / {totalPages} — {orders.length.toLocaleString('vi-VN')} đơn hàng
+                Trang {page} / {totalPages} — {pagination.total.toLocaleString('vi-VN')} đơn hàng
               </span>
               <div className="et-pagination-btns">
                 <button

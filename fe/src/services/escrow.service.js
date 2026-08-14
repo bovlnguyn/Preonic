@@ -7,12 +7,27 @@ const escrowService = {
   /**
    * List escrows for the current user (farmer or enterprise)
    */
-  list: async () => {
+  list: async (params = {}) => {
     try {
-      const response = await api.get('/escrow');
+      const normalized = { ...params };
+      if (Array.isArray(normalized.contractIds)) normalized.contractIds = normalized.contractIds.join(',');
+      const response = await api.get('/escrow', { params: normalized });
       return response.data;
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Lấy danh sách ký quỹ thất bại' };
+    }
+  },
+
+
+  /**
+   * Lightweight KPI summary for dashboard/overview. Does not load milestones.
+   */
+  summary: async () => {
+    try {
+      const response = await api.get('/escrow/summary');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Lấy tổng quan ký quỹ thất bại' };
     }
   },
 

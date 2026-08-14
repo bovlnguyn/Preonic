@@ -1,4 +1,4 @@
-import { EntityManager, In } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Conversation } from '../models/Conversation.entity';
 import { ConversationParticipant } from '../models/ConversationParticipant.entity';
@@ -13,6 +13,30 @@ import { lockByIdOrFail, lockManyByIds, runLockedTransaction } from '../utils/tr
 const conversationRepo = () => AppDataSource.getRepository(Conversation);
 const participantRepo = () => AppDataSource.getRepository(ConversationParticipant);
 const messageRepo = () => AppDataSource.getRepository(Message);
+
+const getLightParticipants = async (conversationIds: string[]) => {
+  if (conversationIds.length === 0) return [] as ConversationParticipant[];
+
+  // Chat list chỉ cần thông tin nhận diện đối tác. Không tải toàn bộ profile User
+  // (address, business/farm fields, reputation snapshots...) cho mỗi conversation.
+  return participantRepo()
+    .createQueryBuilder('participant')
+    .leftJoinAndSelect('participant.user', 'user')
+    .select([
+      'participant.conversationId',
+      'participant.userId',
+      'participant.joinedAt',
+      'user.id',
+      'user.fullName',
+      'user.firstName',
+      'user.lastName',
+      'user.email',
+      'user.role',
+      'user.avatar',
+    ])
+    .where('participant.conversationId IN (:...conversationIds)', { conversationIds })
+    .getMany();
+};
 
 const MAX_MESSAGE_LENGTH = 4000;
 const NOTIFICATION_PREVIEW_LENGTH = 140;
@@ -80,10 +104,7 @@ const buildConversationDetail = async (conversationId: string, userId: string) =
   const conversation = await conversationRepo().findOne({ where: { id: conversationId } });
   if (!conversation) throw makeError('Khong tim thay cuoc hoi thoai', 404);
 
-  const participants = await participantRepo().find({
-    where: { conversationId },
-    relations: ['user'],
-  });
+  const participants = await getLightParticipants([conversationId]);
   const partner = participants.find((p) => p.userId !== userId)?.user;
 
   const unreadMap = await getUnreadCountsByConversation([conversationId], userId);
@@ -91,21 +112,74 @@ const buildConversationDetail = async (conversationId: string, userId: string) =
   return formatConversation(conversation, partner, unreadMap[conversationId] || 0);
 };
 
-export const listConversationsForUser = async (userId: string) => {
-  const myParticipations = await participantRepo().find({ where: { userId } });
-  const conversationIds = myParticipations.map((p) => p.conversationId);
-  if (conversationIds.length === 0) return [];
+export interface ListConversationsQuery {
+  page?: number;
+  limit?: number;
+}
 
-  const conversations = await conversationRepo()
+const normalizeConversationListQuery = (query: ListConversationsQuery = {}) => {
+  const page = Number.isFinite(Number(query.page)) && Number(query.page) > 0
+    ? Math.floor(Number(query.page))
+    : 1;
+  const limit = Number.isFinite(Number(query.limit)) && Number(query.limit) > 0
+    ? Math.min(Math.floor(Number(query.limit)), 100)
+    : 30;
+  return { page, limit };
+};
+
+export const getUnreadMessageCountForUser = async (userId: string) => {
+  const row = await messageRepo()
+    .createQueryBuilder('message')
+    .innerJoin(
+      ConversationParticipant,
+      'mine',
+      'mine.conversationId = message.conversationId AND mine.userId = :userId',
+      { userId }
+    )
+    .leftJoin('message.readBy', 'readBy', 'readBy.userId = :userId', { userId })
+    .select('COUNT_BIG(*)', 'count')
+    .where('message.senderId != :userId', { userId })
+    .andWhere('readBy.userId IS NULL')
+    .getRawOne();
+
+  return Number(row?.count || 0);
+};
+
+/**
+ * Fix 08: danh sach hoi thoai phan trang ngay tai SQL. Truoc day service tai
+ * toan bo ConversationParticipants cua user, toan bo Conversations va toan bo
+ * participants cua tat ca hoi thoai moi lan poll.
+ */
+export const listConversationsForUser = async (
+  userId: string,
+  query: ListConversationsQuery = {}
+) => {
+  const { page, limit } = normalizeConversationListQuery(query);
+
+  const qb = conversationRepo()
     .createQueryBuilder('conversation')
-    .where('conversation.id IN (:...ids)', { ids: conversationIds })
+    .innerJoin(
+      ConversationParticipant,
+      'mine',
+      'mine.conversationId = conversation.id AND mine.userId = :userId',
+      { userId }
+    )
     .orderBy('conversation.lastMessageAt', 'DESC')
-    .getMany();
+    .addOrderBy('conversation.createdAt', 'DESC')
+    .skip((page - 1) * limit)
+    .take(limit);
 
-  const allParticipants = await participantRepo().find({
-    where: { conversationId: In(conversationIds) },
-    relations: ['user'],
-  });
+  const [conversations, total] = await qb.getManyAndCount();
+  const conversationIds = conversations.map((c) => c.id);
+
+  if (conversationIds.length === 0) {
+    return {
+      conversations: [],
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  const allParticipants = await getLightParticipants(conversationIds);
 
   const partnerByConversation = new Map<string, User>();
   for (const participant of allParticipants) {
@@ -116,13 +190,21 @@ export const listConversationsForUser = async (userId: string) => {
 
   const unreadMap = await getUnreadCountsByConversation(conversationIds, userId);
 
-  return conversations.map((conversation) =>
-    formatConversation(
-      conversation,
-      partnerByConversation.get(conversation.id),
-      unreadMap[conversation.id] || 0
-    )
-  );
+  return {
+    conversations: conversations.map((conversation) =>
+      formatConversation(
+        conversation,
+        partnerByConversation.get(conversation.id),
+        unreadMap[conversation.id] || 0
+      )
+    ),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
 
 export const getOrCreateConversation = async (
@@ -159,16 +241,22 @@ export const getOrCreateConversation = async (
       const txConversationRepo = manager.getRepository(Conversation);
       const txParticipantRepo = manager.getRepository(ConversationParticipant);
 
-      const myConversationIds = (await txParticipantRepo.find({ where: { userId } })).map(
-        (p) => p.conversationId
-      );
+      // Tim conversation chung ngay tai SQL thay vi tai tat ca ConversationId cua user
+      // ve Node roi tao IN (...). Query nay co the dung index dao chieu
+      // UserId -> ConversationId duoc them trong Fix 08.
+      const existing = await txParticipantRepo
+        .createQueryBuilder('mine')
+        .innerJoin(
+          ConversationParticipant,
+          'partner',
+          'partner.conversationId = mine.conversationId AND partner.userId = :partnerId',
+          { partnerId }
+        )
+        .where('mine.userId = :userId', { userId })
+        .select('mine.conversationId', 'conversationId')
+        .getRawOne<{ conversationId: string }>();
 
-      if (myConversationIds.length > 0) {
-        const existing = await txParticipantRepo.findOne({
-          where: { userId: partnerId, conversationId: In(myConversationIds) },
-        });
-        if (existing) return existing.conversationId;
-      }
+      if (existing?.conversationId) return existing.conversationId;
 
       const conversation = await txConversationRepo.save(txConversationRepo.create({}));
       const now = new Date();
@@ -189,6 +277,7 @@ export const getOrCreateConversation = async (
 export interface ListMessagesQuery {
   page?: number;
   limit?: number;
+  since?: string;
 }
 
 export const listMessagesForUser = async (
@@ -205,6 +294,33 @@ export const listMessagesForUser = async (
     ? Math.min(Number(query.limit), 100)
     : 30;
   const skip = (page - 1) * limit;
+
+  // Poll incremental: chi lay message moi tu moc thoi gian gan nhat ma client da co.
+  // Dung >= va FE dedupe theo MessageId de khong bo sot message co cung timestamp.
+  if (query.since) {
+    const since = new Date(query.since);
+    if (!Number.isNaN(since.getTime())) {
+      const messages = await messageRepo()
+        .createQueryBuilder('message')
+        .leftJoinAndSelect('message.sender', 'sender')
+        .where('message.conversationId = :conversationId', { conversationId })
+        .andWhere('message.createdAt >= :since', { since })
+        .orderBy('message.createdAt', 'ASC')
+        .take(limit)
+        .getMany();
+
+      return {
+        messages,
+        pagination: {
+          page: 1,
+          limit,
+          total: messages.length,
+          totalPages: 1,
+          incremental: true,
+        },
+      };
+    }
+  }
 
   const [messages, total] = await messageRepo()
     .createQueryBuilder('message')
@@ -321,21 +437,25 @@ export const markConversationAsRead = async (conversationId: string, userId: str
       const txMessageRepo = manager.getRepository(Message);
       const txReadByRepo = manager.getRepository(MessageReadBy);
 
-      const unreadMessages = await txMessageRepo
+      // Chi lay MessageId thay vi load nguyen entity (Text nvarchar(max), timestamps...)
+      // khi danh dau doc. Voi conversation dai, payload DB -> Node giam rat nhieu.
+      const unreadRows = await txMessageRepo
         .createQueryBuilder('message')
+        .select('message.id', 'id')
         .leftJoin('message.readBy', 'readBy', 'readBy.userId = :userId', { userId })
         .where('message.conversationId = :conversationId', { conversationId })
         .andWhere('message.senderId != :userId', { userId })
         .andWhere('readBy.userId IS NULL')
-        .getMany();
+        .getRawMany<{ id: string }>();
 
-      if (unreadMessages.length === 0) return;
+      if (unreadRows.length === 0) return;
 
       const now = new Date();
       await txReadByRepo.save(
-        unreadMessages.map((message) =>
+        unreadRows.map((message) =>
           txReadByRepo.create({ messageId: message.id, userId, readAt: now })
-        )
+        ),
+        { chunk: 500 }
       );
     },
     { label: 'messaging.markConversationAsRead' }

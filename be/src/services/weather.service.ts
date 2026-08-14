@@ -9,7 +9,13 @@ import { WeatherAlertType, WeatherAlertSeverity, WeatherData, WeatherThresholds 
 import { WEATHER_API, WEATHER_THRESHOLDS } from '../constants';
 import { PROVINCE_COORDS, ProvinceCoord } from '../data/provinces';
 import { createLogger } from '../utils/logger';
-import { ForecastSummary, openMeteoProvider, openWeatherMapProvider } from './weather-providers';
+import {
+  ForecastSummary,
+  RainfallContext,
+  fetchRainfallContext,
+  openMeteoProvider,
+  openWeatherMapProvider,
+} from './weather-providers';
 
 const log = createLogger('Weather');
 
@@ -82,12 +88,25 @@ const getProvinceCoords = (province: string): ProvinceCoord => {
     'dong thap': 'Dong Thap',
     'dongthap': 'Dong Thap',
     'dong tháp': 'Dong Thap',
+    'thua thien hue': 'Hue',
+    'thừa thiên huế': 'Hue',
   };
 
   const resolvedName = aliasMap[normalized] ?? province;
   const coords = PROVINCE_COORDS[resolvedName] ?? PROVINCE_COORDS[province];
 
   return coords ?? WEATHER_API.DEFAULT_COORDS;
+};
+
+const findStaticProvinceCoords = (province?: string): ProvinceCoord | null => {
+  if (!province?.trim()) return null;
+  const fallback = getProvinceCoords(province);
+  const isDefaultBecauseUnknown =
+    fallback.lat === WEATHER_API.DEFAULT_COORDS.lat &&
+    fallback.lng === WEATHER_API.DEFAULT_COORDS.lng &&
+    normalizeProvinceName(province) !== normalizeProvinceName(WEATHER_API.DEFAULT_PROVINCE) &&
+    normalizeProvinceName(province) !== 'hanoi';
+  return isDefaultBecauseUnknown ? null : fallback;
 };
 
 const getWeatherConditionLabel = (weatherCode: number): string => {
@@ -332,12 +351,147 @@ const getErrorMessage = (error: unknown): string =>
 const sleep = (delayMs: number) =>
   new Promise((resolve) => setTimeout(resolve, delayMs));
 
-const resolveProvinceCoords = (province?: string): ProvinceCoord => {
-  if (!province) {
-    return WEATHER_API.DEFAULT_COORDS;
-  }
-  return PROVINCE_COORDS[province] || WEATHER_API.DEFAULT_COORDS;
+type ResolvedWeatherLocation = {
+  coords: ProvinceCoord;
+  precision: 'province' | 'district';
+  resolvedName: string;
 };
+
+type GeocodingResult = {
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+  country_code?: string;
+  admin1?: string;
+  admin2?: string;
+  admin3?: string;
+};
+
+type GeocodingResponse = { results?: GeocodingResult[] };
+
+const LOCATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const locationCache = new Map<string, { value: ResolvedWeatherLocation; expiresAt: number }>();
+
+const normalizeLocationText = (value?: string): string =>
+  normalizeProvinceName(value || '')
+    .replace(/^(quan|huyen|thi xa|thanh pho)\s+/, '')
+    .replace(/\s+(city|province)$/g, '')
+    .trim();
+
+const provinceMatchesGeocode = (result: GeocodingResult, province: string): boolean => {
+  const expected = normalizeLocationText(province);
+  if (!expected) return true;
+  const candidates = [result.admin1, result.admin2, result.admin3]
+    .map(normalizeLocationText)
+    .filter(Boolean);
+  return candidates.some((candidate) =>
+    candidate === expected || candidate.includes(expected) || expected.includes(candidate)
+  );
+};
+
+const fetchGeocodingResults = async (name: string): Promise<GeocodingResult[]> => {
+  const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
+  url.searchParams.set('name', name);
+  url.searchParams.set('count', '20');
+  url.searchParams.set('language', 'vi');
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('countryCode', 'VN');
+
+  return new Promise<GeocodingResult[]>((resolve, reject) => {
+    const req = https.get(url.toString(), (res) => {
+      let raw = '';
+      res.on('data', (chunk) => { raw += chunk; });
+      res.on('end', () => {
+        try {
+          const payload = JSON.parse(raw) as GeocodingResponse;
+          resolve(payload.results || []);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(WEATHER_API.TIMEOUT_MS, () => {
+      req.destroy(new Error('Weather geocoding request timed out'));
+    });
+  });
+};
+
+const geocodeDistrict = async (province: string, district: string): Promise<ResolvedWeatherLocation | null> => {
+  const rawDistrict = district.trim();
+  const strippedDistrict = rawDistrict.replace(/^(Quận|Huyện|Thị xã|Thành phố)\s+/i, '').trim();
+  const candidates = [rawDistrict, strippedDistrict];
+  if (/^\d+$/.test(strippedDistrict)) candidates.push(`District ${strippedDistrict}`);
+
+  for (const candidate of [...new Set(candidates.filter(Boolean))]) {
+    try {
+      const results = await fetchGeocodingResults(candidate);
+      const match = results.find((result) =>
+        result.country_code?.toUpperCase() === 'VN' &&
+        Number.isFinite(result.latitude) &&
+        Number.isFinite(result.longitude) &&
+        provinceMatchesGeocode(result, province)
+      );
+      if (match?.latitude != null && match?.longitude != null) {
+        return {
+          coords: { lat: Number(match.latitude), lng: Number(match.longitude) },
+          precision: 'district',
+          resolvedName: match.name || rawDistrict,
+        };
+      }
+    } catch (error) {
+      log.warn('District geocoding failed', `${province}/${district}: ${getErrorMessage(error)}`);
+    }
+  }
+  return null;
+};
+
+const geocodeProvince = async (province: string): Promise<ProvinceCoord | null> => {
+  try {
+    const results = await fetchGeocodingResults(province);
+    const match = results.find((result) =>
+      result.country_code?.toUpperCase() === 'VN' &&
+      Number.isFinite(result.latitude) &&
+      Number.isFinite(result.longitude)
+    );
+    if (match?.latitude != null && match?.longitude != null) {
+      return { lat: Number(match.latitude), lng: Number(match.longitude) };
+    }
+  } catch (error) {
+    log.warn('Province geocoding failed', `${province}: ${getErrorMessage(error)}`);
+  }
+  return null;
+};
+
+async function resolveWeatherLocation(province?: string, district?: string): Promise<ResolvedWeatherLocation> {
+  const requestedProvince = province?.trim() || WEATHER_API.DEFAULT_PROVINCE;
+  const requestedDistrict = district?.trim() || '';
+  const cacheKey = `${normalizeProvinceName(requestedProvince)}|${normalizeProvinceName(requestedDistrict)}`;
+  const cached = locationCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  if (requestedDistrict) {
+    const districtLocation = await geocodeDistrict(requestedProvince, requestedDistrict);
+    if (districtLocation) {
+      locationCache.set(cacheKey, { value: districtLocation, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS });
+      return districtLocation;
+    }
+  }
+
+  const staticCoords = findStaticProvinceCoords(requestedProvince);
+  const coords = staticCoords || await geocodeProvince(requestedProvince);
+  if (!coords) {
+    throw new AppError('Không thể xác định tọa độ khu vực đã chọn', 400);
+  }
+
+  const value: ResolvedWeatherLocation = {
+    coords,
+    precision: 'province',
+    resolvedName: requestedProvince,
+  };
+  locationCache.set(cacheKey, { value, expiresAt: Date.now() + LOCATION_CACHE_TTL_MS });
+  return value;
+}
 
 const userRepo = () => AppDataSource.getRepository(User);
 const alertRepo = () => AppDataSource.getRepository(WeatherAlert);
@@ -375,17 +529,35 @@ async function fetchForecastWithFallback(lat: number, lng: number): Promise<Fore
 /**
  * Thời tiết hiện tại của 1 tỉnh (kèm icon/mô tả) — dùng cho hero card ở FE
  */
-export async function getCurrentWeatherForProvince(province?: string): Promise<WeatherData> {
-  const coords = resolveProvinceCoords(province);
-  return fetchCurrentWeatherWithFallback(coords.lat, coords.lng);
+export async function getCurrentWeatherForProvince(
+  province?: string,
+  district?: string
+): Promise<WeatherData & {
+  latitude: number;
+  longitude: number;
+  locationPrecision: 'province' | 'district';
+  resolvedLocation: string;
+}> {
+  const location = await resolveWeatherLocation(province, district);
+  const weather = await fetchCurrentWeatherWithFallback(location.coords.lat, location.coords.lng);
+  return {
+    ...weather,
+    latitude: location.coords.lat,
+    longitude: location.coords.lng,
+    locationPrecision: location.precision,
+    resolvedLocation: location.resolvedName,
+  };
 }
 
 /**
- * Dự báo 5 ngày của 1 tỉnh (kèm icon/mô tả) — dùng cho dải dự báo ở FE
+ * Dự báo 5 ngày của tỉnh/quận đã chọn.
  */
-export async function getDailyForecastForProvince(province?: string): Promise<ForecastSummary[]> {
-  const coords = resolveProvinceCoords(province);
-  return fetchForecastWithFallback(coords.lat, coords.lng);
+export async function getDailyForecastForProvince(
+  province?: string,
+  district?: string
+): Promise<ForecastSummary[]> {
+  const location = await resolveWeatherLocation(province, district);
+  return fetchForecastWithFallback(location.coords.lat, location.coords.lng);
 }
 
 /**
@@ -398,51 +570,56 @@ export function getProvinceCoordsMap(): Record<string, ProvinceCoord> {
 /**
  * Đối chiếu dữ liệu thời tiết hiện tại với ngưỡng cảnh báo hệ thống
  */
-export function checkWeatherThresholds(weather: WeatherData): DetectedWeatherAlert[] {
+export function checkWeatherThresholds(
+  weather: WeatherData,
+  rainfall?: RainfallContext
+): DetectedWeatherAlert[] {
   const alerts: DetectedWeatherAlert[] = [];
 
-  // Nắng nóng cực đoan
   if (weather.temp > THRESHOLDS.extremeHeatTemp + 5) {
     alerts.push({ type: 'extreme_heat', severity: 'critical', detail: `Nhiệt độ ${weather.temp}°C vượt ngưỡng ${THRESHOLDS.extremeHeatTemp}°C` });
   } else if (weather.temp > THRESHOLDS.extremeHeatTemp) {
     alerts.push({ type: 'extreme_heat', severity: 'warning', detail: `Nhiệt độ ${weather.temp}°C vượt ngưỡng ${THRESHOLDS.extremeHeatTemp}°C` });
   }
 
-  // Rét đậm
   if (weather.temp < THRESHOLDS.extremeColdTemp - 3) {
     alerts.push({ type: 'extreme_cold', severity: 'critical', detail: `Nhiệt độ ${weather.temp}°C thấp hơn ngưỡng ${THRESHOLDS.extremeColdTemp}°C` });
   } else if (weather.temp < THRESHOLDS.extremeColdTemp) {
     alerts.push({ type: 'extreme_cold', severity: 'warning', detail: `Nhiệt độ ${weather.temp}°C thấp hơn ngưỡng ${THRESHOLDS.extremeColdTemp}°C` });
   }
 
-  // Mưa lớn (ước tính từ rain1h * 24 hoặc rain24h)
-  const estimatedDailyRain = Math.max((weather.rain1h ?? 0) * 24, weather.rain24h ?? 0);
-  if (estimatedDailyRain > THRESHOLDS.heavyRainMm * 1.5) {
-    alerts.push({ type: 'heavy_rain', severity: 'critical', detail: `Lượng mưa ước tính ${estimatedDailyRain.toFixed(0)}mm/ngày vượt ngưỡng ${THRESHOLDS.heavyRainMm}mm` });
-  } else if (estimatedDailyRain > THRESHOLDS.heavyRainMm) {
-    alerts.push({ type: 'heavy_rain', severity: 'warning', detail: `Lượng mưa ước tính ${estimatedDailyRain.toFixed(0)}mm/ngày vượt ngưỡng ${THRESHOLDS.heavyRainMm}mm` });
+  // Mưa lớn dùng precipitation_sum thực của ngày, KHÔNG nhân rain1h × 24.
+  if (rainfall) {
+    const dailyRain = Math.max(0, rainfall.todayRainMm || 0);
+    if (dailyRain > THRESHOLDS.heavyRainMm * 1.5) {
+      alerts.push({ type: 'heavy_rain', severity: 'critical', detail: `Tổng lượng mưa ngày ${dailyRain.toFixed(0)}mm vượt ngưỡng ${THRESHOLDS.heavyRainMm}mm/ngày` });
+    } else if (dailyRain > THRESHOLDS.heavyRainMm) {
+      alerts.push({ type: 'heavy_rain', severity: 'warning', detail: `Tổng lượng mưa ngày ${dailyRain.toFixed(0)}mm vượt ngưỡng ${THRESHOLDS.heavyRainMm}mm/ngày` });
+    }
   }
 
-  // Gió mạnh
   if (weather.windSpeed > THRESHOLDS.strongWindKmh * 1.5) {
     alerts.push({ type: 'strong_wind', severity: 'critical', detail: `Tốc độ gió ${weather.windSpeed.toFixed(0)}km/h vượt ngưỡng ${THRESHOLDS.strongWindKmh}km/h` });
   } else if (weather.windSpeed > THRESHOLDS.strongWindKmh) {
     alerts.push({ type: 'strong_wind', severity: 'warning', detail: `Tốc độ gió ${weather.windSpeed.toFixed(0)}km/h vượt ngưỡng ${THRESHOLDS.strongWindKmh}km/h` });
   }
 
-  // Hạn hán (heuristic dựa trên lượng mưa ước tính gần đây)
-  if (estimatedDailyRain <= THRESHOLDS.droughtMm * 0.5) {
-    alerts.push({
-      type: 'drought',
-      severity: 'critical',
-      detail: `Lượng mưa ước tính ${estimatedDailyRain.toFixed(0)}mm/ngày thấp hơn ngưỡng hạn hán ${THRESHOLDS.droughtMm}mm/${THRESHOLDS.droughtDays} ngày`,
-    });
-  } else if (estimatedDailyRain <= THRESHOLDS.droughtMm) {
-    alerts.push({
-      type: 'drought',
-      severity: 'warning',
-      detail: `Lượng mưa ước tính ${estimatedDailyRain.toFixed(0)}mm/ngày thấp hơn ngưỡng hạn hán ${THRESHOLDS.droughtMm}mm/${THRESHOLDS.droughtDays} ngày`,
-    });
+  // Hạn hán chỉ được kết luận khi có đủ dữ liệu mưa lịch sử đúng số ngày cấu hình.
+  if (rainfall && rainfall.recentDays >= THRESHOLDS.droughtDays) {
+    const recentRain = Math.max(0, rainfall.recentRainMm || 0);
+    if (recentRain <= THRESHOLDS.droughtMm * 0.5) {
+      alerts.push({
+        type: 'drought',
+        severity: 'critical',
+        detail: `Tổng lượng mưa ${rainfall.recentDays} ngày gần nhất ${recentRain.toFixed(1)}mm, thấp hơn ngưỡng ${THRESHOLDS.droughtMm}mm/${THRESHOLDS.droughtDays} ngày`,
+      });
+    } else if (recentRain <= THRESHOLDS.droughtMm) {
+      alerts.push({
+        type: 'drought',
+        severity: 'warning',
+        detail: `Tổng lượng mưa ${rainfall.recentDays} ngày gần nhất ${recentRain.toFixed(1)}mm, thấp hơn ngưỡng ${THRESHOLDS.droughtMm}mm/${THRESHOLDS.droughtDays} ngày`,
+      });
+    }
   }
 
   return alerts;
@@ -504,6 +681,27 @@ async function createAlertForUser(
   return true;
 }
 
+async function fetchWeatherAssessment(lat: number, lng: number): Promise<{
+  weather: WeatherData;
+  rainfall?: RainfallContext;
+}> {
+  const [weather, rainfallResult] = await Promise.all([
+    fetchCurrentWeatherWithFallback(lat, lng),
+    fetchRainfallContext(lat, lng, THRESHOLDS.droughtDays)
+      .then((value) => ({ ok: true as const, value }))
+      .catch((error) => {
+        log.warn('Rainfall history unavailable', getErrorMessage(error));
+        return { ok: false as const };
+      }),
+  ]);
+
+  const rainfall = rainfallResult.ok ? rainfallResult.value : undefined;
+  return {
+    weather: rainfall ? { ...weather, rain24h: rainfall.todayRainMm } : weather,
+    rainfall,
+  };
+}
+
 /**
  * Kiểm tra thời tiết cho toàn bộ user có vị trí — dùng cho cron job
  */
@@ -531,9 +729,9 @@ export async function runWeatherCheckForAllUsers(): Promise<number> {
 
   for (const [province, provinceUsers] of provinceMap.entries()) {
     try {
-      const coords = resolveProvinceCoords(province);
-      const weather = await fetchCurrentWeatherWithFallback(coords.lat, coords.lng);
-      const detectedAlerts = checkWeatherThresholds(weather);
+      const location = await resolveWeatherLocation(province);
+      const { weather, rainfall } = await fetchWeatherAssessment(location.coords.lat, location.coords.lng);
+      const detectedAlerts = checkWeatherThresholds(weather, rainfall);
       for (const alert of detectedAlerts) {
         for (const user of provinceUsers) {
           if (await createAlertForUser(user, province, weather, alert)) alertCount++;
@@ -549,8 +747,8 @@ export async function runWeatherCheckForAllUsers(): Promise<number> {
 
   for (const user of coordUsers) {
     try {
-      const weather = await fetchCurrentWeatherWithFallback(user.latitude, user.longitude);
-      const detectedAlerts = checkWeatherThresholds(weather);
+      const { weather, rainfall } = await fetchWeatherAssessment(user.latitude, user.longitude);
+      const detectedAlerts = checkWeatherThresholds(weather, rainfall);
       for (const alert of detectedAlerts) {
         if (await createAlertForUser(user, user.province || 'Unknown', weather, alert)) alertCount++;
       }
@@ -585,22 +783,39 @@ export async function cleanupOldAlerts(): Promise<number> {
 /**
  * Lấy danh sách cảnh báo thời tiết của 1 user
  */
-export async function getAlertsForUser(userId: string, page: number = 1, limit: number = 20) {
-  const skip = (page - 1) * limit;
-  const [alerts, total] = await alertRepo().findAndCount({
-    where: { userId },
-    order: { createdAt: 'DESC' },
-    skip,
-    take: limit,
-  });
+export async function getAlertsForUser(
+  userId: string,
+  page: number = 1,
+  limit: number = 20,
+  province?: string,
+  district?: string
+) {
+  const safePage = Math.max(1, Math.trunc(page || 1));
+  const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit || 20)));
+  const qb = alertRepo()
+    .createQueryBuilder('alert')
+    .where('alert.userId = :userId', { userId });
+
+  if (province?.trim()) {
+    qb.andWhere('alert.province = :province', { province: province.trim() });
+  }
+  if (district?.trim()) {
+    qb.andWhere('alert.district = :district', { district: district.trim() });
+  }
+
+  const [alerts, total] = await qb
+    .orderBy('alert.createdAt', 'DESC')
+    .skip((safePage - 1) * safeLimit)
+    .take(safeLimit)
+    .getManyAndCount();
 
   return {
     alerts,
     pagination: {
-      page,
-      limit,
+      page: safePage,
+      limit: safeLimit,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / safeLimit),
     },
   };
 }
@@ -623,14 +838,22 @@ export async function markAlertAsRead(alertId: string, userId: string) {
 /**
  * Đánh dấu toàn bộ cảnh báo của user là đã đọc
  */
-export async function markAllAlertsAsRead(userId: string): Promise<void> {
-  await alertRepo()
+export async function markAllAlertsAsRead(
+  userId: string,
+  province?: string,
+  district?: string
+): Promise<void> {
+  const qb = alertRepo()
     .createQueryBuilder()
     .update(WeatherAlert)
     .set({ isRead: true })
     .where('userId = :userId', { userId })
-    .andWhere('isRead = :isRead', { isRead: false })
-    .execute();
+    .andWhere('isRead = :isRead', { isRead: false });
+
+  if (province?.trim()) qb.andWhere('province = :province', { province: province.trim() });
+  if (district?.trim()) qb.andWhere('district = :district', { district: district.trim() });
+
+  await qb.execute();
 }
 
 /**

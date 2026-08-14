@@ -33,6 +33,13 @@ const UNITS = ['kg', 'tạ', 'tấn'];
 const fmtMoney = (n) =>
   Number(n || 0).toLocaleString('vi-VN') + 'đ';
 
+// Giá trị cho <input type="date"> phải dùng ngày local của trình duyệt.
+// toISOString() dùng UTC và có thể lùi 1 ngày trong khoảng 00:00-06:59 ở Việt Nam.
+const toLocalDateInputValue = (date) => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
+  return local.toISOString().slice(0, 10);
+};
+
 const getDepositLabel = (paymentTerms, customDeposit, customOnDelivery) => {
   if (paymentTerms === '50_50')        return '50% đặt cọc / 50% khi nhận hàng';
   if (paymentTerms === '30_70')        return '30% đặt cọc / 70% khi nhận hàng';
@@ -109,6 +116,7 @@ export default function EnterpriseCreateContract() {
   const [showTermsModal, setShowTermsModal]   = useState(null); // 'contract' | 'service'
   const [agreed, setAgreed]       = useState({ terms: false, preon: false });
   const [showInsurance, setShowInsurance]     = useState(false);
+  const [productCoverageRate, setProductCoverageRate] = useState(null);
 
   const [form, setForm] = useState({
     productName:    '',
@@ -149,6 +157,7 @@ export default function EnterpriseCreateContract() {
         // quy doi ve VND/kg vi form nhap gia luon la don gia theo kg.
         const priceUnitFactor = enterpriseService.UNIT_TO_KG[p.priceUnit || p.unit] || 1;
         const pricePerKg = p.priceMin ? p.priceMin / priceUnitFactor : null;
+        setProductCoverageRate(Number.isFinite(Number(p.coverageRate)) ? Number(p.coverageRate) : 50);
         setForm(prev => ({
           ...prev,
           productName:  p.name || prev.productName,
@@ -162,7 +171,9 @@ export default function EnterpriseCreateContract() {
 
   // ── Computed ───────────────────────────────────────────
   const { totalValue, commission, unitFactor } = enterpriseService.calculateContractTotals(form);
-  const today         = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDeliveryDate = toLocalDateInputValue(tomorrow);
 
   const customDepositValid = () => {
     const d = parseFloat(form.customDeposit);
@@ -181,7 +192,7 @@ export default function EnterpriseCreateContract() {
       e.pricePerUnit = 'Giá phải lớn hơn 0.';
     if (!form.deliveryDate)
       e.deliveryDate = 'Vui lòng chọn ngày giao hàng.';
-    else if (form.deliveryDate <= today)
+    else if (form.deliveryDate < minDeliveryDate)
       e.deliveryDate = 'Ngày giao hàng phải sau ngày hôm nay.';
     if (!form.deliveryAddress.trim())
       e.deliveryAddress = 'Vui lòng nhập địa chỉ giao hàng.';
@@ -262,7 +273,7 @@ export default function EnterpriseCreateContract() {
         deliveryDate:      form.deliveryDate,
         deliveryAddress:   form.deliveryAddress,
         paymentTerms:      form.paymentTerms,
-        qualityRequirements: form.notes,
+        notes:             form.notes.trim(),
         depositPercentage: depositPct,
         totalValue,
         commission,
@@ -354,6 +365,11 @@ export default function EnterpriseCreateContract() {
                   </select>
                 </div>
                 {errors.quantity && <span className="ecc-err">{errors.quantity}</span>}
+                {productCoverageRate != null && (
+                  <span className="ecc-note">
+                    Farmer mong muốn mức bao tiêu tối thiểu <strong>{productCoverageRate}%</strong> sản lượng.
+                  </span>
+                )}
               </div>
             </div>
 
@@ -378,7 +394,7 @@ export default function EnterpriseCreateContract() {
                 <input
                   className={errors.deliveryDate ? 'ecc-input ecc-input--error' : 'ecc-input'}
                   type="date"
-                  min={today}
+                  min={minDeliveryDate}
                   value={form.deliveryDate}
                   onChange={e => setField('deliveryDate', e.target.value)}
                 />

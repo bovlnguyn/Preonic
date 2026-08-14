@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { lazy } from 'react';
 import ProtectedRoute from './ProtectedRoute';
-import AdminDashboard from '../component/AdminDashboard/AdminDashboard';
+
+const AdminDashboard = lazy(() => import('../component/AdminDashboard/AdminDashboard'));
 
 const adminRoutes = [
   {

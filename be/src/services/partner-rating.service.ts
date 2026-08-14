@@ -4,7 +4,14 @@ import { User } from '../models/User.entity';
 import { PartnerRating } from '../models/PartnerRating.entity';
 import { Escrow } from '../models/Escrow.entity';
 import { EscrowMilestone } from '../models/EscrowMilestone.entity';
+import { Product } from '../models/Product.entity';
 import { AppError } from '../middlewares/error.middleware';
+import {
+  RATING_COMMENT_MAX_LENGTH,
+  calculateRatingAverage,
+  isWholeStarRating,
+  normalizeReputation,
+} from '../utils/rating.util';
 
 const contractRepo       = () => AppDataSource.getRepository(Contract);
 const userRepo           = () => AppDataSource.getRepository(User);
@@ -67,11 +74,6 @@ const hasCompletedDelivery = async (contractId: string): Promise<boolean> => {
   return Boolean(milestone);
 };
 
-const isValidScore = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 1 && value <= 5;
-
-const computeAverage = (values: number[]): number =>
-  Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2));
 
 const ensureDirection = (role: UserRole, revieweeRole: UserRole): void => {
   if (role === revieweeRole) {
@@ -92,9 +94,9 @@ const normalizeCriteriaByRole = (role: UserRole, criteria: RatingCriteria): Rati
   if (role === 'farmer') {
     const payload = criteria as Partial<FarmerToEnterpriseCriteria>;
     if (
-      !isValidScore(payload.transparency) ||
-      !isValidScore(payload.paymentPunctuality) ||
-      !isValidScore(payload.coordination)
+      !isWholeStarRating(payload.transparency) ||
+      !isWholeStarRating(payload.paymentPunctuality) ||
+      !isWholeStarRating(payload.coordination)
     ) {
       throw new AppError(
         'Điểm đánh giá doanh nghiệp không hợp lệ. Yêu cầu 3 tiêu chí từ 1 đến 5.',
@@ -111,9 +113,9 @@ const normalizeCriteriaByRole = (role: UserRole, criteria: RatingCriteria): Rati
 
   const payload = criteria as Partial<EnterpriseToFarmerCriteria>;
   if (
-    !isValidScore(payload.quality) ||
-    !isValidScore(payload.onTimeDelivery) ||
-    !isValidScore(payload.committedVolume)
+    !isWholeStarRating(payload.quality) ||
+    !isWholeStarRating(payload.onTimeDelivery) ||
+    !isWholeStarRating(payload.committedVolume)
   ) {
     throw new AppError(
       'Điểm đánh giá nông dân không hợp lệ. Yêu cầu 3 tiêu chí từ 1 đến 5.',
@@ -141,10 +143,22 @@ const recalculateUserReputation = async (userId: string): Promise<void> => {
     .where('rating.revieweeId = :userId', { userId })
     .getRawOne();
 
-  const reputationScore = avg ? Number(Number(avg).toFixed(2)) : 5;
-  const totalRatings = Number(total) || 0;
+  const normalized = normalizeReputation(avg, total);
 
-  await userRepo().update({ id: userId }, { reputationScore, totalRatings });
+  await Promise.all([
+    userRepo().update(
+      { id: userId },
+      {
+        reputationScore: normalized.reputationScore,
+        totalRatings: normalized.totalRatings,
+      }
+    ),
+    // Giu snapshot SellerRating tren cac Product cu dong bo cho cac API/list legacy.
+    AppDataSource.getRepository(Product).update(
+      { sellerUserId: userId },
+      { sellerRating: normalized.hasRatings ? normalized.reputationScore : 0 }
+    ),
+  ]);
 };
 
 export const getEligiblePartners = async (
@@ -180,8 +194,7 @@ export const getEligiblePartners = async (
         partnerId: partner.id,
         partnerName: partner.fullName || 'Đối tác',
         partnerRole: partner.role as UserRole,
-        reputationScore: Number(partner.reputationScore) || 5,
-        totalRatings: partner.totalRatings || 0,
+        ...normalizeReputation(partner.reputationScore, partner.totalRatings),
         contracts: [],
       });
     }
@@ -207,6 +220,14 @@ export const createRating = async (
 
   if (!contractId || !revieweeId || !criteria || !comment?.trim()) {
     throw new AppError('Thiếu dữ liệu đánh giá bắt buộc', 400);
+  }
+
+  const normalizedComment = comment.trim();
+  if (normalizedComment.length > RATING_COMMENT_MAX_LENGTH) {
+    throw new AppError(
+      `Nhận xét không được vượt quá ${RATING_COMMENT_MAX_LENGTH} ký tự`,
+      400
+    );
   }
 
   const contract = await contractRepo().findOne({ where: { id: contractId } });
@@ -253,7 +274,7 @@ export const createRating = async (
     throw new AppError('Bạn đã đánh giá đối tác trong hợp đồng này rồi', 400);
   }
 
-  const overallRating = computeAverage(extractCriteriaScores(normalizedCriteria));
+  const overallRating = calculateRatingAverage(extractCriteriaScores(normalizedCriteria));
 
   const created = await partnerRatingRepo().save(
     partnerRatingRepo().create({
@@ -264,7 +285,7 @@ export const createRating = async (
       revieweeRole,
       ...normalizedCriteria,
       overallRating,
-      comment: comment.trim(),
+      comment: normalizedComment,
     })
   );
 
@@ -274,7 +295,7 @@ export const createRating = async (
 };
 
 export const getMyRatings = async (userId: string, role: UserRole) => {
-  const [givenRatings, receivedRatings] = await Promise.all([
+  const [givenRatings, receivedRatings, currentUser] = await Promise.all([
     partnerRatingRepo().find({
       where: { reviewerId: userId, reviewerRole: role },
       relations: ['reviewee', 'contract'],
@@ -285,7 +306,16 @@ export const getMyRatings = async (userId: string, role: UserRole) => {
       relations: ['reviewer', 'contract'],
       order: { createdAt: 'DESC' },
     }),
+    userRepo().findOne({
+      where: { id: userId },
+      select: { id: true, reputationScore: true, totalRatings: true },
+    }),
   ]);
 
-  return { givenRatings, receivedRatings };
+  const summary = normalizeReputation(
+    currentUser?.reputationScore,
+    currentUser?.totalRatings ?? receivedRatings.length
+  );
+
+  return { givenRatings, receivedRatings, summary };
 };

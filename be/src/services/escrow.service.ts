@@ -1,6 +1,7 @@
 import { LessThanOrEqual, MoreThan } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Contract } from '../models/Contract.entity';
+import { Product } from '../models/Product.entity';
 import { User } from '../models/User.entity';
 import { Escrow } from '../models/Escrow.entity';
 import { EscrowMilestone } from '../models/EscrowMilestone.entity';
@@ -11,6 +12,7 @@ import { logAction, logError } from './systemLog.service';
 import { makeError } from '../utils/error.util';
 import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
 import { lockByIdOrFail, lockOne, lockOneOrFail, runLockedTransaction } from '../utils/transaction-lock.util';
+import { getHarvestEligibility } from '../utils/harvet.util';
 
 const contractRepo = () => AppDataSource.getRepository(Contract);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -18,7 +20,8 @@ const escrowRepo = () => AppDataSource.getRepository(Escrow);
 const milestoneRepo = () => AppDataSource.getRepository(EscrowMilestone);
 const notificationRepo = () => AppDataSource.getRepository(Notification);
 
-const ESCROW_RELATIONS = ['milestones', 'transactions', 'contract', 'farmer', 'enterprise'];
+// Detail API/response chi su dung milestones; transactions/user relations duoc tai rieng khi can.
+const ESCROW_RELATIONS = ['milestones'];
 
 const sortMilestones = (escrow: Escrow) => {
   if (escrow.milestones) {
@@ -96,7 +99,11 @@ export const depositEscrow = async (contractId: string, enterpriseId: string) =>
           throw makeError('So du khong du de nap ky quy hop dong', 400);
         }
 
-        const milestonesData = buildMilestones(contract.paymentTerms, amount);
+        const milestonesData = buildMilestones(
+          contract.paymentTerms,
+          amount,
+          Number(contract.depositPercentage)
+        );
         const step1ReleaseAmount = Number(
           milestonesData.find((m) => m.step === 1)?.releaseAmount ?? 0
         );
@@ -290,20 +297,155 @@ export const getEscrowByContract = async (contractId: string, userId: string) =>
   return sortMilestones(escrow);
 };
 
-export const listEscrowsForUser = async (userId: string, role: string) => {
+export interface ListEscrowsQuery {
+  page?: number;
+  limit?: number;
+  status?: string;
+  contractIds?: string[];
+}
+
+const normalizeEscrowListQuery = (query: ListEscrowsQuery = {}) => {
+  const page = Number.isFinite(Number(query.page)) && Number(query.page) > 0
+    ? Math.floor(Number(query.page))
+    : 1;
+  const limit = Number.isFinite(Number(query.limit)) && Number(query.limit) > 0
+    ? Math.min(Math.floor(Number(query.limit)), 50)
+    : 12;
+  const contractIds = Array.isArray(query.contractIds)
+    ? Array.from(new Set(query.contractIds.filter(Boolean))).slice(0, 50)
+    : [];
+
+  return { page, limit, status: query.status, contractIds };
+};
+
+/**
+ * Danh sach escrow duoc phan trang theo root row truoc, sau do moi nap relation
+ * can cho UI (Contract + Milestones). Khong nap Transactions/Farmer/Enterprise
+ * cho list view de tranh nhan ban row va overfetch khi lich su escrow tang lon.
+ */
+export const listEscrowsForUser = async (
+  userId: string,
+  role: string,
+  query: ListEscrowsQuery = {}
+) => {
   if (role !== 'farmer' && role !== 'enterprise') {
     throw makeError('Vai tro nguoi dung khong hop le', 403);
   }
 
-  const where = role === 'farmer' ? { farmerId: userId } : { enterpriseId: userId };
+  const { page, limit, status, contractIds } = normalizeEscrowListQuery(query);
+  const ownerColumn = role === 'farmer' ? 'escrow.farmerId' : 'escrow.enterpriseId';
 
-  const escrows = await escrowRepo().find({
-    where,
-    relations: ESCROW_RELATIONS,
-    order: { createdAt: 'DESC' },
-  });
+  const base = escrowRepo()
+    .createQueryBuilder('escrow')
+    .where(`${ownerColumn} = :userId`, { userId });
 
-  return escrows.map(sortMilestones);
+  if (status) {
+    base.andWhere('escrow.status = :status', { status });
+  }
+  if (contractIds.length > 0) {
+    base.andWhere('escrow.contractId IN (:...contractIds)', { contractIds });
+  }
+
+  const total = await base.clone().getCount();
+  if (total === 0) {
+    return {
+      escrows: [] as Escrow[],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
+
+  // Lay ID cua root rows truoc de pagination khong bi anh huong boi JOIN one-to-many milestones.
+  const idRows = await base
+    .clone()
+    .select('escrow.id', 'id')
+    .orderBy('escrow.createdAt', 'DESC')
+    .addOrderBy('escrow.id', 'DESC')
+    .skip((page - 1) * limit)
+    .take(limit)
+    .getRawMany<{ id: string }>();
+
+  const ids = idRows.map((row) => row.id).filter(Boolean);
+  if (ids.length === 0) {
+    return {
+      escrows: [] as Escrow[],
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  const escrows = await escrowRepo()
+    .createQueryBuilder('escrow')
+    // List card chỉ cần vài snapshot từ Contract, không cần Notes/Insurance/...
+    .leftJoin('escrow.contract', 'contract')
+    .addSelect([
+      'contract.id',
+      'contract.contractCode',
+      'contract.productName',
+      'contract.farmerName',
+      'contract.enterpriseName',
+    ])
+    // List view không hiển thị evidence; bỏ nvarchar(max) này khỏi payload DB.
+    .leftJoin('escrow.milestones', 'milestones')
+    .addSelect([
+      'milestones.id',
+      'milestones.escrowId',
+      'milestones.step',
+      'milestones.name',
+      'milestones.description',
+      'milestones.status',
+      'milestones.farmerConfirmed',
+      'milestones.farmerConfirmedAt',
+      'milestones.enterpriseConfirmed',
+      'milestones.enterpriseConfirmedAt',
+      'milestones.releaseAmount',
+      'milestones.releasePercentage',
+      'milestones.completedAt',
+    ])
+    .where('escrow.id IN (:...ids)', { ids })
+    .orderBy('escrow.createdAt', 'DESC')
+    .addOrderBy('milestones.step', 'ASC')
+    .getMany();
+
+  return {
+    escrows: escrows.map(sortMilestones),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+/**
+ * KPI escrow duoc tinh truc tiep tai SQL thay vi tai FE sau khi tai toan bo
+ * lich su + milestones. Endpoint nay rat nhe va dung cho Dashboard/Overview.
+ */
+export const getEscrowSummaryForUser = async (userId: string, role: string) => {
+  if (role !== 'farmer' && role !== 'enterprise') {
+    throw makeError('Vai tro nguoi dung khong hop le', 403);
+  }
+
+  const ownerColumn = role === 'farmer' ? 'escrow.farmerId' : 'escrow.enterpriseId';
+  const row = await escrowRepo()
+    .createQueryBuilder('escrow')
+    .select('COUNT_BIG(*)', 'totalEscrows')
+    .addSelect('COALESCE(SUM(escrow.depositedAmount), 0)', 'totalDeposited')
+    .addSelect('COALESCE(SUM(escrow.releasedAmount), 0)', 'totalReleased')
+    .addSelect(
+      `COALESCE(SUM(CASE WHEN escrow.status = 'active' THEN escrow.totalAmount - escrow.releasedAmount ELSE 0 END), 0)`,
+      'pendingAmount'
+    )
+    .addSelect(`SUM(CASE WHEN escrow.status = 'active' THEN 1 ELSE 0 END)`, 'activeCount')
+    .where(`${ownerColumn} = :userId`, { userId })
+    .getRawOne();
+
+  return {
+    totalEscrows: Number(row?.totalEscrows || 0),
+    totalDeposited: Number(row?.totalDeposited || 0),
+    totalReleased: Number(row?.totalReleased || 0),
+    pendingAmount: Number(row?.pendingAmount || 0),
+    activeCount: Number(row?.activeCount || 0),
+  };
 };
 
 export interface ConfirmMilestoneDto {
@@ -360,6 +502,24 @@ export const confirmMilestone = async (
         const isEnterprise = role === 'enterprise' && escrow.enterpriseId === userId;
         if (!isFarmer && !isEnterprise) {
           throw makeError('Ban khong co quyen xac nhan moc cua hop dong nay', 403);
+        }
+
+        // Step 3 la moc Farmer xac nhan da giao hang. Backend phai tu enforce
+        // ngay thu hoach, khong chi dua vao nut bi disable o FE vi API co the bi
+        // goi truc tiep. Product da bi khoa chinh sua khi contract active, nen doc
+        // snapshot ngay thu hoach tai day la du de bao ve business rule.
+        if (step === 3) {
+          const product = await manager.getRepository(Product).findOne({
+            where: { id: contract.productId },
+          });
+          if (!product) {
+            throw makeError('Khong tim thay san pham cua hop dong', 404);
+          }
+
+          const harvest = getHarvestEligibility(product.expectedDate);
+          if (!harvest.shippingAllowed) {
+            throw makeError(harvest.reason || 'Chua den ngay thu hoach', 409);
+          }
         }
 
         const milestone = await lockOneOrFail(
@@ -487,10 +647,12 @@ export const confirmMilestone = async (
             releasedAfter = depositedAmount;
           }
 
-          const willCompleteEscrow = releasedAfter >= depositedAmount;
-          // Phi hoa hong nen tang duoc snapshot tren Contract luc tao hop dong,
-          // va chi thu MOT LAN tai moc giai ngan lam hop dong hoan tat.
-          if (willCompleteEscrow) {
+          const fundsFullyReleased = releasedAfter >= depositedAmount;
+          // Phi hoa hong chi thu MOT LAN khi dot giai ngan nay lam toan bo tien
+          // trong escrow duoc chi het. Tuy nhien, tien chi het KHONG dong nghia
+          // contract da hoan tat: 100_delivery co the chi het tien o step 4 nhung
+          // van phai doi ca hai ben xac nhan step 5.
+          if (fundsFullyReleased) {
             commissionAmount = Math.min(Math.max(Number(contract.commission) || 0, 0), releaseAmount);
           }
 
@@ -498,7 +660,8 @@ export const confirmMilestone = async (
           await txUserRepo.save(farmer);
 
           escrow.releasedAmount = releasedAfter;
-          if (willCompleteEscrow) {
+          const isFinalMilestone = step === MILESTONE_CONFIG.COUNT && willComplete;
+          if (fundsFullyReleased && isFinalMilestone) {
             escrow.status = 'completed';
             escrowCompleted = true;
 
@@ -538,10 +701,9 @@ export const confirmMilestone = async (
             );
           }
         } else if (step === MILESTONE_CONFIG.COUNT && willComplete) {
-          // Dieu khoan "100% tra truoc": toan bo tien da giai ngan ngay luc nap ky quy
-          // (moc 1), nen moc cuoi "Hoan tat" khong con gi de giai ngan (releaseAmount=0).
-          // Neu khong xu ly rieng, escrow/contract se ket o trang thai 'active' mai mai
-          // du hai ben da xac nhan xong toan bo quy trinh.
+          // Mot so dieu khoan (100_upfront, 100_delivery) co the da giai ngan het
+          // tien truoc step 5. Step 5 van la gate nghiep vu bat buoc de ca hai ben
+          // xac nhan hoan tat; chi tai day moi chuyen Escrow/Contract sang completed.
           const releasedBefore = Number(escrow.releasedAmount || 0);
           const depositedAmount = Number(escrow.depositedAmount || 0);
           if (

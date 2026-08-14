@@ -21,7 +21,9 @@ import Header from "../Common/Header";
 import Footer from "../Common/Footer";
 import { useAuth } from "../../contexts/AuthContext";
 import farmerService from "../../services/farmer.service";
+import authService from "../../services/auth.service";
 import { COMPANY, ROUTES } from "../../constants";
+import { formatReputation } from "../../utils/rating";
 import "./FarmerHome.css";
 
 const fadeUp = {
@@ -35,47 +37,52 @@ const stagger = {
 };
 
 const getCropQuantity = (crop) => {
-  const quantity = Number(crop?.quantity || crop?.expectedQuantity || crop?.stockQuantity || 0);
+  const quantity = Number(crop?.totalQuantity || crop?.quantity || crop?.expectedQuantity || crop?.stockQuantity || 0);
   const unit = crop?.unit || crop?.quantityUnit || "tấn";
   return quantity ? `${quantity.toLocaleString("vi-VN")} ${unit}` : "Đang cập nhật";
 };
 
 function FarmerHome() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [crops, setCrops] = useState([]);
+  const [cropSummary, setCropSummary] = useState({ totalProducts: 0, totalQuantity: 0 });
   const [loadingCrops, setLoadingCrops] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
     farmerService
-      .getMyCrops()
-      .then((data) => {
-        if (mounted) setCrops(Array.isArray(data) ? data : []);
+      .getMyCropsPage({ page: 1, limit: 3, includeSummary: true })
+      .then((result) => {
+        if (!mounted) return;
+        setCrops(result?.products || []);
+        setCropSummary(result?.summary || { totalProducts: 0, totalQuantity: 0 });
       })
       .catch(() => {
-        if (mounted) setCrops([]);
+        if (mounted) { setCrops([]); setCropSummary({ totalProducts: 0, totalQuantity: 0 }); }
       })
       .finally(() => {
         if (mounted) setLoadingCrops(false);
       });
 
+    // User trong AuthContext la snapshot luc login. Lam moi nhe khi vao Home de
+    // diem uy tin vua duoc doi tac danh gia khong bi hien gia tri cu.
+    authService.getMe()
+      .then((res) => {
+        if (mounted && res?.success && res?.data?.user) updateUser(res.data.user);
+      })
+      .catch(() => {});
+
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [updateUser]);
 
   const dashboardStats = useMemo(() => {
-    const totalCrops = crops.length;
-    const activeCrops = crops.filter((item) => {
-      const status = String(item?.status || item?.approvalStatus || "").toLowerCase();
-      return !status || ["active", "approved", "available", "published"].includes(status);
-    }).length;
-
-    const totalQuantity = crops.reduce((sum, item) => {
-      return sum + Number(item?.quantity || item?.expectedQuantity || item?.stockQuantity || 0);
-    }, 0);
+    const totalCrops = Number(cropSummary.totalProducts || 0);
+    const activeCrops = totalCrops;
+    const totalQuantity = Number(cropSummary.totalQuantity || 0);
 
     return [
       {
@@ -98,12 +105,14 @@ function FarmerHome() {
       },
       {
         label: "Hồ sơ uy tín",
-        value: user?.reputationScore ? Number(user.reputationScore).toFixed(1) : "Mới",
+        value: Number(user?.totalRatings || 0) > 0
+          ? formatReputation(user?.reputationScore, user?.totalRatings).replace("/5", "")
+          : "Mới",
         note: "Cập nhật chứng nhận để tăng niềm tin",
         icon: FiStar,
       },
     ];
-  }, [crops, loadingCrops, user]);
+  }, [cropSummary, loadingCrops, user]);
 
   const quickActions = [
     {

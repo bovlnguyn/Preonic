@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { toLocalDateInputValue } from '../../../utils/date';
 import './FarmerCreateProduct.css';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -15,6 +16,8 @@ const isFarmerProfileComplete = (user) =>
     user?.lastName?.trim() &&
     user?.phone?.trim() &&
     user?.province?.trim() &&
+    user?.district?.trim() &&
+    user?.address?.trim() &&
     user?.farmName?.trim()
   );
 
@@ -352,7 +355,7 @@ function Step1({ form, set }) {
 function Step2({ form, set }) {
   const totalKg = toKg(form.quantity, form.unit);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateInputValue();
 
   return (
     <div className="fcp-card">
@@ -789,6 +792,7 @@ export default function FarmerCreateProduct() {
           variety:       form.variety?.trim() || undefined,
           area:          form.area ? Number(form.area) : undefined,
           totalQuantity: form.quantity ? Number(form.quantity) : undefined,
+          coverageRate:  form.coverageRate,
           unit:          form.unit,
           priceUnit:     form.priceUnit,
           priceMin:      priceNum || undefined,

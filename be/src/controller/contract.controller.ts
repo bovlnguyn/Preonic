@@ -24,7 +24,9 @@ const buildDto = (body: any) => {
 
     paymentTerms: body.paymentTerms ?? terms.paymentTerms,
     deliveryDate: body.deliveryDate ?? terms.deliveryDate,
-    notes: body.notes ?? terms.notes,
+    // qualityRequirements la ten field FE cu tung gui nham; giu fallback de cac
+    // client cu khong lam mat ghi chu, nhung FE moi se gui dung field notes.
+    notes: body.notes ?? body.qualityRequirements ?? terms.notes,
     farmLocation: body.farmLocation ?? terms.farmLocation,
     deliveryAddress: body.deliveryAddress ?? terms.deliveryAddress,
 

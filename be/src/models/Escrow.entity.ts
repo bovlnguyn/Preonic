@@ -12,6 +12,8 @@ import { EscrowTransaction } from './EscrowTransaction.entity';
 @Index(['farmerId'])
 @Index(['enterpriseId'])
 @Index(['status'])
+@Index('IX_Escrows_Farmer_Status_CreatedAt', ['farmerId', 'status', 'createdAt'])
+@Index('IX_Escrows_Enterprise_Status_CreatedAt', ['enterpriseId', 'status', 'createdAt'])
 export class Escrow {
   @PrimaryGeneratedColumn('uuid', { name: 'EscrowId' })
   id: string;

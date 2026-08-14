@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiChevronRight, FiEye, FiTrash2 } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
-import StatusBadge   from '../components/StatusBadge';
-import EmptyState    from '../components/EmptyState';
+import StatusBadge from '../components/StatusBadge';
+import EmptyState from '../components/EmptyState';
 import contractService from '../../../services/contract.service';
 import { resolveContractStatusLabel } from '../../../constants/contract';
 import { formatDate, formatMoney } from '../utils';
@@ -29,27 +29,43 @@ function EnterpriseContracts() {
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 1,
+  });
 
   useEffect(() => {
-    contractService.list()
-      .then(res => setContracts(res?.data?.contracts || []))
-      .catch(() => setContracts([]))
-      .finally(() => setLoading(false));
-  }, []);
+    let alive = true;
+    setLoading(true);
 
-  const filtered = useMemo(
-    () => (tab === 'all' ? contracts : contracts.filter((c) => c.status === tab)),
-    [contracts, tab],
-  );
+    contractService
+      .list(tab === 'all' ? undefined : tab, { page, limit: PAGE_SIZE })
+      .then((res) => {
+        if (!alive) return;
+        const nextPagination = res?.data?.pagination || {};
+        setContracts(res?.data?.contracts || []);
+        setPagination({
+          total: Number(nextPagination.total || 0),
+          totalPages: Math.max(1, Number(nextPagination.totalPages || 1)),
+        });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setContracts([]);
+        setPagination({ total: 0, totalPages: 1 });
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    return () => {
+      alive = false;
+    };
+  }, [tab, page, reloadToken]);
 
-  const paginatedContracts = useMemo(() => {
-    const startIndex = (page - 1) * PAGE_SIZE;
-    return filtered.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filtered, page]);
+  const totalPages = Math.max(1, pagination.totalPages);
 
-  // Nếu xóa hợp đồng cuối cùng của một trang, tự lùi về trang còn dữ liệu.
   useEffect(() => {
     if (page > totalPages) {
       setPage(totalPages);
@@ -61,13 +77,21 @@ function EnterpriseContracts() {
     setPage(1);
   };
 
-  // Hợp đồng nháp chưa từng gửi cho nông dân -- xóa hẳn thay vì hủy
+  // Hợp đồng nháp chưa từng gửi cho nông dân -- xóa hẳn thay vì hủy.
   const handleDelete = async (contract) => {
     if (!window.confirm(`Xóa hợp đồng nháp ${contract.contractCode}? Hành động này không thể hoàn tác.`)) return;
+
     try {
       await contractService.remove(contract.id);
-      setContracts(prev => prev.filter(c => c.id !== contract.id));
       toast.success('Đã xóa hợp đồng nháp');
+
+      // Nếu vừa xóa bản ghi cuối của trang > 1 thì lùi trang; nếu không, reload
+      // đúng trang từ server để lấy đủ PAGE_SIZE thay vì giữ danh sách bị thiếu 1 dòng.
+      if (contracts.length === 1 && page > 1) {
+        setPage((current) => current - 1);
+      } else {
+        setReloadToken((current) => current + 1);
+      }
     } catch (err) {
       toast.error(err?.message || 'Xóa hợp đồng thất bại.');
     }
@@ -94,16 +118,20 @@ function EnterpriseContracts() {
 
         <div className="ent-filter-row">
           {TABS.map((t) => (
-            <button key={t.key} type="button"
+            <button
+              key={t.key}
+              type="button"
               className={tab === t.key ? 'active' : ''}
               onClick={() => handleTabChange(t.key)}
-            >{t.label}</button>
+            >
+              {t.label}
+            </button>
           ))}
         </div>
 
         {loading ? (
           <div className="spinner-border text-primary" role="status" />
-        ) : filtered.length === 0 ? (
+        ) : contracts.length === 0 ? (
           <EmptyState
             title="Chưa có hợp đồng nào"
             desc="Các hợp đồng bạn đề xuất với nông dân sẽ hiển thị tại đây."
@@ -120,7 +148,7 @@ function EnterpriseContracts() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedContracts.map((c) => (
+                  {contracts.map((c) => (
                     <tr key={c.id}>
                       <td>{c.contractCode}</td>
                       <td>{c.farmer?.name}</td>
@@ -157,7 +185,7 @@ function EnterpriseContracts() {
 
             <div className="et-pagination">
               <span>
-                Trang {page} / {totalPages} — {filtered.length.toLocaleString('vi-VN')} hợp đồng
+                Trang {page} / {totalPages} — {pagination.total.toLocaleString('vi-VN')} hợp đồng
               </span>
               <div className="et-pagination-btns">
                 <button

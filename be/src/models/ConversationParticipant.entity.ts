@@ -1,8 +1,9 @@
-import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Conversation } from './Conversation.entity';
 import { User } from './User.entity';
 
 @Entity('ConversationParticipants')
+@Index('IX_ConversationParticipants_UserId_ConversationId', ['userId', 'conversationId'])
 export class ConversationParticipant {
   @PrimaryColumn({ name: 'ConversationId', type: 'uniqueidentifier' })
   conversationId: string;

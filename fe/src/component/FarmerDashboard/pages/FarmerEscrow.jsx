@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiShield, FiGift, FiClock, FiActivity, FiCheck } from 'react-icons/fi';
+import { FiShield, FiGift, FiClock, FiActivity, FiCheck, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import ProgressBar from '../components/ProgressBar';
 import EmptyState from '../components/EmptyState';
@@ -40,31 +40,51 @@ const currentMilestoneLabel = (escrow) => {
 function FarmerEscrow() {
   const navigate = useNavigate();
   const [escrows, setEscrows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('overview');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
+  const [summary, setSummary] = useState({ totalReleased: 0, pendingAmount: 0, activeCount: 0 });
 
   useEffect(() => {
-    escrowService.list()
-      .then((res) => setEscrows(res?.data?.escrows || []))
-      .catch(() => setEscrows([]))
-      .finally(() => setLoading(false));
+    escrowService.summary()
+      .then((res) => setSummary(res?.data?.summary || { totalReleased: 0, pendingAmount: 0, activeCount: 0 }))
+      .catch(() => setSummary({ totalReleased: 0, pendingAmount: 0, activeCount: 0 }));
   }, []);
 
-  const stats = useMemo(() => {
-    const received = escrows.reduce((sum, e) => sum + Number(e.releasedAmount || 0), 0);
-    const activeEscrows = escrows.filter((e) => e.status === 'active');
-    const pending = activeEscrows.reduce(
-      (sum, e) => sum + (Number(e.totalAmount || 0) - Number(e.releasedAmount || 0)),
-      0
-    );
-    return { received, pending, activeCount: activeEscrows.length };
-  }, [escrows]);
+  useEffect(() => {
+    if (tab === 'overview') {
+      setLoading(false);
+      return undefined;
+    }
+    let alive = true;
+    setLoading(true);
+    escrowService.list({
+      page,
+      limit: 6,
+      ...(tab === 'active' || tab === 'completed' ? { status: tab } : {}),
+    })
+      .then((res) => {
+        if (!alive) return;
+        setEscrows(res?.data?.escrows || []);
+        const next = res?.data?.pagination || {};
+        setPagination({ total: Number(next.total || 0), totalPages: Number(next.totalPages || 0) });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setEscrows([]);
+        setPagination({ total: 0, totalPages: 0 });
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [tab, page]);
 
-  const filteredEscrows = useMemo(() => {
-    if (tab === 'active') return escrows.filter((e) => e.status === 'active');
-    if (tab === 'completed') return escrows.filter((e) => e.status === 'completed');
-    return escrows;
-  }, [escrows, tab]);
+  const stats = {
+    received: Number(summary.totalReleased || 0),
+    pending: Number(summary.pendingAmount || 0),
+    activeCount: Number(summary.activeCount || 0),
+  };
+  const filteredEscrows = escrows;
 
   return (
     <div className="farmer-stack">
@@ -112,7 +132,7 @@ function FarmerEscrow() {
                 key={t.key}
                 type="button"
                 className={tab === t.key ? 'active' : ''}
-                onClick={() => setTab(t.key)}
+                onClick={() => { setTab(t.key); setPage(1); }}
               >
                 {t.label}
               </button>
@@ -189,6 +209,15 @@ function FarmerEscrow() {
                   </article>
                 ))}
               </div>
+              {pagination.totalPages > 1 && (
+                <div className="farmer-pagination">
+                  <span>Trang {page} / {pagination.totalPages} — {pagination.total} giao dịch</span>
+                  <div className="farmer-pagination__buttons">
+                    <button type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}><FiChevronLeft /> Trước</button>
+                    <button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}>Sau <FiChevronRight /></button>
+                  </div>
+                </div>
+              )}
             </section>
           )}
         </>

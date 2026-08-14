@@ -37,7 +37,8 @@ export const getWeather = async (req: Request, res: Response) => {
 export const getCurrentWeather = async (req: Request, res: Response) => {
   try {
     const province = typeof req.query.province === 'string' ? req.query.province : undefined;
-    const weather = await getCurrentWeatherForProvince(province);
+    const district = typeof req.query.district === 'string' ? req.query.district : undefined;
+    const weather = await getCurrentWeatherForProvince(province, district);
 
     res.status(200).json({ success: true, data: weather });
   } catch (error: any) {
@@ -48,7 +49,8 @@ export const getCurrentWeather = async (req: Request, res: Response) => {
 export const getDailyForecast = async (req: Request, res: Response) => {
   try {
     const province = typeof req.query.province === 'string' ? req.query.province : undefined;
-    const forecast = await getDailyForecastForProvince(province);
+    const district = typeof req.query.district === 'string' ? req.query.district : undefined;
+    const forecast = await getDailyForecastForProvince(province, district);
 
     res.status(200).json({ success: true, data: forecast });
   } catch (error: any) {
@@ -69,9 +71,13 @@ export const getThresholds = async (_req: Request, res: Response) => {
 
 export const getWeatherAlerts = async (req: AuthRequest, res: Response) => {
   try {
-    const page = req.query.page ? Number(req.query.page) : 1;
-    const limit = req.query.limit ? Number(req.query.limit) : 20;
-    const result = await getAlertsForUser(req.user!.id, page, limit);
+    const rawPage = Number(req.query.page || 1);
+    const rawLimit = Number(req.query.limit || 20);
+    const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.trunc(rawPage) : 1;
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(100, Math.trunc(rawLimit)) : 20;
+    const province = typeof req.query.province === 'string' ? req.query.province : undefined;
+    const district = typeof req.query.district === 'string' ? req.query.district : undefined;
+    const result = await getAlertsForUser(req.user!.id, page, limit, province, district);
 
     res.status(200).json({ success: true, data: result });
   } catch (error: any) {
@@ -105,7 +111,9 @@ export const markWeatherAlertRead = async (req: AuthRequest, res: Response) => {
 
 export const markAllWeatherAlertsRead = async (req: AuthRequest, res: Response) => {
   try {
-    await markAllAlertsAsRead(req.user!.id);
+    const province = typeof req.query.province === 'string' ? req.query.province : undefined;
+    const district = typeof req.query.district === 'string' ? req.query.district : undefined;
+    await markAllAlertsAsRead(req.user!.id, province, district);
 
     res.status(200).json({
       success: true,

@@ -28,56 +28,63 @@ function EnterpriseOverview() {
   const navigate = useNavigate();
   const [contracts, setContracts] = useState([]);
   const [contractsPage, setContractsPage] = useState(1);
+  const [contractPagination, setContractPagination] = useState({ total: 0, totalPages: 0 });
   const [orders, setOrders] = useState([]);
   const [escrowLocked, setEscrowLocked] = useState(0);
   const [reputation, setReputation] = useState({ average: 0, count: 0 });
   const [contractSummary, setContractSummary] = useState({
     totalContracts: 0,
     totalContractValue: 0,
+    activeContracts: 0,
+    pendingContracts: 0,
   });
 
+  // KPI/mini-order duoc tai bang cac endpoint nhe; khong tai 100 contracts + toan bo escrow.
   useEffect(() => {
-    Promise.all([
-      contractService.list(undefined, { limit: 100 }),
-      contractService.summary(),
-      escrowService.list().catch(() => ({ data: { escrows: [] } })),
-      partnerRatingService.getMyRatings().catch(() => null),
-    ])
-      .then(([contractsRes, summaryRes, escrowsRes, ratingsRes]) => {
-        const contractList = contractsRes?.data?.contracts || [];
-        setContracts(contractList);
+    let alive = true;
 
+    Promise.all([
+      contractService.summary(),
+      escrowService.summary().catch(() => null),
+      partnerRatingService.getMyRatings().catch(() => null),
+      contractService.list(ORDER_CONTRACT_STATUSES.join(','), { page: 1, limit: 3 }),
+    ])
+      .then(async ([summaryRes, escrowSummaryRes, ratingsRes, ordersRes]) => {
+        if (!alive) return;
         setContractSummary(summaryRes?.data?.summary || {
           totalContracts: 0,
           totalContractValue: 0,
+          activeContracts: 0,
+          pendingContracts: 0,
         });
 
-        const escrows = escrowsRes?.data?.escrows || [];
-        setEscrowLocked(
-          escrows
-            .filter((e) => e.status === 'active')
-            .reduce((sum, e) => sum + (Number(e.depositedAmount || 0) - Number(e.releasedAmount || 0)), 0)
-        );
+        const escrowSummary = escrowSummaryRes?.data?.summary || {};
+        setEscrowLocked(Number(escrowSummary.pendingAmount || 0));
 
-        const received = ratingsRes?.data?.received || [];
+        const ratingSummary = ratingsRes?.data?.summary || {};
         setReputation({
-          average: received.length
-            ? received.reduce((sum, r) => sum + Number(r.overallRating || 0), 0) / received.length
-            : 0,
-          count: received.length,
+          average: Number(ratingSummary.reputationScore || 0),
+          count: Number(ratingSummary.totalRatings || 0),
         });
 
-        const escrowByContract = new Map(escrows.map((e) => [e.contractId, e]));
-        const activeOrders = contractList.filter((c) => ORDER_CONTRACT_STATUSES.includes(c.status));
-        setOrders(activeOrders.map((c) => {
-          const escrow = escrowByContract.get(c.id);
+        const orderContracts = ordersRes?.data?.contracts || [];
+        const contractIds = orderContracts.map((contract) => contract.id).filter(Boolean);
+        const escrowsRes = contractIds.length
+          ? await escrowService.list({ contractIds, limit: contractIds.length }).catch(() => null)
+          : null;
+        if (!alive) return;
+        const escrowByContract = new Map(
+          (escrowsRes?.data?.escrows || []).map((escrow) => [escrow.contractId, escrow])
+        );
+        setOrders(orderContracts.map((contract) => {
+          const escrow = escrowByContract.get(contract.id);
           const activeMilestone = getActiveMilestone(escrow);
           return {
-            id: c.contractCode,
-            contractId: c.id,
-            farmer: c.farmer?.name,
-            product: c.product?.name,
-            status: getOrderStatusLabel(c, escrow),
+            id: contract.contractCode,
+            contractId: contract.id,
+            farmer: contract.farmer?.name,
+            product: contract.product?.name,
+            status: getOrderStatusLabel(contract, escrow),
             milestone: escrow
               ? (activeMilestone ? activeMilestone.description : 'Đã hoàn tất tất cả mốc thanh toán')
               : 'Chờ nạp ký quỹ để bắt đầu theo dõi',
@@ -85,25 +92,45 @@ function EnterpriseOverview() {
         }));
       })
       .catch(() => {
-        setContracts([]);
+        if (!alive) return;
         setOrders([]);
         setEscrowLocked(0);
         setReputation({ average: 0, count: 0 });
-        setContractSummary({ totalContracts: 0, totalContractValue: 0 });
+        setContractSummary({ totalContracts: 0, totalContractValue: 0, activeContracts: 0, pendingContracts: 0 });
       });
+
+    return () => { alive = false; };
   }, []);
 
-  const totalContractPages = Math.max(1, Math.ceil(contracts.length / CONTRACTS_PER_PAGE));
-  const paginatedContracts = contracts.slice(
-    (contractsPage - 1) * CONTRACTS_PER_PAGE,
-    contractsPage * CONTRACTS_PER_PAGE
-  );
+  // Bang hop dong phan trang that tai backend.
+  useEffect(() => {
+    let alive = true;
+    contractService.list(undefined, { page: contractsPage, limit: CONTRACTS_PER_PAGE })
+      .then((res) => {
+        if (!alive) return;
+        setContracts(res?.data?.contracts || []);
+        const pagination = res?.data?.pagination || {};
+        setContractPagination({
+          total: Number(pagination.total || 0),
+          totalPages: Number(pagination.totalPages || 0),
+        });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setContracts([]);
+        setContractPagination({ total: 0, totalPages: 0 });
+      });
+    return () => { alive = false; };
+  }, [contractsPage]);
+
+  const totalContractPages = Math.max(1, Number(contractPagination.totalPages || 1));
+  const paginatedContracts = contracts;
 
   useEffect(() => {
     setContractsPage((currentPage) => Math.min(currentPage, totalContractPages));
   }, [totalContractPages]);
 
-  const activeContractsCount = contracts.filter((c) => c.status === 'active').length;
+  const activeContractsCount = Number(contractSummary.activeContracts || 0);
 
   const stats = [
     {
@@ -117,7 +144,7 @@ function EnterpriseOverview() {
       id: 'active-contracts',
       label: 'Hợp đồng hiệu lực',
       value: String(activeContractsCount),
-      change: `${contracts.length} hợp đồng đang theo dõi`,
+      change: `${contractSummary.totalContracts} hợp đồng đã gửi/chưa hủy`,
       tone: 'green',
     },
     {
@@ -288,10 +315,10 @@ function EnterpriseOverview() {
               </tbody>
             </table>
 
-            {contracts.length > CONTRACTS_PER_PAGE && (
+            {contractPagination.total > CONTRACTS_PER_PAGE && (
               <div className="et-pagination">
                 <span>
-                  Trang {contractsPage} / {totalContractPages} — {contracts.length} hợp đồng
+                  Trang {contractsPage} / {totalContractPages} — {contractPagination.total} hợp đồng
                 </span>
 
                 <div className="et-pagination-btns">

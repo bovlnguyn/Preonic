@@ -13,6 +13,8 @@ import { DisputeEvidence } from './DisputeEvidence.entity';
 @Index(['escrowId'])
 @Index(['raisedBy'])
 @Index(['status'])
+@Index('IX_Disputes_RaisedBy_Status_CreatedAt', ['raisedBy', 'status', 'createdAt'])
+@Index('IX_Disputes_Against_Status_CreatedAt', ['againstUserId', 'status', 'createdAt'])
 export class Dispute {
   @PrimaryGeneratedColumn('uuid', { name: 'DisputeId' })
   id: string;

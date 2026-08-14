@@ -5,7 +5,9 @@
     radial-gradient(circle at 10% 5%, rgba(14, 165, 233, 0.12), transparent 32%),
     radial-gradient(circle at 90% 12%, rgba(34, 197, 94, 0.16), transparent 34%),
     linear-gradient(180deg, #f8fbff 0%, #eef8f1 48%, #f8fafc 100%);
-  overflow: hidden;
+  /* Keep the shared sticky Header attached to the viewport.
+     `overflow: hidden` on this page wrapper creates a scroll container and breaks sticky. */
+  overflow-x: clip;
 }
 
 .eh-container {

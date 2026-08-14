@@ -9,7 +9,8 @@
   --fs-text: #153322;
   --fs-muted: #637467;
   min-height: 100vh;
-  overflow-x: hidden;
+  /* Do not use hidden on the page wrapper: it breaks position: sticky on Header. */
+  overflow-x: clip;
   background:
     radial-gradient(circle at 8% 10%, rgba(190, 242, 100, 0.22), transparent 24%),
     radial-gradient(circle at 90% 18%, rgba(250, 204, 21, 0.14), transparent 25%),

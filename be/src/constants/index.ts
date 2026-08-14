@@ -67,7 +67,7 @@ export const UNIT_TO_KG: Record<string, number> = {
 export const PRODUCT_CONFIG = {
   DEFAULT_PAGE_SIZE: 50,
   DEFAULT_SELLER_NAME: 'Nông dân',
-  DEFAULT_SELLER_RATING: 5,
+  DEFAULT_SELLER_RATING: 0,
   DEFAULT_TOTAL_CONTRACTS: 0,
 } as const;
 

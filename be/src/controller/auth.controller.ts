@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import { AuthRequest } from '../types';
+import { sendError } from '../utils/controller.util';
+import { cleanupCloudinaryUrls, cleanupUploadedFiles } from '../middlewares/uploads.middlewares';
 import { sendResetPasswordEmail } from '../services/email.service';
 import * as emailService from '../services/email.service';
 import { logAction, logError } from '../services/systemLog.service';
@@ -19,11 +21,7 @@ import {
 } from '../utils/auth-cookie.util';
 
 const errorResponse = (res: Response, err: any, fallback: string, fallbackStatus = 500) =>
-  res.status(err.statusCode || fallbackStatus).json({
-    success: false,
-    ...(err.code ? { code: err.code } : {}),
-    message: err.message || fallback,
-  });
+  sendError(res, err, fallback, fallbackStatus);
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -201,7 +199,7 @@ export const logout = (req: Request, res: Response) => {
 
 export const refreshToken = async (req: Request, res: Response) => {
   try {
-    const token = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
+    const token = req.cookies?.[REFRESH_COOKIE_NAME];
     const { accessToken, refreshToken: newRefreshToken } =
       await authService.refreshAccessToken(token);
 
@@ -329,14 +327,21 @@ export const resendVerification = async (req: Request, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const avatarFile = (req as any).file as Express.Multer.File | undefined;
+    const previousUser = avatarFile ? await authService.getMe(req.user!.id) : null;
     const dto = avatarFile ? { ...req.body, avatar: avatarFile.path } : req.body;
     const user = await authService.updateProfile(req.user!.id, dto);
+
+    if (avatarFile && previousUser?.avatar && previousUser.avatar !== user?.avatar) {
+      void cleanupCloudinaryUrls([previousUser.avatar]);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Cập nhật hồ sơ thành công',
       data: { user },
     });
   } catch (err: any) {
+    await cleanupUploadedFiles(req);
     errorResponse(res, err, 'Cập nhật hồ sơ thất bại');
   }
 };

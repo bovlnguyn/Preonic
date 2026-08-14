@@ -18,7 +18,7 @@ const productRepo = () => AppDataSource.getRepository(Product);
 const userRepo = () => AppDataSource.getRepository(User);
 const notificationRepo = () => AppDataSource.getRepository(Notification);
 
-const PAYMENT_TERMS = ['50_50', '30_70', '100_delivery', '100_upfront'] as const;
+const PAYMENT_TERMS = ['50_50', '30_70', '100_delivery', '100_upfront', 'custom'] as const;
 type PaymentTerms = (typeof PAYMENT_TERMS)[number];
 
 const CONTRACT_STATUSES = [
@@ -176,6 +176,80 @@ const ensurePaymentTerms = (value: string): PaymentTerms => {
   return value as PaymentTerms;
 };
 
+const STANDARD_DEPOSIT_PERCENTAGE: Record<Exclude<PaymentTerms, 'custom'>, number> = {
+  '50_50': 50,
+  '30_70': 30,
+  '100_delivery': 0,
+  '100_upfront': 100,
+};
+
+const resolveDepositPercentage = (
+  paymentTerms: PaymentTerms,
+  requestedPercentage?: number
+): number => {
+  if (paymentTerms !== 'custom') {
+    return STANDARD_DEPOSIT_PERCENTAGE[paymentTerms];
+  }
+
+  if (
+    requestedPercentage === undefined ||
+    !Number.isFinite(requestedPercentage) ||
+    requestedPercentage < 0 ||
+    requestedPercentage > 100
+  ) {
+    throw makeError('Ty le dat coc tuy chinh phai nam trong khoang 0-100');
+  }
+
+  // DepositPercentage trong DB la decimal(5,2), can chuan hoa ve 2 chu so thap phan.
+  return Math.round((requestedPercentage + Number.EPSILON) * 100) / 100;
+};
+
+const getVietnamTodayKey = () =>
+  new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+const getDateKey = (value?: string | Date | null): string | null => {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+  }
+  const matched = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+  return matched?.[1] || null;
+};
+
+const ensureFutureDeliveryDate = (value?: string | Date | null) => {
+  const dateKey = getDateKey(value);
+  if (!dateKey) {
+    throw makeError('Vui long chon ngay giao hang');
+  }
+  if (dateKey <= getVietnamTodayKey()) {
+    throw makeError('Ngay giao hang phai sau ngay hien tai');
+  }
+};
+
+const ensureProposalProductStillValid = (contract: Contract, product: Product) => {
+  if (!product.isActive) {
+    throw makeError('San pham khong con hoat dong, khong the gui de xuat hop dong', 409);
+  }
+  if (!product.sellerUserId || product.sellerUserId !== contract.farmerId) {
+    throw makeError('Nguoi ban cua san pham da thay doi, vui long tao lai hop dong', 409);
+  }
+
+  if (product.remaining != null) {
+    const remaining = Number(product.remaining);
+    const quantity = Number(contract.quantity);
+    const productUnit = product.unit || 'kg';
+    const contractUnit = contract.unit || productUnit;
+
+    if (!Number.isFinite(remaining) || remaining < 0 || !Number.isFinite(quantity) || quantity <= 0) {
+      throw makeError('Du lieu so luong san pham/hop dong khong hop le', 409);
+    }
+
+    if (toKg(remaining, productUnit) + inventoryToleranceKg(productUnit) < toKg(quantity, contractUnit)) {
+      throw makeError('San pham khong con du so luong cho de xuat hop dong nay', 409);
+    }
+  }
+};
+
 const generateContractCode = async () => {
   const year = new Date().getFullYear();
 
@@ -207,12 +281,12 @@ export const createContractProposal = async (
   if (!dto.deliveryAddress?.trim()) {
     throw makeError('Vui long nhap dia chi giao hang');
   }
+  ensureFutureDeliveryDate(dto.deliveryDate);
 
   const paymentTerms = ensurePaymentTerms(dto.paymentTerms);
-  const depositPercentage = dto.depositPercentage ?? 0;
-  if (!Number.isFinite(depositPercentage) || depositPercentage < 0 || depositPercentage > 100) {
-    throw makeError('Ty le dat coc phai nam trong khoang 0-100');
-  }
+  // Backend la nguon su that cho cac dieu khoan chuan, khong tin depositPercentage
+  // do client gui. Chi dieu khoan custom moi nhan ty le tuy chinh tu request.
+  const depositPercentage = resolveDepositPercentage(paymentTerms, dto.depositPercentage);
 
   const insuranceFee = dto.insuranceFee ?? 0;
   if (!Number.isFinite(insuranceFee) || insuranceFee < 0) {
@@ -277,9 +351,9 @@ export const createContractProposal = async (
 
     paymentTerms,
     deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
-    notes: dto.notes,
+    notes: dto.notes?.trim(),
     farmLocation: dto.farmLocation || product.location || product.farm,
-    deliveryAddress: dto.deliveryAddress,
+    deliveryAddress: dto.deliveryAddress.trim(),
 
     status: 'draft',
     signedByFarmer: false,
@@ -350,6 +424,18 @@ export const submitContractProposal = async (id: string, enterpriseId: string) =
       if (contract.status !== 'draft') {
         throw makeError('Hop dong da duoc gui truoc do', 400);
       }
+
+      // Draft co the duoc tao tu nhieu ngay truoc. Truoc khi cong khai de xuat cho
+      // Farmer, doc lai Product trong cung transaction de chan draft da loi thoi:
+      // san pham bi an/xoa, doi nguoi ban, het san luong hoac ngay giao da qua.
+      const product = await lockByIdOrFail(
+        manager,
+        Product,
+        contract.productId,
+        () => makeError('San pham cua hop dong khong con ton tai', 409)
+      );
+      ensureProposalProductStillValid(contract, product);
+      ensureFutureDeliveryDate(contract.deliveryDate);
 
       contract.status = 'pending';
       contract.updatedBy = enterpriseId;
@@ -476,25 +562,31 @@ export const getContractSummaryForUser = async (
   const qb = contractRepo()
     .createQueryBuilder('contract')
     .select('COUNT(contract.id)', 'totalContracts')
-    .addSelect('COALESCE(SUM(contract.totalValue), 0)', 'totalContractValue');
+    .addSelect('COALESCE(SUM(contract.totalValue), 0)', 'totalContractValue')
+    .addSelect("SUM(CASE WHEN contract.status = 'active' THEN 1 ELSE 0 END)", 'activeContracts')
+    .addSelect("SUM(CASE WHEN contract.status = 'pending' THEN 1 ELSE 0 END)", 'pendingContracts');
 
   if (role === 'farmer') {
     qb.where('contract.farmerId = :userId', { userId });
-    qb.andWhere("contract.status NOT IN (:...excludedStatuses)", {
-      excludedStatuses: ['draft', 'cancelled'],
-    });
   } else if (role === 'enterprise') {
     qb.where('contract.enterpriseId = :userId', { userId });
-    qb.andWhere("contract.status <> 'cancelled'");
   } else {
     throw makeError('Vai tro nguoi dung khong hop le', 403);
   }
+
+  // "Tổng hợp đồng" có cùng semantics cho cả hai role: proposal đã được gửi
+  // trở đi, miễn chưa bị hủy. Draft chỉ là bản nháp riêng của Enterprise.
+  qb.andWhere("contract.status NOT IN (:...excludedStatuses)", {
+    excludedStatuses: ['draft', 'cancelled'],
+  });
 
   const summary = await qb.getRawOne();
 
   return {
     totalContracts: Number(summary?.totalContracts || 0),
     totalContractValue: Number(summary?.totalContractValue || 0),
+    activeContracts: Number(summary?.activeContracts || 0),
+    pendingContracts: Number(summary?.pendingContracts || 0),
   };
 };
 

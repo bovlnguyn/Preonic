@@ -32,6 +32,20 @@ export const PAYMENT_TERMS_LABEL = {
   '30_70': '30% đặt cọc — 70% khi nhận hàng',
   '100_delivery': '100% khi nhận hàng',
   '100_upfront': '100% trả trước',
+  'custom': 'Thanh toán tùy chỉnh',
+};
+
+export const resolvePaymentTermsLabel = (contract) => {
+  if (!contract) return '';
+  if (contract.paymentTerms === 'custom') {
+    const deposit = Number(contract.depositPercentage);
+    if (Number.isFinite(deposit)) {
+      const normalized = Math.min(100, Math.max(0, deposit));
+      const remaining = Math.max(0, 100 - normalized);
+      return `${normalized.toLocaleString('vi-VN')}% đặt cọc — ${remaining.toLocaleString('vi-VN')}% khi nhận hàng`;
+    }
+  }
+  return PAYMENT_TERMS_LABEL[contract.paymentTerms] || contract.paymentTerms || 'Chưa cập nhật';
 };
 
 export const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved', 'active'];

@@ -5,6 +5,7 @@ import './Register.css';
 import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
 import bgImage from '../../assets/branding/background1.jpg';
 import Header from '../Common/Header';
+import { getPasswordPolicyError } from '../../utils/password';
 
 const INITIAL = {
   role: 'farmer', lastName: '', firstName: '',
@@ -98,8 +99,11 @@ const Register = () => {
         e.phone = 'SĐT không được chứa chữ và phải có 10-11 chữ số';
 if (!form.province)         e.province = 'Vui lòng chọn tỉnh / thành phố';
 if (!form.district)         e.district = 'Vui lòng chọn quận / huyện';
-    if (!form.password)         e.password  = 'Mật khẩu là bắt buộc';
-    else if (form.password.length < 6) e.password = 'Tối thiểu 6 ký tự';
+    if (!form.password) e.password = 'Mật khẩu là bắt buộc';
+    else {
+      const passwordError = getPasswordPolicyError(form.password, 'Mật khẩu');
+      if (passwordError) e.password = passwordError;
+    }
     if (!form.confirmPassword)  e.confirmPassword = 'Vui lòng xác nhận mật khẩu';
     else if (form.password !== form.confirmPassword)
       e.confirmPassword = 'Mật khẩu không khớp';
@@ -112,8 +116,6 @@ if (!form.district)         e.district = 'Vui lòng chọn quận / huyện';
   const handleSubmit = async (e) => {
   e.preventDefault();
   setApiError('');
-  
-  console.log('Form khi submit:', form);
   
   if (!validate()) return;
 
@@ -415,7 +417,7 @@ const PrivacyModal = () => (
                       type={showPassword ? 'text' : 'password'}
                       name="password"
                       autoComplete="new-password"
-                      placeholder="Tối thiểu 6 ký tự"
+                      placeholder="Chữ + số + ký tự đặc biệt"
                       value={form.password}
                       onChange={handleChange}
                     />

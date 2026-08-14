@@ -34,6 +34,7 @@ import { protect } from '../middlewares/auth.middlewares';
 import { uploadAvatar } from '../middlewares/uploads.middlewares';
 import {
   authLimiter,
+  refreshLimiter,
   registerLimiter,
   passwordResetLimiter,
 } from '../middlewares/ratelimit.middleware';
@@ -42,7 +43,7 @@ const router = Router();
 
 router.post('/register', registerLimiter, validateRegister, register);
 router.post('/login', authLimiter, validateLogin, login);
-router.post('/refresh-token', authLimiter, refreshToken);
+router.post('/refresh-token', refreshLimiter, refreshToken);
 router.post('/forgot-password', passwordResetLimiter, validateForgotPassword, forgotPassword);
 router.post('/reset-password', passwordResetLimiter, validateResetPassword, resetPassword);
 router.post('/resend-verification', passwordResetLimiter, validateResendVerification, resendVerification);

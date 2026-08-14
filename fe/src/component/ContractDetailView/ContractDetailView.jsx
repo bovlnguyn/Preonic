@@ -5,7 +5,7 @@ import contractService from '../../services/contract.service';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useMessagingWidget } from '../../contexts/MessagingWidgetContext';
-import { PAYMENT_TERMS_LABEL, resolveContractStatusLabel } from '../../constants/contract';
+import { resolveContractStatusLabel, resolvePaymentTermsLabel } from '../../constants/contract';
 import ContractFlow from '../ContractFlow/ContractFlow';
 import EscrowPanel from '../EscrowPanel/EscrowPanel';
 import FarmerSectionHeader from '../FarmerDashboard/components/SectionHeader';
@@ -413,7 +413,7 @@ export default function ContractDetailView() {
           <div className="cdv-summary__row"><span>Số lượng:</span><strong>{contract.quantity} {contract.unit}</strong></div>
           <div className="cdv-summary__row"><span>Đơn giá:</span><strong>{fmtMoney(contract.pricePerUnit)}/{contract.unit}</strong></div>
           <div className="cdv-summary__row"><span>Ngày giao hàng:</span><strong>{fmtDate(contract.deliveryDate)}</strong></div>
-          <div className="cdv-summary__row"><span>Đặt cọc:</span><strong>{PAYMENT_TERMS_LABEL[contract.paymentTerms] || contract.paymentTerms}</strong></div>
+          <div className="cdv-summary__row"><span>Đặt cọc:</span><strong>{resolvePaymentTermsLabel(contract)}</strong></div>
           {contract.farmLocation && <div className="cdv-summary__row"><span>Khu vực:</span><strong>{contract.farmLocation}</strong></div>}
           {contract.deliveryAddress && <div className="cdv-summary__row"><span>Địa chỉ giao hàng:</span><strong>{contract.deliveryAddress}</strong></div>}
           {contract.notes && <div className="cdv-summary__row"><span>Ghi chú:</span><strong>{contract.notes}</strong></div>}

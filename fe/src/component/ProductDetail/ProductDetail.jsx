@@ -170,6 +170,7 @@ const toUiProductDetail = (product) => ({
   progress: asNumber(product.progress),
   remaining: asNumber(product.remaining ?? product.totalQuantity),
   totalQuantity: asNumber(product.totalQuantity),
+  coverageRate: Math.min(100, Math.max(0, asNumber(product.coverageRate, 50))),
   rating: asNumber(product.rating, 0),
   reviewCount: asNumber(product.reviewCount),
   image: resolveImageUrl(product.image) || fallbackProductImage,
@@ -753,6 +754,10 @@ const ProductDetail = ({ context = "public" }) => {
                       <span>Tỷ lệ còn trống</span>
                       <strong>{remainPct.toFixed(1)}%</strong>
                     </div>
+                  </div>
+                  <div className="pd-coverage-note">
+                    <FiShield />
+                    <span>Farmer mong muốn mức bao tiêu tối thiểu <strong>{product.coverageRate}%</strong> sản lượng.</span>
                   </div>
                 </div>
 
