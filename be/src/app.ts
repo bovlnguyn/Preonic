@@ -31,6 +31,15 @@ const API_PREFIX = process.env.API_PREFIX ?? '/api/v1';
 
 const app: Application = express();
 
+// Khi deploy sau reverse proxy/load balancer, bật TRUST_PROXY (vd: 1) để req.ip
+// và express-rate-limit dùng đúng IP client. Không tự bật mặc định vì nếu server
+// bị expose trực tiếp thì tin X-Forwarded-For từ client sẽ làm yếu rate limit.
+const trustProxyEnv = process.env.TRUST_PROXY?.trim();
+if (trustProxyEnv) {
+  const numeric = Number(trustProxyEnv);
+  app.set('trust proxy', Number.isInteger(numeric) && numeric >= 0 ? numeric : trustProxyEnv);
+}
+
 // ══════════════════════════════════════════════════════
 // 1. GLOBAL MIDDLEWARES (Phải đặt trước các Route)
 // ══════════════════════════════════════════════════════
@@ -74,7 +83,6 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ══════════════════════════════════════════════════════
 // 2. DB HEALTH GUARD
@@ -133,9 +141,7 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'success',
     message: 'PreOnic API is running',
-    database: isDatabaseConnected() ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
   });
 });
 
@@ -176,9 +182,12 @@ app.use((_req: Request, res: Response) => {
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const databaseUnavailable = isDatabaseUnavailableError(err);
   const status = databaseUnavailable ? 503 : (err.statusCode ?? err.status ?? 500);
+  const isClientSafe = status >= 400 && status < 500;
   const message = databaseUnavailable
     ? 'Kết nối dữ liệu đang tạm thời gián đoạn. Dữ liệu của bạn không bị xóa, vui lòng thử lại sau.'
-    : (err.message ?? 'Internal Server Error');
+    : isClientSafe
+      ? (err.message ?? 'Yêu cầu không hợp lệ')
+      : 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.';
 
   if (databaseUnavailable) {
     markDatabaseUnhealthy(err);

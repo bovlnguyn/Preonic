@@ -9,7 +9,6 @@ import { WeatherData } from '../types';
 const OWM_BASE_URL = 'https://api.openweathermap.org/data/2.5';
 const OPEN_METEO_BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 const WIND_MS_TO_KMH = 3.6;
-const RAIN_3H_TO_24H_FACTOR = 8;
 const FORECAST_DAYS = 5;
 const NOON_HOUR_KEY = '12:00:00';
 
@@ -23,6 +22,12 @@ export type ForecastSummary = {
   icon: string;
   windSpeed: number;
   rain: number;
+};
+
+export type RainfallContext = {
+  todayRainMm: number;
+  recentRainMm: number;
+  recentDays: number;
 };
 
 export interface WeatherProvider {
@@ -160,6 +165,43 @@ export const openMeteoProvider: WeatherProvider = {
   },
 };
 
+/**
+ * Tổng lượng mưa thực theo ngày từ Open-Meteo.
+ * - todayRainMm: precipitation_sum của ngày hiện tại, dùng cho cảnh báo mưa lớn.
+ * - recentRainMm: tổng precipitation_sum của N ngày TRƯỚC hôm nay, dùng cho hạn hán.
+ *
+ * Không suy diễn rain1h × 24 nên tránh false-positive khi chỉ đang có một cơn mưa ngắn.
+ */
+export async function fetchRainfallContext(
+  lat: number,
+  lng: number,
+  recentDays: number
+): Promise<RainfallContext> {
+  const safeDays = Math.max(1, Math.min(30, Math.trunc(recentDays || 1)));
+  const url = buildUrl(OPEN_METEO_BASE_URL, {
+    latitude: lat,
+    longitude: lng,
+    daily: 'precipitation_sum',
+    timezone: 'auto',
+    past_days: safeDays,
+    forecast_days: 1,
+  });
+
+  const data = await httpGetJson<OpenMeteoForecastResp>(url);
+  const rain = (data.daily?.precipitation_sum || []).map((value) => Number(value || 0));
+  if (rain.length === 0) {
+    return { todayRainMm: 0, recentRainMm: 0, recentDays: 0 };
+  }
+
+  const todayRainMm = rain[rain.length - 1] ?? 0;
+  const history = rain.slice(Math.max(0, rain.length - safeDays - 1), -1);
+  return {
+    todayRainMm,
+    recentRainMm: history.reduce((sum, value) => sum + value, 0),
+    recentDays: history.length,
+  };
+}
+
 // ===== OpenWeatherMap (chính, cần OPENWEATHER_API_KEY) =====
 
 type OwmCurrentResp = {
@@ -204,7 +246,9 @@ export const openWeatherMapProvider: WeatherProvider = {
       humidity: data.main?.humidity ?? 0,
       windSpeed: (data.wind?.speed ?? 0) * WIND_MS_TO_KMH,
       rain1h: data.rain?.['1h'] ?? 0,
-      rain24h: data.rain?.['3h'] ? data.rain['3h'] * RAIN_3H_TO_24H_FACTOR : 0,
+      // Endpoint /weather chỉ cung cấp mưa 1h/3h, không phải tổng 24h.
+      // Không nhân tuyến tính 3h × 8 vì dễ tạo cảnh báo mưa lớn giả.
+      rain24h: 0,
       description: data.weather?.[0]?.description ?? '',
       icon: data.weather?.[0]?.icon ?? '01d',
     };

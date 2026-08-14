@@ -1,5 +1,7 @@
 import { body, param, query, validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
+import { assertStrongPassword } from '../utils/password.util';
+import { cleanupUploadedFiles } from './uploads.middlewares';
 
 // SQL Server sinh cac cot uniqueidentifier bang NEWSEQUENTIALID() (xem
 // @PrimaryGeneratedColumn('uuid') tren cac entity), khong phai UUID v4 chuan
@@ -18,6 +20,9 @@ const handleValidationErrors = (
 ): void => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    // Multipart middleware có thể đã upload file trước khi express-validator chạy.
+    // Dọn các asset của request lỗi để tránh orphan file trên Cloudinary.
+    void cleanupUploadedFiles(req);
     const errorMessages = errors.array().map((err) => err.msg);
     if (process.env.NODE_ENV === 'development') {
       console.warn('Validation errors:', errorMessages);
@@ -66,18 +71,36 @@ body('lastName')
     .toLowerCase(),
 
   body('phone')
-  .trim()
-  .notEmpty()
-  .withMessage('Vui lòng nhập số điện thoại (*)')
-  .matches(/^[0-9]{10,11}$/)
-  .withMessage('Số điện thoại không được chứa chữ và phải có 10-11 chữ số'),
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập số điện thoại (*)')
+    .matches(/^[0-9]{10,11}$/)
+    .withMessage('Số điện thoại không được chứa chữ và phải có 10-11 chữ số'),
 
+  body('province')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng chọn tỉnh / thành phố')
+    .isLength({ max: 100 })
+    .withMessage('Tỉnh / thành phố không hợp lệ'),
+
+  body('district')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng chọn quận / huyện')
+    .isLength({ max: 100 })
+    .withMessage('Quận / huyện không hợp lệ'),
+
+  body('ward')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Xã / phường / thị trấn không hợp lệ'),
 
   body('password')
     .notEmpty()
     .withMessage('Vui lòng nhập mật khẩu')
-    .isLength({ min: 6 })
-    .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
+    .custom((value) => assertStrongPassword(value, 'Mật khẩu')),
 
   body('confirmPassword')
     .notEmpty()
@@ -96,14 +119,7 @@ body('lastName')
     .withMessage('Vai trò phải là "farmer" hoặc "enterprise"'),
 
   body('agreeTerms')
-    .optional() // Make it optional in validation
-    .custom((value) => {
-      // If exists, must be truthy
-      if (value === false || value === 'false') {
-        return false;
-      }
-      return true;
-    })
+    .custom((value) => value === true || value === 'true')
     .withMessage('Vui lòng đồng ý với điều khoản sử dụng'),
 
   handleValidationErrors,
@@ -170,8 +186,7 @@ export const validateResetPassword = [
   body('password')
     .notEmpty()
     .withMessage('Vui lòng nhập mật khẩu mới')
-    .isLength({ min: 6 })
-    .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
+    .custom((value) => assertStrongPassword(value, 'Mật khẩu mới')),
 
   body('confirmPassword')
     .notEmpty()
@@ -182,6 +197,10 @@ export const validateResetPassword = [
       }
       return true;
     }),
+
+  // Bắt buộc kết thúc chuỗi validator bằng middleware này. Nếu thiếu,
+  // express-validator chỉ ghi lỗi vào req nhưng request vẫn đi xuống controller.
+  handleValidationErrors,
 ];
 
 /**
@@ -220,6 +239,36 @@ export const validateUpdateProfile = [
     .isLength({ max: 500 })
     .withMessage('Avatar không hợp lệ'),
 
+  body('province')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Tỉnh / thành phố không hợp lệ'),
+
+  body('district')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Quận / huyện không hợp lệ'),
+
+  body('ward')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Xã / phường / thị trấn không hợp lệ'),
+
+  body('address')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Địa chỉ không được vượt quá 500 ký tự'),
+
+  body('farmName')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Tên trang trại không được vượt quá 255 ký tự'),
+
   body('farmSize')
     .optional({ checkFalsy: true })
     .trim()
@@ -228,11 +277,17 @@ export const validateUpdateProfile = [
     .isFloat({ min: 0 })
     .withMessage('Diện tích trang trại phải là số không âm'),
 
+  body('companyName')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Tên doanh nghiệp không được vượt quá 255 ký tự'),
+
   body('taxCode')
     .optional()
     .trim()
     .isLength({ max: 20 })
-    .withMessage('Mã số thuế không hợp lệ'),
+    .withMessage('Mã số thuế không được vượt quá 20 ký tự'),
 
   handleValidationErrors,
 ];
@@ -248,8 +303,7 @@ export const validateUpdatePassword = [
   body('newPassword')
     .notEmpty()
     .withMessage('Vui lòng nhập mật khẩu mới')
-    .isLength({ min: 6 })
-    .withMessage('Mật khẩu mới phải có ít nhất 6 ký tự'),
+    .custom((value) => assertStrongPassword(value, 'Mật khẩu mới')),
 
   body('confirmNewPassword')
     .notEmpty()
@@ -261,6 +315,39 @@ export const validateUpdatePassword = [
       return true;
     }),
 
+  handleValidationErrors,
+];
+
+const PRODUCT_CATEGORY_VALUES = ['fruit', 'vegetable', 'rice', 'coffee', 'tea', 'spice', 'grain', 'other'];
+const PRODUCT_REGION_VALUES = ['north', 'central', 'south'];
+const PRODUCT_TYPE_VALUES = ['fresh', 'dried', 'processed'];
+const PRODUCT_SORT_VALUES = ['default', 'price_asc', 'price_desc', 'rating', 'name'];
+
+export const validatePublicProductList = [
+  query('page').optional().isInt({ min: 1 }).withMessage('Số trang không hợp lệ'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Giới hạn sản phẩm không hợp lệ'),
+  query('category').optional({ values: 'falsy' }).isIn(PRODUCT_CATEGORY_VALUES).withMessage('Loại nông sản không hợp lệ'),
+  query('region').optional({ values: 'falsy' }).isIn(PRODUCT_REGION_VALUES).withMessage('Vùng miền không hợp lệ'),
+  query('type').optional({ values: 'falsy' }).isIn(PRODUCT_TYPE_VALUES).withMessage('Hình thức sản phẩm không hợp lệ'),
+  query('sort').optional().isIn(PRODUCT_SORT_VALUES).withMessage('Kiểu sắp xếp không hợp lệ'),
+  query('search').optional().trim().isLength({ max: 100 }).withMessage('Từ khóa tìm kiếm quá dài'),
+  query('minPrice').optional().isFloat({ min: 0 }).withMessage('Giá tối thiểu không hợp lệ'),
+  query('maxPrice').optional().isFloat({ min: 0 }).withMessage('Giá tối đa không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateFarmerProductList = [
+  query('page').optional().isInt({ min: 1 }).withMessage('Số trang không hợp lệ'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Giới hạn sản phẩm không hợp lệ'),
+  query('category').optional({ values: 'falsy' }).isIn(PRODUCT_CATEGORY_VALUES).withMessage('Loại nông sản không hợp lệ'),
+  query('search').optional().trim().isLength({ max: 100 }).withMessage('Từ khóa tìm kiếm quá dài'),
+  query('includeSummary').optional().isIn(['true', 'false']).withMessage('Tham số tổng hợp không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateRegionProductList = [
+  query('page').optional().isInt({ min: 1 }).withMessage('Số trang không hợp lệ'),
+  query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Giới hạn sản phẩm không hợp lệ'),
   handleValidationErrors,
 ];
 
@@ -312,6 +399,11 @@ export const validateCreateProduct = [
     .optional({ checkFalsy: true })
     .isFloat({ min: 0 })
     .withMessage('Tổng số lượng phải là số không âm'),
+
+  body('coverageRate')
+    .optional({ checkFalsy: false })
+    .isInt({ min: 0, max: 100 })
+    .withMessage('Tỉ lệ bao tiêu phải là số nguyên từ 0 đến 100'),
 
   body('plantDate')
     .trim()
@@ -377,12 +469,224 @@ export const validateCreateProduct = [
   handleValidationErrors,
 ];
 
+
+/**
+ * Validate Product GUID params.
+ * SQL Server uniqueidentifier của dự án không đảm bảo UUID version nibble,
+ * nên dùng GUID_REGEX thay vì isUUID().
+ */
+export const validateProductIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã sản phẩm không hợp lệ'),
+  handleValidationErrors,
+];
+
+/**
+ * Validate Update Product (multipart/form-data).
+ * Tất cả field đều optional vì PUT hiện hỗ trợ cập nhật từng phần, nhưng field
+ * nào xuất hiện thì phải đúng kiểu/range để không đẩy NaN/enum rác xuống SQL.
+ */
+export const validateUpdateProduct = [
+  body('name')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Tên sản phẩm không được để trống')
+    .isLength({ min: 2, max: 255 })
+    .withMessage('Tên sản phẩm phải từ 2-255 ký tự'),
+
+  body('category')
+    .optional()
+    .isIn(['fruit', 'vegetable', 'rice', 'coffee', 'tea', 'spice', 'grain', 'other'])
+    .withMessage('Loại nông sản không hợp lệ'),
+
+  body('region')
+    .optional()
+    .isIn(['north', 'central', 'south'])
+    .withMessage('Vùng miền không hợp lệ'),
+
+  body('type')
+    .optional()
+    .isIn(['fresh', 'dried', 'processed'])
+    .withMessage('Hình thức không hợp lệ'),
+
+  body('variety')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Giống nông sản không được vượt quá 200 ký tự'),
+
+  body('area')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Diện tích phải là số không âm'),
+
+  body('priceMin')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Giá tối thiểu phải là số không âm'),
+
+  body('priceMax')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Giá tối đa phải là số không âm')
+    .custom((value, { req }) => {
+      if (req.body.priceMin !== undefined && req.body.priceMin !== '') {
+        const min = Number(req.body.priceMin);
+        const max = Number(value);
+        if (Number.isFinite(min) && Number.isFinite(max) && max < min) {
+          throw new Error('Giá tối đa không được nhỏ hơn giá tối thiểu');
+        }
+      }
+      return true;
+    }),
+
+  body('unit')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Đơn vị sản lượng không được vượt quá 50 ký tự'),
+
+  body('priceUnit')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Đơn vị giá không được vượt quá 50 ký tự'),
+
+  body('totalQuantity')
+    .optional({ checkFalsy: true })
+    .isFloat({ min: 0 })
+    .withMessage('Tổng số lượng phải là số không âm'),
+
+  body('coverageRate')
+    .optional()
+    .isInt({ min: 0, max: 100 })
+    .withMessage('Tỉ lệ bao tiêu phải là số nguyên từ 0 đến 100'),
+
+  body('plantDate')
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('Ngày gieo trồng không hợp lệ'),
+
+  body('expectedDate')
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('Ngày thu hoạch không hợp lệ')
+    .custom((value, { req }) => {
+      if (req.body.plantDate && !isNaN(Date.parse(req.body.plantDate))) {
+        const plantDate = new Date(req.body.plantDate);
+        const harvestDate = new Date(value);
+        plantDate.setHours(0, 0, 0, 0);
+        harvestDate.setHours(0, 0, 0, 0);
+        if (harvestDate < plantDate) {
+          throw new Error('Ngày thu hoạch không được trước ngày gieo trồng');
+        }
+      }
+      return true;
+    }),
+
+  body('badge')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Nhãn sản phẩm không được vượt quá 100 ký tự'),
+
+  body('commitments')
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) throw new Error();
+        return true;
+      } catch {
+        throw new Error('Danh sách cam kết không hợp lệ');
+      }
+    }),
+
+  body('certificationNames')
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) throw new Error();
+        return true;
+      } catch {
+        throw new Error('Danh sách chứng chỉ không hợp lệ');
+      }
+    }),
+
+  body('existingCertifications')
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) throw new Error();
+        return true;
+      } catch {
+        throw new Error('Danh sách chứng chỉ hiện có không hợp lệ');
+      }
+    }),
+
+  handleValidationErrors,
+];
+
+
+/**
+ * Validate Product Review (Enterprise -> Product).
+ */
+export const validateProductReview = [
+  body('rating')
+    .notEmpty()
+    .withMessage('Vui lòng chọn số sao đánh giá')
+    .isInt({ min: 1, max: 5 })
+    .withMessage('Đánh giá phải là số nguyên từ 1 đến 5 sao'),
+
+  body('text')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage('Nhận xét không được vượt quá 2000 ký tự'),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validate Partner Rating (Farmer <-> Enterprise).
+ * Bộ tiêu chí cụ thể theo role tiếp tục được service kiểm tra vì req.user
+ * chỉ tồn tại sau middleware protect.
+ */
+export const validateCreatePartnerRating = [
+  body('contractId')
+    .notEmpty()
+    .withMessage('Vui lòng chọn hợp đồng')
+    .matches(GUID_REGEX)
+    .withMessage('Mã hợp đồng không hợp lệ'),
+
+  body('revieweeId')
+    .notEmpty()
+    .withMessage('Vui lòng chọn đối tác')
+    .matches(GUID_REGEX)
+    .withMessage('Mã đối tác không hợp lệ'),
+
+  body('criteria')
+    .isObject()
+    .withMessage('Bộ tiêu chí đánh giá không hợp lệ'),
+
+  body('comment')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập nhận xét')
+    .isLength({ max: 2000 })
+    .withMessage('Nhận xét không được vượt quá 2000 ký tự'),
+
+  handleValidationErrors,
+];
+
 /* ============================================================
  * Contract validation
  * Matches contract.controller.ts (buildDto) + contract.service.ts business rules
  * ============================================================ */
 
-const CONTRACT_PAYMENT_TERMS = ['50_50', '30_70', '100_delivery', '100_upfront'];
+const CONTRACT_PAYMENT_TERMS = ['50_50', '30_70', '100_delivery', '100_upfront', 'custom'];
 const CONTRACT_STATUSES = [
   'draft',
   'pending',
@@ -447,9 +751,22 @@ export const validateCreateContract = [
     .withMessage('Điều khoản thanh toán không hợp lệ'),
 
   body('deliveryDate')
-    .optional({ checkFalsy: true })
+    .notEmpty()
+    .withMessage('Vui lòng chọn ngày giao hàng')
     .isISO8601()
-    .withMessage('Ngày giao hàng không hợp lệ'),
+    .withMessage('Ngày giao hàng không hợp lệ')
+    .custom((value) => {
+      // Business timezone của hệ thống là Việt Nam (UTC+7). So sánh theo date-key
+      // để deployment chạy UTC cũng không cho phép tạo hợp đồng giao trong hôm nay/quá khứ.
+      const vietnamToday = new Date(Date.now() + 7 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      const deliveryDate = String(value).slice(0, 10);
+      if (deliveryDate <= vietnamToday) {
+        throw new Error('Ngày giao hàng phải sau ngày hiện tại');
+      }
+      return true;
+    }),
 
   body('deliveryAddress')
     .trim()
@@ -470,10 +787,46 @@ export const validateCreateContract = [
     .isLength({ max: 2000 })
     .withMessage('Ghi chú không được vượt quá 2000 ký tự'),
 
+  // Tương thích với FE cũ từng gửi nhầm notes dưới tên qualityRequirements.
+  body('qualityRequirements')
+    .optional()
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage('Ghi chú không được vượt quá 2000 ký tự'),
+
   body('depositPercentage')
-    .optional({ checkFalsy: true })
-    .isFloat({ min: 0, max: 100 })
-    .withMessage('Tỷ lệ đặt cọc phải nằm trong khoảng 0-100'),
+    .custom((value, { req }) => {
+      const paymentTerms = req.body?.paymentTerms;
+      const isEmpty = value === undefined || value === null || String(value).trim() === '';
+
+      if (paymentTerms === 'custom' && isEmpty) {
+        throw new Error('Vui lòng nhập tỷ lệ đặt cọc tùy chỉnh');
+      }
+      if (isEmpty) return true;
+
+      const percentage = Number(value);
+      if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+        throw new Error('Tỷ lệ đặt cọc phải nằm trong khoảng 0-100');
+      }
+
+      // Với các điều khoản chuẩn, backend tự quyết định tỷ lệ. Nếu client vẫn gửi
+      // một giá trị khác, trả 400 thay vì âm thầm lưu dữ liệu mâu thuẫn.
+      const expected: Record<string, number> = {
+        '50_50': 50,
+        '30_70': 30,
+        '100_delivery': 0,
+        '100_upfront': 100,
+      };
+      if (
+        paymentTerms !== 'custom' &&
+        expected[paymentTerms] !== undefined &&
+        Math.abs(percentage - expected[paymentTerms]) > 0.01
+      ) {
+        throw new Error('Tỷ lệ đặt cọc không khớp với điều khoản thanh toán');
+      }
+
+      return true;
+    }),
 
   body('insuranceEnabled')
     .optional()
@@ -649,6 +1002,23 @@ export const validateListContracts = [
  * Matches escrow.controller.ts + escrow.service.ts business rules
  * ============================================================ */
 
+const ESCROW_STATUSES = ['pending', 'active', 'completed', 'disputed', 'refunded'];
+
+export const validateListEscrows = [
+  query('page').optional().isInt({ min: 1 }).withMessage('Số trang không hợp lệ'),
+  query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Giới hạn ký quỹ không hợp lệ'),
+  query('status').optional().isIn(ESCROW_STATUSES).withMessage('Trạng thái ký quỹ không hợp lệ'),
+  query('contractIds')
+    .optional()
+    .custom((value) => {
+      const ids = String(value).split(',').map((id) => id.trim()).filter(Boolean);
+      if (ids.length > 50) throw new Error('Chỉ được truy vấn tối đa 50 hợp đồng mỗi lần');
+      if (ids.some((id) => !GUID_REGEX.test(id))) throw new Error('Danh sách mã hợp đồng không hợp lệ');
+      return true;
+    }),
+  handleValidationErrors,
+];
+
 export const validateEscrowContractIdParam = [
   param('contractId').matches(GUID_REGEX).withMessage('Mã hợp đồng không hợp lệ'),
 
@@ -667,6 +1037,13 @@ export const validateConfirmMilestone = [
     .trim()
     .isLength({ max: 1000 })
     .withMessage('Minh chứng không được vượt quá 1000 ký tự'),
+
+  handleValidationErrors,
+];
+
+
+export const validateUserIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã người dùng không hợp lệ'),
 
   handleValidationErrors,
 ];
@@ -738,6 +1115,14 @@ export const validateListDisputes = [
     .optional()
     .isIn(DISPUTE_STATUSES)
     .withMessage('Trạng thái tranh chấp không hợp lệ'),
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Trang phải là số nguyên dương'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Số bản ghi mỗi trang phải từ 1 đến 50'),
 
   handleValidationErrors,
 ];
@@ -759,5 +1144,79 @@ export const validateResolveDispute = [
     .isLength({ max: 2000 })
     .withMessage('Ghi chú của quản trị viên không được vượt quá 2000 ký tự'),
 
+  handleValidationErrors,
+];
+/* ============================================================
+ * Generic API hardening validators (Fix 07)
+ * ============================================================ */
+
+export const validateConversationIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã hội thoại không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateMessagingList = [
+  query('page').optional().isInt({ min: 1 }).withMessage('Số trang không hợp lệ'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Giới hạn dữ liệu hội thoại không hợp lệ'),
+  query('since').optional().isISO8601().withMessage('Mốc thời gian đồng bộ tin nhắn không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateStartConversation = [
+  body('partnerId')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng chọn đối tác cần nhắn tin')
+    .matches(GUID_REGEX)
+    .withMessage('Mã đối tác không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateSendMessage = [
+  body('text')
+    .trim()
+    .notEmpty()
+    .withMessage('Nội dung tin nhắn không được để trống')
+    .isLength({ max: 4000 })
+    .withMessage('Tin nhắn quá dài (tối đa 4000 ký tự)'),
+  handleValidationErrors,
+];
+
+export const validateNotificationIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã thông báo không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateNotificationList = [
+  query('page').optional().isInt({ min: 1 }).withMessage('Số trang không hợp lệ'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Giới hạn thông báo không hợp lệ'),
+  query('isRead').optional().isIn(['true', 'false']).withMessage('Bộ lọc trạng thái đọc không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateWeatherAlertIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã cảnh báo thời tiết không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateSupplierFarmerIdParam = [
+  param('farmerId').matches(GUID_REGEX).withMessage('Mã nhà cung cấp không hợp lệ'),
+  handleValidationErrors,
+];
+
+
+export const validateSupplierList = [
+  query('page').optional().isInt({ min: 1 }).withMessage('Số trang không hợp lệ'),
+  query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Giới hạn nhà cung cấp không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateSystemLogIdParam = [
+  param('id').isInt({ min: 1 }).withMessage('Mã nhật ký hệ thống không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateProductRegionParam = [
+  param('region').isIn(['north', 'central', 'south']).withMessage('Vùng miền không hợp lệ'),
   handleValidationErrors,
 ];

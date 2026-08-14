@@ -53,6 +53,7 @@ export const getUsers = async (filters: AdminUserFilters = {}) => {
       'user.isVerified',
       'user.virtualBalance',
       'user.reputationScore',
+      'user.totalRatings',
       'user.createdAt',
       'user.lastLogin',
     ]);
@@ -110,6 +111,7 @@ export const getUserDetail = async (userId: string) => {
       isVerified: true,
       virtualBalance: true,
       reputationScore: true,
+      totalRatings: true,
       createdAt: true,
       lastLogin: true,
     },
@@ -133,27 +135,108 @@ export const getUserDetail = async (userId: string) => {
   return { user, contractCount, transactionCount };
 };
 
-export const toggleUserStatus = async (userId: string) => {
-  const user = await userRepo().findOne({
-    where: { id: userId },
-    select: { id: true, isActive: true },
+export const toggleUserStatus = async (
+  userId: string,
+  actorAdminId?: string
+) => {
+  if (actorAdminId && userId === actorAdminId) {
+    throw new AppError('Bạn không thể tự khóa hoặc mở khóa tài khoản admin đang đăng nhập', 400);
+  }
+
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const txUserRepo = manager.getRepository(User);
+      const user = await lockByIdOrFail(
+        manager,
+        User,
+        userId,
+        () => new AppError('Không tìm thấy người dùng', 404)
+      );
+
+      user.isActive = !user.isActive;
+
+      // Khi khóa tài khoản, thu hồi luôn refresh token. Access token còn lại cũng sẽ
+      // bị protect() từ chối ở request kế tiếp vì IsActive=false.
+      if (!user.isActive) {
+        user.refreshToken = null as any;
+      }
+
+      await txUserRepo.save(user);
+
+      return {
+        userId: user.id,
+        isActive: user.isActive,
+      };
+    },
+    { label: 'admin.toggleUserStatus' }
+  );
+
+  logAction({
+    category: 'auth',
+    action: result.isActive ? 'user_activated' : 'user_deactivated',
+    message: `Admin ${result.isActive ? 'đã kích hoạt' : 'đã vô hiệu hóa'} tài khoản ${result.userId}`,
+    userId: actorAdminId,
+    targetType: 'User',
+    targetId: result.userId,
   });
 
-  if (!user) {
-    throw new AppError('Không tìm thấy người dùng', 404);
-  }
-
-  user.isActive = !user.isActive;
-  await userRepo().save(user);
-
-  return { user };
+  return {
+    user: {
+      id: result.userId,
+      isActive: result.isActive,
+    },
+  };
 };
 
-export const deleteUser = async (userId: string) => {
-  const result = await userRepo().delete(userId);
-  if (!result.affected) {
-    throw new AppError('Không tìm thấy người dùng', 404);
+/**
+ * Endpoint DELETE được giữ để tương thích client cũ, nhưng KHÔNG hard-delete User.
+ * User là gốc của hợp đồng, escrow, dispute, rating, notification... nên xóa vật lý
+ * có thể phá foreign key và làm mất audit trail. Thao tác này chỉ vô hiệu hóa tài
+ * khoản + thu hồi refresh token; dữ liệu lịch sử vẫn nguyên vẹn.
+ */
+export const deleteUser = async (
+  userId: string,
+  actorAdminId?: string
+) => {
+  if (actorAdminId && userId === actorAdminId) {
+    throw new AppError('Bạn không thể tự xóa/vô hiệu hóa tài khoản admin đang đăng nhập', 400);
   }
+
+  const result = await runLockedTransaction(
+    async (manager) => {
+      const txUserRepo = manager.getRepository(User);
+      const user = await lockByIdOrFail(
+        manager,
+        User,
+        userId,
+        () => new AppError('Không tìm thấy người dùng', 404)
+      );
+
+      user.isActive = false;
+      user.refreshToken = null as any;
+      await txUserRepo.save(user);
+
+      return { userId: user.id };
+    },
+    { label: 'admin.safeDeleteUser' }
+  );
+
+  logAction({
+    category: 'auth',
+    action: 'user_deactivated_legacy_delete',
+    message: `Admin đã vô hiệu hóa tài khoản ${result.userId} qua endpoint DELETE; dữ liệu lịch sử được giữ lại`,
+    userId: actorAdminId,
+    targetType: 'User',
+    targetId: result.userId,
+  });
+
+  return {
+    user: {
+      id: result.userId,
+      isActive: false,
+    },
+    hardDeleted: false,
+  };
 };
 
 // ════════════════════════════════════════
@@ -599,6 +682,25 @@ export const resolveDispute = async (
       dispute.resolvedAt = now;
       await txDisputeRepo.save(dispute);
 
+      // Fix 04: code cũ từng cho phép nhiều dispute active trên cùng Contract.
+      // Khi một dispute được resolve, kết quả tài chính đã chốt toàn bộ Contract/Escrow,
+      // vì vậy mọi dispute active còn sót trên cùng Contract phải được đóng để tránh
+      // admin xử lý lần hai trên một trạng thái tài chính đã kết thúc.
+      const siblingCloseResult = await txDisputeRepo
+        .createQueryBuilder()
+        .update(Dispute)
+        .set({
+          status: 'closed',
+          resolvedAt: now,
+          adminNotes: `Tự động đóng vì tranh chấp ${dispute.id} trên cùng hợp đồng đã được giải quyết.`,
+        })
+        .where('ContractId = :contractId', { contractId: contract.id })
+        .andWhere('DisputeId <> :disputeId', { disputeId: dispute.id })
+        .andWhere("Status IN ('open', 'under_review')")
+        .execute();
+
+      const closedSiblingCount = Number(siblingCloseResult.affected || 0);
+
       const message =
         resolution === 'farmer'
           ? `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết: giải ngân số dư còn lại cho nông dân.`
@@ -638,6 +740,7 @@ export const resolveDispute = async (
         message,
         amountMoved: terminalEscrowStatus ? 0 : remaining,
         commissionAmount,
+        closedSiblingCount,
       };
     },
     {
@@ -683,6 +786,7 @@ export const resolveDispute = async (
       contractCode: result.contractCode,
       amountMoved: result.amountMoved,
       commissionAmount: result.commissionAmount,
+      closedSiblingDisputes: result.closedSiblingCount,
       ...(normalizedAdminNotes ? { adminNotes: normalizedAdminNotes } : {}),
     },
   });

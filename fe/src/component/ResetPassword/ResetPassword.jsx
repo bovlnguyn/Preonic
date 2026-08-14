@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/auth.service';
+import { getPasswordPolicyError } from '../../utils/password';
 import './ResetPassword.css';
 
 export default function ResetPassword() {
@@ -41,7 +42,8 @@ export default function ResetPassword() {
     setError('');
 
     if (!password) { setError('Vui lòng nhập mật khẩu mới.'); return; }
-    if (password.length < 6) { setError('Mật khẩu phải có ít nhất 6 ký tự.'); return; }
+    const passwordError = getPasswordPolicyError(password, 'Mật khẩu mới');
+    if (passwordError) { setError(passwordError); return; }
     if (password !== confirmPassword) { setError('Mật khẩu xác nhận không khớp.'); return; }
 
     setLoading(true);

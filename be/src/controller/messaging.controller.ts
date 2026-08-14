@@ -23,14 +23,33 @@ const formatMessage = (message: any) => ({
 
 export const listConversations = async (req: AuthRequest, res: Response) => {
   try {
-    const conversations = await messagingService.listConversationsForUser(req.user!.id);
+    const [result, totalUnread] = await Promise.all([
+      messagingService.listConversationsForUser(req.user!.id, {
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      }),
+      messagingService.getUnreadMessageCountForUser(req.user!.id),
+    ]);
 
     res.status(200).json({
       success: true,
-      data: { conversations },
+      data: {
+        conversations: result.conversations,
+        pagination: result.pagination,
+        totalUnread,
+      },
     });
   } catch (err: any) {
     sendError(res, err, 'Lay danh sach hoi thoai that bai');
+  }
+};
+
+export const getUnreadCount = async (req: AuthRequest, res: Response) => {
+  try {
+    const count = await messagingService.getUnreadMessageCountForUser(req.user!.id);
+    res.status(200).json({ success: true, data: { count } });
+  } catch (err: any) {
+    sendError(res, err, 'Lay so tin nhan chua doc that bai');
   }
 };
 
@@ -59,6 +78,7 @@ export const listMessages = async (req: AuthRequest, res: Response) => {
       {
         page: req.query.page ? Number(req.query.page) : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
+        since: typeof req.query.since === 'string' ? req.query.since : undefined,
       }
     );
 

@@ -28,9 +28,9 @@ const weatherService = {
   /**
    * Thời tiết hiện tại theo tỉnh
    */
-  getCurrentWeather: async (province) => {
+  getCurrentWeather: async (province, district = '') => {
     try {
-      const response = await api.get('/weather/current', { params: { province } });
+      const response = await api.get('/weather/current', { params: { province, district: district || undefined } });
       return unwrap(response);
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Lấy thời tiết hiện tại thất bại' };
@@ -40,9 +40,9 @@ const weatherService = {
   /**
    * Dự báo 5 ngày theo tỉnh
    */
-  getForecast: async (province) => {
+  getForecast: async (province, district = '') => {
     try {
-      const response = await api.get('/weather/daily-forecast', { params: { province } });
+      const response = await api.get('/weather/daily-forecast', { params: { province, district: district || undefined } });
       return unwrap(response);
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Lấy dự báo thời tiết thất bại' };
@@ -64,9 +64,16 @@ const weatherService = {
   /**
    * Danh sách cảnh báo thời tiết của user hiện tại (đã đăng nhập)
    */
-  getAlerts: async (page = 1, limit = 20) => {
+  getAlerts: async (page = 1, limit = 20, filters = {}) => {
     try {
-      const response = await api.get('/weather/alerts', { params: { page, limit } });
+      const response = await api.get('/weather/alerts', {
+        params: {
+          page,
+          limit,
+          province: filters.province || undefined,
+          district: filters.district || undefined,
+        },
+      });
       const body = unwrap(response);
       const alerts = (body?.data?.alerts || []).map(normalizeAlert);
       return { data: alerts, pagination: body?.data?.pagination };
@@ -90,9 +97,14 @@ const weatherService = {
   /**
    * Đánh dấu tất cả cảnh báo là đã đọc
    */
-  markAllAlertsAsRead: async () => {
+  markAllAlertsAsRead: async (filters = {}) => {
     try {
-      const response = await api.patch('/weather/alerts/read-all');
+      const response = await api.patch('/weather/alerts/read-all', null, {
+        params: {
+          province: filters.province || undefined,
+          district: filters.district || undefined,
+        },
+      });
       return unwrap(response);
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Đánh dấu tất cả cảnh báo thất bại' };

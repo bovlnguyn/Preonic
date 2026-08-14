@@ -15,6 +15,8 @@ import { Product } from './Product.entity';
 @Index(['farmerId', 'status'])
 @Index(['enterpriseId', 'status'])
 @Index(['status'])
+@Index('IX_Contracts_Farmer_CreatedAt', ['farmerId', 'createdAt'])
+@Index('IX_Contracts_Enterprise_CreatedAt', ['enterpriseId', 'createdAt'])
 export class Contract {
   @PrimaryGeneratedColumn('uuid', { name: 'ContractId' })
   id: string;
@@ -68,7 +70,7 @@ export class Contract {
 
   // Terms
   @Column({ name: 'PaymentTerms', type: 'nvarchar', length: 20 })
-  paymentTerms: '50_50' | '30_70' | '100_delivery' | '100_upfront';
+  paymentTerms: '50_50' | '30_70' | '100_delivery' | '100_upfront' | 'custom';
 
   @Column({ name: 'DeliveryDate', type: 'date', nullable: true })
   deliveryDate: Date;

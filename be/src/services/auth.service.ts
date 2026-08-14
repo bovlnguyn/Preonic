@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
+import { Not } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { User } from '../models/User.entity';
 
@@ -53,6 +54,29 @@ const makeError = (message: string, statusCode = 400, code?: string): ServiceErr
   return err;
 };
 
+const isSqlUniqueViolation = (err: any): boolean => {
+  const candidates = [
+    err?.number,
+    err?.code,
+    err?.driverError?.number,
+    err?.driverError?.code,
+    err?.originalError?.number,
+    err?.originalError?.info?.number,
+  ];
+  return candidates.some((value) => Number(value) === 2601 || Number(value) === 2627);
+};
+
+const mapUserUniqueViolation = (err: any): never => {
+  const message = String(
+    err?.message || err?.driverError?.message || err?.originalError?.message || ''
+  ).toLowerCase();
+
+  if (message.includes('ux_users_phone') || message.includes('phone')) {
+    throw makeError('Số điện thoại đã được sử dụng', 400, 'PHONE_ALREADY_EXISTS');
+  }
+  throw makeError('Email đã được sử dụng', 400, 'EMAIL_ALREADY_EXISTS');
+};
+
 const findUserWithPassword = (where: Partial<User>) =>
   repo()
     .createQueryBuilder('user')
@@ -83,9 +107,14 @@ export interface RegisterDto {
 export const register = async (dto: RegisterDto) => {
   const r = repo();
   const normalizedEmail = dto.email.toLowerCase().trim();
+  const normalizedPhone = dto.phone?.trim() || undefined;
 
-  const exists = await r.findOne({ where: { email: normalizedEmail } });
-  if (exists) throw makeError('Email đã được sử dụng', 400, 'EMAIL_ALREADY_EXISTS');
+  const [emailExists, phoneExists] = await Promise.all([
+    r.findOne({ where: { email: normalizedEmail } }),
+    normalizedPhone ? r.findOne({ where: { phone: normalizedPhone } }) : Promise.resolve(null),
+  ]);
+  if (emailExists) throw makeError('Email đã được sử dụng', 400, 'EMAIL_ALREADY_EXISTS');
+  if (phoneExists) throw makeError('Số điện thoại đã được sử dụng', 400, 'PHONE_ALREADY_EXISTS');
 
   const user = r.create({
     email: normalizedEmail,
@@ -93,7 +122,7 @@ export const register = async (dto: RegisterDto) => {
     role: dto.role,
     firstName: dto.firstName.trim(),
     lastName: dto.lastName.trim(),
-    phone: dto.phone?.trim(),
+    phone: normalizedPhone,
     province: dto.province,
     district: dto.district,
     ward: dto.ward,
@@ -103,7 +132,14 @@ export const register = async (dto: RegisterDto) => {
 
   await user.hashPassword();
   const rawToken = user.createEmailVerificationToken();
-  await r.save(user);
+  try {
+    await r.save(user);
+  } catch (err: any) {
+    // Pre-check phía trên giúp UX tốt; unique index trong DB mới là lớp cuối
+    // chống race condition khi hai request đăng ký đồng thời.
+    if (isSqlUniqueViolation(err)) mapUserUniqueViolation(err);
+    throw err;
+  }
 
   const savedUser = await r.findOne({ where: { id: user.id } });
   return { user: savedUser, verifyToken: rawToken };
@@ -319,7 +355,7 @@ export const refreshAccessToken = async (token: string) => {
     throw makeError('Refresh token không hợp lệ hoặc đã hết hạn', 401, 'REFRESH_TOKEN_INVALID');
   }
 
-  if (!decoded.id || (decoded.type && decoded.type !== 'refresh')) {
+  if (!decoded.id || decoded.type !== 'refresh') {
     throw makeError('Refresh token không hợp lệ', 401, 'REFRESH_TOKEN_INVALID');
   }
 
@@ -427,20 +463,35 @@ export const updateProfile = async (userId: string, dto: UpdateProfileDto) => {
   const user = await r.findOne({ where: { id: userId } });
   if (!user) throw makeError('Không tìm thấy người dùng', 404, 'USER_NOT_FOUND');
 
+  if (dto.phone !== undefined) {
+    const normalizedPhone = dto.phone.trim();
+    const phoneOwner = await r.findOne({
+      where: { phone: normalizedPhone, id: Not(userId) },
+    });
+    if (phoneOwner) {
+      throw makeError('Số điện thoại đã được sử dụng', 400, 'PHONE_ALREADY_EXISTS');
+    }
+    user.phone = normalizedPhone;
+  }
+
   if (dto.firstName !== undefined) user.firstName = dto.firstName.trim();
   if (dto.lastName !== undefined) user.lastName = dto.lastName.trim();
-  if (dto.phone !== undefined) user.phone = dto.phone.trim();
-  if (dto.avatar !== undefined) user.avatar = dto.avatar;
-  if (dto.province !== undefined) user.province = dto.province;
-  if (dto.district !== undefined) user.district = dto.district;
-  if (dto.ward !== undefined) user.ward = dto.ward;
-  if (dto.address !== undefined) user.address = dto.address;
-  if (dto.farmName !== undefined) user.farmName = dto.farmName;
+  if (dto.avatar !== undefined) user.avatar = dto.avatar.trim();
+  if (dto.province !== undefined) user.province = dto.province.trim();
+  if (dto.district !== undefined) user.district = dto.district.trim();
+  if (dto.ward !== undefined) user.ward = dto.ward.trim();
+  if (dto.address !== undefined) user.address = dto.address.trim();
+  if (dto.farmName !== undefined) user.farmName = dto.farmName.trim();
   if (dto.farmSize !== undefined) user.farmSize = dto.farmSize;
-  if (dto.companyName !== undefined) user.companyName = dto.companyName;
-  if (dto.taxCode !== undefined) user.taxCode = dto.taxCode;
+  if (dto.companyName !== undefined) user.companyName = dto.companyName.trim();
+  if (dto.taxCode !== undefined) user.taxCode = dto.taxCode.trim();
 
-  await r.save(user);
+  try {
+    await r.save(user);
+  } catch (err: any) {
+    if (isSqlUniqueViolation(err)) mapUserUniqueViolation(err);
+    throw err;
+  }
   return r.findOne({ where: { id: userId } });
 };
 

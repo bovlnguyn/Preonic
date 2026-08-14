@@ -1,44 +1,40 @@
-import React from 'react';
+import React, { lazy } from 'react';
 import ProtectedRoute from './ProtectedRoute';
 
-// Farmer role website pages
-import FarmerHome from '../component/FarmerHome/FarmerHome';
-import FarmerProducts from '../component/FarmerProducts/FarmerProducts';
-import FarmerSolutions from '../component/FarmerSolutions/FarmerSolutions';
-import FarmerContact from '../component/FarmerContact/FarmerContact';
-import FarmerAI from '../component/FarmerAI/FarmerAI';
+// Fix 08: chỉ tải code của route Farmer khi route đó thực sự được mở.
+const FarmerHome = lazy(() => import('../component/FarmerHome/FarmerHome'));
+const FarmerProducts = lazy(() => import('../component/FarmerProducts/FarmerProducts'));
+const FarmerSolutions = lazy(() => import('../component/FarmerSolutions/FarmerSolutions'));
+const FarmerContact = lazy(() => import('../component/FarmerContact/FarmerContact'));
+const FarmerAI = lazy(() => import('../component/FarmerAI/FarmerAI'));
 
-// Farmer Dashboard Layout + Pages
-import FarmerLayout from '../component/FarmerDashboard/FarmerLayout';
-import FarmerOverview from '../component/FarmerDashboard/pages/FarmerOverview';
-import FarmerCrops from '../component/FarmerDashboard/pages/FarmerCrops';
-import FarmerContracts from '../component/FarmerDashboard/pages/FarmerContracts';
-import FarmerOrders from '../component/FarmerDashboard/pages/FarmerOrders';
-import FarmerEscrow from '../component/FarmerDashboard/pages/FarmerEscrow';
-import FarmerWallet from '../component/FarmerDashboard/pages/FarmerWallet';
-import FarmerFinance from '../component/FarmerDashboard/pages/FarmerFinance';
-import FarmerRatings from '../component/FarmerDashboard/pages/FarmerRatings';
-import FarmerWeatherInsurance from '../component/FarmerDashboard/pages/FarmerWeatherInsurance';
-import FarmerCreateProduct from '../component/FarmerDashboard/pages/FarmerCreateProduct';
-import FarmerEditProduct from '../component/FarmerDashboard/pages/FarmerEditProduct';
+const FarmerLayout = lazy(() => import('../component/FarmerDashboard/FarmerLayout'));
+const FarmerOverview = lazy(() => import('../component/FarmerDashboard/pages/FarmerOverview'));
+const FarmerCrops = lazy(() => import('../component/FarmerDashboard/pages/FarmerCrops'));
+const FarmerContracts = lazy(() => import('../component/FarmerDashboard/pages/FarmerContracts'));
+const FarmerOrders = lazy(() => import('../component/FarmerDashboard/pages/FarmerOrders'));
+const FarmerEscrow = lazy(() => import('../component/FarmerDashboard/pages/FarmerEscrow'));
+const FarmerWallet = lazy(() => import('../component/FarmerDashboard/pages/FarmerWallet'));
+const FarmerFinance = lazy(() => import('../component/FarmerDashboard/pages/FarmerFinance'));
+const FarmerRatings = lazy(() => import('../component/FarmerDashboard/pages/FarmerRatings'));
+const FarmerWeatherInsurance = lazy(() => import('../component/FarmerDashboard/pages/FarmerWeatherInsurance'));
+const FarmerCreateProduct = lazy(() => import('../component/FarmerDashboard/pages/FarmerCreateProduct'));
+const FarmerEditProduct = lazy(() => import('../component/FarmerDashboard/pages/FarmerEditProduct'));
 
-// Dùng chung Farmer/Enterprise
-import ContractDetailView from '../component/ContractDetailView/ContractDetailView';
-import ProductDetail from '../component/ProductDetail/ProductDetail';
+const ContractDetailView = lazy(() => import('../component/ContractDetailView/ContractDetailView'));
+const ProductDetail = lazy(() => import('../component/ProductDetail/ProductDetail'));
 
 const forFarmer = (element) => (
   <ProtectedRoute allowedRoles={['farmer']}>{element}</ProtectedRoute>
 );
 
 const farmerRoutes = [
-  // Farmer role website pages - chỉ dành cho farmer đã đăng nhập
   { path: '/farmer-home', element: forFarmer(<FarmerHome />) },
   { path: '/farmer-products', element: forFarmer(<FarmerProducts />) },
   { path: '/farmer-solutions', element: forFarmer(<FarmerSolutions />) },
   { path: '/farmer-contact', element: forFarmer(<FarmerContact />) },
   { path: '/farmer-ai-agriculture', element: forFarmer(<FarmerAI />) },
 
-  // Farmer Dashboard - Layout + Nested Pages
   {
     path: '/farmer',
     element: forFarmer(<FarmerLayout />),

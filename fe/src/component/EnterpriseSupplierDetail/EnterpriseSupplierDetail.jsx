@@ -9,6 +9,7 @@ import { formatMoney, formatDate } from '../EnterpriseDashboard/utils';
 import { resolveContractStatusLabel } from '../../constants/contract';
 import supplierService from '../../services/supplier.service';
 import { SUPPLIER_STATUS_LABEL } from '../EnterpriseDashboard/pages/EnterpriseSuppliers';
+import { formatRatingValue } from '../../utils/rating';
 
 const PAGE_SIZE = 5;
 
@@ -19,20 +20,33 @@ function EnterpriseSupplierDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
+
+  useEffect(() => { setPage(1); }, [id]);
 
   useEffect(() => {
+    let alive = true;
     setLoading(true);
     setError('');
-    setPage(1);
-    supplierService.getById(id)
-      .then(res => setSupplier(res?.data?.supplier || null))
-      .catch(err => setError(err?.message || 'Không thể tải thông tin nhà cung cấp.'))
-      .finally(() => setLoading(false));
-  }, [id]);
+    supplierService.getById(id, { page, limit: PAGE_SIZE })
+      .then((res) => {
+        if (!alive) return;
+        const nextSupplier = res?.data?.supplier || null;
+        setSupplier(nextSupplier);
+        const next = nextSupplier?.pagination || {};
+        setPagination({ total: Number(next.total || 0), totalPages: Number(next.totalPages || 0) });
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setError(err?.message || 'Không thể tải thông tin nhà cung cấp.');
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [id, page]);
 
   const contractHistory = supplier?.contractHistory || [];
-  const totalPages = Math.max(1, Math.ceil(contractHistory.length / PAGE_SIZE));
-  const pagedContracts = contractHistory.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Number(pagination.totalPages || 1));
+  const pagedContracts = contractHistory;
 
   return (
     <div className="ent-stack">
@@ -82,7 +96,7 @@ function EnterpriseSupplierDetail() {
               </div>
             </div>
             <div className="ent-rating-card__score" style={{ width: 'fit-content', margin: '16px 0 24px' }}>
-              <FiStar /><strong>{Number(supplier.rating || 0).toFixed(1)}</strong>
+              <FiStar /><strong>{supplier.hasRatings ? formatRatingValue(supplier.rating, 1) : 'Chưa có đánh giá'}</strong>
             </div>
 
             <h3 style={{ margin: '0 0 12px', color: 'var(--ent-blue-950)', fontSize: 16, fontWeight: 950 }}>

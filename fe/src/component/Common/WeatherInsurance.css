@@ -1998,3 +1998,39 @@
     transform: translateY(6px);
   }
 }
+
+/* Fix 05: district precision + alert pagination */
+.wthr-location-precision-note {
+  margin-top: 7px;
+  max-width: 420px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.wa-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding-top: 14px;
+}
+
+.wa-load-more {
+  min-width: 150px;
+  padding: 9px 14px;
+  border: 1px solid var(--wi-border);
+  border-radius: 999px;
+  background: var(--wi-soft);
+  color: var(--wi-primary-strong);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wa-load-more:hover:not(:disabled) {
+  filter: brightness(0.98);
+}
+
+.wa-load-more:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}

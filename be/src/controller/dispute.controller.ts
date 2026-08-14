@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../types';
 import * as disputeService from '../services/dispute.service';
 import { sendError } from '../utils/controller.util';
+import { cleanupUploadedFiles } from '../middlewares/uploads.middlewares';
 
 const parseEvidenceUrls = (value: any): string[] => {
   if (!value) return [];
@@ -94,6 +95,7 @@ export const createDispute = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err: any) {
+    await cleanupUploadedFiles(req);
     sendError(res, err, 'Tao tranh chap that bai');
   }
 };
@@ -119,16 +121,21 @@ export const getDispute = async (req: AuthRequest, res: Response) => {
 
 export const listDisputes = async (req: AuthRequest, res: Response) => {
   try {
-    const disputes = await disputeService.listDisputesForUser(
+    const result = await disputeService.listDisputesForUser(
       req.user!.id,
       req.user!.role,
-      typeof req.query.status === 'string' ? req.query.status : undefined
+      {
+        status: typeof req.query.status === 'string' ? req.query.status : undefined,
+        page: Number(req.query.page || 1),
+        limit: Number(req.query.limit || 10),
+      }
     );
 
     res.status(200).json({
       success: true,
       data: {
-        disputes: disputes.map(formatDispute),
+        disputes: result.disputes.map(formatDispute),
+        pagination: result.pagination,
       },
     });
   } catch (err: any) {

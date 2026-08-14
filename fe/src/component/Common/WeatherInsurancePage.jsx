@@ -17,28 +17,31 @@ import {
   FiZap,
 } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
-import { matchProvince, getDistricts } from "../../data/vn-locations";
+import { VN_DISTRICTS, matchProvince, getDistricts } from "../../data/vn-locations";
 import weatherService from "../../services/weather.service";
 import { INSURANCE_PROGRAMS } from "../../constants";
 import WeatherVisual, { getWeatherScene } from "./WeatherVisual";
 import "./WeatherInsurance.css";
 
-const VIETNAM_PROVINCES = [
-  { value: "Ha Noi", label: "Hà Nội" }, { value: "Ho Chi Minh", label: "TP. Hồ Chí Minh" },
-  { value: "Da Nang", label: "Đà Nẵng" }, { value: "Hai Phong", label: "Hải Phòng" },
-  { value: "Can Tho", label: "Cần Thơ" }, { value: "Binh Duong", label: "Bình Dương" },
-  { value: "Dong Nai", label: "Đồng Nai" }, { value: "Lam Dong", label: "Lâm Đồng" },
-  { value: "Dak Lak", label: "Đắk Lắk" }, { value: "Gia Lai", label: "Gia Lai" },
-  { value: "Long An", label: "Long An" }, { value: "Tien Giang", label: "Tiền Giang" },
-  { value: "Ben Tre", label: "Bến Tre" }, { value: "An Giang", label: "An Giang" },
-  { value: "Binh Thuan", label: "Bình Thuận" }, { value: "Khanh Hoa", label: "Khánh Hòa" },
-  { value: "Tay Ninh", label: "Tây Ninh" }, { value: "Thai Nguyen", label: "Thái Nguyên" },
-  { value: "Bac Giang", label: "Bắc Giang" }, { value: "Thanh Hoa", label: "Thanh Hóa" },
-  { value: "Nghe An", label: "Nghệ An" }, { value: "Ha Tinh", label: "Hà Tĩnh" },
-  { value: "Quang Binh", label: "Quảng Bình" }, { value: "Hue", label: "Thừa Thiên Huế" },
-  { value: "Quang Nam", label: "Quảng Nam" }, { value: "Quang Ngai", label: "Quảng Ngãi" },
-  { value: "Binh Dinh", label: "Bình Định" }, { value: "Phu Yen", label: "Phú Yên" },
-];
+const KNOWN_PROVINCE_LABELS = {
+  "Ha Noi": "Hà Nội", "Ho Chi Minh": "TP. Hồ Chí Minh", "Da Nang": "Đà Nẵng",
+  "Hai Phong": "Hải Phòng", "Can Tho": "Cần Thơ", "Binh Duong": "Bình Dương",
+  "Dong Nai": "Đồng Nai", "Lam Dong": "Lâm Đồng", "Dak Lak": "Đắk Lắk",
+  "Gia Lai": "Gia Lai", "Long An": "Long An", "Tien Giang": "Tiền Giang",
+  "Ben Tre": "Bến Tre", "An Giang": "An Giang", "Binh Thuan": "Bình Thuận",
+  "Khanh Hoa": "Khánh Hòa", "Tay Ninh": "Tây Ninh", "Thai Nguyen": "Thái Nguyên",
+  "Bac Giang": "Bắc Giang", "Thanh Hoa": "Thanh Hóa", "Nghe An": "Nghệ An",
+  "Ha Tinh": "Hà Tĩnh", "Quang Binh": "Quảng Bình", "Thua Thien Hue": "Thừa Thiên Huế",
+  "Hue": "Thừa Thiên Huế", "Quang Nam": "Quảng Nam", "Quang Ngai": "Quảng Ngãi",
+  "Binh Dinh": "Bình Định", "Phu Yen": "Phú Yên", "Kien Giang": "Kiên Giang",
+  "Kon Tum": "Kon Tum", "Son La": "Sơn La", "Lai Chau": "Lai Châu", "Ha Giang": "Hà Giang",
+  "Phu Tho": "Phú Thọ", "Lang Son": "Lạng Sơn", "Quang Ninh": "Quảng Ninh",
+};
+
+const VIETNAM_PROVINCES = Object.keys(VN_DISTRICTS || {}).map((value) => ({
+  value,
+  label: KNOWN_PROVINCE_LABELS[value] || value,
+}));
 
 const VIETNAM_CENTER_COORDS = { lat: 16, lng: 107 };
 const WINDY_ZOOM_DISTRICT = 10;
@@ -175,6 +178,8 @@ export default function WeatherInsurancePage({ role }) {
   const [weather, setWeather] = useState(null);
   const [forecast, setForecast] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [alertPagination, setAlertPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [loadingMoreAlerts, setLoadingMoreAlerts] = useState(false);
   const [thresholds, setThresholds] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState("weather");
@@ -192,14 +197,14 @@ export default function WeatherInsurancePage({ role }) {
 
   const districtOptions = useMemo(() => getDistricts(selectedProvince), [selectedProvince]);
 
-  const loadData = useCallback(async (province) => {
+  const loadData = useCallback(async (province, district = '') => {
     setLoading(true);
     setError("");
 
     const results = await Promise.allSettled([
-      weatherService.getCurrentWeather(province),
-      weatherService.getForecast(province),
-      weatherService.getAlerts(1, 10),
+      weatherService.getCurrentWeather(province, district),
+      weatherService.getForecast(province, district),
+      weatherService.getAlerts(1, 10, { province, district }),
       weatherService.getThresholds(),
     ]);
 
@@ -207,7 +212,10 @@ export default function WeatherInsurancePage({ role }) {
 
     if (weatherResult.status === "fulfilled") setWeather(weatherResult.value?.data || null);
     if (forecastResult.status === "fulfilled") setForecast(Array.isArray(forecastResult.value?.data) ? forecastResult.value.data : []);
-    if (alertsResult.status === "fulfilled") setAlerts(Array.isArray(alertsResult.value?.data) ? alertsResult.value.data : []);
+    if (alertsResult.status === "fulfilled") {
+      setAlerts(Array.isArray(alertsResult.value?.data) ? alertsResult.value.data : []);
+      setAlertPagination(alertsResult.value?.pagination || { page: 1, totalPages: 1, total: 0 });
+    }
     if (thresholdsResult.status === "fulfilled") setThresholds(thresholdsResult.value?.data || null);
 
     const failed = results.filter((result) => result.status === "rejected");
@@ -222,8 +230,8 @@ export default function WeatherInsurancePage({ role }) {
   }, []);
 
   useEffect(() => {
-    loadData(selectedProvince);
-  }, [loadData, selectedProvince]);
+    loadData(selectedProvince, selectedDistrict);
+  }, [loadData, selectedProvince, selectedDistrict]);
 
   const handleProvinceChange = (event) => {
     setSelectedProvince(event.target.value);
@@ -241,9 +249,31 @@ export default function WeatherInsurancePage({ role }) {
   const markAllRead = async () => {
     if (!alerts.some((alert) => !alert.isRead)) return;
     try {
-      await weatherService.markAllAlertsAsRead();
+      await weatherService.markAllAlertsAsRead({ province: selectedProvince, district: selectedDistrict });
       setAlerts((current) => current.map((alert) => ({ ...alert, isRead: true })));
     } catch {}
+  };
+
+  const loadMoreAlerts = async () => {
+    const nextPage = Number(alertPagination?.page || 1) + 1;
+    if (loadingMoreAlerts || nextPage > Number(alertPagination?.totalPages || 1)) return;
+    setLoadingMoreAlerts(true);
+    try {
+      const result = await weatherService.getAlerts(nextPage, 10, {
+        province: selectedProvince,
+        district: selectedDistrict,
+      });
+      const more = Array.isArray(result?.data) ? result.data : [];
+      setAlerts((current) => {
+        const existingIds = new Set(current.map((item) => item._id || item.id));
+        return [...current, ...more.filter((item) => !existingIds.has(item._id || item.id))];
+      });
+      setAlertPagination(result?.pagination || alertPagination);
+    } catch (reason) {
+      setError(readMessage(reason));
+    } finally {
+      setLoadingMoreAlerts(false);
+    }
   };
 
   const getAlertIconClass = (type) => ({
@@ -270,8 +300,12 @@ export default function WeatherInsurancePage({ role }) {
 
   const provinceLabel = VIETNAM_PROVINCES.find((province) => province.value === selectedProvince)?.label || selectedProvince;
   const displayLocation = selectedDistrict ? `${selectedDistrict}, ${provinceLabel}` : provinceLabel;
-  const coords = provinceCoords[selectedProvince] || VIETNAM_CENTER_COORDS;
-  const windyZoom = selectedDistrict ? WINDY_ZOOM_DISTRICT : WINDY_ZOOM_PROVINCE;
+  const weatherCoords = Number.isFinite(Number(weather?.latitude)) && Number.isFinite(Number(weather?.longitude))
+    ? { lat: Number(weather.latitude), lng: Number(weather.longitude) }
+    : null;
+  const coords = weatherCoords || provinceCoords[selectedProvince] || VIETNAM_CENTER_COORDS;
+  const hasDistrictPrecision = !selectedDistrict || weather?.locationPrecision === "district";
+  const windyZoom = selectedDistrict && hasDistrictPrecision ? WINDY_ZOOM_DISTRICT : WINDY_ZOOM_PROVINCE;
   const windyUrl = `https://embed.windy.com/embed2.html?lat=${coords.lat}&lon=${coords.lng}&detailLat=${coords.lat}&detailLon=${coords.lng}&zoom=${windyZoom}&level=surface&overlay=temp&menu=&message=&marker=true&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
   const unreadCount = alerts.filter((alert) => !alert.isRead).length;
   const scene = getWeatherScene(weather?.icon, weather?.description);
@@ -301,7 +335,7 @@ export default function WeatherInsurancePage({ role }) {
         <div className="wi-error-banner" role="alert">
           <FiAlertTriangle size={18} />
           <span>{error}</span>
-          <button type="button" onClick={() => loadData(selectedProvince)}>Thử lại</button>
+          <button type="button" onClick={() => loadData(selectedProvince, selectedDistrict)}>Thử lại</button>
         </div>
       )}
 
@@ -320,7 +354,7 @@ export default function WeatherInsurancePage({ role }) {
           </div>
           <div className="wthr-toolbar__right">
             {lastUpdated && <span className="wthr-updated"><FiClock size={13} /> {lastUpdated.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>}
-            <button type="button" className="wthr-refresh-btn" onClick={() => loadData(selectedProvince)} disabled={loading}>
+            <button type="button" className="wthr-refresh-btn" onClick={() => loadData(selectedProvince, selectedDistrict)} disabled={loading}>
               <FiRefreshCw size={14} className={loading ? "is-spinning" : ""} /> {loading ? "Đang tải" : "Làm mới"}
             </button>
           </div>
@@ -336,6 +370,9 @@ export default function WeatherInsurancePage({ role }) {
                 <div className="wthr-temp">{Number(weather.temp || 0).toFixed(1)}°C</div>
                 <div className="wthr-desc-text">{weather.description || "Đang cập nhật"}</div>
                 <div className="wthr-feels-like">Cảm nhận ngoài trời tại khu vực đã chọn</div>
+                {selectedDistrict && !hasDistrictPrecision && (
+                  <div className="wthr-location-precision-note">Chưa định vị chính xác quận/huyện; dữ liệu đang dùng tọa độ trung tâm tỉnh/thành.</div>
+                )}
               </div>
             </div>
 
@@ -391,10 +428,11 @@ export default function WeatherInsurancePage({ role }) {
 
           {activeSection === "alerts" && (
             <section className="wi-surface weather-alerts-section">
-              <div className="wa-header"><div><span>CẢNH BÁO KHU VỰC</span><h3>Cảnh báo thời tiết</h3></div>{alerts.length > 0 && <button type="button" onClick={markAllRead} className="wa-mark-all">Đánh dấu tất cả đã đọc</button>}</div>
+              <div className="wa-header"><div><span>CẢNH BÁO KHU VỰC</span><h3>Cảnh báo thời tiết · {displayLocation}</h3></div>{alerts.length > 0 && <button type="button" onClick={markAllRead} className="wa-mark-all">Đánh dấu tất cả đã đọc</button>}</div>
               {alerts.length === 0 ? (
                 <div className="wa-empty"><FiBell size={30} />Không có cảnh báo nào</div>
               ) : (
+                <>
                 <div className="wa-list">
                   {alerts.map((alert) => (
                     <article key={alert._id || alert.id} className={`wa-item ${alert.severity === "critical" ? "weather-critical" : "weather-warning"} ${alert.isRead ? "read" : "unread"}`} onClick={() => !alert.isRead && markRead(alert._id || alert.id)}>
@@ -409,6 +447,14 @@ export default function WeatherInsurancePage({ role }) {
                     </article>
                   ))}
                 </div>
+                {Number(alertPagination?.page || 1) < Number(alertPagination?.totalPages || 1) && (
+                  <div className="wa-load-more-wrap">
+                    <button type="button" className="wa-load-more" onClick={loadMoreAlerts} disabled={loadingMoreAlerts}>
+                      {loadingMoreAlerts ? "Đang tải..." : `Xem thêm (${alerts.length}/${alertPagination.total})`}
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </section>
           )}

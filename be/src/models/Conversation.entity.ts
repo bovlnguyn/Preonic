@@ -1,5 +1,5 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
+  Entity, PrimaryGeneratedColumn, Column, Index,
   CreateDateColumn, UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
@@ -7,6 +7,7 @@ import { ConversationParticipant } from './ConversationParticipant.entity';
 import { Message } from './Message.entity';
 
 @Entity('Conversations')
+@Index('IX_Conversations_LastMessageAt_CreatedAt', ['lastMessageAt', 'createdAt'])
 export class Conversation {
   @PrimaryGeneratedColumn('uuid', { name: 'ConversationId' })
   id: string;

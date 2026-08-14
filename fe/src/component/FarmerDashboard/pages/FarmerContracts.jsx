@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiChevronRight, FiEye } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
@@ -26,26 +26,38 @@ function FarmerContracts() {
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
   useEffect(() => {
-    contractService.list()
-      .then((res) => setContracts(res?.data?.contracts || []))
-      .catch(() => setContracts([]))
-      .finally(() => setLoading(false));
-  }, []);
+    let alive = true;
+    setLoading(true);
 
-  const filtered = useMemo(
-    () => (tab === 'all' ? contracts : contracts.filter((c) => c.status === tab)),
-    [contracts, tab],
-  );
+    contractService
+      .list(tab === 'all' ? undefined : tab, { page, limit: CONTRACTS_PER_PAGE })
+      .then((res) => {
+        if (!alive) return;
+        const nextPagination = res?.data?.pagination || {};
+        setContracts(res?.data?.contracts || []);
+        setPagination({
+          total: Number(nextPagination.total || 0),
+          totalPages: Math.max(1, Number(nextPagination.totalPages || 1)),
+        });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setContracts([]);
+        setPagination({ total: 0, totalPages: 1 });
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / CONTRACTS_PER_PAGE));
-  const safePage = Math.min(page, totalPages);
+    return () => {
+      alive = false;
+    };
+  }, [tab, page]);
 
-  const paginatedContracts = useMemo(() => {
-    const start = (safePage - 1) * CONTRACTS_PER_PAGE;
-    return filtered.slice(start, start + CONTRACTS_PER_PAGE);
-  }, [filtered, safePage]);
+  const totalPages = Math.max(1, pagination.totalPages);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -83,7 +95,7 @@ function FarmerContracts() {
 
         {loading ? (
           <div className="spinner-border text-success" role="status" />
-        ) : filtered.length === 0 ? (
+        ) : contracts.length === 0 ? (
           <EmptyState
             title="Chưa có hợp đồng nào"
             desc="Các đề xuất hợp đồng từ doanh nghiệp sẽ hiển thị tại đây."
@@ -105,21 +117,21 @@ function FarmerContracts() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedContracts.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.contractCode}</td>
-                      <td>{item.enterprise?.name}</td>
-                      <td>{item.product?.name}</td>
-                      <td>{item.quantity} {item.unit}</td>
-                      <td>{formatMoney(item.totalValue)}</td>
-                      <td>{formatDate(item.deliveryDate)}</td>
-                      <td><StatusBadge status={resolveContractStatusLabel(item)} /></td>
+                  {contracts.map((c) => (
+                    <tr key={c.id}>
+                      <td>{c.contractCode}</td>
+                      <td>{c.enterprise?.name}</td>
+                      <td>{c.product?.name}</td>
+                      <td>{c.quantity} {c.unit}</td>
+                      <td>{formatMoney(c.totalValue)}</td>
+                      <td>{formatDate(c.deliveryDate)}</td>
+                      <td><StatusBadge status={resolveContractStatusLabel(c)} /></td>
                       <td>
                         <div className="farmer-action-group">
                           <button
                             type="button"
                             title="Xem chi tiết"
-                            onClick={() => navigate(`/farmer/contracts/${item.id}`)}
+                            onClick={() => navigate(`/farmer/contracts/${c.id}`)}
                           >
                             <FiEye />
                           </button>
@@ -133,19 +145,19 @@ function FarmerContracts() {
 
             <div className="farmer-pagination">
               <span>
-                Trang {safePage} / {totalPages} — {filtered.length.toLocaleString('vi-VN')} hợp đồng
+                Trang {page} / {totalPages} — {pagination.total.toLocaleString('vi-VN')} hợp đồng
               </span>
               <div className="farmer-pagination__buttons">
                 <button
                   type="button"
-                  disabled={safePage <= 1}
+                  disabled={page <= 1}
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
                 >
                   <FiChevronLeft size={14} /> Trước
                 </button>
                 <button
                   type="button"
-                  disabled={safePage >= totalPages}
+                  disabled={page >= totalPages}
                   onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                 >
                   Sau <FiChevronRight size={14} />

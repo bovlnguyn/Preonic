@@ -27,7 +27,9 @@ export const errorHandler = (
 
   if (err instanceof AppError) {
     statusCode = err.statusCode;
-    message = err.message;
+    message = statusCode >= 400 && statusCode < 500
+      ? err.message
+      : 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.';
   }
 
  

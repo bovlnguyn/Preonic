@@ -12,6 +12,7 @@ const LOCK_TIME = 15 * 60 * 1000;
 @Entity('Users')
 @Index(['role'])
 @Index(['isActive'])
+@Index('UX_Users_Phone', ['phone'], { unique: true, where: '[Phone] IS NOT NULL' })
 export class User {
 
   @PrimaryGeneratedColumn('uuid', { name: 'UserId' })
@@ -188,13 +189,23 @@ export class User {
     this.lastLogin = new Date();
   }
   isProfileComplete(): boolean {
-  if (!this.firstName?.trim()) return false;
-  if (!this.lastName?.trim())  return false;
-  if (!this.phone?.trim())     return false;
-  if (!this.province?.trim())  return false;
-  if (this.role === 'farmer' && !this.farmName?.trim()) return false;
-  return true;
-}
+    if (!this.firstName?.trim()) return false;
+    if (!this.lastName?.trim()) return false;
+    if (!this.phone?.trim()) return false;
+    if (!this.province?.trim()) return false;
+    if (!this.district?.trim()) return false;
+    if (!this.address?.trim()) return false;
+
+    if (this.role === 'farmer') {
+      return Boolean(this.farmName?.trim());
+    }
+
+    if (this.role === 'enterprise') {
+      return Boolean(this.companyName?.trim() && this.taxCode?.trim());
+    }
+
+    return true;
+  }
 
   toJSON() {
     const { password, refreshToken, passwordResetToken,

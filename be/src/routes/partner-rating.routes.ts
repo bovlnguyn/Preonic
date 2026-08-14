@@ -5,6 +5,7 @@ import {
   getMyRatings,
 } from '../controller/partner-rating.controller';
 import { protect } from '../middlewares/auth.middlewares';
+import { validateCreatePartnerRating } from '../middlewares/validation';
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.get(
 router.post(
   '/',
   protect as RequestHandler,
+  validateCreatePartnerRating,
   createRating as RequestHandler
 );
 

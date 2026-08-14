@@ -2,6 +2,26 @@ import { Request, Response } from 'express';
 import * as productService from '../services/product.service';
 import { AuthRequest } from '../types';
 import { sendError } from '../utils/controller.util';
+import { cleanupCloudinaryUrls, cleanupUploadedFiles } from '../middlewares/uploads.middlewares';
+
+
+const parseStoredImageUrls = (product: any): string[] => {
+  if (!product) return [];
+  const urls: string[] = [];
+  if (product.image) urls.push(String(product.image));
+  if (product.images) {
+    try {
+      const parsed = typeof product.images === 'string' ? JSON.parse(product.images) : product.images;
+      if (Array.isArray(parsed)) urls.push(...parsed.map(String));
+    } catch {
+      // Legacy data có thể chỉ chứa một URL thay vì JSON.
+      if (typeof product.images === 'string' && /^https?:\/\//i.test(product.images)) {
+        urls.push(product.images);
+      }
+    }
+  }
+  return [...new Set(urls.filter(Boolean))];
+};
 
 // ── Helper parse multipart files thành imagePaths / certifications ──
 const parseUploadedFiles = (req: AuthRequest) => {
@@ -141,8 +161,16 @@ export const getSimilar = async (req: Request, res: Response) => {
 // ══════════════════════════════════════════
 export const getByRegion = async (req: Request, res: Response) => {
   try {
-    const products = await productService.getByRegion(req.params.region);
-    res.status(200).json({ success: true, data: products });
+    const result = await productService.getByRegion(
+      req.params.region,
+      req.query.page ? Number(req.query.page) : 1,
+      req.query.limit ? Number(req.query.limit) : 24
+    );
+    res.status(200).json({
+      success: true,
+      data: result.products,
+      pagination: result.pagination,
+    });
   } catch (err: any) {
     sendError(res, err, 'Lấy sản phẩm theo vùng miền thất bại');
   }
@@ -153,8 +181,20 @@ export const getByRegion = async (req: Request, res: Response) => {
 // ══════════════════════════════════════════
 export const getMyProducts = async (req: AuthRequest, res: Response) => {
   try {
-    const products = await productService.getByUser(req.user!.id);
-    res.status(200).json({ success: true, data: products });
+    const result = await productService.getByUser(req.user!.id, {
+      page: req.query.page ? Number(req.query.page) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      category: typeof req.query.category === 'string' ? req.query.category : undefined,
+      search: typeof req.query.search === 'string' ? req.query.search : undefined,
+      includeSummary: req.query.includeSummary === 'true',
+    });
+    res.status(200).json({
+      success: true,
+      data: result.products,
+      pagination: result.pagination,
+      ...(result.summary ? { summary: result.summary } : {}),
+      ...(result.categories ? { categories: result.categories } : {}),
+    });
   } catch (err: any) {
     sendError(res, err, 'Lấy sản phẩm của bạn thất bại');
   }
@@ -182,6 +222,7 @@ export const create = async (req: AuthRequest, res: Response) => {
       unit:          body.unit,
       priceUnit:     body.priceUnit,
       totalQuantity: body.totalQuantity ? Number(body.totalQuantity) : undefined,
+      coverageRate:  body.coverageRate !== undefined && body.coverageRate !== '' ? Number(body.coverageRate) : undefined,
       plantDate:     body.plantDate,
       expectedDate:  body.expectedDate,
       description:   body.description,
@@ -200,6 +241,7 @@ export const create = async (req: AuthRequest, res: Response) => {
       data: { product },
     });
   } catch (err: any) {
+    await cleanupUploadedFiles(req);
     sendError(res, err, 'Đăng bán sản phẩm thất bại');
   }
 };
@@ -213,14 +255,18 @@ export const update = async (req: AuthRequest, res: Response) => {
     const { imagePaths, certifications, commitments, hasCertificationPayload } = parseUploadedFiles(req);
     const body = req.body;
 
+    // Nếu request thay asset, giữ snapshot URL cũ để chỉ dọn Cloudinary SAU KHI DB update thành công.
+    // Không xóa trước transaction để tránh DB rollback nhưng file cũ đã biến mất.
+    const previousProduct = imagePaths.length > 0 || hasCertificationPayload
+      ? await productService.getById(req.params.id)
+      : null;
+
     const updateDto: Record<string, any> = {};
 
     if (body.name !== undefined)          updateDto.name = body.name;
     if (body.category !== undefined)      updateDto.category = body.category;
     if (body.region !== undefined)        updateDto.region = body.region;
     if (body.type !== undefined)          updateDto.type = body.type;
-    if (body.location !== undefined)      updateDto.location = body.location;
-    if (body.farm !== undefined)          updateDto.farm = body.farm;
     if (body.variety !== undefined)       updateDto.variety = body.variety;
     if (body.area !== undefined)          updateDto.area = body.area === '' ? null : Number(body.area);
     if (body.priceMin !== undefined)      updateDto.priceMin = body.priceMin === '' ? null : Number(body.priceMin);
@@ -228,6 +274,7 @@ export const update = async (req: AuthRequest, res: Response) => {
     if (body.unit !== undefined)          updateDto.unit = body.unit;
     if (body.priceUnit !== undefined)     updateDto.priceUnit = body.priceUnit;
     if (body.totalQuantity !== undefined) updateDto.totalQuantity = body.totalQuantity === '' ? null : Number(body.totalQuantity);
+    if (body.coverageRate !== undefined)  updateDto.coverageRate = Number(body.coverageRate);
     if (body.plantDate !== undefined)     updateDto.plantDate = body.plantDate === '' ? null : body.plantDate;
     if (body.expectedDate !== undefined)  updateDto.expectedDate = body.expectedDate === '' ? null : body.expectedDate;
     if (body.description !== undefined)   updateDto.description = body.description;
@@ -241,12 +288,29 @@ export const update = async (req: AuthRequest, res: Response) => {
 
     const product = await productService.update(req.params.id, userId, updateDto);
 
+    if (previousProduct) {
+      const staleUrls: string[] = [];
+      if (imagePaths.length > 0) staleUrls.push(...parseStoredImageUrls(previousProduct));
+
+      if (hasCertificationPayload) {
+        const kept = new Set(certifications.map((item: any) => item?.fileUrl).filter(Boolean));
+        const previousCertUrls = (previousProduct.certifications || [])
+          .map((item: any) => item?.fileUrl)
+          .filter(Boolean);
+        staleUrls.push(...previousCertUrls.filter((url: string) => !kept.has(url)));
+      }
+
+      // Cleanup không được làm hỏng response nghiệp vụ nếu provider đang lỗi.
+      void cleanupCloudinaryUrls(staleUrls);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Cập nhật sản phẩm thành công',
       data: { product },
     });
   } catch (err: any) {
+    await cleanupUploadedFiles(req);
     sendError(res, err, 'Cập nhật sản phẩm thất bại');
   }
 };

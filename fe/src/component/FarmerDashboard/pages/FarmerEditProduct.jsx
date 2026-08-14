@@ -15,9 +15,11 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { CATEGORY_OPTIONS, REGION_OPTIONS, TYPE_OPTIONS } from '../../../constants/product';
 import './FarmerCreateProduct.css';
+import { toLocalDateInputValue } from '../../../utils/date';
 import './FarmerEditProduct.css';
 
 const UNITS = ['kg', 'Tạ', 'Tấn'];
+const COVERAGE_PRESETS = [25, 50, 75, 100];
 const MAX_CERT_FILES = 10;
 const MAX_CERT_SIZE = 5 * 1024 * 1024;
 const ALLOWED_CERT_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
@@ -34,6 +36,7 @@ const buildForm = (product) => ({
   unit: product?.unit || 'kg',
   priceUnit: product?.priceUnit || product?.unit || 'kg',
   totalQuantity: product?.totalQuantity ?? '',
+  coverageRate: Number.isFinite(Number(product?.coverageRate)) ? Number(product.coverageRate) : 50,
   plantDate: product?.plantDate ? product.plantDate.slice(0, 10) : '',
   expectedDate: product?.expectedDate ? product.expectedDate.slice(0, 10) : '',
   description: product?.description || '',
@@ -190,7 +193,7 @@ export default function FarmerEditProduct() {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateInputValue();
     if (form.expectedDate) {
       if (form.expectedDate < today) {
         setError('Ngày thu hoạch không được trước ngày hiện tại.');
@@ -231,6 +234,7 @@ export default function FarmerEditProduct() {
       'totalQuantity',
       form.totalQuantity === '' ? '' : String(Number(form.totalQuantity))
     );
+    payload.append('coverageRate', String(Number(form.coverageRate)));
     payload.append('plantDate', form.plantDate || '');
     payload.append('expectedDate', form.expectedDate || '');
     payload.append('description', form.description.trim());
@@ -509,6 +513,38 @@ export default function FarmerEditProduct() {
                   <span>VNĐ/{form.priceUnit}</span>
                 </div>
               </div>
+            </div>
+
+            <div className="fcp-field fcp-field--full">
+              <div className="fcp-coverage-head">
+                <label>Tỉ lệ bao tiêu tối thiểu chấp nhận</label>
+                <strong>{form.coverageRate}%</strong>
+              </div>
+              <div className="fcp-coverage-control">
+                <input
+                  className="fcp-coverage-range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={form.coverageRate}
+                  onChange={(event) => set('coverageRate', Number(event.target.value))}
+                  aria-label="Tỉ lệ bao tiêu tối thiểu"
+                />
+                <div className="fcp-btn-group fcp-coverage-presets">
+                  {COVERAGE_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`fcp-btn-region ${form.coverageRate === preset ? 'fcp-btn-region--active' : ''}`}
+                      onClick={() => set('coverageRate', preset)}
+                    >
+                      {preset}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <span className="fcp-hint">Tỉ lệ tối thiểu sản lượng bạn mong muốn doanh nghiệp cam kết thu mua.</span>
             </div>
 
             <div className="fcp-row">

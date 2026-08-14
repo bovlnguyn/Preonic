@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { useRoutes } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
@@ -23,7 +24,9 @@ const AppRoutes = () => {
     return <LoadingSpinner />;
   }
 
-  return element;
+  // Một Suspense boundary dùng chung cho toàn bộ lazy route. Layout đang hiển thị
+  // sẽ chỉ chờ chunk cần thiết, thay vì browser phải tải mọi page ngay lần đầu.
+  return <Suspense fallback={<LoadingSpinner />}>{element}</Suspense>;
 };
 
 export default AppRoutes;

@@ -3,6 +3,7 @@ import { FiShield, FiUsers, FiCheck, FiTarget, FiStar } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import partnerRatingService from '../../../services/partner-rating.service';
 import { useToast } from '../../../contexts/ToastContext';
+import { formatRatingValue } from '../../../utils/rating';
 import './FarmerRatings.css';
 
 const CRITERIA_FIELDS = [
@@ -175,6 +176,7 @@ function FarmerRatings() {
                 placeholder="Nhập nhận xét thực tế để đối tác cải thiện quá trình hợp tác..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
+                maxLength={2000}
               />
             </div>
 
@@ -216,7 +218,7 @@ function FarmerRatings() {
                   {given.map((r) => (
                     <li key={r.id}>
                       <strong>{r.reviewee?.fullName}</strong>
-                      <span>{r.overallRating}/5 • {r.contract?.contractCode}</span>
+                      <span>{formatRatingValue(r.overallRating)}/5 • {r.contract?.contractCode}</span>
                     </li>
                   ))}
                 </ul>
@@ -235,7 +237,7 @@ function FarmerRatings() {
                   {received.map((r) => (
                     <li key={r.id}>
                       <strong>{r.reviewer?.fullName}</strong>
-                      <span>{r.overallRating}/5 • {r.contract?.contractCode}</span>
+                      <span>{formatRatingValue(r.overallRating)}/5 • {r.contract?.contractCode}</span>
                     </li>
                   ))}
                 </ul>

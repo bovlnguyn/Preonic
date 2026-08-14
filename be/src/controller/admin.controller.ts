@@ -93,7 +93,7 @@ export const getUserDetail = async (req: Request, res: Response) => {
 
 export const toggleUserStatus = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await adminService.toggleUserStatus(req.params.id);
+    const result = await adminService.toggleUserStatus(req.params.id, req.user?.id);
     res.status(200).json({
       success: true,
       data: { user: result.user },
@@ -106,10 +106,11 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response) => {
 
 export const deleteUser = async (req: AuthRequest, res: Response) => {
   try {
-    await adminService.deleteUser(req.params.id);
+    const result = await adminService.deleteUser(req.params.id, req.user?.id);
     res.status(200).json({
       success: true,
-      message: 'Đã xóa người dùng thành công',
+      data: result,
+      message: 'Tài khoản đã được vô hiệu hóa an toàn. Dữ liệu hợp đồng và lịch sử vẫn được giữ nguyên.',
     });
   } catch (err: any) {
     sendError(res, err, 'Xóa người dùng thất bại');

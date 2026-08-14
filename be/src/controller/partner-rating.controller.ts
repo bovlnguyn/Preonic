@@ -78,7 +78,7 @@ export const createRating = async (req: AuthRequest, res: Response) => {
 
 export const getMyRatings = async (req: AuthRequest, res: Response) => {
   try {
-    const { givenRatings, receivedRatings } = await partnerRatingService.getMyRatings(
+    const { givenRatings, receivedRatings, summary } = await partnerRatingService.getMyRatings(
       req.user!.id,
       req.user!.role as partnerRatingService.UserRole
     );
@@ -88,6 +88,7 @@ export const getMyRatings = async (req: AuthRequest, res: Response) => {
       data: {
         given: givenRatings.map(formatRating),
         received: receivedRatings.map(formatRating),
+        summary,
       },
     });
   } catch (err: any) {

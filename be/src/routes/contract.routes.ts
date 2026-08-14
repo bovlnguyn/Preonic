@@ -12,7 +12,7 @@ import {
   confirmCancelContract,
   declineCancelContract,
 } from '../controller/contract.controller';
-import { protect, restrictTo } from '../middlewares/auth.middlewares';
+import { protect, requireCompleteProfile, restrictTo } from '../middlewares/auth.middlewares';
 import {
   validateCreateContract,
   validateContractIdParam,
@@ -27,6 +27,7 @@ router.post(
   '/',
   protect as RequestHandler,
   restrictTo('enterprise') as RequestHandler,
+  requireCompleteProfile as RequestHandler,
   validateCreateContract as RequestHandler[],
   createContract as RequestHandler
 );
@@ -56,6 +57,7 @@ router.post(
   '/:id/submit',
   protect as RequestHandler,
   restrictTo('enterprise') as RequestHandler,
+  requireCompleteProfile as RequestHandler,
   validateContractIdParam as RequestHandler[],
   submitContract as RequestHandler
 );
@@ -82,6 +84,7 @@ router.post(
 router.post(
   '/:id/sign',
   protect as RequestHandler,
+  requireCompleteProfile as RequestHandler,
   validateContractIdParam as RequestHandler[],
   signContract as RequestHandler
 );

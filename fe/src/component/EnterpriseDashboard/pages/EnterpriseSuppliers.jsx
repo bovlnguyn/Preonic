@@ -1,12 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiStar } from 'react-icons/fi';
+import { FiStar, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge   from '../components/StatusBadge';
 import EmptyState    from '../components/EmptyState';
 import { useState, useEffect } from 'react';
 import { formatMoney } from '../utils';
 import supplierService from '../../../services/supplier.service';
+import { formatRatingValue } from '../../../utils/rating';
 
 export const SUPPLIER_STATUS_LABEL = {
   active: 'Đang hợp tác',
@@ -17,13 +18,27 @@ function EnterpriseSuppliers() {
   const navigate = useNavigate();
   const [enterpriseSuppliers, setEnterpriseSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
 
   useEffect(() => {
-    supplierService.list()
-      .then(res => setEnterpriseSuppliers(res?.data?.suppliers || []))
-      .catch(() => setEnterpriseSuppliers([]))
-      .finally(() => setLoading(false));
-  }, []);
+    let alive = true;
+    setLoading(true);
+    supplierService.list({ page, limit: 12 })
+      .then((res) => {
+        if (!alive) return;
+        setEnterpriseSuppliers(res?.data?.suppliers || []);
+        const next = res?.data?.pagination || {};
+        setPagination({ total: Number(next.total || 0), totalPages: Number(next.totalPages || 0) });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setEnterpriseSuppliers([]);
+        setPagination({ total: 0, totalPages: 0 });
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [page]);
 
   return (
     <div className="ent-stack">
@@ -40,9 +55,10 @@ function EnterpriseSuppliers() {
         ) : enterpriseSuppliers.length === 0 ? (
           <EmptyState
             title="Chưa có nhà cung cấp nào"
-            desc="Nông dân bạn từng đề xuất hoặc ký hợp đồng cùng sẽ hiển thị tại đây."
+            desc="Nông dân đã hình thành quan hệ hợp tác qua hợp đồng đã ký sẽ hiển thị tại đây."
           />
         ) : (
+          <>
           <div className="ent-supplier-grid">
             {enterpriseSuppliers.map((s) => (
               <article
@@ -72,11 +88,21 @@ function EnterpriseSuppliers() {
                   </div>
                 </div>
                 <div className="ent-rating-card__score" style={{ width: 'fit-content' }}>
-                  <FiStar /><strong>{s.rating.toFixed(1)}</strong>
+                  <FiStar /><strong>{s.hasRatings ? formatRatingValue(s.rating, 1) : 'Chưa có đánh giá'}</strong>
                 </div>
               </article>
             ))}
           </div>
+          {pagination.totalPages > 1 && (
+            <div className="et-pagination">
+              <span>Trang {page} / {pagination.totalPages} — {pagination.total} nhà cung cấp</span>
+              <div className="et-pagination-btns">
+                <button type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}><FiChevronLeft /> Trước</button>
+                <button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}>Sau <FiChevronRight /></button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </section>
     </div>

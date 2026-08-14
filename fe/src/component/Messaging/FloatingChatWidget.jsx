@@ -52,6 +52,9 @@ function FloatingChatWidget() {
     useMessagingWidget();
 
   const [conversations, setConversations] = useState([]);
+  const [conversationPagination, setConversationPagination] = useState({ total: 0, totalPages: 0 });
+  const [conversationLimit, setConversationLimit] = useState(30);
+  const [totalUnread, setTotalUnread] = useState(0);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [activeId, setActiveId] = useState(null);
 
@@ -61,12 +64,12 @@ function FloatingChatWidget() {
   const [sending, setSending] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const messagesRef = useRef([]);
   const startedPartnerRef = useRef(null);
   const conversationRequestRef = useRef(false);
   const messageRequestRef = useRef(false);
 
   const activeConversation = conversations.find((c) => c.id === activeId) || null;
-  const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
 
   const canUseChat = !authLoading && user && CHAT_ROLES.includes(user.role);
 
@@ -76,15 +79,17 @@ function FloatingChatWidget() {
     conversationRequestRef.current = true;
     if (!options.silent) setLoadingConversations(true);
     try {
-      const res = await messagingService.listConversations();
+      const res = await messagingService.listConversations({ page: 1, limit: conversationLimit });
       setConversations(res?.data?.conversations || []);
+      setConversationPagination(res?.data?.pagination || { total: 0, totalPages: 0 });
+      setTotalUnread(Number(res?.data?.totalUnread || 0));
     } catch {
       // Giữ dữ liệu hiện tại khi poll lỗi; không làm danh sách biến mất.
     } finally {
       conversationRequestRef.current = false;
       if (!options.silent) setLoadingConversations(false);
     }
-  }, []);
+  }, [conversationLimit]);
 
   const loadMessages = useCallback(async (conversationId, options = {}) => {
     if (document.hidden || !navigator.onLine || messageRequestRef.current) return;
@@ -92,8 +97,29 @@ function FloatingChatWidget() {
     messageRequestRef.current = true;
     if (!options.silent) setLoadingMessages(true);
     try {
-      const res = await messagingService.listMessages(conversationId, { limit: 50 });
-      setMessages(res?.data?.messages || []);
+      const latest = messagesRef.current[messagesRef.current.length - 1];
+      const res = await messagingService.listMessages(conversationId, {
+        limit: options.incremental ? 100 : 50,
+        ...(options.incremental && latest?.createdAt ? { since: latest.createdAt } : {}),
+      });
+      const incoming = res?.data?.messages || [];
+      if (options.incremental) {
+        if (incoming.length > 0) {
+          messagingService.markAsRead(conversationId).catch(() => {});
+          setConversations((prev) => prev.map((c) =>
+            c.id === conversationId ? { ...c, unreadCount: 0 } : c
+          ));
+          setMessages((prev) => {
+            const byId = new Map(prev.map((message) => [message.id, message]));
+            incoming.forEach((message) => byId.set(message.id, message));
+            return Array.from(byId.values()).sort(
+              (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+            );
+          });
+        }
+      } else {
+        setMessages(incoming);
+      }
     } catch {
       // Giữ tin nhắn đã tải khi mạng/DB gián đoạn.
     } finally {
@@ -102,29 +128,42 @@ function FloatingChatWidget() {
     }
   }, []);
 
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   const openConversation = useCallback(
     async (conversationId) => {
+      const unreadBeforeOpen = conversations.find((c) => c.id === conversationId)?.unreadCount || 0;
       setActiveId(conversationId);
       await loadMessages(conversationId);
       messagingService.markAsRead(conversationId).catch(() => {});
+      setTotalUnread((current) => Math.max(0, current - unreadBeforeOpen));
       setConversations((prev) =>
         prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c))
       );
     },
-    [loadMessages]
+    [loadMessages, conversations]
   );
 
   const backToList = () => setActiveId(null);
 
   // Luon theo doi tong so tin chua doc de hien badge tren bong bong, ke ca khi dong popup
   useEffect(() => {
-    // Khi popup mở đã có poll riêng 20s; không chạy thêm poll unread 30s song song.
+    // Khi popup đóng chỉ hỏi 1 COUNT nhẹ, không tải lại toàn bộ danh sách hội thoại.
     if (!canUseChat || isOpen) return undefined;
 
-    loadConversations({ silent: true });
-    const timer = setInterval(() => loadConversations({ silent: true }), UNREAD_POLL_MS);
-    return () => clearInterval(timer);
-  }, [canUseChat, isOpen, loadConversations]);
+    let alive = true;
+    const loadUnread = () => {
+      if (document.hidden || !navigator.onLine) return;
+      messagingService.getUnreadCount()
+        .then((res) => { if (alive) setTotalUnread(Number(res?.data?.count || 0)); })
+        .catch(() => {});
+    };
+    loadUnread();
+    const timer = setInterval(loadUnread, UNREAD_POLL_MS);
+    return () => { alive = false; clearInterval(timer); };
+  }, [canUseChat, isOpen]);
 
   // Khi mo popup: tai lai danh sach hoi thoai (khong silent de hien loading lan dau)
   useEffect(() => {
@@ -164,7 +203,7 @@ function FloatingChatWidget() {
   // Poll tin nhan cua hoi thoai dang mo
   useEffect(() => {
     if (!isOpen || !activeId) return undefined;
-    const timer = setInterval(() => loadMessages(activeId, { silent: true }), MESSAGE_POLL_MS);
+    const timer = setInterval(() => loadMessages(activeId, { silent: true, incremental: true }), MESSAGE_POLL_MS);
     return () => clearInterval(timer);
   }, [isOpen, activeId, loadMessages]);
 
@@ -247,6 +286,15 @@ function FloatingChatWidget() {
                       </span>
                     </button>
                   ))
+                )}
+                {conversationPagination.total > conversations.length && (
+                  <button
+                    type="button"
+                    className="fcw-load-more"
+                    onClick={() => setConversationLimit((current) => Math.min(100, current + 30))}
+                  >
+                    Xem thêm hội thoại
+                  </button>
                 )}
               </div>
             </>

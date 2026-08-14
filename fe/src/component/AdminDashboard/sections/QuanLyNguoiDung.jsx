@@ -15,8 +15,6 @@ export default function QuanLyNguoiDung() {
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [toggling, setToggling] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null); // user object to confirm delete
-  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async (page = 1) => {
     setLoading(true);
@@ -57,27 +55,10 @@ export default function QuanLyNguoiDung() {
       if (selectedUser?.id === userId) {
         setSelectedUser(prev => ({ ...prev, isActive: !prev.isActive }));
       }
-    } catch {
-      toast.error("Không thể thay đổi trạng thái tài khoản");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Không thể thay đổi trạng thái tài khoản");
     } finally {
       setToggling(null);
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await adminService.deleteUser(deleteTarget.id);
-      toast.success(`Đã xóa tài khoản "${deleteTarget.fullName}"`);
-      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
-      setPagination(prev => ({ ...prev, total: prev.total - 1 }));
-      if (selectedUser?.id === deleteTarget.id) setSelectedUser(null);
-      setDeleteTarget(null);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Không thể xóa tài khoản");
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -169,13 +150,6 @@ export default function QuanLyNguoiDung() {
                           >
                             {toggling === u.id ? "..." : u.isActive ? "Khóa" : "Mở khóa"}
                           </button>
-                          <button
-                            className="adm-btn adm-btn-delete"
-                            onClick={() => setDeleteTarget(u)}
-                            title="Xóa tài khoản vĩnh viễn"
-                          >
-                            Xóa
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -224,7 +198,7 @@ export default function QuanLyNguoiDung() {
                   <div className="adm-detail-row"><span className="adm-detail-label">Số điện thoại</span><span className="adm-detail-val">{selectedUser.phone || "—"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Tỉnh/TP</span><span className="adm-detail-val">{selectedUser.province || "—"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Số dư ví</span><span className="adm-detail-val" style={{ color: "#1d4ed8" }}>{formatMoney(selectedUser.virtualBalance || 0)}</span></div>
-                  <div className="adm-detail-row"><span className="adm-detail-label">Điểm uy tín</span><span className="adm-detail-val">{selectedUser.reputationScore?.toFixed(1) || "—"} / 5.0</span></div>
+                  <div className="adm-detail-row"><span className="adm-detail-label">Điểm uy tín</span><span className="adm-detail-val">{Number(selectedUser.totalRatings || 0) > 0 ? `${Number(selectedUser.reputationScore || 0).toFixed(1)} / 5.0` : "Chưa có đánh giá"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Hợp đồng liên quan</span><span className="adm-detail-val">{selectedUser.contractCount ?? "—"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Giao dịch hoàn thành</span><span className="adm-detail-val">{selectedUser.transactionCount ?? "—"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Đăng nhập lần cuối</span><span className="adm-detail-val">{fmtDate(selectedUser.lastLogin)}</span></div>
@@ -241,12 +215,6 @@ export default function QuanLyNguoiDung() {
                 >
                   {toggling === selectedUser.id ? "Đang xử lý..." : selectedUser.isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}
                 </button>
-                <button
-                  className="adm-btn adm-btn-delete"
-                  onClick={() => { setSelectedUser(null); setDeleteTarget(selectedUser); }}
-                >
-                  Xóa tài khoản
-                </button>
                 <button className="adm-btn adm-btn-outline" onClick={() => setSelectedUser(null)}>Đóng</button>
               </div>
             )}
@@ -254,49 +222,7 @@ export default function QuanLyNguoiDung() {
         </div>
       )}
 
-      {/* Delete Confirm Modal */}
-      {deleteTarget && (
-        <div className="adm-modal-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
-          <div className="adm-modal adm-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="adm-modal-hd adm-modal-hd-danger">
-              <div className="adm-delete-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 26, height: 26 }}>
-                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" strokeLinecap="round" />
-                </svg>
-              </div>
-              <h3>Xóa tài khoản</h3>
-            </div>
-            <div className="adm-modal-body">
-              <div className="adm-delete-warning">
-                <p>Bạn sắp xóa vĩnh viễn tài khoản:</p>
-                <div className="adm-delete-target">
-                  <strong>{deleteTarget.fullName}</strong>
-                  <span>{deleteTarget.email}</span>
-                </div>
-                <p className="adm-delete-note">
-                  Hành động này <strong>không thể hoàn tác</strong>. Tài khoản sẽ bị xóa khỏi hệ thống. Tài khoản đang có hợp đồng đang hoạt động sẽ không thể xóa.
-                </p>
-              </div>
-            </div>
-            <div className="adm-modal-ft">
-              <button
-                className="adm-btn adm-btn-delete"
-                onClick={handleDeleteConfirm}
-                disabled={deleting}
-              >
-                {deleting ? "Đang xóa..." : "Xác nhận xóa"}
-              </button>
-              <button
-                className="adm-btn adm-btn-outline"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-              >
-                Hủy
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   );
 }

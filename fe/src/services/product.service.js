@@ -9,10 +9,28 @@ export const resolveImageUrl = (path) => {
   return `${UPLOADS_BASE_URL}${path}`;
 };
 
+// Không gửi các filter rỗng lên API. Giá trị "" trên UI có nghĩa là
+// "Tất cả/không lọc", không phải một enum category/region/type hợp lệ.
+// Giữ lại 0/false vì đây vẫn có thể là giá trị query có ý nghĩa.
+export const cleanProductQueryParams = (params = {}) =>
+  Object.entries(params).reduce((result, [key, value]) => {
+    if (value === undefined || value === null) return result;
+
+    if (typeof value === 'string') {
+      const normalized = value.trim();
+      if (!normalized) return result;
+      result[key] = normalized;
+      return result;
+    }
+
+    result[key] = value;
+    return result;
+  }, {});
+
 const productService = {
   // Danh sách công khai — hỗ trợ filter (category, region, type), search theo tên, sort, phân trang
   getProducts: async (params = {}) => {
-    const response = await api.get('/products', { params });
+    const response = await api.get('/products', { params: cleanProductQueryParams(params) });
     return response.data;
   },
 
@@ -40,8 +58,8 @@ const productService = {
     return response.data;
   },
 
-  getMyProducts: async () => {
-    const response = await api.get('/products/my-products');
+  getMyProducts: async (params = {}) => {
+    const response = await api.get('/products/my-products', { params: cleanProductQueryParams(params) });
     return response.data;
   },
 

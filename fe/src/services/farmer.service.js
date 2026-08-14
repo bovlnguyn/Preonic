@@ -19,10 +19,21 @@ const farmerService = {
   },
 
   // ── Mùa vụ / sản phẩm của farmer đang đăng nhập ──
-  getMyCrops: async () => {
-    const response = await productService.getMyProducts();
+  getMyCrops: async (params = {}) => {
+    const response = await productService.getMyProducts(params);
     const list = response?.data || response?.products || [];
     return Array.isArray(list) ? list : [];
+  },
+
+  getMyCropsPage: async (params = {}) => {
+    const response = await productService.getMyProducts(params);
+    const products = response?.data || response?.products || [];
+    return {
+      products: Array.isArray(products) ? products : [],
+      pagination: response?.pagination || { page: 1, total: 0, totalPages: 0 },
+      summary: response?.summary || { totalProducts: 0, totalQuantity: 0 },
+      categories: Array.isArray(response?.categories) ? response.categories : [],
+    };
   },
 
   getCropById: async (id) => {

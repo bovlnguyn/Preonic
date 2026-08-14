@@ -25,6 +25,8 @@ import {
   validateResolveDispute,
   validateDisputeIdParam,
   validateContractIdParam,
+  validateUserIdParam,
+  validateSystemLogIdParam,
 } from '../middlewares/validation';
 
 const router = Router();
@@ -34,9 +36,21 @@ router.use(protect as RequestHandler, restrictTo('admin') as RequestHandler);
 router.get('/dashboard', getDashboard as RequestHandler);
 
 router.get('/users', getUsers as RequestHandler);
-router.get('/users/:id', getUserDetail as RequestHandler);
-router.patch('/users/:id/toggle-status', toggleUserStatus as RequestHandler);
-router.delete('/users/:id', deleteUser as RequestHandler);
+router.get(
+  '/users/:id',
+  validateUserIdParam as RequestHandler[],
+  getUserDetail as RequestHandler
+);
+router.patch(
+  '/users/:id/toggle-status',
+  validateUserIdParam as RequestHandler[],
+  toggleUserStatus as RequestHandler
+);
+router.delete(
+  '/users/:id',
+  validateUserIdParam as RequestHandler[],
+  deleteUser as RequestHandler
+);
 
 router.get('/contracts', getContracts as RequestHandler);
 router.get(
@@ -65,6 +79,6 @@ router.patch('/withdrawals/:id/complete', completeAdminWithdrawal as RequestHand
 router.patch('/withdrawals/:id/reject', rejectAdminWithdrawal as RequestHandler);
 
 router.get('/system-logs', getSystemLogs as RequestHandler);
-router.get('/system-logs/:id', getSystemLogDetail as RequestHandler);
+router.get('/system-logs/:id', validateSystemLogIdParam as RequestHandler[], getSystemLogDetail as RequestHandler);
 
 export default router;

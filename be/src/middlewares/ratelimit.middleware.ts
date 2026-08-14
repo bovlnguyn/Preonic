@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
-// Login + refresh-token: rất nhạy cảm, giới hạn chặt theo IP
+// Login: rất nhạy cảm, giới hạn chặt theo IP
 export const authLimiter = rateLimit({
   windowMs: FIFTEEN_MINUTES_MS,
   max: 10,
@@ -16,6 +16,20 @@ export const authLimiter = rateLimit({
   message: {
     success: false,
     message: 'Quá nhiều yêu cầu đăng nhập từ IP này. Vui lòng thử lại sau 15 phút.',
+  },
+});
+
+
+// Refresh token là luồng nền hợp lệ và có thể xảy ra cho nhiều user cùng NAT.
+// Tách khỏi login limiter để tránh một văn phòng/lớp học vô tình khóa refresh của nhau.
+export const refreshLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Quá nhiều yêu cầu làm mới phiên đăng nhập. Vui lòng thử lại sau ít phút.',
   },
 });
 

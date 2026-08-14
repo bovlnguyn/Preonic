@@ -1,46 +1,34 @@
-import React from 'react';
+import React, { lazy } from 'react';
 import ProtectedRoute from './ProtectedRoute';
-import HomeEntry from './HomeEntry';
 
-
-
-import Register from '../component/Register/Register';
-import Auth from '../component/Auth/Auth';
-import GoogleCallback from '../component/Auth/GoogleCallBack';
-import GoogleSelectRole from '../component/Auth/GoogleSelectRole';
-import ResetPassword from '../component/ResetPassword/ResetPassword';
-import VerifyEmail from '../component/VerifyEmail/VerifyEmail';
-
-import ProductList from '../pages/ProductList';
-import ProductDetail from '../component/ProductDetail/ProductDetail';
-import Solutions from '../component/Solutions/Solutions';
-import Contact from '../component/Contact/Contact';
-import AIAgriculture from '../component/AIAgriculture/AIAgriculture';
-
-// Hồ sơ cá nhân — dùng chung Farmer/Enterprise, đứng ngoài layout dashboard
-import Profile from '../component/Profile/Profile';
+const HomeEntry = lazy(() => import('./HomeEntry'));
+const Register = lazy(() => import('../component/Register/Register'));
+const Auth = lazy(() => import('../component/Auth/Auth'));
+const GoogleCallback = lazy(() => import('../component/Auth/GoogleCallBack'));
+const GoogleSelectRole = lazy(() => import('../component/Auth/GoogleSelectRole'));
+const ResetPassword = lazy(() => import('../component/ResetPassword/ResetPassword'));
+const VerifyEmail = lazy(() => import('../component/VerifyEmail/VerifyEmail'));
+const ProductList = lazy(() => import('../pages/ProductList'));
+const ProductDetail = lazy(() => import('../component/ProductDetail/ProductDetail'));
+const Solutions = lazy(() => import('../component/Solutions/Solutions'));
+const Contact = lazy(() => import('../component/Contact/Contact'));
+const AIAgriculture = lazy(() => import('../component/AIAgriculture/AIAgriculture'));
+const Profile = lazy(() => import('../component/Profile/Profile'));
 
 const publicRoutes = [
   { path: '/', element: <HomeEntry /> },
   { path: '/register', element: <Register /> },
   { path: '/auth', element: <Auth /> },
-
-  // Google Auth
   { path: '/auth/google/callback', element: <GoogleCallback /> },
   { path: '/auth/google/select-role', element: <GoogleSelectRole /> },
-
-  // Password / Email
   { path: '/reset-password', element: <ResetPassword /> },
   { path: '/reset-password/:token', element: <ResetPassword /> },
   { path: '/verify-email', element: <VerifyEmail /> },
-
   { path: '/products', element: <ProductList /> },
   { path: '/products/:id', element: <ProductDetail context="public" /> },
   { path: '/solutions', element: <Solutions /> },
   { path: '/contact', element: <Contact /> },
   { path: '/ai-agriculture', element: <AIAgriculture /> },
-
-
   {
     path: '/profile',
     element: (

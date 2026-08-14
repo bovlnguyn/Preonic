@@ -1,38 +1,37 @@
-import React from 'react';
+import React, { lazy } from 'react';
 import ProtectedRoute from './ProtectedRoute';
 
-// Enterprise role website pages
-import EnterpriseHome from '../component/EnterpriseHome/EnterpriseHome';
-import EnterpriseProductsPage from '../component/EnterpriseProducts/EnterpriseProducts';
-import EnterpriseSolutions from '../component/EnterpriseSolutions/EnterpriseSolutions';
-import EnterpriseContact from '../component/EnterpriseContact/EnterpriseContact';
-import EnterpriseAI from '../component/EnterpriseAI/EnterpriseAI';
+// Fix 08: route-level code splitting. Mỗi nhóm trang chỉ được tải khi người dùng
+// thực sự điều hướng tới route đó, thay vì nhét toàn bộ Enterprise site/dashboard
+// vào initial JavaScript bundle.
+const EnterpriseHome = lazy(() => import('../component/EnterpriseHome/EnterpriseHome'));
+const EnterpriseProductsPage = lazy(() => import('../component/EnterpriseProducts/EnterpriseProducts'));
+const EnterpriseSolutions = lazy(() => import('../component/EnterpriseSolutions/EnterpriseSolutions'));
+const EnterpriseContact = lazy(() => import('../component/EnterpriseContact/EnterpriseContact'));
+const EnterpriseAI = lazy(() => import('../component/EnterpriseAI/EnterpriseAI'));
 
-// Enterprise Dashboard Layout + Pages
-import EnterpriseLayout from '../component/EnterpriseDashboard/EnterpriseLayout';
-import EnterpriseOverview from '../component/EnterpriseDashboard/pages/EnterpriseOverview';
-import EnterpriseContracts from '../component/EnterpriseDashboard/pages/EnterpriseContracts';
-import EnterpriseProducts from '../component/EnterpriseDashboard/pages/EnterpriseProducts';
-import EnterpriseOrders from '../component/EnterpriseDashboard/pages/EnterpriseOrders';
-import EnterpriseEscrow from '../component/EnterpriseDashboard/pages/EnterpriseEscrow';
-import EnterpriseWallet from '../component/EnterpriseDashboard/pages/EnterpriseWallet';
-import EnterpriseSuppliers from '../component/EnterpriseDashboard/pages/EnterpriseSuppliers';
-import EnterpriseTransactions from '../component/EnterpriseDashboard/pages/EnterpriseTransactions';
-import EnterpriseRatings from '../component/EnterpriseDashboard/pages/EnterpriseRatings';
-import EnterpriseWeatherInsurance from '../component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance';
-import EnterpriseCreateContract from '../component/EnterpriseDashboard/pages/EnterpriseCreateContract';
+const EnterpriseLayout = lazy(() => import('../component/EnterpriseDashboard/EnterpriseLayout'));
+const EnterpriseOverview = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseOverview'));
+const EnterpriseContracts = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseContracts'));
+const EnterpriseProducts = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseProducts'));
+const EnterpriseOrders = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseOrders'));
+const EnterpriseEscrow = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseEscrow'));
+const EnterpriseWallet = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseWallet'));
+const EnterpriseSuppliers = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseSuppliers'));
+const EnterpriseTransactions = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseTransactions'));
+const EnterpriseRatings = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseRatings'));
+const EnterpriseWeatherInsurance = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance'));
+const EnterpriseCreateContract = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseCreateContract'));
 
-// Dùng chung Farmer/Enterprise
-import ContractDetailView from '../component/ContractDetailView/ContractDetailView';
-import ProductDetail from '../component/ProductDetail/ProductDetail';
-import EnterpriseSupplierDetail from '../component/EnterpriseSupplierDetail/EnterpriseSupplierDetail';
+const ContractDetailView = lazy(() => import('../component/ContractDetailView/ContractDetailView'));
+const ProductDetail = lazy(() => import('../component/ProductDetail/ProductDetail'));
+const EnterpriseSupplierDetail = lazy(() => import('../component/EnterpriseSupplierDetail/EnterpriseSupplierDetail'));
 
 const forEnterprise = (element) => (
   <ProtectedRoute allowedRoles={['enterprise']}>{element}</ProtectedRoute>
 );
 
 const enterpriseRoutes = [
-  // Enterprise role website pages - chỉ dành cho enterprise đã đăng nhập
   { path: '/enterprise-home', element: forEnterprise(<EnterpriseHome />) },
   { path: '/enterprise-products', element: forEnterprise(<EnterpriseProductsPage />) },
   { path: '/enterprise-products/:id', element: forEnterprise(<ProductDetail context="enterprise-site" />) },
@@ -40,7 +39,6 @@ const enterpriseRoutes = [
   { path: '/enterprise-contact', element: forEnterprise(<EnterpriseContact />) },
   { path: '/enterprise-ai-agriculture', element: forEnterprise(<EnterpriseAI />) },
 
-  // Cấu hình các Dashboard thực tế của Enterprise
   {
     path: '/enterprise',
     element: forEnterprise(<EnterpriseLayout />),

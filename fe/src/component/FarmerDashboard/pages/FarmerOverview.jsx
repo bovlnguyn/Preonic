@@ -30,79 +30,108 @@ function FarmerOverview() {
   };
 
   const [cropProducts, setCropProducts] = useState([]);
+  const [productSummary, setProductSummary] = useState({ totalProducts: 0, totalQuantity: 0 });
   const [contracts, setContracts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPagination, setOrdersPagination] = useState({ total: 0, totalPages: 0 });
   const [reputation, setReputation] = useState({ average: 0, count: 0 });
   const [contractSummary, setContractSummary] = useState({
     totalContracts: 0,
     totalContractValue: 0,
+    activeContracts: 0,
+    pendingContracts: 0,
   });
 
   useEffect(() => {
     Promise.all([
-      farmerService.getMyCrops(),
-      contractService.list(undefined, { limit: 100 }),
+      farmerService.getMyCropsPage({ page: 1, limit: 3, includeSummary: true }),
+      contractService.list(undefined, { page: 1, limit: 3 }),
       contractService.summary(),
       walletService.get().catch(() => null),
       partnerRatingService.getMyRatings().catch(() => null),
-      escrowService.list().catch(() => ({ data: { escrows: [] } })),
     ])
-      .then(([crops, contractsRes, summaryRes, walletRes, ratingsRes, escrowsRes]) => {
-        setCropProducts(Array.isArray(crops) ? crops : []);
-
-        const contractList = contractsRes?.data?.contracts || [];
-        setContracts(contractList);
+      .then(([cropsResult, contractsRes, summaryRes, walletRes, ratingsRes]) => {
+        setCropProducts(cropsResult?.products || []);
+        setProductSummary(cropsResult?.summary || { totalProducts: 0, totalQuantity: 0 });
+        setContracts(contractsRes?.data?.contracts || []);
 
         setContractSummary(summaryRes?.data?.summary || {
           totalContracts: 0,
           totalContractValue: 0,
+          activeContracts: 0,
+          pendingContracts: 0,
         });
 
         setWalletBalance(walletRes?.data?.wallet?.balance || 0);
 
-        const received = ratingsRes?.data?.received || [];
+        const ratingSummary = ratingsRes?.data?.summary || {};
         setReputation({
-          average: received.length
-            ? received.reduce((sum, r) => sum + Number(r.overallRating || 0), 0) / received.length
-            : 0,
-          count: received.length,
+          average: Number(ratingSummary.reputationScore || 0),
+          count: Number(ratingSummary.totalRatings || 0),
         });
-
-        const escrowByContract = new Map(
-          (escrowsRes?.data?.escrows || []).map((e) => [e.contractId, e])
-        );
-        const activeOrders = contractList.filter((c) => ORDER_CONTRACT_STATUSES.includes(c.status));
-        setOrders(activeOrders.map((c) => ({
-          id: c.contractCode,
-          contractId: c.id,
-          product: c.product?.name,
-          buyer: c.enterprise?.name,
-          deliveryDate: c.deliveryDate,
-          status: getOrderStatusLabel(c, escrowByContract.get(c.id)),
-        })));
       })
       .catch(() => {
         setCropProducts([]);
+        setProductSummary({ totalProducts: 0, totalQuantity: 0 });
         setContracts([]);
-        setOrders([]);
         setWalletBalance(0);
         setReputation({ average: 0, count: 0 });
-        setContractSummary({ totalContracts: 0, totalContractValue: 0 });
+        setContractSummary({ totalContracts: 0, totalContractValue: 0, activeContracts: 0, pendingContracts: 0 });
       });
   }, []);
 
-  const activeProductsCount = cropProducts.filter((p) => p.isActive).length;
-  const activeContractsCount = contracts.filter((c) => c.status === 'active').length;
-  const pendingContractsCount = contracts.filter((c) => c.status === 'pending').length;
+  // Don hang tren Overview duoc phan trang o server va chi lay escrow cua chinh
+  // cac contract dang hien thi. Khong con tai toan bo lich su escrow moi lan vao dashboard.
+  useEffect(() => {
+    let alive = true;
 
-  const ordersTotalPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
+    contractService.list(ORDER_CONTRACT_STATUSES.join(','), {
+      page: ordersPage,
+      limit: ORDERS_PER_PAGE,
+    })
+      .then(async (contractsRes) => {
+        const orderContracts = contractsRes?.data?.contracts || [];
+        const pagination = contractsRes?.data?.pagination || {};
+        const contractIds = orderContracts.map((contract) => contract.id).filter(Boolean);
+        const escrowsRes = contractIds.length > 0
+          ? await escrowService.list({ contractIds, limit: ORDERS_PER_PAGE }).catch(() => null)
+          : null;
+        if (!alive) return;
+
+        const escrowByContract = new Map(
+          (escrowsRes?.data?.escrows || []).map((escrow) => [escrow.contractId, escrow])
+        );
+        setOrders(orderContracts.map((contract) => ({
+          id: contract.contractCode,
+          contractId: contract.id,
+          product: contract.product?.name,
+          buyer: contract.enterprise?.name,
+          deliveryDate: contract.deliveryDate,
+          status: getOrderStatusLabel(contract, escrowByContract.get(contract.id)),
+        })));
+        setOrdersPagination({
+          total: Number(pagination.total || 0),
+          totalPages: Number(pagination.totalPages || 0),
+        });
+      })
+      .catch(() => {
+        if (!alive) return;
+        setOrders([]);
+        setOrdersPagination({ total: 0, totalPages: 0 });
+      });
+
+    return () => { alive = false; };
+  }, [ordersPage]);
+
+  const activeProductsCount = Number(productSummary.totalProducts || 0);
+  const activeContractsCount = Number(contractSummary.activeContracts || 0);
+  const pendingContractsCount = Number(contractSummary.pendingContracts || 0);
+
+  const ordersTotalPages = Math.max(1, Number(ordersPagination.totalPages || 1));
   const safeOrdersPage = Math.min(ordersPage, ordersTotalPages);
-  const paginatedOrders = orders.slice(
-    (safeOrdersPage - 1) * ORDERS_PER_PAGE,
-    safeOrdersPage * ORDERS_PER_PAGE
-  );
+  const paginatedOrders = orders;
 
   useEffect(() => {
     if (ordersPage > ordersTotalPages) {
@@ -115,7 +144,7 @@ function FarmerOverview() {
       id: 'active-products',
       label: 'Nông sản đang bán',
       value: String(activeProductsCount),
-      change: `${cropProducts.length} sản phẩm đã đăng`,
+      change: `${productSummary.totalProducts || 0} sản phẩm đã đăng`,
       tone: 'green',
     },
     {
@@ -297,7 +326,7 @@ function FarmerOverview() {
 
             <div className="farmer-pagination">
               <span>
-                Trang {safeOrdersPage} / {ordersTotalPages} — {orders.length.toLocaleString('vi-VN')} đơn hàng
+                Trang {safeOrdersPage} / {ordersTotalPages} — {ordersPagination.total.toLocaleString('vi-VN')} đơn hàng
               </span>
               <div className="farmer-pagination__buttons">
                 <button

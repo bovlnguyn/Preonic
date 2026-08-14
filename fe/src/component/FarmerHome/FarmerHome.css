@@ -12,7 +12,9 @@
   --frh-text: #12331f;
   --frh-muted: #607463;
   min-height: 100vh;
-  overflow-x: hidden;
+  /* `clip` prevents horizontal decorative overflow without creating a scroll container,
+     so the shared sticky Header keeps working while the page scrolls. */
+  overflow-x: clip;
   background:
     radial-gradient(circle at 8% 8%, rgba(190, 242, 100, 0.24), transparent 24%),
     radial-gradient(circle at 88% 18%, rgba(250, 204, 21, 0.15), transparent 25%),

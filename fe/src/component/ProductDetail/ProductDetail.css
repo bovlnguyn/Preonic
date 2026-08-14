@@ -1595,3 +1595,26 @@
     align-self: flex-start;
   }
 }
+
+.pd-coverage-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--pd-muted);
+  background: var(--pd-primary-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pd-coverage-note svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--pd-primary);
+}
+
+.pd-coverage-note strong {
+  color: var(--pd-primary-dark);
+}

@@ -1,11 +1,18 @@
 import { Router, RequestHandler } from 'express';
-import { depositEscrow, getEscrow, listEscrows, confirmMilestone } from '../controller/escrow.controller';
+import { depositEscrow, getEscrow, getEscrowSummary, listEscrows, confirmMilestone } from '../controller/escrow.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
-import { validateEscrowContractIdParam, validateConfirmMilestone } from '../middlewares/validation';
+import { validateEscrowContractIdParam, validateConfirmMilestone, validateListEscrows } from '../middlewares/validation';
 
 const router = Router();
 
-router.get('/', protect as RequestHandler, listEscrows as RequestHandler);
+router.get(
+  '/',
+  protect as RequestHandler,
+  validateListEscrows as RequestHandler[],
+  listEscrows as RequestHandler
+);
+
+router.get('/summary', protect as RequestHandler, getEscrowSummary as RequestHandler);
 
 router.post(
   '/:contractId/deposit',
