@@ -12,6 +12,7 @@ import { resolveImageUrl } from '../../services/product.service';
 import { VN_DISTRICTS, VN_WARDS } from '../../data/vn-locations';
 import { formatReputation } from '../../utils/rating';
 import { getPasswordPolicyChecks, getPasswordPolicyError } from '../../utils/password';
+import { getInitials } from '../../utils/dashboard';
 import './Profile.css';
 
 const VN_PROVINCES = Object.keys(VN_DISTRICTS || {});
@@ -37,16 +38,6 @@ const buildForm = (user) => ({
   taxCode: user?.taxCode || '',
 });
 
-function getInitials(name = '') {
-  const trimmed = name.trim();
-  if (!trimmed) return '?';
-  return trimmed
-    .split(/\s+/)
-    .slice(-2)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase();
-}
 
 function Profile() {
   const { user, updateUser, setAccessToken } = useAuth();
@@ -362,7 +353,7 @@ function Profile() {
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               )
-              : <span>{getInitials(fullName)}</span>}
+              : <span>{getInitials(fullName, '?')}</span>}
             <div className="profile-avatar__overlay">
               <FiCamera />
             </div>

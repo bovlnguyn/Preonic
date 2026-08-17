@@ -1,10 +1,8 @@
-// Helper format tiền tệ VNĐ dùng chung trong toàn app
-export const formatMoney = (value) => {
-  const num = Number(value) || 0;
-  return num.toLocaleString('vi-VN') + ' ₫';
-};
+import { formatMoney } from '../utils/dashboard';
 
-// Có thể bổ sung thêm các hook fetch data dùng chung tại đây sau này
+// Giữ API cũ cho các màn Admin, nhưng dùng chung một formatter tiền tệ toàn hệ thống.
+export { formatMoney };
+
 const useApiData = { formatMoney };
 
 export default useApiData;

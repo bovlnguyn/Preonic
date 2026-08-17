@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import {
   FiGrid, FiPlus, FiArrowUpRight, FiArrowDownLeft, FiClock,
   FiLock, FiRefreshCw, FiFileText, FiShield,
   FiCheck, FiHome, FiZap, FiInbox, FiCopy, FiLoader, FiCamera,
   FiChevronLeft, FiChevronRight,
 } from 'react-icons/fi';
-import { useToast } from '../../../contexts/ToastContext';
-import walletService from '../../../services/wallet.service';
 import { formatMoney } from '../utils';
+import { formatDateTime } from '../../../utils/dashboard';
+import useWalletPage from '../../../hooks/useWalletPage';
+import WalletStatusBadge from '../../Common/DashboardPages/WalletStatusBadge';
 import './FarmerWallet.css';
 
 const TABS = [
@@ -49,297 +50,47 @@ const HISTORY_FILTERS = [
   { key: 'refund',   label: 'Hoàn tiền' },
 ];
 
-function formatDateTime(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-}
-
-// Escrow transactions không có cột status (luôn hoàn tất ngay), chỉ giao dịch
-// nguồn 'payment' (topup demo/SePay) mới có thể đang ở trạng thái pending.
 function TxStatusBadge({ tx }) {
-  if (tx.source === 'payment' && tx.status === 'pending') {
-    return <span className="farmer-badge farmer-badge--warning">Đang chờ</span>;
-  }
-  if (tx.source === 'payment' && tx.status === 'rejected') {
-    return <span className="farmer-badge farmer-badge--danger">Đã từ chối</span>;
-  }
-  if (tx.source === 'payment' && tx.status && tx.status !== 'completed') {
-    return <span className="farmer-badge farmer-badge--danger">Thất bại</span>;
-  }
-  return <span className="farmer-badge farmer-badge--success">Thành công</span>;
+  return <WalletStatusBadge classPrefix="farmer" tx={tx} />;
 }
 
 function FarmerWallet() {
-  const toast = useToast();
+  const {
+    tab,
+    setTab,
+    loading,
+    balance,
+    transactions,
+    amountRaw,
+    quickPicked,
+    topupLoading,
+    sepayOrder,
+    sepayCreating,
+    withdrawals,
+    withdrawalsLoading,
+    wForm,
+    withdrawLoading,
+    historyFilter,
+    historyTransactions,
+    historyPagination,
+    historyLoading,
+    totals,
+    setHistoryPage,
+    handleHistoryFilterChange,
+    pickQuick,
+    onCustomAmountChange,
+    handleCreateSePayOrder,
+    handleCreateDemoQrOrder,
+    resetSepayOrder,
+    copySepayField,
+    handleDemoTopUp,
+    setWField,
+    submitWithdraw,
+    handleDemoWithdraw,
+  } = useWalletPage();
 
-  const [tab, setTab] = useState('overview');
-  const [loading, setLoading] = useState(true);
-
-  // Ví — du lieu that tu GET /wallet + GET /wallet/transactions
-  const [balance, setBalance] = useState(0);
-  const [transactions, setTransactions] = useState([]);
-
-  // Nạp tiền
-  const [amountRaw, setAmountRaw] = useState('');
-  const [quickPicked, setQuickPicked] = useState(null);
-  const [topupLoading, setTopupLoading] = useState(false);
-
-  // Nạp tiền qua SePay — lệnh chuyển khoản đang chờ webhook xác nhận
-  const [sepayOrder, setSepayOrder] = useState(null);
-  const [sepayCreating, setSepayCreating] = useState(false);
-
-  // Rút tiền — yêu cầu rút (demo hoặc qua ngân hàng) đều ở trạng thái 'pending' cho tới khi admin duyệt.
-  const [withdrawals, setWithdrawals] = useState([]);
-  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
-  const [wForm, setWForm] = useState({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
-  const [withdrawLoading, setWithdrawLoading] = useState(false);
-
-  // Lịch sử — phân trang & lọc phía server
-  const [historyFilter, setHistoryFilter] = useState('all');
-  const [historyPage, setHistoryPage] = useState(1);
-  const [historyTransactions, setHistoryTransactions] = useState([]);
-  const [historyPagination, setHistoryPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
-  const [historyLoading, setHistoryLoading] = useState(false);
-
-  const loadWallet = () => {
-    setLoading(true);
-    Promise.all([
-      walletService.get(),
-      walletService.listTransactions({ limit: 100 }),
-    ])
-      .then(([walletRes, txRes]) => {
-        setBalance(walletRes?.data?.wallet?.balance || 0);
-        setTransactions(txRes?.data?.transactions || []);
-      })
-      .catch(() => {
-        setBalance(0);
-        setTransactions([]);
-      })
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(loadWallet, []);
-
-  const loadWithdrawals = () => {
-    setWithdrawalsLoading(true);
-    walletService.listTransactions({ type: 'withdraw', limit: 20 })
-      .then((res) => setWithdrawals(res?.data?.transactions || []))
-      .catch(() => setWithdrawals([]))
-      .finally(() => setWithdrawalsLoading(false));
-  };
-
-  useEffect(() => {
-    if (tab === 'withdraw') loadWithdrawals();
-  }, [tab]);
-
-  const totalDeposit = useMemo(
-    () => transactions.filter((t) => t.type === 'topup').reduce((sum, t) => sum + Number(t.amount || 0), 0),
-    [transactions],
-  );
-  const totalReceived = useMemo(
-    () => transactions.filter((t) => t.type === 'release').reduce((sum, t) => sum + Number(t.amount || 0), 0),
-    [transactions],
-  );
-
-  useEffect(() => {
-    if (tab !== 'history') return;
-
-    setHistoryLoading(true);
-    walletService.listTransactions({
-      type: historyFilter === 'all' ? undefined : historyFilter,
-      page: historyPage,
-      limit: 10,
-    })
-      .then((res) => {
-        setHistoryTransactions(res?.data?.transactions || []);
-        setHistoryPagination(res?.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 });
-      })
-      .catch(() => {
-        setHistoryTransactions([]);
-        setHistoryPagination({ page: 1, limit: 10, total: 0, totalPages: 1 });
-      })
-      .finally(() => setHistoryLoading(false));
-  }, [tab, historyFilter, historyPage]);
-
-  const handleHistoryFilterChange = (key) => {
-    setHistoryFilter(key);
-    setHistoryPage(1);
-  };
-
-  const pickQuick = (value) => {
-    setQuickPicked(value);
-    setAmountRaw(String(value));
-  };
-
-  const onCustomAmountChange = (e) => {
-    const digits = e.target.value.replace(/\D/g, '');
-    setAmountRaw(digits);
-    setQuickPicked(null);
-  };
-
-  const handleCreateSePayOrder = async () => {
-    const amount = Number(amountRaw);
-    if (!amount) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
-
-    setSepayCreating(true);
-    try {
-      const res = await walletService.createSepayOrder(amount);
-      setSepayOrder(res?.data || null);
-    } catch (err) {
-      toast.error(err?.message || 'Tạo lệnh SePay thất bại, vui lòng thử lại.');
-    } finally {
-      setSepayCreating(false);
-    }
-  };
-
-  const handleCreateDemoQrOrder = async () => {
-    const amount = Number(amountRaw);
-    if (!amount) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
-
-    setSepayCreating(true);
-    try {
-      const res = await walletService.createDemoQrOrder(amount);
-      setSepayOrder(res?.data || null);
-    } catch (err) {
-      toast.error(err?.message || 'Tạo mã QR demo thất bại, vui lòng thử lại.');
-    } finally {
-      setSepayCreating(false);
-    }
-  };
-
-  const resetSepayOrder = () => setSepayOrder(null);
-
-  const copySepayField = async (text, label) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`Đã sao chép ${label}.`);
-    } catch {
-      toast.warning('Không thể sao chép, vui lòng copy thủ công.');
-    }
-  };
-
-  // Theo dõi trạng thái lệnh SePay đang chờ — webhook cộng ví ở phía backend,
-  // FE chỉ cần poll để biết khi nào đã nhận được tiền.
-  useEffect(() => {
-    if (!sepayOrder || sepayOrder.status === 'completed') return undefined;
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await walletService.getSepayOrderStatus(sepayOrder.orderCode);
-        if (res?.data?.status === 'completed') {
-          setSepayOrder((prev) => (prev ? { ...prev, status: 'completed' } : prev));
-        }
-      } catch {
-        // Bỏ qua lỗi mạng tạm thời, thử lại ở lần poll kế tiếp.
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  // Cố ý chỉ chạy lại khi mã/trạng thái thay đổi; không phụ thuộc toàn object để tránh reset polling.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sepayOrder?.orderCode, sepayOrder?.status]);
-
-  // Lệnh QR demo không có ngân hàng/webhook thật — tự giả lập xác nhận sau vài giây,
-  // vòng poll ở trên sẽ phát hiện và cập nhật giao diện như lệnh SePay thật.
-  useEffect(() => {
-    if (!sepayOrder?.isDemo || sepayOrder.status !== 'pending') return undefined;
-
-    const timer = setTimeout(() => {
-      walletService.confirmDemoQrOrder(sepayOrder.orderCode).catch(() => {});
-    }, 4000);
-
-    return () => clearTimeout(timer);
-  }, [sepayOrder?.orderCode, sepayOrder?.isDemo, sepayOrder?.status]);
-
-  useEffect(() => {
-    if (sepayOrder?.status !== 'completed') return undefined;
-
-    toast.success(`Nạp thành công ${formatMoney(sepayOrder.amount)} vào ví${sepayOrder.isDemo ? ' (QR demo)' : ' qua SePay'}.`);
-    loadWallet();
-
-    const timer = setTimeout(() => {
-      setSepayOrder(null);
-      setAmountRaw('');
-      setQuickPicked(null);
-      setTab('overview');
-    }, 1800);
-
-    return () => clearTimeout(timer);
-  // Giữ trigger theo status để callback completed chỉ chạy một lần cho mỗi lệnh.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sepayOrder?.status]);
-
-  const handleDemoTopUp = async () => {
-    const amount = Number(amountRaw);
-    if (!amount || amount <= 0) { toast.warning('Vui lòng chọn hoặc nhập số tiền muốn nạp.'); return; }
-
-    setTopupLoading(true);
-    try {
-      const res = await walletService.demoTopup(amount);
-      setBalance(res?.data?.wallet?.balance ?? balance);
-      setAmountRaw('');
-      setQuickPicked(null);
-      toast.success(`Nạp thành công ${formatMoney(amount)} vào ví (demo).`);
-      setTab('overview');
-      loadWallet();
-    } catch (err) {
-      toast.error(err?.message || 'Nạp tiền thất bại, vui lòng thử lại.');
-    } finally {
-      setTopupLoading(false);
-    }
-  };
-
-  const setWField = (key, value) => setWForm((prev) => ({ ...prev, [key]: value }));
-
-  const submitWithdraw = async (e) => {
-    e.preventDefault();
-    const amount = Number(wForm.amount.replace(/\D/g, ''));
-
-    if (!amount || amount <= 0)      { toast.warning('Vui lòng nhập số tiền muốn rút.'); return; }
-    if (amount > balance)            { toast.error('Số tiền rút vượt quá số dư khả dụng.'); return; }
-    if (!wForm.bank)                 { toast.warning('Vui lòng chọn ngân hàng nhận tiền.'); return; }
-    if (!wForm.accountNumber.trim()) { toast.warning('Vui lòng nhập số tài khoản.'); return; }
-    if (!wForm.accountHolder.trim()) { toast.warning('Vui lòng nhập tên chủ tài khoản.'); return; }
-
-    setWithdrawLoading(true);
-    try {
-      await walletService.requestWithdraw({
-        amount,
-        note: wForm.note.trim(),
-        isDemo: false,
-        bankName: wForm.bank,
-        bankAccountNumber: wForm.accountNumber.trim(),
-        bankAccountHolder: wForm.accountHolder.trim().toUpperCase(),
-      });
-      setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
-      toast.success('Đã gửi yêu cầu rút tiền. Quản trị viên sẽ xử lý sớm nhất.');
-      loadWithdrawals();
-    } catch (err) {
-      toast.error(err?.message || 'Gửi yêu cầu rút tiền thất bại, vui lòng thử lại.');
-    } finally {
-      setWithdrawLoading(false);
-    }
-  };
-
-  const handleDemoWithdraw = async () => {
-    const amount = Number(wForm.amount.replace(/\D/g, ''));
-    if (!amount || amount <= 0) { toast.warning('Vui lòng nhập số tiền muốn rút.'); return; }
-    if (amount > balance) { toast.error('Số tiền rút vượt quá số dư khả dụng.'); return; }
-
-    setWithdrawLoading(true);
-    try {
-      await walletService.requestWithdraw({ amount, isDemo: true });
-      setWForm({ amount: '', bank: '', accountNumber: '', accountHolder: '', note: '' });
-      toast.success(`Đã gửi yêu cầu rút ${formatMoney(amount)} (demo). Chờ quản trị viên duyệt để hoàn tất.`);
-      loadWithdrawals();
-    } catch (err) {
-      toast.error(err?.message || 'Gửi yêu cầu rút tiền thất bại, vui lòng thử lại.');
-    } finally {
-      setWithdrawLoading(false);
-    }
-  };
+  const totalDeposit = totals.topup;
+  const totalReceived = totals.release;
 
   return (
     <div className="farmer-stack">

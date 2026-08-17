@@ -29,6 +29,9 @@ export const MILESTONE_ROLE_LABEL = {
 export const getActiveMilestone = (escrow) =>
   escrow?.milestones?.find((m) => m.status !== 'completed') || null;
 
+export const getCurrentMilestoneLabel = (escrow) =>
+  getActiveMilestone(escrow)?.name || 'Đã hoàn tất tất cả các mốc';
+
 // Nhãn trạng thái đơn hàng dùng chung cho trang "Đơn hàng" của farmer/enterprise.
 // Đơn hàng = hợp đồng đã active, tiến độ giao nhận theo dõi qua các mốc ký quỹ.
 // Lưu ý: mốc số 5 có tên là "Hoàn tất" nhưng khi nó còn pending thì đơn hàng

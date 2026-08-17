@@ -11,6 +11,7 @@ import {
 import logo from "../../assets/branding/preonic-logo-main.png";
 import { useAuth } from "../../contexts/AuthContext";
 import { resolveImageUrl } from "../../services/product.service";
+import { getInitials } from "../../utils/dashboard";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 import "./Header.css";
 
@@ -87,16 +88,6 @@ function getGreetingName(user, displayName) {
   return words[words.length - 1] || "bạn";
 }
 
-function getInitials(name = "") {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "PO";
-
-  return words
-    .slice(-2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-}
 
 function Header() {
   const navigate = useNavigate();

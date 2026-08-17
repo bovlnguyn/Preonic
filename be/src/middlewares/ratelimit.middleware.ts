@@ -69,3 +69,17 @@ export const publicAiLimiter = rateLimit({
     message: 'Bạn đã gửi quá nhiều câu hỏi trong thời gian ngắn. Vui lòng thử lại sau.',
   },
 });
+
+
+// Farmer AI: đã đăng nhập nhưng vẫn cần chặn spam đốt quota API.
+export const farmerAiLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: Number(process.env.FARMER_AI_LIMIT_PER_15_MIN || 50),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: 'FARMER_AI_RATE_LIMITED',
+    message: 'Bạn đã gửi quá nhiều câu hỏi cho PreOnic Farmer AI. Vui lòng thử lại sau ít phút.',
+  },
+});

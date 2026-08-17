@@ -1,16 +1,8 @@
 import React from 'react';
+import DashboardStatCard from '../../Common/Dashboard/StatCard';
 
-function StatCard({ icon: Icon, label, value, change, tone = 'green' }) {
-  return (
-    <article className={`farmer-stat farmer-stat--${tone}`}>
-      <div className="farmer-stat__icon">{Icon && <Icon />}</div>
-      <div>
-        <p>{label}</p>
-        <strong>{value}</strong>
-        <span>{change}</span>
-      </div>
-    </article>
-  );
+function StatCard(props) {
+  return <DashboardStatCard classPrefix="farmer" tone="green" {...props} />;
 }
 
 export default StatCard;
