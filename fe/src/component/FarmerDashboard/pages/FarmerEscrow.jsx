@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiShield, FiGift, FiClock, FiActivity, FiCheck, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import ProgressBar from '../components/ProgressBar';
 import EmptyState from '../components/EmptyState';
-import escrowService from '../../../services/escrow.service';
-import { ESCROW_STATUS_LABEL } from '../../../constants/escrow';
+import useEscrowDashboard from '../../../hooks/useEscrowDashboard';
+import { ESCROW_STATUS_LABEL, getCurrentMilestoneLabel } from '../../../constants/escrow';
 import { formatMoney } from '../utils';
 import './FarmerEscrow.css';
 
@@ -31,53 +31,11 @@ const PROTECTION_POINTS = [
   'Có tranh chấp? Admin PreOnic phân xử công bằng',
 ];
 
-// Mốc tiếp theo chưa hoàn tất — hiển thị "đang chờ ở bước nào" trên thẻ tóm tắt.
-const currentMilestoneLabel = (escrow) => {
-  const next = (escrow.milestones || []).find((m) => m.status !== 'completed');
-  return next ? next.name : 'Đã hoàn tất tất cả các mốc';
-};
-
 function FarmerEscrow() {
   const navigate = useNavigate();
-  const [escrows, setEscrows] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState('overview');
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
-  const [summary, setSummary] = useState({ totalReleased: 0, pendingAmount: 0, activeCount: 0 });
-
-  useEffect(() => {
-    escrowService.summary()
-      .then((res) => setSummary(res?.data?.summary || { totalReleased: 0, pendingAmount: 0, activeCount: 0 }))
-      .catch(() => setSummary({ totalReleased: 0, pendingAmount: 0, activeCount: 0 }));
-  }, []);
-
-  useEffect(() => {
-    if (tab === 'overview') {
-      setLoading(false);
-      return undefined;
-    }
-    let alive = true;
-    setLoading(true);
-    escrowService.list({
-      page,
-      limit: 6,
-      ...(tab === 'active' || tab === 'completed' ? { status: tab } : {}),
-    })
-      .then((res) => {
-        if (!alive) return;
-        setEscrows(res?.data?.escrows || []);
-        const next = res?.data?.pagination || {};
-        setPagination({ total: Number(next.total || 0), totalPages: Number(next.totalPages || 0) });
-      })
-      .catch(() => {
-        if (!alive) return;
-        setEscrows([]);
-        setPagination({ total: 0, totalPages: 0 });
-      })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [tab, page]);
+  const {
+    escrows, loading, tab, changeTab, page, setPage, pagination, summary,
+  } = useEscrowDashboard({ pageSize: 6 });
 
   const stats = {
     received: Number(summary.totalReleased || 0),
@@ -132,7 +90,7 @@ function FarmerEscrow() {
                 key={t.key}
                 type="button"
                 className={tab === t.key ? 'active' : ''}
-                onClick={() => { setTab(t.key); setPage(1); }}
+                onClick={() => changeTab(t.key)}
               >
                 {t.label}
               </button>
@@ -193,7 +151,7 @@ function FarmerEscrow() {
                         {ESCROW_STATUS_LABEL[item.status] || item.status}
                       </span>
                     </div>
-                    <p>{item.productName} — {currentMilestoneLabel(item)}</p>
+                    <p>{item.productName} — {getCurrentMilestoneLabel(item)}</p>
                     <div className="farmer-escrow-card__money">
                       <div>
                         <span>Tổng ký quỹ</span>

@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useMessagingWidget } from '../../contexts/MessagingWidgetContext';
 import messagingService from '../../services/messaging.service';
+import { getInitials } from '../../utils/dashboard';
+import { formatRelativeTime as formatRelativeTimeShared } from '../../utils/date';
 import './FloatingChatWidget.css';
 
 const UNREAD_POLL_MS = 30000;
@@ -12,29 +14,8 @@ const MESSAGE_POLL_MS = 8000;
 const VN_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const CHAT_ROLES = ['farmer', 'enterprise'];
 
-const getInitials = (name) =>
-  (name || '?')
-    .trim()
-    .split(/\s+/)
-    .slice(-2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
-
-const formatRelativeTime = (isoDate) => {
-  if (!isoDate) return '';
-  const date = new Date(isoDate);
-  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-
-  if (diffSec < 60) return 'Vừa xong';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} phút trước`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour} giờ trước`;
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 7) return `${diffDay} ngày trước`;
-  return date.toLocaleDateString('vi-VN', { timeZone: VN_TIME_ZONE });
-};
+const formatRelativeTime = (isoDate) =>
+  formatRelativeTimeShared(isoDate, { dayThreshold: 7, timeZone: VN_TIME_ZONE });
 
 const formatMessageTime = (isoDate) =>
   isoDate
@@ -271,7 +252,7 @@ function FloatingChatWidget() {
                       className="fcw-conversation"
                       onClick={() => openConversation(conversation.id)}
                     >
-                      <span className="fcw-avatar">{getInitials(conversation.partner?.name)}</span>
+                      <span className="fcw-avatar">{getInitials(conversation.partner?.name, '?')}</span>
                       <span className="fcw-conversation__body">
                         <span className="fcw-conversation__top">
                           <strong>{conversation.partner?.name || 'Người dùng'}</strong>

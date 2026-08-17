@@ -1,8 +1,9 @@
 import React from 'react';
+import DashboardStatusBadge from '../../Common/Dashboard/StatusBadge';
 import { getStatusClass } from '../utils';
 
-function StatusBadge({ status }) {
-  return <span className={`farmer-badge farmer-badge--${getStatusClass(status)}`}>{status}</span>;
+function StatusBadge(props) {
+  return <DashboardStatusBadge classPrefix="farmer" resolveStatusClass={getStatusClass} {...props} />;
 }
 
 export default StatusBadge;

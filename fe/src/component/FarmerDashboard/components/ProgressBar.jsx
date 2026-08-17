@@ -1,12 +1,8 @@
 import React from 'react';
+import DashboardProgressBar from '../../Common/Dashboard/ProgressBar';
 
-function ProgressBar({ value = 0 }) {
-  const safeValue = Math.max(0, Math.min(100, Number(value || 0)));
-  return (
-    <div className="farmer-progress" aria-label={`Tiến độ ${safeValue}%`}>
-      <span style={{ width: `${safeValue}%` }} />
-    </div>
-  );
+function ProgressBar(props) {
+  return <DashboardProgressBar classPrefix="farmer" {...props} />;
 }
 
 export default ProgressBar;

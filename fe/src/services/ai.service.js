@@ -20,3 +20,19 @@ export const sendPublicAiMessage = async ({ message, history = [] }) => {
 
   return response.data?.data;
 };
+
+
+export const getFarmerAiStatus = async () => {
+  const response = await api.get('/ai/farmer/status', { timeout: 40_000 });
+  return response.data?.data;
+};
+
+export const sendFarmerAiMessage = async ({ message, history = [], currentFeature = '' }) => {
+  const response = await api.post(
+    '/ai/farmer/chat',
+    { message, history, currentFeature },
+    { timeout: 45_000 }
+  );
+
+  return response.data?.data;
+};

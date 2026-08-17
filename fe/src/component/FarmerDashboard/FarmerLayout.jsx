@@ -1,20 +1,16 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import DashboardLayout from '../Common/Dashboard/DashboardLayout';
 import FarmerSidebar from './FarmerSidebar';
 import FarmerTopbar from './FarmerTopbar';
 import './FarmerDashboard.css';
 
 function FarmerLayout() {
   return (
-    <div className="farmer-dashboard">
-      <FarmerSidebar />
-      <main className="farmer-main">
-        <FarmerTopbar />
-        <div className="farmer-page">
-          <Outlet />
-        </div>
-      </main>
-    </div>
+    <DashboardLayout
+      classPrefix="farmer"
+      sidebar={<FarmerSidebar />}
+      topbar={<FarmerTopbar />}
+    />
   );
 }
 

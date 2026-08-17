@@ -1,34 +1,18 @@
-export function formatMoney(value) {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-}
+import {
+  formatDate,
+  formatMoney,
+  getInitials as getSharedInitials,
+} from '../../utils/dashboard';
 
-export function formatDate(value) {
-  if (!value) return 'Chưa cập nhật';
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(value));
-}
+export { formatDate, formatMoney };
 
 export function getInitials(name = 'Nông dân') {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(-2)
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase();
+  return getSharedInitials(name, 'Nông dân');
 }
 
 export function getStatusClass(status = '') {
   const value = String(status || '').trim().toLowerCase();
 
-  // Nông sản đang hoạt động + các trạng thái hoàn tất/thành công
   if (
     value === 'active' ||
     value.includes('đang hoạt động') ||
@@ -40,10 +24,8 @@ export function getStatusClass(status = '') {
     value.includes('đã ký')
   ) return 'success';
 
-  // Tranh chấp cần tách riêng khỏi warning để dễ nhận biết
   if (value.includes('tranh chấp') || value.includes('dispute')) return 'dispute';
 
-  // Các trạng thái đang chờ / chuẩn bị
   if (
     value.includes('chờ') ||
     value.includes('chuẩn bị') ||
@@ -51,7 +33,6 @@ export function getStatusClass(status = '') {
     value.includes('pending')
   ) return 'warning';
 
-  // Các trạng thái đang thực hiện
   if (
     value.includes('đàm phán') ||
     value.includes('giao') ||
@@ -61,7 +42,6 @@ export function getStatusClass(status = '') {
     value.includes('kiểm tra')
   ) return 'info';
 
-  // Hủy / rủi ro
   if (
     value.includes('hủy') ||
     value.includes('cancel') ||
@@ -69,7 +49,6 @@ export function getStatusClass(status = '') {
     value.includes('thất bại')
   ) return 'danger';
 
-  // Nông sản tạm ngừng/inactive giữ màu xám trung tính
   if (
     value === 'inactive' ||
     value.includes('tạm ngừng') ||
@@ -77,20 +56,4 @@ export function getStatusClass(status = '') {
   ) return 'neutral';
 
   return 'neutral';
-}
-
-export function getStoredProducts() {
-  try {
-    const raw = localStorage.getItem('preonic_farmer_products');
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveStoredProduct(product) {
-  const current = getStoredProducts();
-  const next = [product, ...current];
-  localStorage.setItem('preonic_farmer_products', JSON.stringify(next));
-  return next;
 }

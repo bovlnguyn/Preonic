@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bar,
@@ -13,7 +13,8 @@ import {
 import { FiArrowRight, FiBarChart2, FiChevronLeft, FiChevronRight, FiCreditCard, FiFileText, FiShield } from 'react-icons/fi';
 import SectionHeader from '../components/SectionHeader';
 import EmptyState from '../components/EmptyState';
-import walletService from '../../../services/wallet.service';
+import useTransactionOverview from '../../../hooks/useTransactionOverview';
+import { TRANSACTION_STATUS_LABELS, getTransactionStatusTone } from '../../../utils/transactions';
 import { formatDate, formatMoney } from '../utils';
 
 const QUICK_LINKS = [
@@ -35,24 +36,6 @@ const TYPE_FILTERS = [
   { key: 'escrow', label: 'Escrow' },
 ];
 
-const STATUS_LABELS = {
-  completed: 'Hoàn tất',
-  pending: 'Đang chờ',
-  active: 'Đang hiệu lực',
-  approved: 'Đã ký',
-  draft: 'Nháp',
-  disputed: 'Tranh chấp',
-  refunded: 'Đã hoàn tiền',
-  cancelled: 'Đã hủy',
-};
-
-const statusTone = (status = '') => {
-  if (['completed', 'active', 'approved'].includes(status)) return 'success';
-  if (['pending', 'draft'].includes(status)) return 'warning';
-  if (['cancelled', 'disputed'].includes(status)) return 'danger';
-  return 'neutral';
-};
-
 const getDetailPath = (item) => {
   if (item.detailUrl) return item.detailUrl;
   if (item.type === 'contract' && item.referenceId) return `/enterprise/contracts/${item.referenceId}`;
@@ -71,61 +54,13 @@ const tooltipFormatter = (value, name) => {
 
 function EnterpriseTransactions() {
   const navigate = useNavigate();
-  const [overview, setOverview] = useState({
-    summary: {
-      totalCost: 0,
-      totalWalletTransactions: 0,
-      totalContracts: 0,
-      totalEscrows: 0,
-    },
-    chart: [],
-    recentTransactions: [],
-    pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
+  const {
+    loading, error, typeFilter, setPage, handleTypeFilterChange,
+    chartData, transactions, summary, pagination,
+  } = useTransactionOverview({
+    chartValueKey: 'cost',
+    errorMessage: 'Không thể tải tổng quan giao dịch',
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    setLoading(true);
-    walletService.overviewTransactions({ type: typeFilter || undefined, page })
-      .then((res) => {
-        setOverview(res?.data || {
-          summary: {
-            totalCost: 0,
-            totalWalletTransactions: 0,
-            totalContracts: 0,
-            totalEscrows: 0,
-          },
-          chart: [],
-          recentTransactions: [],
-          pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
-        });
-        setError('');
-      })
-      .catch((err) => {
-        setError(err?.message || 'Không thể tải tổng quan giao dịch');
-      })
-      .finally(() => setLoading(false));
-  }, [typeFilter, page]);
-
-  const handleTypeFilterChange = (key) => {
-    setTypeFilter(key);
-    setPage(1);
-  };
-
-  const chartData = useMemo(
-    () => (overview.chart || []).map((item) => ({
-      ...item,
-      cost: Number(item.cost || 0),
-    })),
-    [overview.chart]
-  );
-
-  const transactions = overview.recentTransactions || [];
-  const summary = overview.summary || {};
-  const pagination = overview.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 };
 
   return (
     <div className="ent-stack">
@@ -241,8 +176,8 @@ function EnterpriseTransactions() {
                           {amount > 0 ? '+' : ''}{formatMoney(amount)}
                         </td>
                         <td>
-                          <span className={`ent-badge ent-badge--${statusTone(item.status)}`}>
-                            {STATUS_LABELS[item.status] || item.status}
+                          <span className={`ent-badge ent-badge--${getTransactionStatusTone(item.status)}`}>
+                            {TRANSACTION_STATUS_LABELS[item.status] || item.status}
                           </span>
                         </td>
                         <td>

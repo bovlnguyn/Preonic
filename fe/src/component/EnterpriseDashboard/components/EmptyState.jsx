@@ -1,17 +1,8 @@
 import React from 'react';
-import { FiInbox } from 'react-icons/fi';
+import DashboardEmptyState from '../../Common/Dashboard/EmptyState';
 
-function EmptyState({
-  title = 'Chưa có dữ liệu',
-  desc  = 'Dữ liệu sẽ hiển thị tại đây sau khi hệ thống được cập nhật.',
-}) {
-  return (
-    <div className="ent-empty">
-      <FiInbox />
-      <h3>{title}</h3>
-      <p>{desc}</p>
-    </div>
-  );
+function EmptyState(props) {
+  return <DashboardEmptyState classPrefix="ent" {...props} />;
 }
 
 export default EmptyState;

@@ -1,16 +1,8 @@
 import React from 'react';
+import DashboardStatCard from '../../Common/Dashboard/StatCard';
 
-function StatCard({ icon: Icon, label, value, change, tone = 'blue' }) {
-  return (
-    <article className={`ent-stat ent-stat--${tone}`}>
-      <div className="ent-stat__icon">{Icon && <Icon />}</div>
-      <div>
-        <p>{label}</p>
-        <strong>{value}</strong>
-        <span>{change}</span>
-      </div>
-    </article>
-  );
+function StatCard(props) {
+  return <DashboardStatCard classPrefix="ent" tone="blue" {...props} />;
 }
 
 export default StatCard;

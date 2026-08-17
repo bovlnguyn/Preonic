@@ -3,8 +3,20 @@ import { toLocalDateInputValue } from '../../../utils/date';
 import './FarmerCreateProduct.css';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiCheckCircle, FiArrowLeft, FiArrowRight,
-  FiCamera, FiFileText, FiX, FiMapPin, FiAlertTriangle,
+  FiAlertTriangle,
+  FiArrowLeft,
+  FiArrowRight,
+  FiBox,
+  FiCalendar,
+  FiCamera,
+  FiCheckCircle,
+  FiDollarSign,
+  FiFileText,
+  FiImage,
+  FiMapPin,
+  FiPackage,
+  FiShield,
+  FiX,
 } from 'react-icons/fi';
 import productService from '../../../services/product.service';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -59,17 +71,17 @@ const TYPES = [
 ];
 
 const STEPS = [
-  { key: 'product',  label: 'Sản phẩm',      sub: 'Tên và loại cây trồng',     icon: '🌿' },
-  { key: 'season',   label: 'Mùa vụ',         sub: 'Thời vụ và sản lượng',      icon: '📅' },
-  { key: 'pricing',  label: 'Giá & Bao tiêu', sub: 'Mức giá và điều kiện',      icon: '💲' },
-  { key: 'media',    label: 'Chứng chỉ & Ảnh', sub: 'Giấy tờ và hình ảnh',     icon: '📷' },
+  { key: 'product',  label: 'Sản phẩm',       sub: 'Tên và loại cây trồng', icon: FiBox },
+  { key: 'season',   label: 'Mùa vụ',         sub: 'Thời vụ và sản lượng',  icon: FiCalendar },
+  { key: 'pricing',  label: 'Giá & Bao tiêu', sub: 'Mức giá và điều kiện',  icon: FiDollarSign },
+  { key: 'media',    label: 'Chứng chỉ & Ảnh', sub: 'Giấy tờ và hình ảnh',  icon: FiImage },
 ];
 
 const TIPS = [
-  '📸 Dùng ảnh rõ nét, chụp trực tiếp tại vùng trồng',
-  '✅ Bổ sung chứng nhận giúp hồ sơ sản phẩm đáng tin cậy hơn',
-  '💲 Đặt mức giá phù hợp để doanh nghiệp dễ đánh giá đề xuất',
-  '📅 Ghi đúng ngày thu hoạch để đối tác chủ động kế hoạch',
+  { icon: FiCamera, text: 'Dùng ảnh rõ nét, chụp trực tiếp tại vùng trồng.' },
+  { icon: FiShield, text: 'Bổ sung chứng nhận giúp hồ sơ sản phẩm đáng tin cậy hơn.' },
+  { icon: FiDollarSign, text: 'Đặt mức giá phù hợp để doanh nghiệp dễ đánh giá đề xuất.' },
+  { icon: FiCalendar, text: 'Ghi đúng ngày thu hoạch để đối tác chủ động kế hoạch.' },
 ];
 
 const initialForm = {
@@ -134,7 +146,7 @@ function StepIndicator({ current }) {
           <React.Fragment key={s.key}>
             <div className={`fcp-step ${active ? 'fcp-step--active' : ''} ${done ? 'fcp-step--done' : ''}`}>
               <div className="fcp-step__circle">
-                {done ? <FiCheckCircle size={16} /> : <span>{s.icon}</span>}
+                {done ? <FiCheckCircle size={16} /> : <s.icon size={18} />}
               </div>
               <div className="fcp-step__info">
                 <div className="fcp-step__label">{s.label}</div>
@@ -218,7 +230,7 @@ function Preview({ form }) {
         <div className="fcp-preview__tags">
           {categoryLabel && <span className="fcp-tag">{categoryLabel}</span>}
           {typeLabel && <span className="fcp-tag">{typeLabel}</span>}
-          {totalKg > 0 && <span className="fcp-tag">⚖ {fmt(totalKg)} kg</span>}
+          {totalKg > 0 && <span className="fcp-tag fcp-tag--metric"><FiPackage size={12} /> {fmt(totalKg)} kg</span>}
         </div>
 
         {totalValue > 0 && (
@@ -233,16 +245,22 @@ function Preview({ form }) {
         )}
 
         <div className="fcp-preview__media-count">
-          <span>📷 {form.images.length}/{MAX_IMAGES} ảnh</span>
-          <span>📄 {form.certFiles.length}/{MAX_CERT_FILES} chứng chỉ</span>
+          <span><FiImage size={12} /> {form.images.length}/{MAX_IMAGES} ảnh</span>
+          <span><FiFileText size={12} /> {form.certFiles.length}/{MAX_CERT_FILES} chứng chỉ</span>
         </div>
       </div>
 
       <div className="fcp-preview__tips">
         <div className="fcp-preview__tips-title">Mẹo tăng tỉ lệ bao tiêu</div>
-        {TIPS.slice(0, 3).map((tip, index) => (
-          <div key={index} className="fcp-preview__tip">{tip}</div>
-        ))}
+        {TIPS.slice(0, 3).map((tip, index) => {
+          const TipIcon = tip.icon;
+          return (
+            <div key={index} className="fcp-preview__tip">
+              <span className="fcp-preview__tip-icon"><TipIcon size={13} /></span>
+              <span>{tip.text}</span>
+            </div>
+          );
+        })}
       </div>
     </aside>
   );
@@ -253,7 +271,7 @@ function Step1({ form, set }) {
   return (
     <div className="fcp-card">
       <div className="fcp-card__head">
-        <span className="fcp-card__icon">🌿</span>
+        <span className="fcp-card__icon"><FiBox /></span>
         <div>
           <div className="fcp-card__title">Thông tin nông sản</div>
           <div className="fcp-card__sub">Nhập tên sản phẩm và thông tin cơ bản</div>
@@ -360,7 +378,7 @@ function Step2({ form, set }) {
   return (
     <div className="fcp-card">
       <div className="fcp-card__head">
-        <span className="fcp-card__icon">📅</span>
+        <span className="fcp-card__icon"><FiCalendar /></span>
         <div>
           <div className="fcp-card__title">Thông tin mùa vụ</div>
           <div className="fcp-card__sub">Thời gian canh tác và sản lượng dự kiến</div>
@@ -399,7 +417,7 @@ function Step2({ form, set }) {
           </select>
         </div>
         {totalKg > 0 && (
-          <div className="fcp-convert">⚖ Tương đương <strong>{fmt(totalKg)} kg</strong></div>
+          <div className="fcp-convert"><FiPackage size={13} /> Tương đương <strong>{fmt(totalKg)} kg</strong></div>
         )}
         <span className="fcp-hint">Nhập sản lượng dự kiến và chọn đúng đơn vị đang sử dụng.</span>
       </div>
@@ -417,7 +435,7 @@ function Step3({ form, set }) {
   return (
     <div className="fcp-card">
       <div className="fcp-card__head">
-        <span className="fcp-card__icon">💲</span>
+        <span className="fcp-card__icon"><FiDollarSign /></span>
         <div>
           <div className="fcp-card__title">Giá và điều kiện bao tiêu</div>
           <div className="fcp-card__sub">Thiết lập mức giá và tỉ lệ bao tiêu mong muốn</div>
@@ -455,7 +473,7 @@ function Step3({ form, set }) {
 
       {priceNum > 0 && (
         <div className="fcp-price-info">
-          💲 Ước tính tổng giá trị: <strong>{fmt(totalValue)} VNĐ</strong>
+          <FiDollarSign size={14} /> Ước tính tổng giá trị: <strong>{fmt(totalValue)} VNĐ</strong>
           &nbsp;· Giá niêm yết: <strong>{fmt(priceNum)}đ – {fmt(highPrice)}đ/{form.priceUnit}</strong>
         </div>
       )}
@@ -571,7 +589,7 @@ function Step4({ form, set }) {
   return (
     <div className="fcp-card fcp-card--media">
       <div className="fcp-card__head">
-        <span className="fcp-card__icon">📷</span>
+        <span className="fcp-card__icon"><FiImage /></span>
         <div>
           <div className="fcp-card__title">Chứng chỉ và hình ảnh</div>
           <div className="fcp-card__sub">
@@ -823,7 +841,7 @@ export default function FarmerCreateProduct() {
         </div>
 
         <section className="fcp-profile-required">
-          <div className="fcp-profile-required__icon">⚠️</div>
+          <div className="fcp-profile-required__icon"><FiAlertTriangle /></div>
           <span className="fcp-profile-required__eyebrow">HOÀN THIỆN HỒ SƠ</span>
           <h2>Vui lòng bổ sung thông tin trước khi đăng bán</h2>
           <p>

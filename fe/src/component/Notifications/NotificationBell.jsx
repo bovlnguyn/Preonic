@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiBell, FiCheckCircle } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import notificationService from '../../services/notification.service';
+import { formatRelativeTime as formatRelativeTimeShared } from '../../utils/date';
 import './NotificationBell.css';
 
 const POLL_INTERVAL_MS = 30000;
@@ -14,19 +15,8 @@ const ROLE_BASE_PATH = {
   enterprise: '/enterprise',
 };
 
-const formatRelativeTime = (isoDate) => {
-  const date = new Date(isoDate);
-  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-
-  if (diffSec < 60) return 'Vừa xong';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} phút trước`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour} giờ trước`;
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 30) return `${diffDay} ngày trước`;
-  return date.toLocaleDateString('vi-VN', { timeZone: VN_TIME_ZONE });
-};
+const formatRelativeTime = (isoDate) =>
+  formatRelativeTimeShared(isoDate, { dayThreshold: 30, timeZone: VN_TIME_ZONE });
 
 function NotificationBell({ triggerClassName = 'notif-bell__trigger' }) {
   const { user } = useAuth();

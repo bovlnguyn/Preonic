@@ -1,12 +1,9 @@
 import React from 'react';
+import DashboardStatusBadge from '../../Common/Dashboard/StatusBadge';
 import { getStatusClass } from '../utils';
 
-function StatusBadge({ status }) {
-  return (
-    <span className={`ent-badge ent-badge--${getStatusClass(status)}`}>
-      {status}
-    </span>
-  );
+function StatusBadge(props) {
+  return <DashboardStatusBadge classPrefix="ent" resolveStatusClass={getStatusClass} {...props} />;
 }
 
 export default StatusBadge;
