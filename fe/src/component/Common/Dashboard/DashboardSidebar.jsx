@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FiHome, FiLogOut } from 'react-icons/fi';
 import { useAuth } from '../../../contexts/AuthContext';
+import { ROUTES } from '../../../constants';
 import { getDashboardUserName } from '../../../utils/dashboard';
 import LogoutConfirmModal from '../LogoutConfirmModal';
 import logo from '../../../assets/branding/preonic-logo-main.png';
@@ -27,7 +28,7 @@ function DashboardSidebar({
     setIsLoggingOut(true);
     try {
       await logout();
-      navigate('/login', { replace: true });
+      navigate(ROUTES.AUTH, { replace: true });
     } finally {
       setIsLoggingOut(false);
       setLogoutOpen(false);
