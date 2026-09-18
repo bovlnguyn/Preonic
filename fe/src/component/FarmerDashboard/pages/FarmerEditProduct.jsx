@@ -3,9 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   FiAlertTriangle,
   FiArrowLeft,
+  FiCamera,
   FiCheckCircle,
   FiExternalLink,
   FiFileText,
+  FiImage,
   FiSave,
   FiUploadCloud,
   FiX,
@@ -16,6 +18,13 @@ import { useToast } from '../../../contexts/ToastContext';
 import { CATEGORY_OPTIONS, REGION_OPTIONS, TYPE_OPTIONS } from '../../../constants/product';
 import './FarmerCreateProduct.css';
 import { toLocalDateInputValue } from '../../../utils/date';
+import {
+  MAX_PRODUCT_IMAGES,
+  MIN_PRODUCT_IMAGES,
+  getProductImagePaths,
+  validateProductImageFiles,
+  validateReplacementImageCount,
+} from '../../../utils/productImages';
 import './FarmerEditProduct.css';
 
 const UNITS = ['kg', 'Tạ', 'Tấn'];
@@ -69,10 +78,14 @@ export default function FarmerEditProduct() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const imageInputRef = useRef(null);
   const certInputRef = useRef(null);
 
   const [product, setProduct] = useState(null);
   const [form, setForm] = useState(buildForm(null));
+  const [currentImagePaths, setCurrentImagePaths] = useState([]);
+  const [replacementImages, setReplacementImages] = useState([]);
+  const [replacementPreviews, setReplacementPreviews] = useState([]);
   const [existingCertifications, setExistingCertifications] = useState([]);
   const [newCertifications, setNewCertifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +106,8 @@ export default function FarmerEditProduct() {
         const nextProduct = data?.data?.product || data?.data || data;
         setProduct(nextProduct);
         setForm(buildForm(nextProduct));
+        setCurrentImagePaths(getProductImagePaths(nextProduct));
+        setReplacementImages([]);
         setExistingCertifications(normalizeCertifications(nextProduct?.certifications));
       })
       .catch(() => {
@@ -106,6 +121,13 @@ export default function FarmerEditProduct() {
       active = false;
     };
   }, [id]);
+
+  useEffect(() => {
+    const previews = replacementImages.map((file) => URL.createObjectURL(file));
+    setReplacementPreviews(previews);
+
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
+  }, [replacementImages]);
 
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -131,6 +153,32 @@ export default function FarmerEditProduct() {
 
   const removeNewCertificate = (index) => {
     setNewCertifications((prev) => prev.filter((_, certIndex) => certIndex !== index));
+  };
+
+  const handleReplacementImages = (files) => {
+    const selectedFiles = Array.from(files || []);
+    if (!selectedFiles.length) return;
+
+    const nextImages = [...replacementImages, ...selectedFiles];
+    const validationError = validateProductImageFiles(nextImages);
+    if (validationError) {
+      toast.error(validationError);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+      return;
+    }
+
+    setReplacementImages(nextImages);
+    setError('');
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const removeReplacementImage = (index) => {
+    setReplacementImages((prev) => prev.filter((_, imageIndex) => imageIndex !== index));
+  };
+
+  const cancelImageReplacement = () => {
+    setReplacementImages([]);
+    if (imageInputRef.current) imageInputRef.current.value = '';
   };
 
   const handleCertificateFiles = (files) => {
@@ -181,6 +229,12 @@ export default function FarmerEditProduct() {
 
     if (!form.name.trim() || !form.category || !form.region || !form.type) {
       setError('Vui lòng điền đầy đủ tên sản phẩm, loại nông sản, vùng miền và hình thức.');
+      return;
+    }
+
+    const replacementImageError = validateReplacementImageCount(replacementImages);
+    if (replacementImageError) {
+      setError(replacementImageError);
       return;
     }
 
@@ -260,6 +314,11 @@ export default function FarmerEditProduct() {
 
     newCertifications.forEach(({ file }) => {
       payload.append('certifications', file);
+    });
+
+    // Backend chỉ thay ảnh khi request có field images. Không chọn ảnh mới = giữ nguyên ảnh cũ.
+    replacementImages.forEach((file) => {
+      payload.append('images', file);
     });
 
     setSaving(true);
@@ -613,6 +672,131 @@ export default function FarmerEditProduct() {
             </div>
           </section>
         </div>
+
+        <section className="fcp-card fep-card fep-image-card">
+          <div className="fcp-card__head">
+            <span className="fcp-card__icon"><FiImage /></span>
+            <div>
+              <div className="fcp-card__title">Hình ảnh sản phẩm</div>
+              <div className="fcp-card__sub">
+                Xem ảnh đang sử dụng hoặc chọn một bộ ảnh mới để thay thế toàn bộ
+              </div>
+            </div>
+          </div>
+
+          <div className="fep-image-notice">
+            <FiCheckCircle />
+            <span>
+              Nếu không chọn ảnh mới, hệ thống sẽ giữ nguyên bộ ảnh hiện tại. Khi lưu bộ ảnh
+              mới, ảnh đầu tiên sẽ trở thành ảnh chính.
+            </span>
+          </div>
+
+          <div className="fep-image-section">
+            <div className="fep-image-section__head">
+              <div>
+                <strong>Ảnh hiện tại</strong>
+                <span>{currentImagePaths.length} ảnh đang hiển thị</span>
+              </div>
+            </div>
+
+            {currentImagePaths.length > 0 ? (
+              <div className="fep-image-grid">
+                {currentImagePaths.map((path, index) => (
+                  <div className="fep-image-thumb" key={`${path}-${index}`}>
+                    <img
+                      src={resolveImageUrl(path) || path}
+                      alt={`${product.name} ${index + 1}`}
+                      loading="lazy"
+                    />
+                    {index === 0 && <span className="fep-image-cover">Ảnh chính hiện tại</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="fep-image-empty">
+                <FiImage />
+                <span>Sản phẩm chưa có hình ảnh.</span>
+              </div>
+            )}
+          </div>
+
+          <div className="fep-image-section fep-image-section--replacement">
+            <div className="fep-image-section__head">
+              <div>
+                <strong>Bộ ảnh thay thế</strong>
+                <span>JPG, PNG · tối đa 5MB/ảnh · từ {MIN_PRODUCT_IMAGES} đến {MAX_PRODUCT_IMAGES} ảnh</span>
+              </div>
+              {replacementImages.length > 0 && (
+                <button type="button" onClick={cancelImageReplacement}>
+                  <FiX /> Hủy thay ảnh
+                </button>
+              )}
+            </div>
+
+            {replacementImages.length > 0 && (
+              <div className="fep-image-grid fep-image-grid--replacement">
+                {replacementImages.map((file, index) => (
+                  <div className="fep-image-thumb fep-image-thumb--replacement" key={`${file.name}-${file.lastModified}-${index}`}>
+                    <img src={replacementPreviews[index]} alt={`Ảnh thay thế ${index + 1}`} />
+                    {index === 0 && <span className="fep-image-cover">Ảnh chính mới</span>}
+                    <button
+                      type="button"
+                      className="fep-image-remove"
+                      onClick={() => removeReplacementImage(index)}
+                      aria-label={`Bỏ ảnh thay thế ${index + 1}`}
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div
+              className="fep-image-upload"
+              onClick={() => imageInputRef.current?.click()}
+              onDrop={(event) => {
+                event.preventDefault();
+                handleReplacementImages(event.dataTransfer.files);
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') imageInputRef.current?.click();
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Chọn bộ ảnh sản phẩm thay thế"
+            >
+              <FiCamera size={27} />
+              <div>
+                <strong>
+                  {replacementImages.length > 0 ? 'Thêm ảnh vào bộ ảnh mới' : 'Chọn bộ ảnh thay thế'}
+                </strong>
+                <span>Kéo thả hoặc nhấn để chọn nhiều ảnh cùng lúc</span>
+              </div>
+              <small>{replacementImages.length}/{MAX_PRODUCT_IMAGES} ảnh</small>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                multiple
+                hidden
+                onChange={(event) => handleReplacementImages(event.target.files)}
+              />
+            </div>
+
+            {replacementImages.length > 0 && (
+              <div className={`fep-image-status ${replacementImages.length >= MIN_PRODUCT_IMAGES ? 'is-ready' : ''}`}>
+                {replacementImages.length >= MIN_PRODUCT_IMAGES ? (
+                  <><FiCheckCircle /> Bộ ảnh mới đã sẵn sàng để lưu.</>
+                ) : (
+                  <><FiAlertTriangle /> Cần thêm {MIN_PRODUCT_IMAGES - replacementImages.length} ảnh để thay bộ ảnh hiện tại.</>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
 
         <section className="fcp-card fep-card fep-cert-card">
           <div className="fcp-card__head">
