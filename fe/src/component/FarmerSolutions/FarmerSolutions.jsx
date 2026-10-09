@@ -70,7 +70,7 @@ const roadmap = [
   { step: "01", title: "Chuẩn bị hồ sơ", desc: "Cập nhật thông tin tài khoản, vùng trồng và dữ liệu mùa vụ." },
   { step: "02", title: "Đăng nông sản", desc: "Đưa sản phẩm lên sàn với hình ảnh, sản lượng và thời gian thu hoạch." },
   { step: "03", title: "Nhận đề xuất", desc: "Doanh nghiệp tìm nguồn cung, gửi hợp đồng hoặc thương lượng điều khoản." },
-  { step: "04", title: "Giao dịch an toàn", desc: "Escrow giữ cọc, farmer giao hàng và nhận thanh toán sau nghiệm thu." },
+  { step: "04", title: "Giao dịch an toàn", desc: "Doanh nghiệp thanh toán trực tiếp cho farmer theo tiến độ, PreOnic theo dõi xác nhận và phí." },
 ];
 
 function FarmerSolutions() {

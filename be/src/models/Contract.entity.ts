@@ -84,6 +84,11 @@ export class Contract {
   @Column({ name: 'DeliveryAddress', type: 'nvarchar', length: 500, nullable: true })
   deliveryAddress: string;
 
+  // Payment architecture discriminator. Legacy rows stay on escrow_v1; new
+  // contracts can use direct_v2 without making status semantics ambiguous.
+  @Column({ name: 'PaymentFlow', type: 'nvarchar', length: 20, default: 'escrow_v1' })
+  paymentFlow: 'escrow_v1' | 'direct_v2';
+
   // Status
   @Column({ name: 'Status', type: 'nvarchar', length: 30, default: 'draft' })
   status: 'draft' | 'pending' | 'approved' | 'active' | 'cancel_pending' | 'completed' | 'cancelled' | 'disputed';

@@ -22,6 +22,7 @@ const EnterpriseTransactions = lazy(() => import('../component/EnterpriseDashboa
 const EnterpriseRatings = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseRatings'));
 const EnterpriseWeatherInsurance = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance'));
 const EnterpriseCreateContract = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseCreateContract'));
+const BillingCenter = lazy(() => import('../component/BillingCenter/BillingCenter'));
 
 const ContractDetailView = lazy(() => import('../component/ContractDetailView/ContractDetailView'));
 const ProductDetail = lazy(() => import('../component/ProductDetail/ProductDetail'));
@@ -52,6 +53,7 @@ const enterpriseRoutes = [
       { path: 'orders', element: <EnterpriseOrders /> },
       { path: 'escrow', element: <EnterpriseEscrow /> },
       { path: 'wallet', element: <EnterpriseWallet /> },
+      { path: 'billing', element: <BillingCenter /> },
       { path: 'suppliers', element: <EnterpriseSuppliers /> },
       { path: 'suppliers/:id', element: <EnterpriseSupplierDetail /> },
       { path: 'transactions', element: <EnterpriseTransactions /> },

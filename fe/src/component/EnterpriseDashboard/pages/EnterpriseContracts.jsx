@@ -16,7 +16,7 @@ const TABS = [
   { key: 'all',       label: 'Tất cả' },
   { key: 'draft',     label: 'Nháp' },
   { key: 'pending',   label: 'Chờ ký xác nhận' },
-  { key: 'approved',  label: 'Đã ký — chờ ký quỹ' },
+  { key: 'approved',  label: 'Đã ký — legacy escrow' },
   { key: 'active',    label: 'Đang thực hiện' },
   { key: 'completed', label: 'Hoàn thành' },
   { key: 'disputed',  label: 'Tranh chấp' },

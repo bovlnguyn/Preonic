@@ -21,6 +21,7 @@ import notificationRoutes from './routes/notification.routes';
 import messagingRoutes from './routes/messaging.routes';
 import partnerRatingRoutes from './routes/partner-rating.routes';
 import aiRoutes from './routes/ai.routes';
+import billingRoutes from './routes/billing.routes';
 // Import Config/Utils
 import { isDatabaseConnected, isDatabaseUnavailableError, markDatabaseUnhealthy } from './config/database';
 import { createLogger } from './utils/logger';
@@ -61,7 +62,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
 }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
   setHeaders: (res) => {
@@ -71,7 +72,16 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
 }));
 
 // Body parsing (BẮT BUỘC ĐẶT TRƯỚC ROUTES)
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buffer) => {
+    // Payment providers sign the exact raw request body. Keep a copy only for
+    // billing webhook routes; never retain raw bodies for normal API traffic.
+    if (String(req.url || '').includes('/billing/webhooks/')) {
+      (req as any).rawBody = Buffer.from(buffer);
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(cookieParser());
@@ -165,6 +175,8 @@ app.use(`${API_PREFIX}/messaging`, messagingRoutes);
 app.use(`${API_PREFIX}/partner-ratings`, partnerRatingRoutes);
 // Public AI + AI theo vai trò (mở rộng ở các giai đoạn tiếp theo)
 app.use(`${API_PREFIX}/ai`, aiRoutes);
+// Direct-payment V2 billing / fee collection
+app.use(`${API_PREFIX}/billing`, billingRoutes);
 // ══════════════════════════════════════════════════════
 // 4. ERROR HANDLING (Phải đặt sau cùng)
 // ══════════════════════════════════════════════════════

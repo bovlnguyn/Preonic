@@ -9,11 +9,9 @@ import EmptyState from '../components/EmptyState';
 import { useEffect, useState } from 'react';
 import contractService from '../../../services/contract.service';
 import farmerService from '../../../services/farmer.service';
-import walletService from '../../../services/wallet.service';
+import billingService from '../../../services/billing.service';
 import partnerRatingService from '../../../services/partner-rating.service';
-import escrowService from '../../../services/escrow.service';
 import { resolveContractStatusLabel, resolveContractProgress } from '../../../constants/contract';
-import { getOrderStatusLabel } from '../../../constants/escrow';
 import { formatDate, formatMoney } from '../utils';
 
 const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
@@ -33,7 +31,7 @@ function FarmerOverview() {
   const [productSummary, setProductSummary] = useState({ totalProducts: 0, totalQuantity: 0 });
   const [contracts, setContracts] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [feesDue, setFeesDue] = useState(0);
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersPagination, setOrdersPagination] = useState({ total: 0, totalPages: 0 });
   const [reputation, setReputation] = useState({ average: 0, count: 0 });
@@ -49,10 +47,10 @@ function FarmerOverview() {
       farmerService.getMyCropsPage({ page: 1, limit: 3, includeSummary: true }),
       contractService.list(undefined, { page: 1, limit: 3 }),
       contractService.summary(),
-      walletService.get().catch(() => null),
+      billingService.getAccount().catch(() => null),
       partnerRatingService.getMyRatings().catch(() => null),
     ])
-      .then(([cropsResult, contractsRes, summaryRes, walletRes, ratingsRes]) => {
+      .then(([cropsResult, contractsRes, summaryRes, billingRes, ratingsRes]) => {
         setCropProducts(cropsResult?.products || []);
         setProductSummary(cropsResult?.summary || { totalProducts: 0, totalQuantity: 0 });
         setContracts(contractsRes?.data?.contracts || []);
@@ -64,7 +62,7 @@ function FarmerOverview() {
           pendingContracts: 0,
         });
 
-        setWalletBalance(walletRes?.data?.wallet?.balance || 0);
+        setFeesDue(Number(billingRes?.data?.outstandingAmount || 0));
 
         const ratingSummary = ratingsRes?.data?.summary || {};
         setReputation({
@@ -76,7 +74,7 @@ function FarmerOverview() {
         setCropProducts([]);
         setProductSummary({ totalProducts: 0, totalQuantity: 0 });
         setContracts([]);
-        setWalletBalance(0);
+        setFeesDue(0);
         setReputation({ average: 0, count: 0 });
         setContractSummary({ totalContracts: 0, totalContractValue: 0, activeContracts: 0, pendingContracts: 0 });
       });
@@ -91,25 +89,24 @@ function FarmerOverview() {
       page: ordersPage,
       limit: ORDERS_PER_PAGE,
     })
-      .then(async (contractsRes) => {
+      .then((contractsRes) => {
         const orderContracts = contractsRes?.data?.contracts || [];
         const pagination = contractsRes?.data?.pagination || {};
-        const contractIds = orderContracts.map((contract) => contract.id).filter(Boolean);
-        const escrowsRes = contractIds.length > 0
-          ? await escrowService.list({ contractIds, limit: ORDERS_PER_PAGE }).catch(() => null)
-          : null;
         if (!alive) return;
 
-        const escrowByContract = new Map(
-          (escrowsRes?.data?.escrows || []).map((escrow) => [escrow.contractId, escrow])
-        );
         setOrders(orderContracts.map((contract) => ({
           id: contract.contractCode,
           contractId: contract.id,
           product: contract.product?.name,
           buyer: contract.enterprise?.name,
           deliveryDate: contract.deliveryDate,
-          status: getOrderStatusLabel(contract, escrowByContract.get(contract.id)),
+          status: ({
+            pending: 'Chờ chuẩn bị hàng',
+            preparing: 'Đang chuẩn bị hàng',
+            shipping: 'Đang vận chuyển',
+            delivered: 'Đã nhận hàng',
+            failed: 'Giao hàng thất bại',
+          }[contract.deliveryStatus] || resolveContractStatusLabel(contract)),
         })));
         setOrdersPagination({
           total: Number(pagination.total || 0),
@@ -158,9 +155,9 @@ function FarmerOverview() {
     },
     {
       id: 'wallet',
-      label: 'Số dư khả dụng',
-      value: formatMoney(walletBalance),
-      change: 'Xem chi tiết trong Ví của tôi',
+      label: 'Phí dịch vụ cần trả',
+      value: formatMoney(feesDue),
+      change: 'Xem tại Thanh toán & Phí',
       tone: 'gold',
     },
     {
@@ -255,7 +252,7 @@ function FarmerOverview() {
           <SectionHeader
             eyebrow="Hợp đồng gần đây"
             title="Luồng giao dịch mới nhất"
-            desc="Theo dõi hợp đồng, ký quỹ và đơn hàng để tránh trễ tiến độ."
+            desc="Theo dõi hợp đồng, thanh toán trực tiếp và đơn hàng để tránh trễ tiến độ."
           />
           {contracts.length === 0 ? (
             <EmptyState
@@ -288,7 +285,7 @@ function FarmerOverview() {
         <SectionHeader
           eyebrow="Đơn hàng"
           title="Các đơn hàng cần xử lý"
-          desc="Đơn hàng được tổng hợp từ các hợp đồng đã kích hoạt và tiến độ ký quỹ."
+          desc="Đơn hàng được tổng hợp từ các hợp đồng đã kích hoạt và tiến độ giao nhận."
         />
         {orders.length === 0 ? (
           <EmptyState

@@ -64,6 +64,7 @@ const getUserRoleInContract = (contract: Contract, userId: string) => {
   return null;
 };
 
+
 export const createDispute = async (
   userId: string,
   userRole: string,
@@ -106,9 +107,7 @@ export const createDispute = async (
       const txEvidenceRepo = manager.getRepository(DisputeEvidence);
       const txNotificationRepo = manager.getRepository(Notification);
 
-      // Cùng thứ tự lock với escrow/admin resolution:
-      // Contract -> Escrow -> Dispute check -> Milestone.
-      // Lock Contract là mutex nghiệp vụ cho mọi thao tác tạo dispute trên cùng hợp đồng.
+      // Contract remains the business mutex for both payment architectures.
       const contract = await lockByIdOrFail(
         manager,
         Contract,
@@ -129,18 +128,7 @@ export const createDispute = async (
         throw makeError('Chi co the tao tranh chap voi hop dong dang hoat dong', 400);
       }
 
-      const escrow = await lockOne(manager, Escrow, { contractId: contract.id });
-      if (!escrow) {
-        throw makeError('Hop dong chua co ky quy, khong the tao tranh chap theo milestone', 400);
-      }
-
-      if (!DISPUTABLE_ESCROW_STATUSES.includes(escrow.status)) {
-        throw makeError('Ky quy hien tai khong o trang thai co the tao tranh chap', 400);
-      }
-
-      // Business rule Fix 04: một Contract chỉ được có MỘT dispute đang hoạt động.
-      // Kiểm tra này nằm sau Contract row lock nên hai request đồng thời không thể
-      // cùng đọc "chưa có dispute" rồi cùng insert.
+      // One active dispute per Contract, regardless of payment architecture.
       const existingActiveDispute = await txDisputeRepo.findOne({
         where: [
           { contractId: contract.id, status: 'open' },
@@ -156,25 +144,52 @@ export const createDispute = async (
         );
       }
 
+      let escrow: Escrow | null = null;
       let milestone: EscrowMilestone | null = null;
-      if (dto.milestoneStep !== undefined && dto.milestoneStep !== null) {
-        const step = Number(dto.milestoneStep);
 
-        if (!Number.isInteger(step) || step < 1) {
-          throw makeError('Moc milestone khong hop le', 400);
+      if (contract.paymentFlow === 'direct_v2') {
+        // Direct V2 has no escrow milestones and Preonic does not custody funds.
+        if (dto.milestoneStep !== undefined && dto.milestoneStep !== null) {
+          throw makeError(
+            'Hop dong thanh toan truc tiep khong su dung milestone ky quy',
+            400
+          );
+        }
+      } else {
+        escrow = await lockOne(manager, Escrow, { contractId: contract.id });
+        if (!escrow) {
+          throw makeError(
+            'Hop dong chua co ky quy, khong the tao tranh chap theo milestone',
+            400
+          );
         }
 
-        milestone = await lockOne(manager, EscrowMilestone, {
-          escrowId: escrow.id,
-          step,
-        });
-
-        if (!milestone) {
-          throw makeError('Khong tim thay milestone can tranh chap', 404);
+        if (!DISPUTABLE_ESCROW_STATUSES.includes(escrow.status)) {
+          throw makeError(
+            'Ky quy hien tai khong o trang thai co the tao tranh chap',
+            400
+          );
         }
 
-        if (!DISPUTABLE_MILESTONE_STATUSES.includes(milestone.status)) {
-          throw makeError('Milestone hien tai khong the tao tranh chap', 400);
+        if (dto.milestoneStep !== undefined && dto.milestoneStep !== null) {
+          const step = Number(dto.milestoneStep);
+
+          if (!Number.isInteger(step) || step < 1) {
+            throw makeError('Moc milestone khong hop le', 400);
+          }
+
+          milestone = await lockOne(manager, EscrowMilestone, {
+            escrowId: escrow.id,
+            step,
+          });
+
+          if (!milestone) {
+            throw makeError('Khong tim thay milestone can tranh chap', 404);
+          }
+
+          if (!DISPUTABLE_MILESTONE_STATUSES.includes(milestone.status)) {
+            throw makeError('Milestone hien tai khong the tao tranh chap', 400);
+          }
         }
       }
 
@@ -186,8 +201,8 @@ export const createDispute = async (
       const dispute = await txDisputeRepo.save(
         txDisputeRepo.create({
           contractId: contract.id,
-          escrowId: escrow.id,
-          milestoneStep: milestone?.step,
+          escrowId: escrow?.id ?? null,
+          milestoneStep: milestone?.step ?? null,
           raisedBy: userId,
           raisedByRole: roleInContract,
           againstUserId,
@@ -213,8 +228,10 @@ export const createDispute = async (
       contract.updatedBy = userId;
       await txContractRepo.save(contract);
 
-      escrow.status = 'disputed';
-      await txEscrowRepo.save(escrow);
+      if (escrow) {
+        escrow.status = 'disputed';
+        await txEscrowRepo.save(escrow);
+      }
 
       if (milestone) {
         milestone.status = 'disputed';
@@ -222,7 +239,14 @@ export const createDispute = async (
       }
 
       const title = 'Hop dong co tranh chap moi';
-      const message = `${roleInContract === 'farmer' ? contract.farmerName || 'Nong dan' : contract.enterpriseName || 'Doanh nghiep'} da tao tranh chap cho hop dong ${contract.contractCode}${milestone ? ` tai moc ${milestone.step} - ${milestone.name}` : ''}. Ly do: ${reason}`;
+      const directNote = contract.paymentFlow === 'direct_v2'
+        ? ' Preonic se ghi nhan va xu ly tranh chap thuong mai; he thong khong tu dong thu hoi tien da chuyen truc tiep.'
+        : '';
+      const message =
+        `${roleInContract === 'farmer' ? contract.farmerName || 'Nong dan' : contract.enterpriseName || 'Doanh nghiep'} ` +
+        `da tao tranh chap cho hop dong ${contract.contractCode}` +
+        `${milestone ? ` tai moc ${milestone.step} - ${milestone.name}` : ''}. ` +
+        `Ly do: ${reason}.${directNote}`;
 
       await txNotificationRepo.save(
         txNotificationRepo.create({
@@ -252,7 +276,7 @@ export const createDispute = async (
     { label: 'dispute.create' }
   );
 
-  // Side effect ngoài transaction: transaction helper có thể retry khi deadlock.
+  // Side effect outside the transaction: retry-safe.
   const createdDispute = await disputeRepo().findOne({
     where: { id: result.disputeId },
     relations: ['contract', 'escrow', 'raisedByUser', 'againstUser', 'evidences'],

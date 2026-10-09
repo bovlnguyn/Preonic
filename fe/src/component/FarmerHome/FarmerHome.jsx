@@ -150,7 +150,7 @@ function FarmerHome() {
     },
     {
       title: "Hợp đồng bao tiêu minh bạch",
-      desc: "Doanh nghiệp gửi đề xuất, hai bên thống nhất điều khoản và hệ thống giữ cọc qua escrow.",
+      desc: "Doanh nghiệp gửi đề xuất, hai bên thống nhất điều khoản và doanh nghiệp chuyển tiền trực tiếp theo điều khoản hợp đồng.",
       icon: FiFileText,
     },
     {

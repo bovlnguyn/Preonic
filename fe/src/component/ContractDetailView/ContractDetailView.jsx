@@ -8,6 +8,7 @@ import { useMessagingWidget } from '../../contexts/MessagingWidgetContext';
 import { resolveContractStatusLabel, resolvePaymentTermsLabel } from '../../constants/contract';
 import ContractFlow from '../ContractFlow/ContractFlow';
 import EscrowPanel from '../EscrowPanel/EscrowPanel';
+import DirectPaymentPanel from '../DirectPaymentPanel/DirectPaymentPanel';
 import FarmerSectionHeader from '../FarmerDashboard/components/SectionHeader';
 import EnterpriseSectionHeader from '../EnterpriseDashboard/components/SectionHeader';
 import './ContractDetailView.css';
@@ -211,7 +212,15 @@ export default function ContractDetailView() {
       toast.success('Ký xác nhận hợp đồng thành công');
       load();
     } catch (err) {
-      toast.error(err?.message || 'Ký hợp đồng thất bại, vui lòng thử lại.');
+      const message = err?.message || 'Ký hợp đồng thất bại, vui lòng thử lại.';
+      toast.error(message);
+      if (
+        isFarmer &&
+        contract?.paymentFlow === 'direct_v2' &&
+        /tài khoản|tai khoan|nhận tiền|nhan tien/i.test(message)
+      ) {
+        navigate('/farmer/billing');
+      }
     } finally {
       setActing(false);
     }
@@ -321,8 +330,10 @@ export default function ContractDetailView() {
   const canSign = !mySigned && !isTerminal && contract.status !== 'cancel_pending'
     && contract.status !== 'draft' && !waitingOnFarmer;
 
-  // Có thể hủy nếu HĐ đang trong trạng thái cho phép trực tiếp (chưa phát sinh ký quỹ)
-  const canCancel = CAN_CANCEL_STATUSES.includes(contract.status);
+  // Direct V2 có thể yêu cầu hủy khi ACTIVE nếu chưa có khoản tiền nào đã báo
+  // chuyển/đã nhận; backend là nơi quyết định cuối cùng để tránh race condition.
+  const canCancel = CAN_CANCEL_STATUSES.includes(contract.status)
+    || (contract.paymentFlow === 'direct_v2' && contract.status === 'active');
 
   // Doanh nghiệp: HĐ còn là bản nháp, chưa từng gửi cho nông dân -- xóa hẳn thay vì hủy
   const canDelete = !isFarmer && contract.status === 'draft';
@@ -386,7 +397,9 @@ export default function ContractDetailView() {
             }}
             eyebrow="Hợp đồng"
             title="Chi tiết hợp đồng bao tiêu nông sản"
-            desc={`Theo dõi điều khoản, chữ ký, ký quỹ và tiến độ thực hiện hợp đồng ${contract.contractCode}.`}
+            desc={contract.paymentFlow === 'direct_v2'
+              ? `Theo dõi điều khoản, thanh toán trực tiếp và tiến độ thực hiện hợp đồng ${contract.contractCode}.`
+              : `Theo dõi điều khoản, chữ ký, ký quỹ và tiến độ thực hiện hợp đồng ${contract.contractCode}.`}
           />
         </>
       )}
@@ -413,13 +426,32 @@ export default function ContractDetailView() {
           <div className="cdv-summary__row"><span>Số lượng:</span><strong>{contract.quantity} {contract.unit}</strong></div>
           <div className="cdv-summary__row"><span>Đơn giá:</span><strong>{fmtMoney(contract.pricePerUnit)}/{contract.unit}</strong></div>
           <div className="cdv-summary__row"><span>Ngày giao hàng:</span><strong>{fmtDate(contract.deliveryDate)}</strong></div>
-          <div className="cdv-summary__row"><span>Đặt cọc:</span><strong>{resolvePaymentTermsLabel(contract)}</strong></div>
+          <div className="cdv-summary__row">
+            <span>{contract.paymentFlow === 'direct_v2' ? 'Lịch thanh toán:' : 'Đặt cọc:'}</span>
+            <strong>{resolvePaymentTermsLabel(contract)}</strong>
+          </div>
+          <div className="cdv-summary__row">
+            <span>Phương thức thanh toán:</span>
+            <strong>{contract.paymentFlow === 'direct_v2'
+              ? 'Doanh nghiệp chuyển trực tiếp cho nông dân'
+              : 'Ký quỹ PreOnic (legacy)'}</strong>
+          </div>
           {contract.farmLocation && <div className="cdv-summary__row"><span>Khu vực:</span><strong>{contract.farmLocation}</strong></div>}
           {contract.deliveryAddress && <div className="cdv-summary__row"><span>Địa chỉ giao hàng:</span><strong>{contract.deliveryAddress}</strong></div>}
           {contract.notes && <div className="cdv-summary__row"><span>Ghi chú:</span><strong>{contract.notes}</strong></div>}
           <hr className="cdv-divider" />
           <div className="cdv-summary__row cdv-summary__row--total"><span>Tổng giá trị:</span><strong>{fmtMoney(contract.totalValue)}</strong></div>
-          <div className="cdv-summary__row"><span>Phí dịch vụ PreOnic ({contract.commissionRate}%):</span><strong>{fmtMoney(contract.commission)}</strong></div>
+          {contract.paymentFlow === 'direct_v2' ? (
+            <div className="cdv-summary__row">
+              <span>Phí dịch vụ:</span>
+              <strong>DN 0,5% · Nông dân 0,3% (ghi nhận theo từng khoản thanh toán)</strong>
+            </div>
+          ) : (
+            <div className="cdv-summary__row">
+              <span>Phí dịch vụ PreOnic ({contract.commissionRate}%):</span>
+              <strong>{fmtMoney(contract.commission)}</strong>
+            </div>
+          )}
         </div>
 
         {/* Bảo hiểm nông nghiệp */}
@@ -569,7 +601,15 @@ export default function ContractDetailView() {
         </div>
       </div>
 
-      <EscrowPanel contract={contract} userRole={user?.role} />
+      {contract.paymentFlow === 'direct_v2' ? (
+        <DirectPaymentPanel
+          contract={contract}
+          userRole={user?.role}
+          onContractRefresh={load}
+        />
+      ) : (
+        <EscrowPanel contract={contract} userRole={user?.role} />
+      )}
       </div>
 
       {/* Modal xóa hợp đồng nháp */}

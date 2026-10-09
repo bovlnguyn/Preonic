@@ -37,7 +37,7 @@ const supportChannels = [
   },
   {
     title: "Hợp đồng & đặt cọc",
-    desc: "Giải thích quy trình escrow, hợp đồng bao tiêu và xử lý tranh chấp cơ bản.",
+    desc: "Giải thích quy trình thanh toán trực tiếp, hợp đồng bao tiêu và xử lý tranh chấp cơ bản.",
     icon: FiShield,
   },
   {

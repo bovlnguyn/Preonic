@@ -16,6 +16,9 @@ import {
   lockOne,
   runLockedTransaction,
 } from '../utils/transaction-lock.util';
+import {
+  cancelOpenDirectPaymentsForContractWithManager,
+} from '../modules/direct-payment-v2/direct-goods-payment.service';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const contractRepo = () => AppDataSource.getRepository(Contract);
@@ -449,6 +452,149 @@ export const getDisputeDetail = async (id: string) => {
 
 const RESOLVABLE_DISPUTE_STATUSES = ['open', 'under_review'];
 
+const resolveDirectV2Dispute = async (
+  disputeId: string,
+  contractId: string,
+  resolution: 'farmer' | 'enterprise',
+  normalizedAdminNotes?: string,
+  adminId?: string
+) => runLockedTransaction(
+  async (manager) => {
+    const txContractRepo = manager.getRepository(Contract);
+    const txDisputeRepo = manager.getRepository(Dispute);
+    const txNotificationRepo = manager.getRepository(Notification);
+
+    const contract = await lockByIdOrFail(
+      manager,
+      Contract,
+      contractId,
+      () => new AppError('Không tìm thấy hợp đồng', 404)
+    );
+
+    if (contract.paymentFlow !== 'direct_v2') {
+      throw new AppError('Hợp đồng không thuộc Direct Payment V2', 409);
+    }
+
+    const dispute = await lockByIdOrFail(
+      manager,
+      Dispute,
+      disputeId,
+      () => new AppError('Không tìm thấy khiếu nại', 404)
+    );
+
+    if (dispute.contractId !== contract.id || dispute.escrowId !== null) {
+      throw new AppError('Dữ liệu tranh chấp Direct V2 không nhất quán', 409);
+    }
+
+    if (!RESOLVABLE_DISPUTE_STATUSES.includes(dispute.status)) {
+      throw new AppError('Khiếu nại này đã được giải quyết trước đó', 400);
+    }
+
+    if (contract.status !== 'disputed') {
+      throw new AppError('Hợp đồng không ở trạng thái tranh chấp', 409);
+    }
+
+    const now = new Date();
+    let manualSettlementRequired = false;
+
+    if (resolution === 'farmer') {
+      const fullyPaid =
+        Math.max(0, Number(contract.remainingAmount || 0)) <= 0;
+      contract.status =
+        contract.deliveryStatus === 'delivered' && fullyPaid
+          ? 'completed'
+          : 'active';
+
+      if (contract.status === 'completed') {
+        contract.completedAt = contract.completedAt || now;
+      }
+    } else {
+      // Preonic never pulls money back from Farmer in Direct V2. Any already
+      // transferred amount must be handled externally according to the admin decision.
+      manualSettlementRequired = Number(contract.paidAmount || 0) > 0;
+
+      await cancelOpenDirectPaymentsForContractWithManager(
+        manager,
+        contract.id
+      );
+
+      contract.status = 'cancelled';
+      contract.cancelledAt = contract.cancelledAt || now;
+      contract.cancelReason =
+        normalizedAdminNotes ||
+        'Giải quyết tranh chấp Direct V2 nghiêng về doanh nghiệp; hoàn tiền (nếu có) xử lý ngoài Preonic.';
+    }
+
+    if (adminId) contract.updatedBy = adminId;
+    await txContractRepo.save(contract);
+
+    dispute.status = 'resolved';
+    dispute.resolution = resolution;
+    dispute.adminNotes =
+      normalizedAdminNotes ||
+      dispute.adminNotes ||
+      'Direct V2: Preonic không tự động di chuyển/thu hồi tiền đã chuyển trực tiếp.';
+    dispute.resolvedAt = now;
+    await txDisputeRepo.save(dispute);
+
+    const siblingCloseResult = await txDisputeRepo
+      .createQueryBuilder()
+      .update(Dispute)
+      .set({
+        status: 'closed',
+        resolvedAt: now,
+        adminNotes: `Tự động đóng vì tranh chấp ${dispute.id} trên cùng hợp đồng đã được giải quyết.`,
+      })
+      .where('ContractId = :contractId', { contractId: contract.id })
+      .andWhere('DisputeId <> :disputeId', { disputeId: dispute.id })
+      .andWhere("Status IN ('open', 'under_review')")
+      .execute();
+
+    const message = resolution === 'farmer'
+      ? `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết nghiêng về nông dân. Preonic không thực hiện chuyển tiền vì hợp đồng dùng thanh toán trực tiếp.`
+      : `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết nghiêng về doanh nghiệp. Preonic không thể tự động thu hồi tiền đã chuyển trực tiếp; các khoản hoàn trả (nếu có) cần được xử lý giữa các bên.`;
+
+    await txNotificationRepo.save([
+      txNotificationRepo.create({
+        userId: dispute.raisedBy,
+        type: 'dispute_resolved',
+        title: 'Khiếu nại đã được giải quyết',
+        message,
+        relatedId: dispute.id,
+        relatedModel: 'Dispute',
+        severity: 'info',
+        isRead: false,
+        emailSent: false,
+      }),
+      txNotificationRepo.create({
+        userId: dispute.againstUserId,
+        type: 'dispute_resolved',
+        title: 'Khiếu nại đã được giải quyết',
+        message,
+        relatedId: dispute.id,
+        relatedModel: 'Dispute',
+        severity: 'info',
+        isRead: false,
+        emailSent: false,
+      }),
+    ]);
+
+    return {
+      contractId: contract.id,
+      contractCode: contract.contractCode,
+      raisedBy: dispute.raisedBy,
+      raisedByRole: dispute.raisedByRole,
+      againstUserId: dispute.againstUserId,
+      message,
+      amountMoved: 0,
+      commissionAmount: 0,
+      closedSiblingCount: Number(siblingCloseResult.affected || 0),
+      manualSettlementRequired,
+    };
+  },
+  { label: 'admin.resolveDirectV2Dispute' }
+);
+
 export const resolveDispute = async (
   disputeId: string,
   resolution: string,
@@ -476,7 +622,27 @@ export const resolveDispute = async (
 
   const normalizedAdminNotes = adminNotes?.trim() || undefined;
 
-  const result = await runLockedTransaction(
+  const preliminaryContract = await contractRepo().findOne({
+    where: { id: preliminaryDispute.contractId },
+    select: {
+      id: true,
+      paymentFlow: true,
+    },
+  });
+
+  if (!preliminaryContract) {
+    throw new AppError('Không tìm thấy hợp đồng', 404);
+  }
+
+  const result = preliminaryContract.paymentFlow === 'direct_v2'
+    ? await resolveDirectV2Dispute(
+        disputeId,
+        preliminaryDispute.contractId,
+        resolution,
+        normalizedAdminNotes,
+        adminId
+      )
+    : await runLockedTransaction(
     async (manager) => {
       const txUserRepo = manager.getRepository(User);
       const txContractRepo = manager.getRepository(Contract);
@@ -496,6 +662,10 @@ export const resolveDispute = async (
         preliminaryDispute.contractId,
         () => new AppError('Không tìm thấy hợp đồng', 404)
       );
+
+      if (!preliminaryDispute.escrowId) {
+        throw new AppError('Khiếu nại Escrow V1 thiếu ký quỹ liên quan', 409);
+      }
 
       const escrow = await lockByIdOrFail(
         manager,
@@ -787,6 +957,9 @@ export const resolveDispute = async (
       amountMoved: result.amountMoved,
       commissionAmount: result.commissionAmount,
       closedSiblingDisputes: result.closedSiblingCount,
+      ...('manualSettlementRequired' in result
+        ? { manualSettlementRequired: result.manualSettlementRequired }
+        : {}),
       ...(normalizedAdminNotes ? { adminNotes: normalizedAdminNotes } : {}),
     },
   });

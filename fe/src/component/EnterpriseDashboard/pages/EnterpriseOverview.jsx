@@ -8,10 +8,9 @@ import ProgressBar from '../components/ProgressBar';
 import EmptyState from '../components/EmptyState';
 import { useState, useEffect } from 'react';
 import contractService from '../../../services/contract.service';
-import escrowService from '../../../services/escrow.service';
+import billingService from '../../../services/billing.service';
 import partnerRatingService from '../../../services/partner-rating.service';
 import { resolveContractStatusLabel, resolveContractProgress } from '../../../constants/contract';
-import { getOrderStatusLabel, getActiveMilestone } from '../../../constants/escrow';
 import { formatDate, formatMoney } from '../utils';
 
 const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
@@ -20,7 +19,7 @@ const CONTRACTS_PER_PAGE = 10;
 const STAT_ICONS = {
   'total-contracts': FiFileText,
   'active-contracts': FiLayers,
-  'escrow-locked': FiCreditCard,
+  'fees-due': FiCreditCard,
   reputation: FiStar,
 };
 
@@ -30,7 +29,7 @@ function EnterpriseOverview() {
   const [contractsPage, setContractsPage] = useState(1);
   const [contractPagination, setContractPagination] = useState({ total: 0, totalPages: 0 });
   const [orders, setOrders] = useState([]);
-  const [escrowLocked, setEscrowLocked] = useState(0);
+  const [feesDue, setFeesDue] = useState(0);
   const [reputation, setReputation] = useState({ average: 0, count: 0 });
   const [contractSummary, setContractSummary] = useState({
     totalContracts: 0,
@@ -45,11 +44,11 @@ function EnterpriseOverview() {
 
     Promise.all([
       contractService.summary(),
-      escrowService.summary().catch(() => null),
+      billingService.getAccount().catch(() => null),
       partnerRatingService.getMyRatings().catch(() => null),
       contractService.list(ORDER_CONTRACT_STATUSES.join(','), { page: 1, limit: 3 }),
     ])
-      .then(async ([summaryRes, escrowSummaryRes, ratingsRes, ordersRes]) => {
+      .then(([summaryRes, billingRes, ratingsRes, ordersRes]) => {
         if (!alive) return;
         setContractSummary(summaryRes?.data?.summary || {
           totalContracts: 0,
@@ -58,8 +57,7 @@ function EnterpriseOverview() {
           pendingContracts: 0,
         });
 
-        const escrowSummary = escrowSummaryRes?.data?.summary || {};
-        setEscrowLocked(Number(escrowSummary.pendingAmount || 0));
+        setFeesDue(Number(billingRes?.data?.outstandingAmount || 0));
 
         const ratingSummary = ratingsRes?.data?.summary || {};
         setReputation({
@@ -68,33 +66,31 @@ function EnterpriseOverview() {
         });
 
         const orderContracts = ordersRes?.data?.contracts || [];
-        const contractIds = orderContracts.map((contract) => contract.id).filter(Boolean);
-        const escrowsRes = contractIds.length
-          ? await escrowService.list({ contractIds, limit: contractIds.length }).catch(() => null)
-          : null;
-        if (!alive) return;
-        const escrowByContract = new Map(
-          (escrowsRes?.data?.escrows || []).map((escrow) => [escrow.contractId, escrow])
-        );
         setOrders(orderContracts.map((contract) => {
-          const escrow = escrowByContract.get(contract.id);
-          const activeMilestone = getActiveMilestone(escrow);
+          const deliveryLabel = {
+            pending: 'Chờ chuẩn bị hàng',
+            preparing: 'Đang chuẩn bị hàng',
+            shipping: 'Đang vận chuyển',
+            delivered: 'Đã nhận hàng',
+            failed: 'Giao hàng thất bại',
+          }[contract.deliveryStatus] || resolveContractStatusLabel(contract);
+
           return {
             id: contract.contractCode,
             contractId: contract.id,
             farmer: contract.farmer?.name,
             product: contract.product?.name,
-            status: getOrderStatusLabel(contract, escrow),
-            milestone: escrow
-              ? (activeMilestone ? activeMilestone.description : 'Đã hoàn tất tất cả mốc thanh toán')
-              : 'Chờ nạp ký quỹ để bắt đầu theo dõi',
+            status: deliveryLabel,
+            milestone: contract.paymentFlow === 'direct_v2'
+              ? 'Thanh toán trực tiếp theo tiến độ hợp đồng'
+              : 'Luồng escrow legacy',
           };
         }));
       })
       .catch(() => {
         if (!alive) return;
         setOrders([]);
-        setEscrowLocked(0);
+        setFeesDue(0);
         setReputation({ average: 0, count: 0 });
         setContractSummary({ totalContracts: 0, totalContractValue: 0, activeContracts: 0, pendingContracts: 0 });
       });
@@ -148,10 +144,10 @@ function EnterpriseOverview() {
       tone: 'green',
     },
     {
-      id: 'escrow-locked',
-      label: 'Đang ký quỹ',
-      value: formatMoney(escrowLocked),
-      change: 'Xem chi tiết trong Ký quỹ',
+      id: 'fees-due',
+      label: 'Phí dịch vụ cần trả',
+      value: formatMoney(feesDue),
+      change: 'Quản lý tại Thanh toán & Phí',
       tone: 'gold',
     },
     {
@@ -172,7 +168,7 @@ function EnterpriseOverview() {
           <span className="ent-eyebrow ent-eyebrow--light">Tổng quan doanh nghiệp</span>
           <h2>Kiểm soát thu mua, hợp đồng và dòng vốn trên một dashboard.</h2>
           <p>
-            Theo dõi toàn bộ chuỗi cung ứng từ tìm nguồn cung đến giải ngân escrow.
+            Theo dõi toàn bộ chuỗi cung ứng từ tìm nguồn cung đến thanh toán trực tiếp và giao nhận.
           </p>
           <div className="ent-hero-card__actions">
             <button type="button" onClick={() => navigate('/enterprise/products')}>
@@ -214,7 +210,7 @@ function EnterpriseOverview() {
           <SectionHeader
             eyebrow="Hợp đồng nổi bật"
             title="Hợp đồng cần theo dõi"
-            desc="Ưu tiên các hợp đồng gần hạn giao hoặc đang ở bước escrow quan trọng."
+            desc="Ưu tiên các hợp đồng gần hạn giao hoặc đang có khoản thanh toán cần xử lý."
           />
           {contracts.length === 0 ? (
             <EmptyState
@@ -246,7 +242,7 @@ function EnterpriseOverview() {
           <SectionHeader
             eyebrow="Đơn hàng gần đây"
             title="Luồng giao nhận mới nhất"
-            desc="Theo dõi milestone vận chuyển và kiểm tra chất lượng để tránh trễ tiến độ."
+            desc="Theo dõi thanh toán trực tiếp, vận chuyển và xác nhận nhận hàng để tránh trễ tiến độ."
           />
           {orders.length === 0 ? (
             <EmptyState
@@ -280,7 +276,7 @@ function EnterpriseOverview() {
         <SectionHeader
           eyebrow="Hợp đồng"
           title="Các hợp đồng đang hoạt động"
-          desc="Bấm vào một hợp đồng để xem chi tiết, ký quỹ và mốc giao nhận."
+          desc="Bấm vào một hợp đồng để xem chi tiết thanh toán trực tiếp và tiến độ giao nhận."
         />
         {contracts.length === 0 ? (
           <EmptyState

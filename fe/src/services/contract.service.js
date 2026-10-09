@@ -90,6 +90,79 @@ const contractService = {
     }
   },
 
+
+  getDirectProgress: async (id) => {
+    try {
+      const response = await api.get(`/contracts/${id}/direct-progress`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể tải tiến độ thanh toán trực tiếp' };
+    }
+  },
+
+  getDirectPayments: async (id) => {
+    try {
+      const response = await api.get(`/contracts/${id}/direct-payments`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể tải các khoản thanh toán trực tiếp' };
+    }
+  },
+
+  getDirectPaymentInstruction: async (id, paymentId) => {
+    try {
+      const response = await api.get(`/contracts/${id}/direct-payments/${paymentId}/instruction`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể lấy mã QR thanh toán' };
+    }
+  },
+
+  markDirectPaymentSent: async (id, paymentId) => {
+    try {
+      const response = await api.post(`/contracts/${id}/direct-payments/${paymentId}/sent`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể xác nhận đã chuyển tiền' };
+    }
+  },
+
+  confirmDirectPaymentReceived: async (id, paymentId) => {
+    try {
+      const response = await api.post(`/contracts/${id}/direct-payments/${paymentId}/confirm-received`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể xác nhận đã nhận tiền' };
+    }
+  },
+
+  markPreparing: async (id, note) => {
+    try {
+      const response = await api.post(`/contracts/${id}/delivery/preparing`, { note });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể cập nhật trạng thái chuẩn bị hàng' };
+    }
+  },
+
+  markShipped: async (id, note) => {
+    try {
+      const response = await api.post(`/contracts/${id}/delivery/shipped`, { note });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể cập nhật trạng thái giao hàng' };
+    }
+  },
+
+  acceptDelivery: async (id, note) => {
+    try {
+      const response = await api.post(`/contracts/${id}/delivery/accepted`, { note });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể xác nhận nhận hàng' };
+    }
+  },
+
   /**
    * Delete a draft contract (enterprise only, before it's sent to the farmer)
    */

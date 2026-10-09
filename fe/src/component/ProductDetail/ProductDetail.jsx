@@ -700,7 +700,7 @@ const ProductDetail = ({ context = "public" }) => {
                     <div className="pd-owner-commitments-compact__footnote">
                       <FiShield />
                       <span>
-                        Hợp đồng và thanh toán được theo dõi qua ký quỹ, giúp hai bên kiểm soát tiến độ rõ ràng.
+                        Hợp đồng dùng thanh toán trực tiếp: doanh nghiệp chuyển tiền cho nông dân, PreOnic theo dõi xác nhận và phí dịch vụ riêng.
                       </span>
                     </div>
                   </div>
@@ -942,7 +942,7 @@ const ProductDetail = ({ context = "public" }) => {
                     <div>
                       <strong>Bảo đảm bởi PreOnic</strong>
                       <p>
-                        Hợp đồng và thanh toán được quản lý qua hệ thống ký quỹ, giúp hai bên theo dõi rõ nghĩa vụ và tiến độ thực hiện.
+                        Hợp đồng và thanh toán được theo dõi theo Direct Payment: tiền hàng đi thẳng tới nông dân, còn phí nền tảng được quản lý riêng.
                       </p>
                     </div>
                   </div>
