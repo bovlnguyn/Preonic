@@ -48,6 +48,7 @@ const buildDto = (body: any) => {
 const formatContract = (contract: any) => ({
   id: contract.id,
   contractCode: contract.contractCode,
+  paymentFlow: contract.paymentFlow,
   status: contract.status,
 
   product: {

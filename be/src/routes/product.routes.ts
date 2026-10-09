@@ -5,6 +5,7 @@ import {
   getReviews, addReview, getReviewEligibility,
 } from '../controller/product.controller';
 import { protect, requireCompleteProfile, restrictTo } from '../middlewares/auth.middlewares';
+import { requireCommercialAccess } from '../middlewares/commercial-access.middleware';
 import { uploadProductFiles } from '../middlewares/uploads.middlewares';
 import {
   validateCreateProduct,
@@ -45,6 +46,7 @@ router.post(
   '/',
   protect as RequestHandler,
   requireCompleteProfile as RequestHandler,
+  requireCommercialAccess as RequestHandler,
   uploadProductFiles as RequestHandler,
   validateCreateProduct as RequestHandler[],
   create as RequestHandler

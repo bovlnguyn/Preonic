@@ -170,7 +170,7 @@ function Footer() {
               </span>
               <div>
                 <strong>Đặt cọc minh bạch</strong>
-                <small>Quản lý escrow và lịch sử thanh toán tập trung.</small>
+                <small>Theo dõi thanh toán trực tiếp, phí dịch vụ và lịch sử giao dịch.</small>
               </div>
             </div>
 

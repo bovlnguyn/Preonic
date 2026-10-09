@@ -20,6 +20,7 @@ const FarmerRatings = lazy(() => import('../component/FarmerDashboard/pages/Farm
 const FarmerWeatherInsurance = lazy(() => import('../component/FarmerDashboard/pages/FarmerWeatherInsurance'));
 const FarmerCreateProduct = lazy(() => import('../component/FarmerDashboard/pages/FarmerCreateProduct'));
 const FarmerEditProduct = lazy(() => import('../component/FarmerDashboard/pages/FarmerEditProduct'));
+const BillingCenter = lazy(() => import('../component/BillingCenter/BillingCenter'));
 
 const ContractDetailView = lazy(() => import('../component/ContractDetailView/ContractDetailView'));
 const ProductDetail = lazy(() => import('../component/ProductDetail/ProductDetail'));
@@ -47,6 +48,7 @@ const farmerRoutes = [
       { path: 'orders', element: <FarmerOrders /> },
       { path: 'escrow', element: <FarmerEscrow /> },
       { path: 'wallet', element: <FarmerWallet /> },
+      { path: 'billing', element: <BillingCenter /> },
       { path: 'finance', element: <FarmerFinance /> },
       { path: 'ratings', element: <FarmerRatings /> },
       { path: 'weather-insurance', element: <FarmerWeatherInsurance /> },

@@ -9,6 +9,7 @@ import { startContractExpiryCron } from './jobs/contract-cron';
 import { startWeatherCron } from './jobs/weather-cron';
 import { startShippingCron } from './jobs/shipping-cron';
 import { startSystemLogCleanupCron } from './jobs/systemlog-cron';
+import { startFeeBillingCron } from './jobs/fee-billing-cron';
 
 const log = createLogger('Server');
 const PORT = Number(process.env.PORT ?? 8080);
@@ -32,6 +33,7 @@ const startBackgroundJobs = () => {
     ['weather', startWeatherCron],
     ['shipping', startShippingCron],
     ['system-log-cleanup', startSystemLogCleanupCron],
+    ['fee-billing', startFeeBillingCron],
   ] as const;
 
   let failed = false;

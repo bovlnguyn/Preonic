@@ -83,3 +83,30 @@ export const farmerAiLimiter = rateLimit({
     message: 'Bạn đã gửi quá nhiều câu hỏi cho PreOnic Farmer AI. Vui lòng thử lại sau ít phút.',
   },
 });
+
+
+// Tạo QR thanh toán phí: tránh spam provider / tạo hàng loạt payment pending.
+export const feePaymentCreateLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: 'FEE_PAYMENT_RATE_LIMITED',
+    message: 'Bạn đã tạo quá nhiều yêu cầu thanh toán phí. Vui lòng thử lại sau.',
+  },
+});
+
+// Webhook provider đã có chữ ký nhưng vẫn cần hạn chế flood request theo IP.
+export const feePaymentWebhookLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: 'FEE_WEBHOOK_RATE_LIMITED',
+    message: 'Too many webhook requests.',
+  },
+});

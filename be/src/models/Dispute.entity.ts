@@ -22,11 +22,11 @@ export class Dispute {
   @Column({ name: 'ContractId', type: 'uniqueidentifier' })
   contractId: string;
 
-  @Column({ name: 'EscrowId', type: 'uniqueidentifier' })
-  escrowId: string;
+  @Column({ name: 'EscrowId', type: 'uniqueidentifier', nullable: true })
+  escrowId: string | null;
 
   @Column({ name: 'MilestoneStep', type: 'tinyint', nullable: true })
-  milestoneStep: number;
+  milestoneStep: number | null;
 
   @Column({ name: 'RaisedBy', type: 'uniqueidentifier' })
   raisedBy: string;
@@ -62,9 +62,9 @@ export class Dispute {
   @JoinColumn({ name: 'ContractId' })
   contract: Contract;
 
-  @ManyToOne(() => Escrow)
+  @ManyToOne(() => Escrow, { nullable: true })
   @JoinColumn({ name: 'EscrowId' })
-  escrow: Escrow;
+  escrow: Escrow | null;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'RaisedBy' })

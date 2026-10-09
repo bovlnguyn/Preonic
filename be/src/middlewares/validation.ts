@@ -705,6 +705,22 @@ export const validateContractIdParam = [
   handleValidationErrors,
 ];
 
+export const validateDirectPaymentIdParam = [
+  param('paymentId')
+    .matches(GUID_REGEX)
+    .withMessage('Mã khoản thanh toán không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateDirectDeliveryNote = [
+  body('note')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Ghi chú giao hàng không được vượt quá 500 ký tự'),
+  handleValidationErrors,
+];
+
 // Bat buoc cac truong bao hiem (tru dieu khoan chia se rui ro) khi nguoi dung
 // bat cong tac bao hiem o FE (EnterpriseCreateContract.jsx) hoac goi API truc
 // tiep voi insuranceEnabled=true.

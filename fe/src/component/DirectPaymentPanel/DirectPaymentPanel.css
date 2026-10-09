@@ -1,0 +1,25 @@
+.dp-panel{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:22px;margin-top:20px;box-shadow:0 8px 28px rgba(15,23,42,.06)}
+.dp-panel__header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}
+.dp-panel__header h3{margin:3px 0 6px;font-size:20px;color:#0f172a}.dp-panel__header p{margin:0;color:#64748b;line-height:1.55}
+.dp-eyebrow{font-size:12px!important;text-transform:uppercase;letter-spacing:.1em;color:#059669!important;font-weight:800}
+.dp-icon-btn,.dp-btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+.dp-icon-btn{background:#f1f5f9;color:#334155}.dp-btn:disabled,.dp-icon-btn:disabled{opacity:.55;cursor:not-allowed}
+.dp-btn--primary{background:#059669;color:#fff}.dp-btn--secondary{background:#eef2ff;color:#3730a3}
+.dp-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.dp-overview>div{border:1px solid #e2e8f0;border-radius:14px;padding:14px;display:grid;grid-template-columns:auto 1fr;column-gap:9px;align-items:center}
+.dp-overview svg{color:#059669}.dp-overview span{font-size:12px;color:#64748b}.dp-overview strong{grid-column:2;color:#0f172a;margin-top:2px}
+.dp-payments{display:grid;gap:14px}.dp-payment-card{border:1px solid #dbeafe;border-radius:15px;padding:16px;background:#f8fbff}
+.dp-payment-card__head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.dp-payment-card__head>div{display:flex;gap:12px;align-items:baseline}.dp-payment-card__head span{color:#64748b}.dp-payment-card__head strong{font-size:19px;color:#0f172a}
+.dp-status{font-size:12px!important;font-weight:800;padding:6px 9px;border-radius:999px;background:#f1f5f9;color:#475569!important}
+.dp-status--confirmed{background:#dcfce7;color:#166534!important}.dp-status--awaiting_confirmation{background:#fef3c7;color:#92400e!important}.dp-status--payable{background:#dbeafe;color:#1d4ed8!important}.dp-status--disputed{background:#fee2e2;color:#991b1b!important}
+.dp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.dp-grid>div{display:flex;flex-direction:column;gap:3px}.dp-grid span{font-size:12px;color:#64748b}.dp-grid strong{font-size:13px;color:#0f172a;word-break:break-word}
+.dp-actions{margin-top:14px;display:flex;gap:9px;flex-wrap:wrap}
+.dp-instruction{margin-top:15px;padding:15px;border-radius:14px;background:#fff;border:1px solid #cbd5e1;display:grid;grid-template-columns:180px 1fr;gap:18px}
+.dp-instruction__qr img{width:180px;height:180px;object-fit:contain;border-radius:10px;border:1px solid #e5e7eb}
+.dp-instruction__details h4{margin:0 0 10px}.dp-instruction__details p{display:flex;justify-content:space-between;gap:20px;margin:7px 0;border-bottom:1px dashed #e5e7eb;padding-bottom:6px}.dp-instruction__details p span{color:#64748b}.dp-instruction__details small{display:block;margin-top:10px;color:#047857;line-height:1.5}
+.dp-delivery{border-top:1px solid #e2e8f0;margin-top:18px;padding-top:18px}.dp-delivery h4{display:flex;align-items:center;gap:7px;margin:0 0 12px}.dp-delivery__actions{display:flex;gap:10px;flex-wrap:wrap}
+.dp-empty,.dp-loading{padding:20px;text-align:center;color:#64748b}.dp-empty svg{font-size:24px;color:#94a3b8}
+.dp-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.52);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}.dp-modal{background:#fff;width:min(520px,100%);border-radius:18px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.22)}.dp-modal h3{margin-top:0}.dp-modal p{color:#475569;line-height:1.6}.dp-modal__actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+@media(max-width:760px){.dp-overview,.dp-grid{grid-template-columns:1fr}.dp-panel__header{flex-direction:column}.dp-instruction{grid-template-columns:1fr}.dp-instruction__qr img{width:min(240px,100%);height:auto}.dp-instruction__qr{text-align:center}}
+
+.dp-fee-banner{display:flex;justify-content:space-between;align-items:center;gap:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px 16px;margin-bottom:16px}.dp-fee-banner>div{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}.dp-fee-banner span{color:#9a3412}.dp-fee-banner strong{color:#7c2d12;font-size:18px}.dp-fee-banner small{color:#b91c1c;font-weight:700}
