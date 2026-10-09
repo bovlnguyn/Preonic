@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://chances-hughes-save-prairie.trycloudflare.com/api/:path*"
+      "destination": "https://motivation-treasures-skills-nor.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
