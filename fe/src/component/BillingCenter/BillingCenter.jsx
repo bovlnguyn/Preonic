@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FiAlertCircle,
   FiCheckCircle,
@@ -10,6 +10,9 @@ import {
 import billingService from '../../services/billing.service';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { VN_BANKS, getVietnamBankByCode } from '../../data/vn-banks';
+import FarmerSectionHeader from '../FarmerDashboard/components/SectionHeader';
+import EnterpriseSectionHeader from '../EnterpriseDashboard/components/SectionHeader';
 import './BillingCenter.css';
 
 const fmtMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
@@ -17,18 +20,53 @@ const fmtDate = (value) => (value ? new Date(value).toLocaleDateString('vi-VN') 
 const idempotencyKey = () => window.crypto?.randomUUID?.()
   || `fee-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
+const INITIAL_BANK_FORM = {
+  bankCode: '',
+  bankName: '',
+  accountHolder: '',
+  accountNumber: '',
+  makeDefault: true,
+};
+
+const normalizeSpaces = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+
+const validateSettlementForm = (values) => {
+  const errors = {};
+  const selectedBank = getVietnamBankByCode(values.bankCode);
+  const accountHolder = normalizeSpaces(values.accountHolder);
+  const accountNumber = String(values.accountNumber || '').trim();
+
+  if (!selectedBank || selectedBank.name !== values.bankName) {
+    errors.bankName = 'Vui lòng chọn ngân hàng hợp lệ.';
+  }
+
+  if (!accountHolder) {
+    errors.accountHolder = 'Vui lòng nhập tên chủ tài khoản.';
+  } else if (accountHolder.length < 2 || accountHolder.length > 150) {
+    errors.accountHolder = 'Tên chủ tài khoản không phù hợp.';
+  } else if (!/^[\p{L}\p{N}\s.,&'()/-]+$/u.test(accountHolder)) {
+    errors.accountHolder = 'Tên chủ tài khoản không phù hợp.';
+  }
+
+  if (!accountNumber) {
+    errors.accountNumber = 'Vui lòng nhập số tài khoản.';
+  } else if (!/^[0-9]{6,20}$/.test(accountNumber)) {
+    errors.accountNumber = 'Số tài khoản không phù hợp.';
+  }
+
+  return errors;
+};
+
 function SettlementAccounts() {
   const toast = useToast();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    bankCode: '',
-    bankName: '',
-    accountHolder: '',
-    accountNumber: '',
-    makeDefault: true,
-  });
+  const [form, setForm] = useState(INITIAL_BANK_FORM);
+  const [touched, setTouched] = useState({});
+
+  const errors = useMemo(() => validateSettlementForm(form), [form]);
+  const isFormValid = Object.keys(errors).length === 0;
 
   const load = async () => {
     setLoading(true);
@@ -44,19 +82,51 @@ function SettlementAccounts() {
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const touchField = (fieldName) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+  };
+
+  const handleBankChange = (event) => {
+    const bankCode = event.target.value;
+    const bank = getVietnamBankByCode(bankCode);
+
+    setForm((prev) => ({
+      ...prev,
+      bankCode: bank?.code || '',
+      bankName: bank?.name || '',
+    }));
+    touchField('bankName');
+  };
+
+  const handleFieldChange = (event) => {
+    const { name, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    touchField(name);
+  };
+
+  const handleBlur = (event) => touchField(event.target.name);
+
   const save = async (event) => {
     event.preventDefault();
+    const allTouched = {
+      bankName: true,
+      accountHolder: true,
+      accountNumber: true,
+    };
+    setTouched(allTouched);
+
+    if (!isFormValid || saving) return;
+
     setSaving(true);
     try {
-      await billingService.saveSettlementAccount(form);
-      toast.success('Đã lưu tài khoản nhận tiền.');
-      setForm({
-        bankCode: '',
-        bankName: '',
-        accountHolder: '',
-        accountNumber: '',
-        makeDefault: true,
+      await billingService.saveSettlementAccount({
+        ...form,
+        accountHolder: normalizeSpaces(form.accountHolder),
+        accountNumber: form.accountNumber.trim(),
       });
+      toast.success('Đã lưu tài khoản nhận tiền.');
+      setForm(INITIAL_BANK_FORM);
+      setTouched({});
       await load();
     } catch (err) {
       toast.error(err?.message || 'Không thể lưu tài khoản nhận tiền.');
@@ -92,54 +162,82 @@ function SettlementAccounts() {
         <div>
           <span className="billing-card__eyebrow">Tài khoản nhận tiền</span>
           <h3>Tài khoản nhận tiền hàng</h3>
-          <p>Tiền hàng từ doanh nghiệp sẽ được chuyển trực tiếp vào tài khoản mặc định này. Hãy khai báo chính xác để tránh ảnh hưởng tới hợp đồng Direct V2.</p>
+          <p>
+            Tiền hàng từ doanh nghiệp sẽ được chuyển trực tiếp vào tài khoản mặc định này.
+            Hãy khai báo chính xác để tránh ảnh hưởng đến việc thanh toán hợp đồng.
+          </p>
         </div>
       </div>
 
-      <form className="billing-bank-form" onSubmit={save}>
+      <form className="billing-bank-form" onSubmit={save} noValidate>
+        <div className="billing-field">
+          <label htmlFor="settlement-bank-name">Tên ngân hàng</label>
+          <select
+            id="settlement-bank-name"
+            name="bankName"
+            value={form.bankCode}
+            onChange={handleBankChange}
+            onBlur={handleBlur}
+            className={touched.bankName && errors.bankName ? 'billing-control--invalid' : ''}
+          >
+            <option value="">Chọn ngân hàng</option>
+            {VN_BANKS.map((bank) => (
+              <option key={bank.code} value={bank.code}>
+                {bank.name}
+              </option>
+            ))}
+          </select>
+          {touched.bankName && errors.bankName && (
+            <span className="billing-field-error" role="alert">{errors.bankName}</span>
+          )}
+        </div>
+
         <div className="billing-field">
           <label htmlFor="settlement-bank-code">Mã ngân hàng</label>
           <input
             id="settlement-bank-code"
-            placeholder="VD: VCB"
             value={form.bankCode}
-            onChange={(e) => setForm({ ...form, bankCode: e.target.value })}
-            required
+            placeholder="Tự động theo ngân hàng đã chọn"
+            readOnly
+            aria-readonly="true"
           />
-        </div>
-
-        <div className="billing-field">
-          <label htmlFor="settlement-bank-name">Tên ngân hàng</label>
-          <input
-            id="settlement-bank-name"
-            placeholder="Nhập tên ngân hàng"
-            value={form.bankName}
-            onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-          />
+          <span className="billing-field-hint">Mã được hệ thống tự điền theo ngân hàng bạn chọn.</span>
         </div>
 
         <div className="billing-field">
           <label htmlFor="settlement-account-holder">Tên chủ tài khoản</label>
           <input
             id="settlement-account-holder"
+            name="accountHolder"
             placeholder="Nhập tên chủ tài khoản"
             value={form.accountHolder}
-            onChange={(e) => setForm({ ...form, accountHolder: e.target.value })}
-            required
+            onChange={handleFieldChange}
+            onBlur={handleBlur}
+            className={touched.accountHolder && errors.accountHolder ? 'billing-control--invalid' : ''}
+            autoComplete="name"
           />
+          {touched.accountHolder && errors.accountHolder && (
+            <span className="billing-field-error" role="alert">{errors.accountHolder}</span>
+          )}
         </div>
 
         <div className="billing-field">
           <label htmlFor="settlement-account-number">Số tài khoản</label>
           <input
             id="settlement-account-number"
+            name="accountNumber"
             placeholder="Nhập số tài khoản nhận tiền"
             value={form.accountNumber}
-            onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
-            required
+            onChange={handleFieldChange}
+            onBlur={handleBlur}
+            className={touched.accountNumber && errors.accountNumber ? 'billing-control--invalid' : ''}
             inputMode="numeric"
             autoComplete="off"
+            maxLength={20}
           />
+          {touched.accountNumber && errors.accountNumber && (
+            <span className="billing-field-error" role="alert">{errors.accountNumber}</span>
+          )}
         </div>
 
         <div className="billing-bank-form__footer">
@@ -147,12 +245,16 @@ function SettlementAccounts() {
             <input
               type="checkbox"
               checked={form.makeDefault}
-              onChange={(e) => setForm({ ...form, makeDefault: e.target.checked })}
+              onChange={(event) => setForm((prev) => ({ ...prev, makeDefault: event.target.checked }))}
             />
             Đặt làm mặc định
           </label>
 
-          <button type="submit" className="billing-btn billing-btn--primary billing-btn--save" disabled={saving}>
+          <button
+            type="submit"
+            className="billing-btn billing-btn--primary billing-btn--save"
+            disabled={!isFormValid || saving}
+          >
             <FiPlus /> {saving ? 'Đang lưu...' : 'Lưu tài khoản'}
           </button>
         </div>
@@ -161,9 +263,9 @@ function SettlementAccounts() {
       {loading ? (
         <p className="billing-muted">Đang tải...</p>
       ) : accounts.length === 0 ? (
-        <div className="billing-inline-alert" role="alert">
+        <div className="billing-inline-warning" role="alert">
           <FiAlertCircle />
-          <span>Bạn chưa có tài khoản nhận tiền. Cần thêm tài khoản trước khi ký hợp đồng Direct V2.</span>
+          <span>Bạn chưa có tài khoản nhận tiền. Cần thêm tài khoản trước khi ký hợp đồng.</span>
         </div>
       ) : (
         <div className="billing-bank-list">
@@ -186,7 +288,12 @@ function SettlementAccounts() {
                   </button>
                 )}
                 {account.status === 'active' && (
-                  <button type="button" className="billing-icon-btn danger" onClick={() => disable(account.id)} aria-label="Vô hiệu hóa tài khoản">
+                  <button
+                    type="button"
+                    className="billing-icon-btn danger"
+                    onClick={() => disable(account.id)}
+                    aria-label="Vô hiệu hóa tài khoản"
+                  >
                     <FiTrash2 />
                   </button>
                 )}
@@ -257,20 +364,23 @@ export default function BillingCenter() {
   const outstanding = Number(account?.outstandingAmount || 0);
   const overdue = Number(account?.overdueAmount || 0);
   const currentState = account?.status || 'good_standing';
+  const PageSectionHeader = user?.role === 'enterprise'
+    ? EnterpriseSectionHeader
+    : FarmerSectionHeader;
 
   return (
-    <div className="billing-page">
-      <section className="billing-hero">
-        <div className="billing-hero__content">
-          <span className="billing-hero__eyebrow">Thanh toán & phí dịch vụ</span>
-          <h2>Trung tâm billing PreOnic</h2>
-          <p>Tiền hàng không đi qua PreOnic. Khu vực này chỉ dùng để theo dõi công nợ phí dịch vụ nền tảng, bảng kê theo tháng và cấu hình tài khoản nhận tiền trực tiếp từ doanh nghiệp.</p>
-        </div>
-
-        <button type="button" className="billing-refresh" onClick={load} disabled={loading}>
-          <FiRefreshCw /> Làm mới
-        </button>
-      </section>
+    <div className={user?.role === 'enterprise' ? 'ent-stack billing-page' : 'farmer-stack billing-page'}>
+      <PageSectionHeader
+        breadcrumb="Thanh toán & Phí"
+        eyebrow="Thanh toán & phí"
+        title="Theo dõi thanh toán và phí dịch vụ"
+        desc="Theo dõi công nợ phí nền tảng, bảng kê theo tháng và tài khoản nhận tiền phục vụ thanh toán hợp đồng."
+        action={(
+          <button type="button" className="billing-refresh" onClick={load} disabled={loading}>
+            <FiRefreshCw /> Làm mới
+          </button>
+        )}
+      />
 
       <section className="billing-summary">
         <article className="billing-stat-card">
