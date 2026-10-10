@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://expert-updating-capture-row.trycloudflare.com/api/:path*"
+      "destination": "https://roster-ours-mall-satisfactory.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
