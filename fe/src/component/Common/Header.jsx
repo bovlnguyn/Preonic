@@ -16,25 +16,25 @@ import LogoutConfirmModal from "./LogoutConfirmModal";
 import "./Header.css";
 
 const GUEST_NAV_ITEMS = [
-  { label: "Trang chủ", path: "/" },
+  // { label: "Trang chủ", path: "/" },
   { label: "Sản phẩm", path: "/products" },
-  { label: "Giải pháp", path: "/solutions" },
+  { label: "Tìm hiểu về Preonic", path: "/solutions" },
   { label: "Liên hệ", path: "/contact" },
   { label: "AI nông nghiệp", path: "/ai-agriculture", highlight: true },
 ];
 
 const FARMER_NAV_ITEMS = [
-  { label: "Trang chủ", path: "/farmer-home" },
+  // { label: "Trang chủ", path: "/farmer-home" },
   { label: "Sản phẩm", path: "/farmer-products" },
-  { label: "Giải pháp", path: "/farmer-solutions" },
+  { label: "Tìm hiểu về Preonic", path: "/farmer-solutions" },
   { label: "Liên hệ", path: "/farmer-contact" },
   { label: "AI nông nghiệp", path: "/farmer-ai-agriculture", highlight: true },
 ];
 
 const ENTERPRISE_NAV_ITEMS = [
-  { label: "Trang chủ", path: "/enterprise-home" },
+  // { label: "Trang chủ", path: "/enterprise-home" },
   { label: "Sản phẩm", path: "/enterprise-products" },
-  { label: "Giải pháp", path: "/enterprise-solutions" },
+  { label: "Tìm hiểu về Preonic", path: "/enterprise-solutions" },
   { label: "Liên hệ", path: "/enterprise-contact" },
   { label: "AI thu mua", path: "/enterprise-ai-agriculture", highlight: true },
 ];
@@ -230,230 +230,230 @@ function Header() {
   return (
     <>
       <motion.header
-      className={`preonic-header preonic-header--${themeRole} ${scrolled ? "preonic-header--scrolled" : ""}`}
-      initial={{ y: -80, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.55, ease: "easeOut" }}
-    >
-      <div className="preonic-header__bg" />
+        className={`preonic-header preonic-header--${themeRole} ${scrolled ? "preonic-header--scrolled" : ""}`}
+        initial={{ y: -80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.55, ease: "easeOut" }}
+      >
+        <div className="preonic-header__bg" />
 
-      <div className="preonic-header__container">
-        <Link to={homePath} className="preonic-header__brand" onClick={closeMenu}>
-          <span className="preonic-header__logo-shell">
-            <span className="preonic-header__logo-glow" />
-            {!logoError ? (
-              <img
-                src={logo}
-                alt="PreOnic"
-                className="preonic-header__logo"
-                onError={() => setLogoError(true)}
-              />
-            ) : (
-              <span className="preonic-header__logo-fallback">P</span>
-            )}
-          </span>
-
-          <span className="preonic-header__brand-copy">
-            <span className="preonic-header__brand-name">PreOnic</span>
-            <span className="preonic-header__brand-tagline">{tagline}</span>
-          </span>
-        </Link>
-
-        <nav className="preonic-header__nav" aria-label="Menu chính">
-          {navItems.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <button
-                type="button"
-                key={item.path}
-                className={[
-                  "preonic-header__link",
-                  active ? "active" : "",
-                  item.highlight ? "preonic-header__link--ai" : "",
-                ].join(" ")}
-                onClick={() => handleNavigate(item.path)}
-              >
-                {item.highlight && <span className="preonic-header__ai-dot" />}
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="preonic-header__actions">
-          {isLoggedIn ? (
-            <>
-              {dashboardPath && (
-                <button
-                  type="button"
-                  className="preonic-header__dashboard"
-                  onClick={() => handleNavigate(dashboardPath)}
-                >
-                  <FiGrid />
-                  <span>{roleLabel}</span>
-                </button>
+        <div className="preonic-header__container">
+          <Link to={homePath} className="preonic-header__brand" onClick={closeMenu}>
+            <span className="preonic-header__logo-shell">
+              <span className="preonic-header__logo-glow" />
+              {!logoError ? (
+                <img
+                  src={logo}
+                  alt="PreOnic"
+                  className="preonic-header__logo"
+                  onError={() => setLogoError(true)}
+                />
+              ) : (
+                <span className="preonic-header__logo-fallback">P</span>
               )}
+            </span>
 
-              <div className="preonic-header__account" ref={accountRef}>
-                <button
-                  type="button"
-                  className={`preonic-header__account-trigger ${accountOpen ? "is-open" : ""}`}
-                  onClick={() => setAccountOpen((value) => !value)}
-                  aria-haspopup="menu"
-                  aria-expanded={accountOpen}
-                >
-                  {renderAvatar("preonic-header__account-avatar")}
-                  <span className="preonic-header__account-copy">
-                    <small>Xin chào, {greetingName}</small>
-                    <strong>{displayName}</strong>
-                  </span>
-                  <FiChevronDown className="preonic-header__account-chevron" />
-                </button>
+            <span className="preonic-header__brand-copy">
+              <span className="preonic-header__brand-name">PreOnic</span>
+              <span className="preonic-header__brand-tagline">{tagline}</span>
+            </span>
+          </Link>
 
-                <AnimatePresence>
-                  {accountOpen && (
-                    <motion.div
-                      className="preonic-header__account-menu"
-                      role="menu"
-                      initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                      transition={{ duration: 0.18, ease: "easeOut" }}
-                    >
-                      <div className="preonic-header__account-summary">
-                        {renderAvatar("preonic-header__account-avatar preonic-header__account-avatar--large")}
-                        <div>
-                          <strong>{displayName}</strong>
-                          <span>{user?.email || roleDescription}</span>
-                          <em>{roleDescription}</em>
-                        </div>
-                      </div>
-
-                      <div className="preonic-header__account-menu-list">
-                        <button type="button" role="menuitem" onClick={() => handleNavigate("/profile")}>
-                          <FiUser />
-                          <span>
-                            <strong>Hồ sơ cá nhân</strong>
-                            <small>Cập nhật thông tin và ảnh đại diện</small>
-                          </span>
-                        </button>
-
-                        {dashboardPath && (
-                          <button type="button" role="menuitem" onClick={() => handleNavigate(dashboardPath)}>
-                            <FiGrid />
-                            <span>
-                              <strong>Vào {roleLabel} dashboard</strong>
-                              <small>Quản lý công việc và giao dịch</small>
-                            </span>
-                          </button>
-                        )}
-
-                        <button type="button" role="menuitem" onClick={() => handleNavigate(homePath)}>
-                          <FiHome />
-                          <span>
-                            <strong>Trang chủ của tôi</strong>
-                            <small>Quay lại không gian theo vai trò</small>
-                          </span>
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        className="preonic-header__account-logout"
-                        role="menuitem"
-                        onClick={requestLogout}
-                      >
-                        <FiLogOut />
-                        <span>Đăng xuất</span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </>
-          ) : (
-            <>
-              <button type="button" className="preonic-header__login" onClick={() => handleNavigate("/auth")}>
-                Đăng nhập
-              </button>
-
-              <button type="button" className="preonic-header__register" onClick={() => handleNavigate("/register")}>
-                Đăng ký
-              </button>
-            </>
-          )}
-        </div>
-
-        <button
-          type="button"
-          className={`preonic-header__toggle ${open ? "open" : ""}`}
-          onClick={() => setOpen((value) => !value)}
-          aria-label="Mở menu"
-          aria-expanded={open}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="preonic-header__mobile"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.28, ease: "easeOut" }}
-          >
-            <div className="preonic-header__mobile-inner">
-              {isLoggedIn && (
-                <div className="preonic-header__mobile-profile">
-                  {renderAvatar("preonic-header__account-avatar preonic-header__account-avatar--mobile")}
-                  <div>
-                    <small>Xin chào, {greetingName}</small>
-                    <strong>{displayName}</strong>
-                    <span>{roleDescription}</span>
-                  </div>
-                </div>
-              )}
-
-              {navItems.map((item) => (
+          <nav className="preonic-header__nav" aria-label="Menu chính">
+            {navItems.map((item) => {
+              const active = isActive(item.path);
+              return (
                 <button
                   type="button"
                   key={item.path}
                   className={[
-                    isActive(item.path) ? "active" : "",
-                    item.highlight ? "mobile-ai" : "",
+                    "preonic-header__link",
+                    active ? "active" : "",
+                    item.highlight ? "preonic-header__link--ai" : "",
                   ].join(" ")}
                   onClick={() => handleNavigate(item.path)}
                 >
+                  {item.highlight && <span className="preonic-header__ai-dot" />}
                   {item.label}
                 </button>
-              ))}
+              );
+            })}
+          </nav>
 
-              <div className="preonic-header__mobile-actions">
-                {isLoggedIn ? (
-                  <>
-                    <button type="button" onClick={() => handleNavigate("/profile")}>Hồ sơ cá nhân</button>
-                    {dashboardPath && (
-                      <button type="button" onClick={() => handleNavigate(dashboardPath)}>
-                        Vào {roleLabel}
-                      </button>
-                    )}
-                    <button type="button" className="mobile-logout" onClick={requestLogout}>Đăng xuất</button>
-                  </>
-                ) : (
-                  <>
-                    <button type="button" onClick={() => handleNavigate("/auth")}>Đăng nhập</button>
-                    <button type="button" onClick={() => handleNavigate("/register")}>Đăng ký</button>
-                  </>
+          <div className="preonic-header__actions">
+            {isLoggedIn ? (
+              <>
+                {dashboardPath && (
+                  <button
+                    type="button"
+                    className="preonic-header__dashboard"
+                    onClick={() => handleNavigate(dashboardPath)}
+                  >
+                    <FiGrid />
+                    <span>{roleLabel}</span>
+                  </button>
                 )}
+
+                <div className="preonic-header__account" ref={accountRef}>
+                  <button
+                    type="button"
+                    className={`preonic-header__account-trigger ${accountOpen ? "is-open" : ""}`}
+                    onClick={() => setAccountOpen((value) => !value)}
+                    aria-haspopup="menu"
+                    aria-expanded={accountOpen}
+                  >
+                    {renderAvatar("preonic-header__account-avatar")}
+                    <span className="preonic-header__account-copy">
+                      <small>Xin chào, {greetingName}</small>
+                      <strong>{displayName}</strong>
+                    </span>
+                    <FiChevronDown className="preonic-header__account-chevron" />
+                  </button>
+
+                  <AnimatePresence>
+                    {accountOpen && (
+                      <motion.div
+                        className="preonic-header__account-menu"
+                        role="menu"
+                        initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        <div className="preonic-header__account-summary">
+                          {renderAvatar("preonic-header__account-avatar preonic-header__account-avatar--large")}
+                          <div>
+                            <strong>{displayName}</strong>
+                            <span>{user?.email || roleDescription}</span>
+                            <em>{roleDescription}</em>
+                          </div>
+                        </div>
+
+                        <div className="preonic-header__account-menu-list">
+                          <button type="button" role="menuitem" onClick={() => handleNavigate("/profile")}>
+                            <FiUser />
+                            <span>
+                              <strong>Hồ sơ cá nhân</strong>
+                              <small>Cập nhật thông tin và ảnh đại diện</small>
+                            </span>
+                          </button>
+
+                          {dashboardPath && (
+                            <button type="button" role="menuitem" onClick={() => handleNavigate(dashboardPath)}>
+                              <FiGrid />
+                              <span>
+                                <strong>Vào {roleLabel} dashboard</strong>
+                                <small>Quản lý công việc và giao dịch</small>
+                              </span>
+                            </button>
+                          )}
+
+                          <button type="button" role="menuitem" onClick={() => handleNavigate(homePath)}>
+                            <FiHome />
+                            <span>
+                              <strong>Trang chủ của tôi</strong>
+                              <small>Quay lại không gian theo vai trò</small>
+                            </span>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="preonic-header__account-logout"
+                          role="menuitem"
+                          onClick={requestLogout}
+                        >
+                          <FiLogOut />
+                          <span>Đăng xuất</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
+            ) : (
+              <>
+                <button type="button" className="preonic-header__login" onClick={() => handleNavigate("/auth")}>
+                  Đăng nhập
+                </button>
+
+                <button type="button" className="preonic-header__register" onClick={() => handleNavigate("/register")}>
+                  Đăng ký
+                </button>
+              </>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className={`preonic-header__toggle ${open ? "open" : ""}`}
+            onClick={() => setOpen((value) => !value)}
+            aria-label="Mở menu"
+            aria-expanded={open}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              className="preonic-header__mobile"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+            >
+              <div className="preonic-header__mobile-inner">
+                {isLoggedIn && (
+                  <div className="preonic-header__mobile-profile">
+                    {renderAvatar("preonic-header__account-avatar preonic-header__account-avatar--mobile")}
+                    <div>
+                      <small>Xin chào, {greetingName}</small>
+                      <strong>{displayName}</strong>
+                      <span>{roleDescription}</span>
+                    </div>
+                  </div>
+                )}
+
+                {navItems.map((item) => (
+                  <button
+                    type="button"
+                    key={item.path}
+                    className={[
+                      isActive(item.path) ? "active" : "",
+                      item.highlight ? "mobile-ai" : "",
+                    ].join(" ")}
+                    onClick={() => handleNavigate(item.path)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+
+                <div className="preonic-header__mobile-actions">
+                  {isLoggedIn ? (
+                    <>
+                      <button type="button" onClick={() => handleNavigate("/profile")}>Hồ sơ cá nhân</button>
+                      {dashboardPath && (
+                        <button type="button" onClick={() => handleNavigate(dashboardPath)}>
+                          Vào {roleLabel}
+                        </button>
+                      )}
+                      <button type="button" className="mobile-logout" onClick={requestLogout}>Đăng xuất</button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => handleNavigate("/auth")}>Đăng nhập</button>
+                      <button type="button" onClick={() => handleNavigate("/register")}>Đăng ký</button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.header>
 
       <LogoutConfirmModal
