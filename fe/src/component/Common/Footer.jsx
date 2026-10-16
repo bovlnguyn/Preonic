@@ -71,7 +71,7 @@ function Footer() {
             : "Danh sách sản phẩm",
       path: config.products,
     },
-    { label: "Giải pháp", path: config.solutions },
+    { label: "Tìm hiểu về Preonic", path: config.solutions },
     ...(config.dashboard
       ? [{ label: "Dashboard", path: config.dashboard }]
       : []),
@@ -80,20 +80,20 @@ function Footer() {
   const supportLinks =
     role === "guest"
       ? [
-          { label: "Đăng nhập", path: "/auth" },
-          { label: "Đăng ký tài khoản", path: "/register" },
-          { label: "Khám phá sản phẩm", path: "/products" },
-          { label: "Liên hệ hỗ trợ", path: config.contact },
-          { label: "AI nông nghiệp", path: config.ai },
-        ]
+        { label: "Đăng nhập", path: "/auth" },
+        { label: "Đăng ký tài khoản", path: "/register" },
+        { label: "Khám phá sản phẩm", path: "/products" },
+        { label: "Liên hệ hỗ trợ", path: config.contact },
+        { label: "AI nông nghiệp", path: config.ai },
+      ]
       : [
-          { label: "Hồ sơ cá nhân", path: "/profile" },
-          { label: "Liên hệ hỗ trợ", path: config.contact },
-          {
-            label: role === "farmer" ? "AI nông nghiệp" : "AI thu mua",
-            path: config.ai,
-          },
-        ];
+        { label: "Hồ sơ cá nhân", path: "/profile" },
+        { label: "Liên hệ hỗ trợ", path: config.contact },
+        {
+          label: role === "farmer" ? "AI nông nghiệp" : "AI thu mua",
+          path: config.ai,
+        },
+      ];
 
   return (
     <footer className={`preonic-footer preonic-footer--${themeRole}`}>

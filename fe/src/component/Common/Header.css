@@ -11,12 +11,10 @@
   min-height: 82px;
   color: #ffffff;
   background:
-    linear-gradient(
-      90deg,
+    linear-gradient(90deg,
       rgba(5, 33, 18, 0.98),
       rgba(24, 142, 77, 0.9) 48%,
-      rgba(5, 33, 18, 0.98)
-    ),
+      rgba(5, 33, 18, 0.98)),
     radial-gradient(circle at 76% 0%, rgba(250, 204, 21, 0.14), transparent 34%),
     linear-gradient(135deg, #071c12 0%, #123923 40%, #0a2618 100%);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
@@ -41,11 +39,9 @@
   inset: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 60%),
-    repeating-linear-gradient(
-      165deg,
+    repeating-linear-gradient(165deg,
       rgba(255, 255, 255, 0.055) 0 1px,
-      transparent 1px 18px
-    );
+      transparent 1px 18px);
   opacity: 0.44;
 }
 
@@ -57,16 +53,12 @@
   bottom: -52px;
   height: 110px;
   background:
-    radial-gradient(
-      100% 76% at 18% 100%,
+    radial-gradient(100% 76% at 18% 100%,
       rgba(34, 197, 94, 0.28),
-      transparent 64%
-    ),
-    radial-gradient(
-      95% 76% at 78% 100%,
+      transparent 64%),
+    radial-gradient(95% 76% at 78% 100%,
       rgba(190, 242, 100, 0.16),
-      transparent 66%
-    );
+      transparent 66%);
   filter: blur(1px);
 }
 
@@ -102,11 +94,11 @@
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(236, 252, 203, 0.88)),
     radial-gradient(circle at 30% 20%, rgba(250, 204, 21, 0.18), transparent 42%);
-  border: 1px solid rgba(250, 204, 21, 0.32);
-  box-shadow:
+  /* border: 1px solid rgba(250, 204, 21, 0.32); */
+  /* box-shadow:
     0 12px 28px rgba(0, 0, 0, 0.2),
     0 0 0 5px rgba(190, 242, 100, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    inset 0 1px 0 rgba(255, 255, 255, 0.9); */
   overflow: hidden;
 }
 
@@ -354,11 +346,9 @@
   z-index: 2;
   overflow: hidden;
   background:
-    linear-gradient(
-      180deg,
+    linear-gradient(180deg,
       rgba(7, 28, 18, 0.99),
-      rgba(10, 35, 22, 0.99)
-    );
+      rgba(10, 35, 22, 0.99));
   border-top: 1px solid rgba(134, 239, 172, 0.22);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
 }
@@ -371,7 +361,7 @@
   gap: 10px;
 }
 
-.preonic-header__mobile-inner > button {
+.preonic-header__mobile-inner>button {
   min-height: 44px;
   border: 1px solid rgba(134, 239, 172, 0.18);
   border-radius: 12px;
@@ -381,12 +371,12 @@
   cursor: pointer;
 }
 
-.preonic-header__mobile-inner > button.active {
+.preonic-header__mobile-inner>button.active {
   color: #4ade80;
   background: rgba(34, 197, 94, 0.12);
 }
 
-.preonic-header__mobile-inner > button.mobile-ai {
+.preonic-header__mobile-inner>button.mobile-ai {
   color: #fef3c7;
   border-color: rgba(250, 204, 21, 0.28);
   background: rgba(250, 204, 21, 0.08);
@@ -414,6 +404,7 @@
 .preonic-header__mobile-actions button:last-child {
   background: linear-gradient(135deg, #22c55e, #16a34a);
 }
+
 .preonic-header__dashboard {
   min-width: 126px;
   height: 46px;
@@ -539,6 +530,7 @@
     display: none;
   }
 }
+
 .preonic-header__dashboard {
   min-width: 126px;
   height: 46px;
@@ -590,6 +582,7 @@
     padding: 0 14px;
   }
 }
+
 /* =========================================================
    ENTERPRISE THEME
    Farmer và guest tiếp tục dùng bảng màu xanh lá mặc định.
@@ -602,12 +595,10 @@
   --header-gold: #fbbf24;
 
   background:
-    linear-gradient(
-      90deg,
+    linear-gradient(90deg,
       rgba(5, 18, 47, 0.99),
       rgba(16, 76, 155, 0.95) 48%,
-      rgba(5, 24, 61, 0.99)
-    ),
+      rgba(5, 24, 61, 0.99)),
     radial-gradient(circle at 76% 0%, rgba(56, 189, 248, 0.2), transparent 34%),
     linear-gradient(135deg, #050f2b 0%, #0b326d 48%, #061733 100%);
   box-shadow: 0 12px 38px rgba(2, 20, 54, 0.3);
@@ -726,17 +717,17 @@
   border-top-color: rgba(125, 211, 252, 0.24);
 }
 
-.preonic-header--enterprise .preonic-header__mobile-inner > button {
+.preonic-header--enterprise .preonic-header__mobile-inner>button {
   color: #dbeafe;
   border-color: rgba(125, 211, 252, 0.19);
 }
 
-.preonic-header--enterprise .preonic-header__mobile-inner > button.active {
+.preonic-header--enterprise .preonic-header__mobile-inner>button.active {
   color: #7dd3fc;
   background: rgba(37, 99, 235, 0.2);
 }
 
-.preonic-header--enterprise .preonic-header__mobile-inner > button.mobile-ai {
+.preonic-header--enterprise .preonic-header__mobile-inner>button.mobile-ai {
   color: #e0f2fe;
   border-color: rgba(56, 189, 248, 0.3);
   background: rgba(37, 99, 235, 0.16);
@@ -832,7 +823,7 @@
   object-position: center;
 }
 
-.preonic-header__account-avatar > span {
+.preonic-header__account-avatar>span {
   line-height: 1;
 }
 
@@ -924,7 +915,7 @@
   font-size: 15px;
 }
 
-.preonic-header__account-summary > div {
+.preonic-header__account-summary>div {
   min-width: 0;
   display: grid;
   gap: 2px;
@@ -998,18 +989,18 @@
   background: color-mix(in srgb, var(--account-accent) 8%, #f8fafc);
 }
 
-.preonic-header__account-menu-list button > svg,
-.preonic-header__account-logout > svg {
+.preonic-header__account-menu-list button>svg,
+.preonic-header__account-logout>svg {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
 }
 
-.preonic-header__account-menu-list button > svg {
+.preonic-header__account-menu-list button>svg {
   color: var(--account-accent);
 }
 
-.preonic-header__account-menu-list button > span {
+.preonic-header__account-menu-list button>span {
   min-width: 0;
   display: grid;
   gap: 2px;
@@ -1065,7 +1056,7 @@
   border-radius: 15px;
 }
 
-.preonic-header__mobile-profile > div {
+.preonic-header__mobile-profile>div {
   min-width: 0;
   display: grid;
   gap: 2px;
