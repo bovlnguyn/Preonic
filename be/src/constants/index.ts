@@ -53,7 +53,6 @@ export const CONTRACT_CONFIG = {
   CODE_SEQUENCE_MIN: 1000,
   CODE_SEQUENCE_SPAN: 9000,
   MAX_CODE_GENERATION_ATTEMPTS: 10,
-  COMMISSION_RATE: 3, // % — phải khớp với COMPANY.COMMISSION_RATE trong fe/src/constants/index.js
   FARMER_SIGN_DEADLINE_DAYS: 3, // Nong dan phai ky trong vong X ngay ke tu khi enterprise gui de xuat, qua han tu dong huy
 } as const;
 
@@ -102,4 +101,3 @@ export const WEATHER_API = {
     lng: 105.8542,
   },
 } as const;
-

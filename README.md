@@ -1,8 +1,8 @@
 # PreOnic
 
-PreOnic là nền tảng kết nối nông dân với doanh nghiệp trong chuỗi cung ứng nông sản. Hệ thống hỗ trợ đăng bán nông sản, tìm kiếm nhà cung cấp, tạo và ký hợp đồng, ký quỹ theo tiến độ, ví nội bộ, tranh chấp, đánh giá đối tác, nhắn tin, thông báo, thời tiết và quản trị hệ thống.
+PreOnic là nền tảng kết nối nông dân với doanh nghiệp trong chuỗi cung ứng nông sản. Hệ thống hỗ trợ đăng bán nông sản, tìm kiếm nhà cung cấp, tạo và ký hợp đồng, thanh toán tiền hàng trực tiếp vào tài khoản nông dân, thu phí nền tảng riêng, tranh chấp, đánh giá đối tác, nhắn tin, thông báo, thời tiết và quản trị hệ thống.
 
-Tài liệu này được viết theo source hiện tại của dự án và bộ database `Preonic-Database-Final.zip`. Mục tiêu là giúp một người mới có thể hiểu kiến trúc và dựng toàn bộ hệ thống trên máy local mà không phải đọc code trước.
+Tài liệu này được viết theo source và bộ SQL trong thư mục `Preonic Database`. Mục tiêu là giúp một người mới hiểu kiến trúc và dựng toàn bộ hệ thống trên máy local.
 
 ## Mục lục
 
@@ -39,10 +39,10 @@ Tài liệu này được viết theo source hiện tại của dự án và b�
 - Khai báo mùa vụ, sản lượng, ngày gieo trồng, ngày thu hoạch và tỷ lệ bao phủ.
 - Tải ảnh sản phẩm và tệp chứng nhận qua Cloudinary.
 - Nhận đề xuất hợp đồng từ doanh nghiệp, ký hoặc từ chối hợp đồng.
-- Theo dõi giao hàng, ký quỹ, các mốc thanh toán và dòng tiền.
+- Khai báo tài khoản ngân hàng nhận tiền, theo dõi giao hàng và xác nhận tiền hàng đã nhận.
 - Gửi yêu cầu hủy hợp đồng hoặc xác nhận/từ chối yêu cầu hủy từ bên còn lại.
 - Mở tranh chấp và gửi bằng chứng.
-- Quản lý ví, giao dịch, yêu cầu rút tiền và lịch sử tài chính.
+- Theo dõi công nợ phí dịch vụ, bảng kê tháng và thanh toán phí riêng cho nền tảng.
 - Đánh giá đối tác sau giao dịch đủ điều kiện.
 - Nhắn tin, nhận thông báo và cảnh báo thời tiết.
 - Sử dụng trợ lý AI dành cho nông dân khi OpenAI đã được cấu hình.
@@ -53,8 +53,8 @@ Tài liệu này được viết theo source hiện tại của dự án và b�
 - Tìm kiếm nông sản và nhà cung cấp.
 - Xem hồ sơ, lịch sử hợp tác và chỉ số uy tín của nông dân.
 - Tạo đề xuất hợp đồng theo sản phẩm, số lượng, đơn giá và điều khoản thanh toán.
-- Nộp tiền ký quỹ, xác nhận các mốc thực hiện và theo dõi giao hàng.
-- Theo dõi hợp đồng, đơn hàng, giao dịch, ví và đánh giá đối tác.
+- Chuyển tiền hàng trực tiếp cho nông dân bằng nội dung chuyển khoản/QR do hệ thống tạo.
+- Theo dõi hợp đồng, đơn hàng, các đợt thanh toán và đánh giá đối tác.
 - Mở tranh chấp, nhắn tin và nhận thông báo.
 - Xem thời tiết và thông tin bảo hiểm liên quan đến hợp đồng.
 
@@ -62,9 +62,9 @@ Tài liệu này được viết theo source hiện tại của dự án và b�
 
 - Xem tổng quan hệ thống.
 - Quản lý người dùng và trạng thái tài khoản.
-- Theo dõi hợp đồng, giao dịch và hoa hồng.
+- Theo dõi hợp đồng, thanh toán tiền hàng và sổ phí dịch vụ.
 - Xử lý tranh chấp.
-- Duyệt hoặc từ chối yêu cầu rút tiền.
+- Theo dõi bảng kê, giao dịch phí và xử lý tranh chấp mà không giữ tiền của hai bên.
 - Xem nhật ký hệ thống và lỗi API.
 
 ## 2. Kiến trúc hệ thống
@@ -73,8 +73,8 @@ Tài liệu này được viết theo source hiện tại của dự án và b�
 flowchart TD
     A["Trình duyệt"] --> B["React SPA · cổng 3000"]
     B --> C["Express API · cổng 8080 · /api/v1"]
-    C --> D["SQL Server · database preonic"]
-    C --> E["Dịch vụ tùy chọn: Cloudinary · SMTP · Google · OpenAI · Weather · SePay"]
+    C --> D["SQL Server · database preonic_v2"]
+    C --> E["Dịch vụ tùy chọn: Cloudinary · SMTP · Google · OpenAI · Weather · cổng QR/đối soát ngân hàng"]
 ```
 
 ### 2.1. Frontend
@@ -103,9 +103,9 @@ flowchart TD
 | Tác vụ | Lịch mặc định | Mục đích |
 | --- | --- | --- |
 | Contract expiry | Mỗi giờ | Hủy đề xuất đã gửi nhưng nông dân không ký trước hạn |
-| Shipping | Mỗi giờ | Đồng bộ tiến độ giao hàng và mốc ký quỹ |
 | Weather | Mỗi 6 giờ | Cập nhật dữ liệu và cảnh báo thời tiết |
 | System log cleanup | 03:00 mỗi ngày | Dọn nhật ký hệ thống cũ |
+| Fee billing | 01:15 mỗi ngày | Lập bảng kê tháng, cập nhật quá hạn và giới hạn tài khoản |
 
 ## 3. Công nghệ sử dụng
 
@@ -119,7 +119,7 @@ flowchart TD
 | OAuth | Google OAuth 2.0 |
 | Thời tiết | OpenWeatherMap; tự fallback sang Open-Meteo khi không có API key hoặc nhà cung cấp chính lỗi |
 | AI | OpenAI Responses API, có endpoint công khai và endpoint dành cho nông dân |
-| Thanh toán | Ví nội bộ, QR/top-up demo và tích hợp SePay tùy chọn |
+| Thanh toán | Chuyển khoản trực tiếp doanh nghiệp → nông dân; sổ phí và QR chuyển khoản phí riêng |
 | Kiểm thử backend | Jest + ts-jest |
 
 ## 4. Cấu trúc dự án
@@ -132,10 +132,11 @@ Preonic/
 │   │   ├── controller/         # Nhận request và trả response
 │   │   ├── services/           # Nghiệp vụ chính
 │   │   ├── routes/             # Khai báo endpoint và middleware
-│   │   ├── models/             # 21 TypeORM entity
-│   │   ├── migrations/         # 22 migration lịch sử
+│   │   ├── models/             # 27 TypeORM entity
+│   │   ├── migrations/         # Migration schema và chuyển đổi dữ liệu
+│   │   ├── modules/direct-payment-v2/ # Thanh toán trực tiếp và công nợ phí
 │   │   ├── middlewares/        # Auth, validation, upload, rate limit, lỗi
-│   │   ├── jobs/               # Cron hợp đồng, giao hàng, thời tiết, log
+│   │   ├── jobs/               # Cron hợp đồng, phí, thời tiết và log
 │   │   ├── seed/               # Script tạo admin tùy chọn
 │   │   ├── utils/              # JWT, mật khẩu, rating, response, lock giao dịch
 │   │   ├── __tests__/          # Kiểm thử backend
@@ -151,8 +152,8 @@ Preonic/
 │   │   ├── services/           # Axios client và service gọi API
 │   │   ├── contexts/           # Auth, toast, messaging widget
 │   │   ├── hooks/              # Hook tải dữ liệu dashboard
-│   │   ├── constants/          # Hằng số hợp đồng, escrow, sản phẩm
-│   │   ├── utils/              # Ngày giờ, rating, giao dịch
+│   │   ├── constants/          # Hằng số hợp đồng và sản phẩm
+│   │   ├── utils/              # Ngày giờ, rating và tiện ích giao diện
 │   │   ├── App.js
 │   │   └── index.js
 │   ├── .env.example
@@ -167,14 +168,15 @@ Không cần giữ hoặc chia sẻ các thư mục `node_modules`, `be/dist`, `
 
 ### 5.1. Các bảng chính
 
-Bộ bootstrap hiện tại tạo **21 bảng ứng dụng** và bảng lịch sử `dbo.migrations`.
+Bộ bootstrap hiện tại tạo trực tiếp **27 bảng ứng dụng** ở trạng thái cuối. Database cài mới không cần bảng lịch sử migration.
 
 | Nhóm | Bảng |
 | --- | --- |
 | Người dùng | `Users` |
 | Sản phẩm | `Products`, `ProductCertifications`, `ProductCommitments`, `Reviews` |
-| Hợp đồng và ký quỹ | `Contracts`, `Escrows`, `EscrowMilestones`, `EscrowTransactions` |
-| Tranh chấp và tài chính | `Disputes`, `DisputeEvidences`, `PaymentTransactions`, `PartnerRatings` |
+| Hợp đồng và thanh toán tiền hàng | `Contracts`, `UserSettlementBankAccounts`, `DirectGoodsPayments`, `ContractFeeTerms` |
+| Phí nền tảng | `PlatformFeePolicies`, `PlatformFeeAccounts`, `PlatformFeeStatements`, `PlatformFeeLedgerEntries`, `PlatformFeePayments`, `PlatformFeePaymentEvents`, `PlatformFeePaymentApplications` |
+| Tranh chấp và uy tín | `Disputes`, `DisputeEvidences`, `PartnerRatings` |
 | Giao tiếp | `Notifications`, `Conversations`, `ConversationParticipants`, `Messages`, `MessageAttachments`, `MessageReadBy` |
 | Hỗ trợ vận hành | `WeatherAlerts`, `SystemLogs` |
 
@@ -186,30 +188,29 @@ Schema còn tạo index hiệu năng, trigger cập nhật thời gian, stored p
 stateDiagram-v2
     [*] --> draft
     draft --> pending: Doanh nghiệp gửi đề xuất
-    pending --> approved: Nông dân ký
-    approved --> active: Nạp tiền ký quỹ
-    active --> completed: Hoàn tất các mốc
+    pending --> active: Hai bên ký đủ
+    active --> completed: Đã giao hàng và nhận đủ tiền
     pending --> cancelled: Từ chối hoặc hết hạn
-    approved --> cancel_pending: Một bên yêu cầu hủy
+    active --> cancel_pending: Một bên yêu cầu hủy trước khi tiền được chuyển
     cancel_pending --> cancelled: Bên còn lại đồng ý
-    cancel_pending --> approved: Bên còn lại từ chối
+    cancel_pending --> active: Bên còn lại từ chối
     active --> disputed: Phát sinh tranh chấp
 ```
 
 Các trạng thái được hỗ trợ trong source và database:
 
 ```text
-draft → pending → approved → active → completed
-                   └→ cancel_pending → cancelled
+draft → pending → active → completed
+                  └→ cancel_pending → cancelled
 active → disputed
 ```
 
 ### 5.3. Bootstrap SQL và migration
 
-Bộ `Preonic-Database-Final.zip` chứa:
+Bộ `Preonic Database` chứa:
 
-1. `01_Preonic_CreateDatabase.sql`: tạo database `preonic`, toàn bộ schema cuối, index, trigger, view, stored procedure và đánh dấu 22 migration đã áp dụng.
-2. `02_Preonic_SeedData.sql`: tạo dữ liệu demo gồm 2 tài khoản, 10 sản phẩm, 8 hợp đồng đủ trạng thái và dữ liệu escrow, tranh chấp, chat, thông báo, đánh giá.
+1. `01_Preonic_V2_CreateDatabase.sql`: tạo database `preonic_v2`, toàn bộ schema trực tiếp, index, constraint, trigger, view, stored procedure và lịch sử migration.
+2. `02_Preonic_V2_SeedData.sql`: tạo 3 tài khoản demo, 10 nông sản có ảnh và 10 hợp đồng mẫu; không tạo tài khoản ngân hàng hoặc giao dịch tài chính giả.
 
 Với database local mới, ưu tiên chạy hai file SQL trên và giữ:
 
@@ -217,7 +218,7 @@ Với database local mới, ưu tiên chạy hai file SQL trên và giữ:
 DB_SYNCHRONIZE=false
 ```
 
-Sau khi bootstrap, không cần chạy `migration:run`; bảng `dbo.migrations` đã được điền để TypeORM không chạy lại các thay đổi đã gộp vào schema.
+Sau khi chạy hai file bootstrap, không chạy `migration:run`. Schema cài mới đã chứa đầy đủ cấu trúc mà backend hiện tại cần.
 
 ## 6. Yêu cầu môi trường
 
@@ -239,7 +240,7 @@ Sau khi bootstrap, không cần chạy `migration:run`; bảng `dbo.migrations` 
 - Google OAuth để đăng nhập Google.
 - OpenAI để bật trợ lý AI.
 - OpenWeatherMap; nếu không cấu hình, hệ thống vẫn dùng Open-Meteo miễn phí.
-- SePay để tạo QR và nhận webhook nạp tiền thật.
+- Tài khoản ngân hàng của nền tảng và cổng đối soát để thu phí dịch vụ thật.
 
 Kiểm tra phiên bản:
 
@@ -285,12 +286,12 @@ Mật khẩu SQL Server phải đủ mạnh theo chính sách của SQL Server. 
 
 ### Bước 3 — Tạo database
 
-Giải nén `Preonic-Database-Final.zip`, mở SQL editor và kết nối bằng tài khoản có quyền tạo database.
+Mở SQL editor và kết nối bằng tài khoản có quyền tạo database.
 
 Chạy đúng thứ tự:
 
-1. `01_Preonic_CreateDatabase.sql`
-2. `02_Preonic_SeedData.sql`
+1. `Preonic Database/01_Preonic_V2_CreateDatabase.sql`
+2. `Preonic Database/02_Preonic_V2_SeedData.sql`
 
 File thứ nhất chỉ chạy trên database chưa có bảng. Nếu muốn tạo lại hoàn toàn database local, chạy đoạn sau trước:
 
@@ -298,36 +299,36 @@ File thứ nhất chỉ chạy trên database chưa có bảng. Nếu muốn t�
 USE master;
 GO
 
-IF DB_ID(N'preonic') IS NOT NULL
+IF DB_ID(N'preonic_v2') IS NOT NULL
 BEGIN
-    ALTER DATABASE [preonic]
+    ALTER DATABASE [preonic_v2]
     SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
 
-    DROP DATABASE [preonic];
+    DROP DATABASE [preonic_v2];
 END;
 GO
 ```
 
-> Đoạn lệnh trên xóa toàn bộ database `preonic` và mọi dữ liệu bên trong. Chỉ dùng khi chắc chắn cần reset môi trường local.
+> Đoạn lệnh trên xóa toàn bộ database `preonic_v2` và mọi dữ liệu bên trong. Chỉ dùng khi chắc chắn cần reset môi trường local.
 
 Sau khi chạy hai file, kiểm tra:
 
 ```sql
-USE preonic;
+USE preonic_v2;
 GO
 
 SELECT COUNT(*) AS ApplicationTableCount
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = 'dbo'
   AND TABLE_TYPE = 'BASE TABLE'
-  AND TABLE_NAME <> 'migrations';
+;
 
 SELECT Email, Role, IsActive, IsVerified
 FROM dbo.Users
 ORDER BY Role, Email;
 ```
 
-Kết quả mong đợi là 21 bảng ứng dụng và có hai tài khoản demo farmer/enterprise.
+Kết quả mong đợi là 27 bảng ứng dụng, ba tài khoản demo farmer/enterprise/admin, 10 nông sản và 10 hợp đồng mẫu.
 
 ### Bước 4 — Cài đặt backend
 
@@ -361,7 +362,7 @@ API_PREFIX=/api/v1
 
 DB_HOST=localhost
 DB_PORT=1433
-DB_DATABASE=preonic
+DB_DATABASE=preonic_v2
 DB_USERNAME=sa
 DB_PASSWORD=YOUR_SQL_SERVER_PASSWORD
 DB_ENCRYPT=false
@@ -445,14 +446,12 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Đặt lại đúng hai giá trị sau:
+Kiểm tra đúng hai giá trị sau:
 
 ```env
 REACT_APP_API_URL=http://localhost:8080/api/v1
 PORT=3000
 ```
-
-> `fe/.env.example` trong source hiện đang ghi cổng `5000/8000`, nhưng cấu hình chạy thực tế của dự án là backend `8080` và frontend `3000`. Không dùng nguyên giá trị cũ nếu chưa sửa.
 
 Chạy frontend:
 
@@ -477,18 +476,19 @@ Sau lần cài đặt đầu tiên, trình tự khởi động là:
 
 ## 8. Tài khoản demo
 
-Sau khi chạy `02_Preonic_SeedData.sql`:
+Sau khi chạy `Preonic Database/02_Preonic_V2_SeedData.sql`:
 
 | Vai trò | Email | Mật khẩu |
 | --- | --- | --- |
 | Nông dân | `farmer.demo@preonic.vn` | `password` |
 | Doanh nghiệp | `enterprise.demo@preonic.vn` | `password` |
+| Quản trị viên | `admin.demo@preonic.vn` | `password` |
 
-Hai tài khoản này chỉ dành cho local/demo. Không sử dụng mật khẩu này cho môi trường có dữ liệu thật.
+Các tài khoản này chỉ dành cho local/demo. Không sử dụng mật khẩu này cho môi trường có dữ liệu thật.
 
 ### Tạo tài khoản admin
 
-Seed SQL không tạo sẵn admin. Thêm vào `be/.env`:
+Để tạo một admin khác ngoài tài khoản demo, thêm vào `be/.env`:
 
 ```env
 ADMIN_SEED_EMAIL=admin@preonic.local
@@ -515,7 +515,7 @@ Script không tạo trùng. Nếu email đã tồn tại với vai trò khác, s
 | `API_PREFIX` | `/api/v1` | Prefix chung của API |
 | `DB_HOST` | `localhost` | Máy chủ SQL Server |
 | `DB_PORT` | `1433` | Cổng SQL Server |
-| `DB_DATABASE` | `preonic` | Tên database |
+| `DB_DATABASE` | `preonic_v2` | Tên database |
 | `DB_USERNAME` | `sa` | Tài khoản SQL Server |
 | `DB_PASSWORD` | Không đưa vào Git | Mật khẩu SQL Server |
 | `DB_ENCRYPT` | `false` | Mã hóa kết nối SQL; thường `false` khi local |
@@ -586,17 +586,29 @@ OPENWEATHER_API_KEY=your_key
 
 Không bắt buộc: backend tự fallback sang Open-Meteo, dịch vụ không yêu cầu API key.
 
-### 9.7. SePay
+### 9.7. Thanh toán trực tiếp và thu phí nền tảng
 
 ```env
-SEPAY_BANK_ACCOUNT_NUMBER=your_account_number
-SEPAY_BANK_CODE=your_bank_code
-SEPAY_ACCOUNT_HOLDER=YOUR_ACCOUNT_HOLDER
-SEPAY_WEBHOOK_API_KEY=your_webhook_api_key
-SEPAY_QR_BASE_URL=https://qr.sepay.vn/img
+# Hai khóa base64 độc lập; khóa mã hóa phải giải mã thành đúng 32 byte.
+PAYMENT_BANK_DATA_ENCRYPTION_KEY=base64_32_random_bytes
+PAYMENT_BANK_DATA_HMAC_KEY=another_base64_random_secret
+PAYMENT_BANK_DATA_ACTIVE_KEY_VERSION=1
+
+DIRECT_PAYMENT_QR_BASE_URL=https://qr.sepay.vn/img
+
+# Production mặc định dùng bank_transfer; local/test có thể chọn mock.
+FEE_PAYMENT_PROVIDER=bank_transfer
+FEE_PAYMENT_BANK_ACCOUNT_NUMBER=your_platform_account_number
+FEE_PAYMENT_BANK_CODE=your_bank_code
+FEE_PAYMENT_BANK_ACCOUNT_HOLDER=PREONIC
+FEE_PAYMENT_QR_BASE_URL=https://qr.sepay.vn/img
+FEE_PAYMENT_BANK_WEBHOOK_SECRET=at_least_32_random_characters
+FEE_PAYMENT_WEBHOOK_MAX_AGE_SECONDS=300
+FEE_STATEMENT_DUE_DAYS=10
+FEE_RESTRICTION_GRACE_DAYS=3
 ```
 
-Không cấu hình SePay thì chức năng ví demo vẫn có thể dùng, nhưng luồng QR/webhook thật không hoạt động.
+Số tài khoản nông dân được mã hóa AES-256-GCM và fingerprint bằng khóa HMAC riêng. Cổng đối soát phí phải chuẩn hóa callback, ký HMAC-SHA256 trên chuỗi `<timestamp>.<raw-body>` và gửi các header `x-preonic-bank-signature`, `x-preonic-bank-timestamp`. Không dùng provider `mock` ở production.
 
 ### 9.8. Cookie, proxy và nhiều frontend origin
 
@@ -651,7 +663,7 @@ Các script `lint` và `format` đã có trong `package.json`, nhưng source hi�
 | `npm ci` | Cài dependency theo lockfile |
 | `npm start` | Chạy dev server |
 | `npm run build` | Tạo production build trong `fe/build` |
-| `npm test -- --watchAll=false --passWithNoTests` | Chạy test runner một lần; source hiện chưa có test frontend |
+| `npm test -- --watchAll=false --runInBand` | Chạy test frontend một lần |
 
 ### Kiểm tra trước khi bàn giao code
 
@@ -662,7 +674,7 @@ npx jest --runInBand
 
 cd ../fe
 npm run build
-npm test -- --watchAll=false --passWithNoTests
+CI=true npm test -- --watchAll=false --runInBand
 ```
 
 ## 11. Nhóm API chính
@@ -678,17 +690,16 @@ http://localhost:8080/api/v1
 | Health | `/health` | Kiểm tra HTTP server, nằm ngoài `/api/v1` |
 | Auth | `/auth` | Đăng ký, đăng nhập, refresh, email, Google, hồ sơ, mật khẩu |
 | Products | `/products` | Sản phẩm, sản phẩm của farmer, sản phẩm tương tự, review |
-| Contracts | `/contracts` | Tạo, gửi, ký, từ chối, hủy và thống kê hợp đồng |
+| Contracts | `/contracts` | Tạo, gửi, ký, hủy, giao nhận và thanh toán tiền hàng trực tiếp |
 | Enterprise | `/enterprise` | Danh sách và chi tiết nhà cung cấp |
-| Escrow | `/escrow` | Ký quỹ, tổng quan và xác nhận milestone |
+| Billing | `/billing` | Tài khoản nhận tiền, công nợ, bảng kê và thanh toán phí nền tảng |
 | Disputes | `/disputes` | Tạo, liệt kê và xem tranh chấp |
-| Wallet | `/wallet` | Số dư, giao dịch, top-up, rút tiền, SePay và demo QR |
 | Notifications | `/notifications` | Danh sách, số chưa đọc và đánh dấu đã đọc |
 | Messaging | `/messaging` | Hội thoại, tin nhắn và trạng thái đã đọc |
 | Partner ratings | `/partner-ratings` | Đối tác đủ điều kiện và đánh giá sau hợp đồng |
 | Weather | `/weather` | Thời tiết, dự báo, tỉnh thành, ngưỡng và cảnh báo |
 | AI | `/ai` | Trợ lý công khai và trợ lý dành cho farmer |
-| Admin | `/admin` | Dashboard, người dùng, hợp đồng, tranh chấp, giao dịch, rút tiền, log |
+| Admin | `/admin` | Dashboard, người dùng, hợp đồng, tranh chấp, thanh toán trực tiếp, phí và log |
 
 Các endpoint nghiệp vụ được bảo vệ bằng JWT và kiểm tra vai trò ở backend; việc ẩn route trên frontend không thay thế kiểm tra phân quyền server-side.
 
@@ -708,16 +719,16 @@ Sau khi dựng local, nên kiểm tra theo thứ tự sau.
 
 1. Đăng nhập bằng `farmer.demo@preonic.vn`.
 2. Mở dashboard farmer.
-3. Kiểm tra danh sách 10 sản phẩm và chi tiết sản phẩm.
-4. Mở danh sách hợp đồng để kiểm tra các trạng thái mẫu.
-5. Kiểm tra escrow, ví, giao dịch, đánh giá, thông báo và chat.
+3. Kiểm tra danh sách sản phẩm và chi tiết sản phẩm.
+4. Khai báo tài khoản nhận tiền trước khi ký hợp đồng.
+5. Kiểm tra hợp đồng, xác nhận tiền hàng, công nợ phí, đánh giá, thông báo và chat.
 
 ### 12.3. Kiểm tra vai trò enterprise
 
 1. Đăng nhập bằng `enterprise.demo@preonic.vn`.
 2. Mở danh sách sản phẩm và nhà cung cấp.
-3. Kiểm tra các hợp đồng mẫu, đơn hàng, escrow và giao dịch.
-4. Kiểm tra đánh giá, thông báo, chat và thời tiết.
+3. Tạo hợp đồng, ký sau nông dân và mở chỉ dẫn chuyển khoản trực tiếp.
+4. Kiểm tra các đợt thanh toán, phí dịch vụ, đánh giá, thông báo, chat và thời tiết.
 
 ### 12.4. Kiểm tra chức năng tùy chọn
 
@@ -725,23 +736,17 @@ Sau khi dựng local, nên kiểm tra theo thứ tự sau.
 - Gửi email xác minh/quên mật khẩu khi SMTP đã cấu hình.
 - Đăng nhập Google khi OAuth đã cấu hình.
 - AI công khai/farmer khi có OpenAI API key.
-- QR và webhook SePay khi thông tin ngân hàng đã cấu hình.
+- QR chuyển khoản và webhook đối soát phí khi thông tin ngân hàng đã cấu hình.
 
 ## 13. Xử lý lỗi thường gặp
 
-### `Database preonic đã có bảng dữ liệu`
+### `Database preonic_v2 đã có bảng dữ liệu`
 
-`01_Preonic_CreateDatabase.sql` cố ý dừng để tránh ghi đè database cũ. Dùng database trống hoặc chạy đoạn drop database ở Bước 3 nếu dữ liệu local có thể xóa.
+`01_Preonic_V2_CreateDatabase.sql` cố ý dừng để tránh ghi đè database cũ. Dùng database trống hoặc chạy đoạn drop database ở Bước 3 nếu dữ liệu local có thể xóa.
 
 ### `Demo user already exists`
 
-Seed đã được chạy trước đó. Không chạy lại nếu dữ liệu demo đã có. Nếu thật sự cần xóa toàn bộ dữ liệu nghiệp vụ, có thể đổi trong file seed:
-
-```sql
-DECLARE @RESET_ALL_DATA BIT = 1;
-```
-
-Thao tác này xóa dữ liệu ứng dụng hiện có trước khi seed lại.
+Seed dùng các câu `IF NOT EXISTS`, vì vậy có thể chạy lại mà không tạo trùng các tài khoản và sản phẩm demo.
 
 ### Backend trả `503 DATABASE_UNAVAILABLE`
 
@@ -760,7 +765,7 @@ Backend vẫn giữ HTTP server hoạt động và tự kiểm tra kết nối l
 - Kiểm tra mật khẩu trong `be/.env`.
 - Đảm bảo SQL authentication đã được bật.
 - Nếu dùng Docker, dùng đúng mật khẩu đã truyền vào `MSSQL_SA_PASSWORD`.
-- Đảm bảo database `preonic` đã được tạo.
+- Đảm bảo database `preonic_v2` đã được tạo.
 
 ### CORS chặn request
 
@@ -836,7 +841,7 @@ netstat -ano | findstr :8080
 - Dùng HTTPS trên production và đặt `AUTH_COOKIE_SECURE=true`.
 - Nếu frontend/backend khác site, dùng `AUTH_COOKIE_SAME_SITE=none` cùng HTTPS.
 - Chỉ bật `TRUST_PROXY` sau reverse proxy đáng tin cậy.
-- Tài khoản demo và QR demo chỉ dành cho phát triển/kiểm thử.
+- Tài khoản demo và provider thanh toán `mock` chỉ dành cho phát triển/kiểm thử.
 - Build frontend tạo thư mục `fe/build`; máy chủ web phải hỗ trợ SPA fallback về `index.html`.
 - Build backend bằng `npm run build`, sau đó chạy `NODE_ENV=production npm start` trong thư mục `be`.
 
@@ -846,8 +851,8 @@ netstat -ano | findstr :8080
 
 ```text
 1. Khởi động SQL Server.
-2. Chạy 01_Preonic_CreateDatabase.sql.
-3. Chạy 02_Preonic_SeedData.sql.
+2. Chạy Preonic Database/01_Preonic_V2_CreateDatabase.sql.
+3. Chạy Preonic Database/02_Preonic_V2_SeedData.sql.
 4. Cấu hình be/.env: SQL Server + JWT + FRONTEND_URL=http://localhost:3000.
 5. Trong be/: npm ci && npm run dev.
 6. Cấu hình fe/.env: API=http://localhost:8080/api/v1, PORT=3000.

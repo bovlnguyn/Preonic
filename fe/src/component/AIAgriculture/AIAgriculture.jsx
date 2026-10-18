@@ -56,7 +56,7 @@ const roleDemos = {
     questions: [
       "Tôi nên chuẩn bị thông tin gì khi đăng một mùa vụ mới?",
       "Cảnh báo mưa lớn ảnh hưởng thế nào đến kế hoạch thu hoạch?",
-      "Các bước để kiểm tra hợp đồng và khoản đặt cọc là gì?",
+      "Các bước để kiểm tra hợp đồng và khoản thanh toán là gì?",
     ],
     answer: "AI sẽ tổng hợp dữ liệu đang có trong hệ thống và trình bày thành hướng dẫn ngắn gọn, dễ thực hiện. Các quyết định về mùa vụ vẫn cần người dùng kiểm tra thực tế.",
     icon: FiFeather,
@@ -69,7 +69,7 @@ const roleDemos = {
     questions: [
       "Làm thế nào để lọc nguồn cung phù hợp với nhu cầu thu mua?",
       "Tôi nên xem những thông tin nào trước khi chọn farmer?",
-      "Các trạng thái hợp đồng và escrow có ý nghĩa gì?",
+      "Các trạng thái hợp đồng và thanh toán trực tiếp có ý nghĩa gì?",
     ],
     answer: "AI hỗ trợ tìm và diễn giải thông tin, không tự thay doanh nghiệp phê duyệt hợp đồng, chuyển tiền hoặc đưa ra cam kết thương mại.",
     icon: FiUsers,

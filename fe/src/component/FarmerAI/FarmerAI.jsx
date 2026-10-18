@@ -67,9 +67,9 @@ const capabilityCards = [
   },
   {
     icon: FiLayers,
-    title: 'Hợp đồng, ký quỹ & giao dịch',
+    title: 'Hợp đồng & thanh toán',
     description:
-      'Giải thích luồng hợp đồng, tiến độ thực hiện, ký quỹ, ví và các trạng thái thường gặp trên PreOnic.',
+      'Giải thích luồng hợp đồng, chuyển khoản trực tiếp, xác nhận nhận tiền và phí dịch vụ trên PreOnic.',
   },
 ];
 
@@ -94,11 +94,11 @@ const workflowCards = [
   },
   {
     icon: FiShield,
-    title: 'Hợp đồng & ký quỹ',
+    title: 'Hợp đồng & thanh toán',
     points: [
       'Giải thích trách nhiệm của Farmer trong hợp đồng',
-      'Hiểu khi nào doanh nghiệp phải nạp ký quỹ',
-      'Theo dõi các mốc xác nhận và giải ngân',
+      'Hiểu khi nào doanh nghiệp cần chuyển từng đợt tiền hàng',
+      'Theo dõi mã thanh toán và các bước xác nhận nhận tiền',
     ],
   },
 ];
@@ -116,7 +116,7 @@ const heroWorkflow = [
   { icon: FiFeather, label: 'Canh tác', text: 'Kiến thức cây trồng, đất, nước và mùa vụ' },
   { icon: FiCloudRain, label: 'Thời tiết', text: 'Phân tích ảnh hưởng tới sản xuất' },
   { icon: FiPackage, label: 'Sản phẩm', text: 'Chuẩn hóa thông tin nông sản' },
-  { icon: FiShield, label: 'Giao dịch', text: 'Hợp đồng, ký quỹ và thanh toán' },
+  { icon: FiShield, label: 'Giao dịch', text: 'Hợp đồng, thanh toán trực tiếp và phí dịch vụ' },
 ];
 
 
@@ -129,9 +129,7 @@ const ACTION_ICONS = {
   contracts: FiFileText,
   contract_detail: FiFileText,
   orders: FiTruck,
-  escrow: FiShield,
-  wallet: FiCreditCard,
-  finance: FiTrendingUp,
+  billing: FiCreditCard,
   ratings: FiStar,
   weather_insurance: FiCloudRain,
   profile: FiUser,
@@ -189,7 +187,7 @@ const buildMessage = (role, content, extra = {}) => ({
 const createWelcomeMessage = (userName = 'Farmer') =>
   buildMessage(
     'assistant',
-    `Xin chào ${userName}! Tôi là PreOnic Farmer AI. Bạn có thể hỏi tôi về nông nghiệp, cây trồng, mùa vụ, đất, thời tiết, thu hoạch hoặc các chức năng Farmer như đăng bán nông sản, hợp đồng, ký quỹ và ví trên PreOnic.`
+    `Xin chào ${userName}! Tôi là PreOnic Farmer AI. Bạn có thể hỏi tôi về nông nghiệp, cây trồng, mùa vụ, đất, thời tiết, thu hoạch hoặc các chức năng Farmer như đăng bán nông sản, hợp đồng, thanh toán trực tiếp và phí dịch vụ trên PreOnic.`
   );
 
 const loadStoredMessages = (userName) => {
@@ -429,7 +427,7 @@ function FarmerAI() {
               <motion.p variants={fadeUp}>
                 Bạn có thể hỏi kiến thức nông nghiệp, lựa chọn cây trồng, đất, nước,
                 mùa vụ, ảnh hưởng thời tiết và đồng thời được hướng dẫn các nghiệp vụ Farmer
-                trên PreOnic như đăng bán, hợp đồng, ký quỹ và ví.
+                trên PreOnic như đăng bán, hợp đồng, thanh toán trực tiếp và phí dịch vụ.
               </motion.p>
 
               <motion.div className="fai-hero-badges" variants={fadeUp}>
@@ -611,7 +609,7 @@ function FarmerAI() {
                         setInput(event.target.value.slice(0, MAX_MESSAGE_LENGTH))
                       }
                       onKeyDown={handleInputKeyDown}
-                      placeholder="Hỏi về cây trồng, mùa vụ, đất, thời tiết hoặc đăng bán, hợp đồng, ký quỹ..."
+                      placeholder="Hỏi về cây trồng, mùa vụ, đất, thời tiết hoặc đăng bán, hợp đồng, thanh toán..."
                       rows={3}
                     />
                     <div className="fai-chat-input__foot">

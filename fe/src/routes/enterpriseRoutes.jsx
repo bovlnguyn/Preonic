@@ -1,4 +1,5 @@
 import React, { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 
 // Fix 08: route-level code splitting. Mỗi nhóm trang chỉ được tải khi người dùng
@@ -15,10 +16,7 @@ const EnterpriseOverview = lazy(() => import('../component/EnterpriseDashboard/p
 const EnterpriseContracts = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseContracts'));
 const EnterpriseProducts = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseProducts'));
 const EnterpriseOrders = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseOrders'));
-const EnterpriseEscrow = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseEscrow'));
-const EnterpriseWallet = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseWallet'));
 const EnterpriseSuppliers = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseSuppliers'));
-const EnterpriseTransactions = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseTransactions'));
 const EnterpriseRatings = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseRatings'));
 const EnterpriseWeatherInsurance = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseWeatherInsurance'));
 const EnterpriseCreateContract = lazy(() => import('../component/EnterpriseDashboard/pages/EnterpriseCreateContract'));
@@ -51,12 +49,10 @@ const enterpriseRoutes = [
       { path: 'products', element: <EnterpriseProducts /> },
       { path: 'products/:id', element: <ProductDetail context="enterprise" /> },
       { path: 'orders', element: <EnterpriseOrders /> },
-      { path: 'escrow', element: <EnterpriseEscrow /> },
-      { path: 'wallet', element: <EnterpriseWallet /> },
       { path: 'billing', element: <BillingCenter /> },
       { path: 'suppliers', element: <EnterpriseSuppliers /> },
       { path: 'suppliers/:id', element: <EnterpriseSupplierDetail /> },
-      { path: 'transactions', element: <EnterpriseTransactions /> },
+      { path: 'transactions', element: <Navigate to="../billing" replace /> },
       { path: 'ratings', element: <EnterpriseRatings /> },
       { path: 'weather-insurance', element: <EnterpriseWeatherInsurance /> },
     ],

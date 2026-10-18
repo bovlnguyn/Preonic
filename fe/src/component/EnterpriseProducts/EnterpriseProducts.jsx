@@ -162,7 +162,7 @@ function EnterpriseProducts() {
               <strong>{pagination.total}</strong>
               <span>nguồn cung đang khớp bộ lọc</span>
               <div className="ep-hero__badges">
-                <em><FiShield /> Escrow ready</em>
+                <em><FiShield /> Direct payment</em>
                 <em><FiCheckCircle /> Verified profile</em>
               </div>
             </motion.div>
@@ -283,8 +283,8 @@ function EnterpriseProducts() {
             <div className="ep-insight">
               <FiShield />
               <div>
-                <strong>Chọn hợp đồng có escrow</strong>
-                <span>Tăng minh bạch khi đặt cọc mùa vụ.</span>
+                <strong>Thanh toán đúng mã hợp đồng</strong>
+                <span>Dùng QR và nội dung chuyển khoản do hệ thống tạo để dễ đối soát.</span>
               </div>
             </div>
             <div className="ep-insight">

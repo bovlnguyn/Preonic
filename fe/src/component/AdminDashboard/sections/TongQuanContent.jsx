@@ -31,7 +31,7 @@ export default function TongQuanContent({ onNavigate }) {
     { label: "Đang hoạt động", val: stats.activeContracts || 0, abbr: "HĐ", color: "#1d4ed8", bg: "#dbeafe" },
     { label: "Khiếu nại mở", val: stats.openDisputes || 0, abbr: "KN", color: "#dc2626", bg: "#fee2e2" },
     { label: "Tổng giao dịch", val: stats.totalTransactions || 0, abbr: "GD", color: "#7c3aed", bg: "#ede9fe" },
-    { label: "Tổng nạp tiền", val: null, money: stats.totalTopupRevenue || 0, abbr: "NT", color: "#059669", bg: "#d1fae5" },
+    { label: "Phí đã thu", val: null, money: stats.totalFeeCollected || 0, abbr: "PT", color: "#059669", bg: "#d1fae5" },
   ];
 
   return (

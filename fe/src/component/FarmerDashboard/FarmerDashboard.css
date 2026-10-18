@@ -460,7 +460,6 @@
 .farmer-stat,
 .farmer-product-card,
 .farmer-order-card,
-.farmer-escrow-card,
 .farmer-rating-card,
 .farmer-weather-card,
 .farmer-insurance-card {
@@ -839,7 +838,6 @@
 }
 
 .farmer-product-grid,
-.farmer-escrow-grid,
 .farmer-rating-grid,
 .farmer-insurance-grid {
   display: grid;
@@ -848,7 +846,6 @@
 }
 
 .farmer-product-card,
-.farmer-escrow-card,
 .farmer-rating-card,
 .farmer-weather-card,
 .farmer-insurance-card {
@@ -858,7 +855,6 @@
 
 .farmer-product-card__top,
 .farmer-order-card__head,
-.farmer-escrow-card__top,
 .farmer-weather-card__top {
   display: flex;
   align-items: flex-start;
@@ -868,7 +864,6 @@
 
 .farmer-product-card__top > span,
 .farmer-order-card__head span,
-.farmer-escrow-card__top span,
 .farmer-weather-card__top span,
 .farmer-rating-card > span,
 .farmer-insurance-card span {
@@ -881,7 +876,6 @@
 
 .farmer-product-card h3,
 .farmer-order-card h3,
-.farmer-escrow-card h3,
 .farmer-rating-card h3,
 .farmer-weather-card h3,
 .farmer-insurance-card h3 {
@@ -895,7 +889,6 @@
 
 .farmer-product-card p,
 .farmer-order-card p,
-.farmer-escrow-card p,
 .farmer-rating-card p,
 .farmer-weather-card p,
 .farmer-insurance-card p {
@@ -906,7 +899,6 @@
 }
 
 .farmer-product-card__meta,
-.farmer-escrow-card__money,
 .farmer-weather-card__metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -914,15 +906,13 @@
   margin: 16px 0;
 }
 
-.farmer-product-card__meta div,
-.farmer-escrow-card__money div {
+.farmer-product-card__meta div {
   padding: 12px;
   border-radius: 16px;
   background: #f0fdf4;
 }
 
 .farmer-product-card__meta span,
-.farmer-escrow-card__money span,
 .farmer-product-card__progress span {
   display: block;
   color: var(--farmer-muted);
@@ -930,8 +920,7 @@
   font-weight: 800;
 }
 
-.farmer-product-card__meta strong,
-.farmer-escrow-card__money strong {
+.farmer-product-card__meta strong {
   display: block;
   margin-top: 5px;
   color: var(--farmer-green-950);
@@ -950,8 +939,7 @@
   border-radius: 24px;
 }
 
-.farmer-order-card__icon,
-.farmer-escrow-card__icon {
+.farmer-order-card__icon {
   width: 50px;
   height: 50px;
   display: grid;
@@ -979,21 +967,6 @@
   align-items: center;
   gap: 6px;
   grid-column: 1 / -1;
-}
-
-.farmer-escrow-card {
-  position: relative;
-}
-
-.farmer-escrow-card__icon {
-  margin-bottom: 13px;
-}
-
-.farmer-escrow-card small {
-  display: block;
-  margin-top: 8px;
-  color: var(--farmer-muted);
-  font-weight: 800;
 }
 
 .farmer-money {
@@ -1197,7 +1170,6 @@
   .farmer-grid--4,
   .farmer-grid--3,
   .farmer-product-grid,
-  .farmer-escrow-grid,
   .farmer-rating-grid,
   .farmer-insurance-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1253,7 +1225,6 @@
   .farmer-grid--4,
   .farmer-grid--3,
   .farmer-product-grid,
-  .farmer-escrow-grid,
   .farmer-rating-grid,
   .farmer-insurance-grid,
   .farmer-form__grid {
@@ -1291,7 +1262,6 @@
 
   .farmer-order-card__grid,
   .farmer-product-card__meta,
-  .farmer-escrow-card__money,
   .farmer-weather-card__metrics {
     grid-template-columns: 1fr;
   }

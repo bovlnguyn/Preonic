@@ -17,6 +17,12 @@ import { Product } from './Product.entity';
 @Index(['status'])
 @Index('IX_Contracts_Farmer_CreatedAt', ['farmerId', 'createdAt'])
 @Index('IX_Contracts_Enterprise_CreatedAt', ['enterpriseId', 'createdAt'])
+@Index('IX_Contracts_Product_Enterprise_Status_Delivery', [
+  'productId',
+  'enterpriseId',
+  'status',
+  'deliveryStatus',
+])
 export class Contract {
   @PrimaryGeneratedColumn('uuid', { name: 'ContractId' })
   id: string;
@@ -56,17 +62,8 @@ export class Contract {
   @Column({ name: 'TotalValue', type: 'decimal', precision: 18, scale: 2 })
   totalValue: number;
 
-  @Column({ name: 'Commission', type: 'decimal', precision: 18, scale: 2, default: 0, nullable: true })
-  commission: number;
-
-  @Column({ name: 'CommissionRate', type: 'decimal', precision: 5, scale: 2, default: 0, nullable: true })
-  commissionRate: number;
-
-  @Column({ name: 'DepositAmount', type: 'decimal', precision: 18, scale: 2, nullable: true })
-  depositAmount: number;
-
-  @Column({ name: 'DepositPercentage', type: 'decimal', precision: 5, scale: 2, nullable: true })
-  depositPercentage: number;
+  @Column({ name: 'FirstPaymentPercentage', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  firstPaymentPercentage: number;
 
   // Terms
   @Column({ name: 'PaymentTerms', type: 'nvarchar', length: 20 })
@@ -84,14 +81,12 @@ export class Contract {
   @Column({ name: 'DeliveryAddress', type: 'nvarchar', length: 500, nullable: true })
   deliveryAddress: string;
 
-  // Payment architecture discriminator. Legacy rows stay on escrow_v1; new
-  // contracts can use direct_v2 without making status semantics ambiguous.
-  @Column({ name: 'PaymentFlow', type: 'nvarchar', length: 20, default: 'escrow_v1' })
-  paymentFlow: 'escrow_v1' | 'direct_v2';
+  @Column({ name: 'PaymentFlow', type: 'nvarchar', length: 20, default: 'direct_v2' })
+  paymentFlow: 'direct_v2';
 
   // Status
   @Column({ name: 'Status', type: 'nvarchar', length: 30, default: 'draft' })
-  status: 'draft' | 'pending' | 'approved' | 'active' | 'cancel_pending' | 'completed' | 'cancelled' | 'disputed';
+  status: 'draft' | 'pending' | 'active' | 'cancel_pending' | 'completed' | 'cancelled' | 'disputed';
 
   @Column({ name: 'SignedByFarmer', type: 'bit', default: false })
   signedByFarmer: boolean;
@@ -148,10 +143,7 @@ export class Contract {
   @Column({ name: 'InsuranceRiskSharingTerms', type: 'nvarchar', length: 'max', nullable: true })
   insuranceRiskSharingTerms: string;
 
-  // Escrow / payment tracking
-  @Column({ name: 'EscrowStatus', type: 'nvarchar', length: 30, nullable: true })
-  escrowStatus: 'none' | 'pending' | 'funded' | 'released' | 'refunded';
-
+  // Direct payment tracking
   @Column({ name: 'PaidAmount', type: 'decimal', precision: 18, scale: 2, default: 0, nullable: true })
   paidAmount: number;
 

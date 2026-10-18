@@ -36,7 +36,7 @@ const supportChannels = [
     icon: FiPackageHelp,
   },
   {
-    title: "Hợp đồng & đặt cọc",
+    title: "Hợp đồng & thanh toán",
     desc: "Giải thích quy trình thanh toán trực tiếp, hợp đồng bao tiêu và xử lý tranh chấp cơ bản.",
     icon: FiShield,
   },
@@ -160,8 +160,8 @@ function FarmerContact() {
                 Chủ đề cần hỗ trợ
                 <select name="topic" value={form.topic} onChange={handleChange}>
                   <option value="product">Đăng bán / chỉnh sửa sản phẩm</option>
-                  <option value="contract">Hợp đồng / đặt cọc</option>
-                  <option value="wallet">Ví & thanh toán</option>
+                  <option value="contract">Hợp đồng / thanh toán tiền hàng</option>
+                  <option value="billing">Tài khoản nhận tiền / phí dịch vụ</option>
                   <option value="account">Tài khoản farmer</option>
                 </select>
               </motion.label>

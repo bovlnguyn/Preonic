@@ -41,9 +41,7 @@ export type FarmerNavigationTarget =
   | 'contracts'
   | 'contract_detail'
   | 'orders'
-  | 'escrow'
-  | 'wallet'
-  | 'finance'
+  | 'billing'
   | 'ratings'
   | 'weather_insurance'
   | 'profile'
@@ -123,14 +121,14 @@ MỤC TIÊU CỦA PHIÊN KHÁCH:
 THÔNG TIN HỆ THỐNG ĐƯỢC PHÉP GIẢI THÍCH:
 - PreOnic kết nối Farmer với Enterprise trong chuỗi cung ứng nông sản.
 - Farmer quản lý hồ sơ, sản phẩm/mùa vụ, hợp đồng, các mốc thực hiện, tin nhắn, thông báo và cảnh báo thời tiết sau khi đăng nhập.
-- Enterprise tìm nguồn cung, xem thông tin phù hợp, gửi đề xuất hợp đồng, ký hợp đồng, nạp tiền vào ký quỹ, theo dõi các mốc, trao đổi và đánh giá sau giao dịch.
-- Luồng hợp đồng tổng quát: Enterprise tạo đề xuất -> Farmer xem và ký -> Enterprise ký -> Enterprise nạp đủ tiền ký quỹ -> hai bên thực hiện các mốc -> hệ thống giải ngân theo điều khoản.
-- Tranh chấp có thể đóng băng hợp đồng/ký quỹ để quản trị viên xem xét bằng chứng và xử lý.
+- Enterprise tìm nguồn cung, gửi đề xuất, ký hợp đồng, chuyển tiền hàng thẳng vào tài khoản nông dân theo mã thanh toán, trao đổi và đánh giá sau giao dịch.
+- Luồng hợp đồng tổng quát: Enterprise tạo đề xuất -> Farmer xem và ký -> Enterprise ký -> hệ thống tạo khoản thanh toán -> Enterprise chuyển khoản trực tiếp -> Farmer xác nhận nhận tiền -> phí dịch vụ được ghi riêng.
+- Tranh chấp tạm dừng hợp đồng để quản trị viên xem xét bằng chứng; PreOnic không giữ hoặc tự động thu hồi tiền hàng đã chuyển.
 - AI chỉ hỗ trợ giải thích và gợi ý; AI không tự ký hợp đồng, chuyển tiền, xác nhận giao dịch hoặc thay người dùng đưa ra quyết định.
 - Khách có thể xem các trang giới thiệu, giải pháp, liên hệ và danh sách công khai; dữ liệu chi tiết, dữ liệu tài khoản và AI đầy đủ cần đăng nhập đúng vai trò.
 
 PHÂN LOẠI:
-- requires_login=false cho: lời chào; hỏi PreOnic là gì; vai trò Farmer/Enterprise; cách đăng ký/đăng nhập; mô tả tổng quan sản phẩm, hợp đồng, ký quỹ, tranh chấp, đánh giá, nhắn tin, thời tiết; hỏi nên vào trang nào.
+- requires_login=false cho: lời chào; hỏi PreOnic là gì; vai trò Farmer/Enterprise; cách đăng ký/đăng nhập; mô tả tổng quan sản phẩm, hợp đồng, thanh toán trực tiếp, phí dịch vụ, tranh chấp, đánh giá, nhắn tin, thời tiết; hỏi nên vào trang nào.
 - requires_login=true cho: yêu cầu xem hoặc phân tích dữ liệu tài khoản cụ thể; hợp đồng/số dư/giao dịch/sản phẩm cụ thể; dự báo giá hoặc thị trường; chẩn đoán sâu bệnh; khuyến nghị thuốc, liều lượng, phân bón; tư vấn pháp lý/tài chính; lập kế hoạch chuyên sâu; phân tích tệp/dữ liệu; dữ liệu thời gian thực; hoặc yêu cầu thao tác thay người dùng.
 - Với câu hỏi ngoài phạm vi nhưng đơn giản, requires_login=false và lịch sự hướng người dùng về chủ đề PreOnic.
 
@@ -160,7 +158,7 @@ PHẠM VI PREONIC ĐƯỢC HỖ TRỢ:
 - Đăng bán nông sản: 4 bước sản phẩm, mùa vụ, giá & bao tiêu, chứng chỉ & hình ảnh.
 - Gợi ý tên sản phẩm, mô tả, nhóm nông sản, loại sản phẩm, sản lượng, giá, ảnh và chứng chỉ.
 - Hợp đồng: xem đề xuất, ký, từ chối, yêu cầu hủy, xác nhận mốc, theo dõi tiến độ.
-- Ký quỹ/Escrow, ví, giao dịch, tin nhắn, thông báo, đánh giá đối tác, thời tiết & bảo hiểm và tìm kiếm trong dashboard.
+- Thanh toán trực tiếp, tài khoản nhận tiền, phí dịch vụ, tin nhắn, thông báo, đánh giá đối tác, thời tiết & bảo hiểm và tìm kiếm trong dashboard.
 
 PHẠM VI NÔNG NGHIỆP ĐƯỢC HỖ TRỢ:
 - Lựa chọn cây trồng theo vùng khí hậu, mùa, nhiệt độ, lượng mưa, độ ẩm và điều kiện đất/nước do người dùng cung cấp.
@@ -186,7 +184,7 @@ GIỚI HẠN VÀ AN TOÀN:
 
 QUY TẮC PHÂN LOẠI:
 - platform_help: hỏi cách dùng chức năng hoặc thông tin chung về PreOnic.
-- workflow_guidance: hỏi quy trình Farmer, hợp đồng, ký quỹ, ví, giao dịch hoặc luồng thao tác.
+- workflow_guidance: hỏi quy trình Farmer, hợp đồng, tài khoản nhận tiền, thanh toán trực tiếp, phí dịch vụ hoặc luồng thao tác.
 - listing_support: hỏi soạn nội dung hoặc chuẩn bị hồ sơ đăng bán nông sản.
 - agriculture_advice: câu hỏi kiến thức/canh tác nông nghiệp không cần dữ liệu thời gian thực.
 - weather_agriculture: câu hỏi về thời tiết, khí hậu hoặc ảnh hưởng thời tiết tới cây trồng.
@@ -345,7 +343,7 @@ export const isClearlyAdvancedQuestion = (message: string): boolean => {
   const advancedPatterns = [
     /tai khoan cua toi|du lieu cua toi|ho so cua toi/,
     /hop dong (cua toi|ma |so )|ma hop dong|so hop dong/,
-    /so du|lich su giao dich|giao dich cua toi|vi cua toi/,
+    /phi dich vu|tai khoan nhan tien|lich su thanh toan|thanh toan cua toi/,
     /phan tich (chi tiet|chuyen sau|du lieu|tep|file)|lap ke hoach chi tiet/,
     /du bao gia|du bao thi truong|gia trong tuong lai|loi nhuan du kien/,
     /chan doan .*sau benh|cay .*bi benh|thuoc bao ve thuc vat|lieu luong|phac do|phan bon bao nhieu/,
@@ -457,9 +455,7 @@ const parseFarmerStructuredReply = (rawText: string): FarmerAiReply => {
     'contracts',
     'contract_detail',
     'orders',
-    'escrow',
-    'wallet',
-    'finance',
+    'billing',
     'ratings',
     'weather_insurance',
     'profile',
@@ -697,9 +693,7 @@ ${context.liveContext || 'Không có dữ liệu thời gian thực bổ sung ch
                       'contracts',
                       'contract_detail',
                       'orders',
-                      'escrow',
-                      'wallet',
-                      'finance',
+                      'billing',
                       'ratings',
                       'weather_insurance',
                       'profile',

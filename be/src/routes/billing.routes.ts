@@ -15,6 +15,13 @@ import {
   feePaymentCreateLimiter,
   feePaymentWebhookLimiter,
 } from '../middlewares/ratelimit.middleware';
+import {
+  validateBillingPagination,
+  validateCreateFeePayment,
+  validateFeePaymentIdParam,
+  validateSaveSettlementAccount,
+  validateSettlementAccountIdParam,
+} from '../middlewares/validation';
 
 const router = Router();
 
@@ -37,6 +44,7 @@ router.get(
 router.get(
   '/statements',
   restrictTo('farmer', 'enterprise') as RequestHandler,
+  validateBillingPagination as RequestHandler[],
   getMyFeeStatements as RequestHandler
 );
 
@@ -44,12 +52,14 @@ router.post(
   '/fee-payments',
   restrictTo('farmer', 'enterprise') as RequestHandler,
   feePaymentCreateLimiter,
+  validateCreateFeePayment as RequestHandler[],
   createMyFeePayment as RequestHandler
 );
 
 router.get(
   '/fee-payments/:id',
   restrictTo('farmer', 'enterprise') as RequestHandler,
+  validateFeePaymentIdParam as RequestHandler[],
   getMyFeePayment as RequestHandler
 );
 
@@ -62,18 +72,21 @@ router.get(
 router.post(
   '/settlement-accounts',
   restrictTo('farmer') as RequestHandler,
+  validateSaveSettlementAccount as RequestHandler[],
   saveMySettlementAccount as RequestHandler
 );
 
 router.patch(
   '/settlement-accounts/:id/default',
   restrictTo('farmer') as RequestHandler,
+  validateSettlementAccountIdParam as RequestHandler[],
   setMyDefaultSettlementAccount as RequestHandler
 );
 
 router.delete(
   '/settlement-accounts/:id',
   restrictTo('farmer') as RequestHandler,
+  validateSettlementAccountIdParam as RequestHandler[],
   disableMySettlementAccount as RequestHandler
 );
 

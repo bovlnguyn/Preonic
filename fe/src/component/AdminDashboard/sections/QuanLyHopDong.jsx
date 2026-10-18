@@ -47,7 +47,6 @@ export default function QuanLyHopDong() {
   const STATUS_OPTIONS = [
     { val: "", label: "Tất cả trạng thái" },
     { val: "pending", label: "Chờ duyệt" },
-    { val: "approved", label: "Đã phê duyệt" },
     { val: "active", label: "Đang chạy" },
     { val: "completed", label: "Hoàn thành" },
     { val: "cancelled", label: "Đã hủy" },
@@ -163,7 +162,8 @@ export default function QuanLyHopDong() {
                   <div className="adm-detail-row"><span className="adm-detail-label">Số lượng</span><span className="adm-detail-val">{selectedContract.quantity} {selectedContract.unit}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Đơn giá</span><span className="adm-detail-val">{formatMoney(selectedContract.pricePerUnit || 0)} / {selectedContract.unit}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Tổng giá trị</span><span className="adm-detail-val" style={{ color: "#1d4ed8", fontSize: 15 }}>{formatMoney(selectedContract.totalValue || 0)}</span></div>
-                  <div className="adm-detail-row"><span className="adm-detail-label">Ký quỹ</span><span className="adm-detail-val">{formatMoney(selectedContract.depositAmount || 0)}</span></div>
+                  <div className="adm-detail-row"><span className="adm-detail-label">Đã thanh toán</span><span className="adm-detail-val">{formatMoney(selectedContract.paidAmount || 0)}</span></div>
+                  <div className="adm-detail-row"><span className="adm-detail-label">Còn phải thanh toán</span><span className="adm-detail-val">{formatMoney(selectedContract.remainingAmount || 0)}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Ngày giao hàng dự kiến</span><span className="adm-detail-val">{fmtDate(selectedContract.deliveryDate)}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Farmer đã ký</span><span className="adm-detail-val">{selectedContract.signedByFarmer ? "Đã ký" : "Chưa ký"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Enterprise đã ký</span><span className="adm-detail-val">{selectedContract.signedByEnterprise ? "Đã ký" : "Chưa ký"}</span></div>

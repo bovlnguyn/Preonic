@@ -1033,55 +1033,6 @@
   border-top: 1px solid rgba(37, 99, 235, .08);
 }
 
-/* ── Escrow grid ── */
-.ent-escrow-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 16px;
-}
-
-.ent-escrow-card {
-  padding: 18px;
-  border: 1px solid var(--ent-border);
-  border-radius: 24px;
-  background: var(--ent-card);
-  box-shadow: 0 18px 50px rgba(30,58,138,.07);
-}
-
-.ent-escrow-card__icon {
-  width: 50px; height: 50px;
-  display: grid;
-  place-items: center;
-  border-radius: 18px;
-  color: #172554;
-  background: linear-gradient(135deg, #bfdbfe, #f59e0b);
-  margin-bottom: 13px;
-}
-
-.ent-escrow-card__top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.ent-escrow-card__top span { color: var(--ent-blue-700); font-size: 12px; font-weight: 950; text-transform: uppercase; }
-.ent-escrow-card h3 { margin: 12px 0 7px; color: var(--ent-blue-950); font-size: 18px; font-weight: 950; }
-.ent-escrow-card p  { margin: 0 0 14px; color: var(--ent-muted); font-size: 14px; }
-
-.ent-escrow-card__money {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.ent-escrow-card__money div { padding: 12px; border-radius: 16px; background: #eff6ff; }
-.ent-escrow-card__money span   { display: block; color: var(--ent-muted); font-size: 12px; font-weight: 800; }
-.ent-escrow-card__money strong { display: block; margin-top: 5px; color: var(--ent-blue-950); font-size: 14px; font-weight: 950; }
-
-.ent-escrow-card small { display: block; margin-top: 8px; color: var(--ent-muted); font-weight: 800; }
-
 /* ── Supplier grid ── */
 .ent-supplier-grid {
   display: grid;
@@ -1225,11 +1176,6 @@
 .ent-insurance-card strong { display: block; margin-top: 14px; color: var(--ent-blue-800); font-weight: 950; }
 .ent-insurance-card small { display: block; margin-top: 6px; color: var(--ent-muted); font-size: 13px; }
 
-/* ── Wallet money ── */
-.ent-money        { font-weight: 950 !important; }
-.ent-money--up    { color: #15803d !important; }
-.ent-money--down  { color: #dc2626 !important; }
-
 /* ── Empty ── */
 .ent-empty {
   display: grid;
@@ -1249,7 +1195,6 @@
   .ent-dashboard { grid-template-columns: 244px minmax(0,1fr); }
   .ent-grid--4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .ent-product-grid,
-  .ent-escrow-grid,
   .ent-supplier-grid,
   .ent-weather-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .ent-hero-card { grid-template-columns: 1fr; }
@@ -1280,13 +1225,11 @@
   .ent-section-header__action > a { width: 100%; }
   .ent-page-top-actions { align-items: stretch; }
   .ent-product-grid,
-  .ent-escrow-grid,
   .ent-supplier-grid,
   .ent-weather-grid { grid-template-columns: 1fr; }
   .ent-order-card__top { display: grid; }
   .ent-order-card__meta,
   .ent-product-card__meta,
-  .ent-escrow-card__money,
   .ent-supplier-card__stats,
   .ent-weather-card__metrics { grid-template-columns: 1fr; }
   .ent-button { width: 100%; }

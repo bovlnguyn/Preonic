@@ -64,9 +64,9 @@ const adminService = {
     return response.data;
   },
 
-  // ── Commissions ──
-  getCommissions: async (params = {}) => {
-    const response = await api.get('/admin/commissions', { params });
+  // ── Platform fees ──
+  getFees: async (params = {}) => {
+    const response = await api.get('/admin/fees', { params });
     return response.data;
   },
 
@@ -81,21 +81,6 @@ const adminService = {
     return response.data;
   },
 
-  // ── Withdrawals ──
-  getWithdrawals: async (params = {}) => {
-    const response = await api.get('/admin/withdrawals', { params });
-    return response.data;
-  },
-
-  completeWithdrawal: async (id) => {
-    const response = await api.patch(`/admin/withdrawals/${id}/complete`);
-    return response.data;
-  },
-
-  rejectWithdrawal: async (id, reason) => {
-    const response = await api.patch(`/admin/withdrawals/${id}/reject`, { reason });
-    return response.data;
-  },
 };
 
 export default adminService;

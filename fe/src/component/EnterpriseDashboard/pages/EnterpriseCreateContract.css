@@ -145,8 +145,8 @@
 .ecc-note { font-size: 12px; color: var(--ecc-blue-700); font-weight: 600; }
 .ecc-ok   { font-size: 12px; color: #16a34a; font-weight: 600; }
 
-/* ── Custom deposit ── */
-.ecc-custom-deposit { margin-top: 12px; padding: 14px; background: var(--ecc-blue-50); border-radius: 10px; }
+/* ── Custom payment schedule ── */
+.ecc-custom-payment { margin-top: 12px; padding: 14px; background: var(--ecc-blue-50); border-radius: 10px; }
 
 /* ── Insurance ── */
 .ecc-insurance-toggle {

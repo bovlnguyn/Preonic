@@ -8,6 +8,10 @@ import {
   verifyTimestampedHmacWebhook,
 } from '../modules/direct-payment-v2/security/webhook-security';
 import { MockFeePaymentProvider } from '../modules/direct-payment-v2/providers/mock/mock-fee-payment.provider';
+import {
+  BankTransferFeePaymentProvider,
+  validateBankTransferFeePaymentConfiguration,
+} from '../modules/direct-payment-v2/providers/bank-transfer/bank-transfer-fee-payment.provider';
 import { PlatformFeePaymentApplication } from '../models/PlatformFeePaymentApplication.entity';
 import { ExtendDirectPaymentV2Phase31791420000000 } from '../migrations/ExtendDirectPaymentV2Phase3';
 
@@ -97,6 +101,39 @@ describe('Direct Payment V2 Phase 3', () => {
     expect(first.providerPaymentId).toBe(second.providerPaymentId);
     expect(first.provider).toBe('mock');
     expect(first.paymentUrl?.startsWith('https://')).toBe(true);
+  });
+
+  test('bank-transfer fee provider creates an HTTPS QR instruction without exposing a wallet', async () => {
+    const previous = {
+      account: process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER,
+      bank: process.env.FEE_PAYMENT_BANK_CODE,
+      holder: process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER,
+      qr: process.env.FEE_PAYMENT_QR_BASE_URL,
+      secret: process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET,
+    };
+    process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = '0123456789';
+    process.env.FEE_PAYMENT_BANK_CODE = 'MBBank';
+    process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER = 'PREONIC';
+    process.env.FEE_PAYMENT_QR_BASE_URL = 'https://qr.sepay.vn/img';
+    process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET = '12345678901234567890123456789012';
+    try {
+      expect(() => validateBankTransferFeePaymentConfiguration()).not.toThrow();
+      const result = await new BankTransferFeePaymentProvider().createPayment({
+        orderCode: 'PFTEST002', amount: 125_000, currency: 'VND',
+        transferContent: 'PRNFEEPFTEST002', idempotencyKey: 'fee:fedcba9876543210',
+      });
+      const url = new URL(result.paymentUrl!);
+      expect(result.provider).toBe('bank_transfer');
+      expect(url.protocol).toBe('https:');
+      expect(url.searchParams.get('amount')).toBe('125000');
+      expect(url.searchParams.get('des')).toBe('PRNFEEPFTEST002');
+    } finally {
+      if (previous.account === undefined) delete process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER; else process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = previous.account;
+      if (previous.bank === undefined) delete process.env.FEE_PAYMENT_BANK_CODE; else process.env.FEE_PAYMENT_BANK_CODE = previous.bank;
+      if (previous.holder === undefined) delete process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER; else process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER = previous.holder;
+      if (previous.qr === undefined) delete process.env.FEE_PAYMENT_QR_BASE_URL; else process.env.FEE_PAYMENT_QR_BASE_URL = previous.qr;
+      if (previous.secret === undefined) delete process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET; else process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET = previous.secret;
+    }
   });
 
   test('payment application metadata enforces payment/ledger relation entity', () => {

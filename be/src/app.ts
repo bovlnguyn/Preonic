@@ -13,10 +13,8 @@ import adminRoutes from './routes/admin.routes';
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
 import enterpriseRoutes from './routes/enterprise.routes';
-import escrowRoutes from './routes/escrow.routes';
 import weatherRoutes from './routes/weather.routes';
 import disputeRoutes from './routes/dispute.routes';
-import walletRoutes from './routes/wallet.routes';
 import notificationRoutes from './routes/notification.routes';
 import messagingRoutes from './routes/messaging.routes';
 import partnerRatingRoutes from './routes/partner-rating.routes';
@@ -160,13 +158,10 @@ app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/products`, productRoutes);
 app.use(`${API_PREFIX}/contracts`, contractRoutes);
 app.use(`${API_PREFIX}/enterprise`, enterpriseRoutes);
-app.use(`${API_PREFIX}/escrow`, escrowRoutes);
 app.use(`${API_PREFIX}/weather`, weatherRoutes);
 app.use(`${API_PREFIX}/admin`, adminRoutes);
 // Các route khác bạn sẽ mở comment và thêm vào sau...
 app.use(`${API_PREFIX}/disputes`, disputeRoutes);
-// Wallet
-app.use(`${API_PREFIX}/wallet`, walletRoutes);
 // Notifications
 app.use(`${API_PREFIX}/notifications`, notificationRoutes);
 // Messaging

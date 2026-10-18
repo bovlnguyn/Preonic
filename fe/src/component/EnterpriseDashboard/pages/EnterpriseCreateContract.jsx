@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 import enterpriseService from '../../../services/enterprise.service';
 import productService from '../../../services/product.service';
+import { COMPANY } from '../../../constants';
 import ContractFlow from '../../ContractFlow/ContractFlow';
 import SectionHeader from '../components/SectionHeader';
 import './EnterpriseCreateContract.css';
@@ -21,8 +22,8 @@ const STEPS = [
 ];
 
 const PAYMENT_TERMS = [
-  { value: '50_50',         label: '50% đặt cọc -- 50% khi nhận hàng' },
-  { value: '30_70',         label: '30% đặt cọc -- 70% khi nhận hàng' },
+  { value: '50_50',         label: '50% khi hợp đồng có hiệu lực — 50% sau khi nhận hàng' },
+  { value: '30_70',         label: '30% khi hợp đồng có hiệu lực — 70% sau khi nhận hàng' },
   { value: '100_delivery',  label: '100% khi nhận hàng' },
   { value: '100_upfront',   label: '100% trả trước' },
   { value: 'custom',        label: 'Khác (tùy chỉnh)' },
@@ -40,12 +41,12 @@ const toLocalDateInputValue = (date) => {
   return local.toISOString().slice(0, 10);
 };
 
-const getDepositLabel = (paymentTerms, customDeposit, customOnDelivery) => {
-  if (paymentTerms === '50_50')        return '50% đặt cọc / 50% khi nhận hàng';
-  if (paymentTerms === '30_70')        return '30% đặt cọc / 70% khi nhận hàng';
+const getPaymentScheduleLabel = (paymentTerms, customFirstPayment, customOnDelivery) => {
+  if (paymentTerms === '50_50')        return '50% khi hợp đồng có hiệu lực / 50% sau khi nhận hàng';
+  if (paymentTerms === '30_70')        return '30% khi hợp đồng có hiệu lực / 70% sau khi nhận hàng';
   if (paymentTerms === '100_delivery') return '100% khi nhận hàng';
   if (paymentTerms === '100_upfront')  return '100% trả trước';
-  if (paymentTerms === 'custom')       return `${customDeposit}% đặt cọc / ${customOnDelivery}% khi nhận hàng`;
+  if (paymentTerms === 'custom')       return `${customFirstPayment}% khi hợp đồng có hiệu lực / ${customOnDelivery}% sau khi nhận hàng`;
   return '';
 };
 
@@ -66,9 +67,9 @@ function TermsModal({ type, onClose, onAgree }) {
               <h4>2. Cam kết của Bên bán</h4>
               <p>Bên bán cam kết cung cấp nông sản đúng chủng loại, khối lượng, chất lượng và thời gian giao hàng đã thỏa thuận. Sản phẩm phải đáp ứng tiêu chuẩn VietGAP/GlobalGAP.</p>
               <h4>3. Cam kết của Bên mua</h4>
-              <p>Bên mua cam kết thanh toán đúng hạn theo lịch đã thỏa thuận. Mọi khoản thanh toán được thực hiện qua hệ thống Ký quỹ PreOnic Escrow để bảo đảm an toàn cho cả hai bên.</p>
-              <h4>4. Cơ chế ký quỹ</h4>
-              <p>Toàn bộ giá trị hợp đồng được giữ trong tài khoản Escrow cho đến khi Bên mua xác nhận nghiệm thu. Nếu phát sinh tranh chấp, PreOnic sẽ đóng vai trò trung gian hòa giải.</p>
+              <p>Bên mua cam kết chuyển đúng số tiền, đúng hạn và đúng mã thanh toán vào tài khoản ngân hàng do Bên bán đăng ký trên PreOnic.</p>
+              <h4>4. Cơ chế thanh toán trực tiếp</h4>
+              <p>PreOnic tạo mã chuyển khoản và mã QR theo từng đợt thanh toán. Tiền hàng được chuyển trực tiếp từ Bên mua sang Bên bán; PreOnic không nhận, giữ hoặc luân chuyển tiền hàng.</p>
               <h4>5. Vi phạm và bồi thường</h4>
               <p>Vi phạm hợp đồng có thể dẫn đến bồi thường tối đa 20% giá trị hợp đồng tùy mức độ lỗi.</p>
               <h4>6. Tranh chấp</h4>
@@ -76,18 +77,18 @@ function TermsModal({ type, onClose, onAgree }) {
             </>
           ) : (
             <>
-              <h4>1. Phí dịch vụ trung gian</h4>
-              <p><strong>3% giá trị hợp đồng</strong> là phí dịch vụ PreOnic thu để cung cấp nền tảng kết nối, hệ thống Escrow và hỗ trợ giải quyết tranh chấp.</p>
+              <h4>1. Phí dịch vụ nền tảng</h4>
+              <p>Phí hiện hành là <strong>{COMPANY.BUYER_SERVICE_FEE_RATE}% đối với doanh nghiệp</strong> và <strong>{COMPANY.SELLER_SERVICE_FEE_RATE}% đối với nông dân</strong>, được ghi nhận riêng theo khoản tiền hàng đã xác nhận.</p>
               <h4>2. Những gì bạn nhận được</h4>
               <ul>
-                <li>Bảo vệ Escrow: Tiền giao dịch giữ an toàn đến khi nghiệm thu xong.</li>
+                <li>Mã thanh toán và QR riêng cho từng đợt chuyển tiền hàng.</li>
                 <li>Xác minh đối tác: PreOnic xác minh danh tính cả hai bên.</li>
                 <li>Hợp đồng điện tử có giá trị pháp lý theo tiêu chuẩn pháp luật Việt Nam.</li>
                 <li>Giải quyết tranh chấp miễn phí trong 15 ngày làm việc.</li>
                 <li>Hỗ trợ 24/7.</li>
               </ul>
               <h4>3. Thời điểm thu phí</h4>
-              <p>Phí chỉ thu khi giao dịch hoàn tất. Nếu hợp đồng bị hủy trước khi thực hiện, không thu phí.</p>
+              <p>Phí phát sinh sau khi nông dân xác nhận nhận tiền. Người dùng có thể thanh toán ngay hoặc đối soát theo bảng kê tháng.</p>
             </>
           )}
         </div>
@@ -128,7 +129,7 @@ export default function EnterpriseCreateContract() {
     deliveryDate:   '',
     deliveryAddress: '',
     paymentTerms:   '50_50',
-    customDeposit:  '',
+    customFirstPayment: '',
     customOnDelivery: '',
     notes:          '',
   });
@@ -170,13 +171,13 @@ export default function EnterpriseCreateContract() {
   }, [productId]);
 
   // ── Computed ───────────────────────────────────────────
-  const { totalValue, commission, unitFactor } = enterpriseService.calculateContractTotals(form);
+  const { totalValue, unitFactor } = enterpriseService.calculateContractTotals(form);
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minDeliveryDate = toLocalDateInputValue(tomorrow);
 
-  const customDepositValid = () => {
-    const d = parseFloat(form.customDeposit);
+  const customPaymentScheduleValid = () => {
+    const d = parseFloat(form.customFirstPayment);
     const r = parseFloat(form.customOnDelivery);
     return !isNaN(d) && !isNaN(r) && d >= 0 && d <= 100 && r >= 0 && r <= 100 && Math.abs(d + r - 100) < 0.01;
   };
@@ -196,8 +197,8 @@ export default function EnterpriseCreateContract() {
       e.deliveryDate = 'Ngày giao hàng phải sau ngày hôm nay.';
     if (!form.deliveryAddress.trim())
       e.deliveryAddress = 'Vui lòng nhập địa chỉ giao hàng.';
-    if (form.paymentTerms === 'custom' && !customDepositValid())
-      e.customDeposit = 'Tổng đặt cọc + khi nhận hàng phải bằng 100%.';
+    if (form.paymentTerms === 'custom' && !customPaymentScheduleValid())
+      e.customFirstPayment = 'Tổng tỷ lệ hai đợt thanh toán phải bằng 100%.';
 
     if (showInsurance) {
       if (!insurance.insuranceCompany.trim())
@@ -237,14 +238,14 @@ export default function EnterpriseCreateContract() {
     if (errors[k]) setErrors(prev => ({ ...prev, [k]: '' }));
   };
 
-  const handleCustomDeposit = (val, field) => {
+  const handleCustomPaymentSchedule = (val, field) => {
     const num = val === '' ? '' : String(Math.min(100, Math.max(0, Number(val))));
-    if (field === 'deposit') {
-      setField('customDeposit', num);
+    if (field === 'first') {
+      setField('customFirstPayment', num);
       if (num !== '') setField('customOnDelivery', String(100 - Number(num)));
     } else {
       setField('customOnDelivery', num);
-      if (num !== '') setField('customDeposit', String(100 - Number(num)));
+      if (num !== '') setField('customFirstPayment', String(100 - Number(num)));
     }
   };
 
@@ -258,7 +259,7 @@ export default function EnterpriseCreateContract() {
   const handleSubmitProposal = async () => {
     setLoading(true);
     try {
-      const depositPct = enterpriseService.resolveDepositPercentage(form.paymentTerms, form.customDeposit);
+      const firstPaymentPct = enterpriseService.resolveFirstPaymentPercentage(form.paymentTerms, form.customFirstPayment);
 
       const payload = {
         contractCode,
@@ -274,9 +275,10 @@ export default function EnterpriseCreateContract() {
         deliveryAddress:   form.deliveryAddress,
         paymentTerms:      form.paymentTerms,
         notes:             form.notes.trim(),
-        depositPercentage: depositPct,
+        // Tên field backend được giữ tạm để tương thích schema; giá trị này là
+        // tỷ lệ đợt chuyển khoản đầu tiên.
+        firstPaymentPercentage: firstPaymentPct,
         totalValue,
-        commission,
         productId:         productId || undefined,
       };
 
@@ -415,22 +417,22 @@ export default function EnterpriseCreateContract() {
 
             <div className="ecc-row">
               <div className="ecc-field">
-                <label>Phương thức đặt cọc</label>
+                <label>Lịch thanh toán trực tiếp</label>
                 <select className="ecc-select ecc-select--full"
                   value={form.paymentTerms}
-                  onChange={e => { setField('paymentTerms', e.target.value); setField('customDeposit', ''); setField('customOnDelivery', ''); }}
+                  onChange={e => { setField('paymentTerms', e.target.value); setField('customFirstPayment', ''); setField('customOnDelivery', ''); }}
                 >
                   {PAYMENT_TERMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
 
                 {form.paymentTerms === 'custom' && (
-                  <div className="ecc-custom-deposit">
+                  <div className="ecc-custom-payment">
                     <div className="ecc-row">
                       <div className="ecc-field">
-                        <label>Đặt cọc (%)</label>
+                        <label>Khi hợp đồng có hiệu lực (%)</label>
                         <input className="ecc-input" type="number" min="0" max="100"
-                          value={form.customDeposit}
-                          onChange={e => handleCustomDeposit(e.target.value, 'deposit')}
+                          value={form.customFirstPayment}
+                          onChange={e => handleCustomPaymentSchedule(e.target.value, 'first')}
                           placeholder="VD: 40"
                         />
                       </div>
@@ -438,14 +440,14 @@ export default function EnterpriseCreateContract() {
                         <label>Khi nhận hàng (%)</label>
                         <input className="ecc-input" type="number" min="0" max="100"
                           value={form.customOnDelivery}
-                          onChange={e => handleCustomDeposit(e.target.value, 'delivery')}
+                          onChange={e => handleCustomPaymentSchedule(e.target.value, 'delivery')}
                           placeholder="VD: 60"
                         />
                       </div>
                     </div>
-                    {errors.customDeposit && <span className="ecc-err">{errors.customDeposit}</span>}
-                    {customDepositValid() && (
-                      <span className="ecc-ok">✓ {form.customDeposit}% đặt cọc -- {form.customOnDelivery}% khi nhận hàng</span>
+                    {errors.customFirstPayment && <span className="ecc-err">{errors.customFirstPayment}</span>}
+                    {customPaymentScheduleValid() && (
+                      <span className="ecc-ok">✓ {form.customFirstPayment}% khi hợp đồng có hiệu lực — {form.customOnDelivery}% sau khi nhận hàng</span>
                     )}
                   </div>
                 )}
@@ -568,7 +570,7 @@ export default function EnterpriseCreateContract() {
               <div className="ecc-summary__row"><span>Đơn giá:</span><strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/kg</strong></div>
               <div className="ecc-summary__row"><span>Ngày giao:</span><strong>{form.deliveryDate || '--'}</strong></div>
               <div className="ecc-summary__row"><span>Địa chỉ giao hàng:</span><strong>{form.deliveryAddress || '--'}</strong></div>
-              <div className="ecc-summary__row"><span>Đặt cọc:</span><strong>{getDepositLabel(form.paymentTerms, form.customDeposit, form.customOnDelivery)}</strong></div>
+              <div className="ecc-summary__row"><span>Lịch thanh toán:</span><strong>{getPaymentScheduleLabel(form.paymentTerms, form.customFirstPayment, form.customOnDelivery)}</strong></div>
               <div className="ecc-summary__row"><span>Nhà sản xuất:</span><strong>{form.farmerName || '--'}</strong></div>
               <div className="ecc-summary__row"><span>Doanh nghiệp:</span><strong>{form.enterpriseName || user?.fullName || '--'}</strong></div>
               {form.notes && <div className="ecc-summary__row"><span>Ghi chú:</span><strong>{form.notes}</strong></div>}
@@ -584,7 +586,7 @@ export default function EnterpriseCreateContract() {
 
               <hr className="ecc-divider" />
               <div className="ecc-summary__row ecc-summary__row--total"><span>Tổng giá trị:</span><strong>{fmtMoney(totalValue)}</strong></div>
-              <div className="ecc-summary__row ecc-summary__row--fee"><span>Phí PreOnic (3%):</span><strong className="ecc-fee">{fmtMoney(commission)}</strong></div>
+              <div className="ecc-summary__row ecc-summary__row--fee"><span>Phí dịch vụ:</span><strong className="ecc-fee">DN {COMPANY.BUYER_SERVICE_FEE_RATE}% · Nông dân {COMPANY.SELLER_SERVICE_FEE_RATE}%</strong></div>
             </div>
           </div>
         )}
@@ -612,7 +614,7 @@ export default function EnterpriseCreateContract() {
               <FiShield size={16} />
               <div>
                 <strong>Hợp đồng được PreOnic bảo vệ</strong>
-                <p>Phí dịch vụ 3% -- Bảo hiểm giao dịch -- Hỗ trợ giải quyết tranh chấp</p>
+                <p>Thanh toán trực tiếp — phí tách riêng — hỗ trợ giải quyết tranh chấp</p>
               </div>
             </div>
           </div>
@@ -630,7 +632,7 @@ export default function EnterpriseCreateContract() {
               </div>
               <div className="ecc-contract-doc__body">
                 <p>Hợp đồng bao tiêu <strong>{form.quantity} {form.unit} {form.productName}</strong> với đơn giá <strong>{fmtMoney(parseFloat(form.pricePerUnit) || 0)}/kg</strong>.</p>
-                <p>Tổng giá trị: <strong>{fmtMoney(totalValue)}</strong> | Phí dịch vụ PreOnic: <strong>{fmtMoney(commission)}</strong></p>
+                <p>Tổng giá trị: <strong>{fmtMoney(totalValue)}</strong> | Phí dịch vụ: <strong>DN {COMPANY.BUYER_SERVICE_FEE_RATE}% · Nông dân {COMPANY.SELLER_SERVICE_FEE_RATE}%</strong></p>
                 <p>Ngày giao hàng: <strong>{form.deliveryDate}</strong></p>
                 <p>Địa chỉ giao hàng: <strong>{form.deliveryAddress}</strong></p>
                 <p>Bên bán: {form.farmerName || '--'} | Bên mua: {form.enterpriseName || user?.fullName || '--'}</p>
@@ -653,8 +655,8 @@ export default function EnterpriseCreateContract() {
                   onChange={e => setAgreed(p => ({ ...p, preon: e.target.checked }))} />
                 <span>Tôi đồng ý{' '}
                   <button type="button" className="ecc-link-btn"
-                    onClick={() => setShowTermsModal('service')}>phí dịch vụ 3%
-                  </button>{' '}cho PreOnic -- đổi lại được bảo vệ giao dịch
+                    onClick={() => setShowTermsModal('service')}>điều khoản phí dịch vụ
+                  </button>{' '}tách riêng khỏi tiền hàng
                 </span>
               </label>
             </div>
@@ -682,7 +684,7 @@ export default function EnterpriseCreateContract() {
             <div className="ecc-done__summary">
               <div><span>Sản phẩm:</span><strong>{form.productName}</strong></div>
               <div><span>Giá trị:</span><strong>{fmtMoney(createdContract?.totalValue || totalValue)}</strong></div>
-              <div><span>Phí PreOnic:</span><strong>{fmtMoney(createdContract?.commission || commission)}</strong></div>
+              <div><span>Phí dịch vụ:</span><strong>DN {COMPANY.BUYER_SERVICE_FEE_RATE}% · Nông dân {COMPANY.SELLER_SERVICE_FEE_RATE}%</strong></div>
               <div><span>Trạng thái:</span><strong className="ecc-status-active">{createdContract?.status || 'pending'}</strong></div>
             </div>
             <div className="ecc-done__actions">

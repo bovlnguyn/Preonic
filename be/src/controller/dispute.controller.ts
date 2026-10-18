@@ -38,8 +38,6 @@ const getUploadedEvidenceFiles = (files: any) => {
 const formatDispute = (dispute: any) => ({
   id: dispute.id,
   contractId: dispute.contractId,
-  escrowId: dispute.escrowId,
-  milestoneStep: dispute.milestoneStep,
   raisedBy: dispute.raisedBy,
   raisedByRole: dispute.raisedByRole,
   againstUserId: dispute.againstUserId,
@@ -77,10 +75,6 @@ export const createDispute = async (req: AuthRequest, res: Response) => {
       req.user!.role,
       {
         contractId: req.body.contractId,
-        milestoneStep:
-          req.body.milestoneStep !== undefined && req.body.milestoneStep !== ''
-            ? Number(req.body.milestoneStep)
-            : undefined,
         reason: req.body.reason,
         evidenceUrls: parseEvidenceUrls(req.body.evidenceUrls),
         evidenceFiles: getUploadedEvidenceFiles(req.files),

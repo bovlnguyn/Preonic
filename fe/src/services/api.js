@@ -26,8 +26,8 @@ const shouldCacheRequest = (config) => {
 
   const url = config?.url || '';
 
-  // Chỉ cache dữ liệu ít nhạy cảm và ít thay đổi. Không cache wallet/escrow/
-  // contract/admin vì các trang này cần phản ánh ngay thao tác vừa thực hiện.
+  // Chỉ cache dữ liệu ít nhạy cảm và ít thay đổi. Không cache billing/contract/
+  // admin vì các trang này cần phản ánh ngay thao tác vừa thực hiện.
   const isPublicProductRead =
     url.startsWith('/products') &&
     !url.includes('/my-products') &&

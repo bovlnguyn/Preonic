@@ -19,6 +19,7 @@ import {
   cancelOpenDirectPaymentsForContractWithManager,
   preparePayableGoodsPaymentWithManager,
 } from '../modules/direct-payment-v2/direct-goods-payment.service';
+import { hasGoodsLeftFarm } from '../utils/contract-completion.util';
 
 const toKg = (value: number, unit?: string | null) => value * (UNIT_TO_KG[unit || 'kg'] ?? 1);
 
@@ -33,7 +34,6 @@ type PaymentTerms = (typeof PAYMENT_TERMS)[number];
 const CONTRACT_STATUSES = [
   'draft',
   'pending',
-  'approved',
   'active',
   'cancel_pending',
   'completed',
@@ -73,7 +73,7 @@ const inventoryToleranceKg = (unit?: string | null) => {
  * Reserve/release product inventory while both Contract and Product are row-locked.
  * Lock order for contract lifecycle operations is always Contract -> Product.
  */
-const adjustProductInventory = async (
+export const adjustContractProductInventoryWithManager = async (
   manager: EntityManager,
   contract: Contract,
   mode: 'reserve' | 'restore'
@@ -161,7 +161,7 @@ export interface CreateContractDto {
   notes?: string;
   farmLocation?: string;
   deliveryAddress?: string;
-  depositPercentage?: number;
+  firstPaymentPercentage?: number;
   insuranceEnabled?: boolean;
   insuranceProvider?: string;
   insurancePackage?: string;
@@ -185,19 +185,19 @@ const ensurePaymentTerms = (value: string): PaymentTerms => {
   return value as PaymentTerms;
 };
 
-const STANDARD_DEPOSIT_PERCENTAGE: Record<Exclude<PaymentTerms, 'custom'>, number> = {
+const STANDARD_FIRST_PAYMENT_PERCENTAGE: Record<Exclude<PaymentTerms, 'custom'>, number> = {
   '50_50': 50,
   '30_70': 30,
   '100_delivery': 0,
   '100_upfront': 100,
 };
 
-const resolveDepositPercentage = (
+const resolveFirstPaymentPercentage = (
   paymentTerms: PaymentTerms,
   requestedPercentage?: number
 ): number => {
   if (paymentTerms !== 'custom') {
-    return STANDARD_DEPOSIT_PERCENTAGE[paymentTerms];
+    return STANDARD_FIRST_PAYMENT_PERCENTAGE[paymentTerms];
   }
 
   if (
@@ -206,10 +206,10 @@ const resolveDepositPercentage = (
     requestedPercentage < 0 ||
     requestedPercentage > 100
   ) {
-    throw makeError('Ty le dat coc tuy chinh phai nam trong khoang 0-100');
+    throw makeError('Ty le thanh toan dot dau phai nam trong khoang 0-100');
   }
 
-  // DepositPercentage trong DB la decimal(5,2), can chuan hoa ve 2 chu so thap phan.
+  // FirstPaymentPercentage trong DB la decimal(5,2), can chuan hoa ve 2 chu so thap phan.
   return Math.round((requestedPercentage + Number.EPSILON) * 100) / 100;
 };
 
@@ -293,9 +293,9 @@ export const createContractProposal = async (
   ensureFutureDeliveryDate(dto.deliveryDate);
 
   const paymentTerms = ensurePaymentTerms(dto.paymentTerms);
-  // Backend la nguon su that cho cac dieu khoan chuan, khong tin depositPercentage
+  // Backend la nguon su that cho cac dieu khoan chuan, khong tin ty le
   // do client gui. Chi dieu khoan custom moi nhan ty le tuy chinh tu request.
-  const depositPercentage = resolveDepositPercentage(paymentTerms, dto.depositPercentage);
+  const firstPaymentPercentage = resolveFirstPaymentPercentage(paymentTerms, dto.firstPaymentPercentage);
 
   const insuranceFee = dto.insuranceFee ?? 0;
   if (!Number.isFinite(insuranceFee) || insuranceFee < 0) {
@@ -335,16 +335,6 @@ export const createContractProposal = async (
   const totalValue = dto.quantity * dto.pricePerUnit;
   const paymentFlow = getConfiguredContractPaymentFlow();
 
-  // Legacy commission columns belong to Escrow V1. Direct V2 fees live in the
-  // immutable ContractFeeTerms + FeeLedger domain and must not reuse the old 3%.
-  const commissionRate = paymentFlow === 'escrow_v1'
-    ? CONTRACT_CONFIG.COMMISSION_RATE
-    : 0;
-  const commission = totalValue * commissionRate / 100;
-  const depositAmount = paymentFlow === 'escrow_v1'
-    ? totalValue * depositPercentage / 100
-    : 0;
-
   const contractData: DeepPartial<Contract> = {
     contractCode: await generateContractCode(),
 
@@ -361,10 +351,7 @@ export const createContractProposal = async (
     pricePerUnit: dto.pricePerUnit,
     totalValue,
 
-    commission,
-    commissionRate,
-    depositAmount,
-    depositPercentage,
+    firstPaymentPercentage,
 
     paymentTerms,
     deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : undefined,
@@ -391,7 +378,6 @@ export const createContractProposal = async (
     insuranceValidTo: dto.insuranceEnabled && dto.insuranceValidTo ? new Date(dto.insuranceValidTo) : undefined,
     insuranceRiskSharingTerms: dto.insuranceEnabled ? dto.insuranceRiskSharingTerms : undefined,
 
-    escrowStatus: 'none',
     paidAmount: 0,
     remainingAmount: totalValue,
     deliveryStatus: 'pending',
@@ -659,14 +645,9 @@ export const signContract = async (id: string, userId: string, role: string) => 
       if (isFarmer) {
         if (contract.signedByFarmer) throw makeError('Ban da ky hop dong nay roi');
 
-        if (contract.paymentFlow === 'direct_v2') {
-          // Fail early on the Farmer action instead of waiting until the final
-          // Enterprise signature/payment creation.
-          await getDefaultFarmerBankAccountForPaymentWithManager(
-            manager,
-            contract.farmerId
-          );
-        }
+        // Fail early on the Farmer action instead of waiting until the final
+        // Enterprise signature/payment creation.
+        await getDefaultFarmerBankAccountForPaymentWithManager(manager, contract.farmerId);
 
         contract.signedByFarmer = true;
       } else {
@@ -683,36 +664,25 @@ export const signContract = async (id: string, userId: string, role: string) => 
         // Product row is locked and the latest remaining quantity is re-read HERE,
         // inside the same transaction. Two contracts competing for the last stock
         // therefore cannot both succeed on a stale Remaining value.
-        await adjustProductInventory(manager, contract, 'reserve');
+        await adjustContractProductInventoryWithManager(manager, contract, 'reserve');
         contract.signedAt = new Date();
 
-        if (contract.paymentFlow === 'direct_v2') {
-          // Direct V2 becomes active immediately after both signatures. Before
-          // committing that transition, guarantee Farmer has a decryptable default
-          // receiving account and freeze the fee policy for the whole contract.
-          await getDefaultFarmerBankAccountForPaymentWithManager(
+        // Both signatures activate the contract. Freeze fee terms and prepare
+        // the first direct bank transfer when the schedule requires it.
+        await getDefaultFarmerBankAccountForPaymentWithManager(manager, contract.farmerId);
+        await getOrCreateContractFeeTermsWithManager(manager, contract);
+
+        contract.status = 'active';
+        const firstDue = buildDirectPaymentPlan(contract)
+          .find((item) => item.trigger === 'contract_active');
+
+        if (firstDue) {
+          await preparePayableGoodsPaymentWithManager(
             manager,
-            contract.farmerId
+            contract,
+            firstDue.sequence,
+            'contract_active'
           );
-          await getOrCreateContractFeeTermsWithManager(manager, contract);
-
-          contract.status = 'active';
-          contract.escrowStatus = 'none';
-
-          const firstDue = buildDirectPaymentPlan(contract)
-            .find((item) => item.trigger === 'contract_active');
-
-          if (firstDue) {
-            await preparePayableGoodsPaymentWithManager(
-              manager,
-              contract,
-              firstDue.sequence,
-              'contract_active'
-            );
-          }
-        } else {
-          // Preserve existing contracts / rollback mode on Escrow V1.
-          contract.status = 'approved';
         }
       } else {
         contract.status = 'pending';
@@ -732,7 +702,6 @@ export const signContract = async (id: string, userId: string, role: string) => 
         partnerRole,
         signerName,
         bothSigned,
-        paymentFlow: contract.paymentFlow,
       };
     },
     { label: 'contract.sign' }
@@ -740,9 +709,7 @@ export const signContract = async (id: string, userId: string, role: string) => 
 
   const signTitle = result.bothSigned ? 'Hop dong da duoc ky du hai ben' : 'Hop dong cho ban xac nhan ky';
   const signMessage = result.bothSigned
-    ? result.paymentFlow === 'direct_v2'
-      ? `${result.signerName || 'Doi tac'} da ky hop dong ${result.contractCode}. Hop dong da co hieu luc theo luong thanh toan truc tiep; vui long theo doi khoan thanh toan dang den han.`
-      : `${result.signerName || 'Doi tac'} da ky hop dong ${result.contractCode}. Hop dong da duoc ky du hai ben, dang cho Doanh nghiep khoa ky quy de chinh thuc co hieu luc.`
+    ? `${result.signerName || 'Doi tac'} da ky hop dong ${result.contractCode}. Hop dong da co hieu luc theo luong thanh toan truc tiep; vui long theo doi khoan thanh toan dang den han.`
     : `${result.signerName || 'Doi tac'} da ky hop dong ${result.contractCode}. Vui long xac nhan ky de hop dong co hieu luc.`;
 
   await notificationRepo().save(
@@ -767,7 +734,7 @@ export const signContract = async (id: string, userId: string, role: string) => 
 
 // Hop dong 'draft' chua tung gui cho Farmer nen khong can luong huy (khong co ai de
 // thong bao/xac nhan) -- Enterprise xoa han thay vi huy, xem deleteContract() ben duoi.
-const CANCELLABLE_STATUSES = ['pending', 'approved', 'active'];
+const CANCELLABLE_STATUSES = ['pending', 'active'];
 
 // Enterprise xoa han hop dong con o trang thai 'draft' (chua gui cho Farmer).
 // Khac voi cancelContract: khong doi status, khong gui thong bao -- vi Farmer
@@ -852,25 +819,25 @@ export const cancelContract = async (
         throw makeError('Hop dong o trang thai hien tai khong the huy', 400);
       }
 
-      if (contract.paymentFlow === 'direct_v2' && contract.status === 'active') {
+      if (contract.status === 'active') {
+        if (hasGoodsLeftFarm(contract.deliveryStatus)) {
+          throw makeError(
+            'Hợp đồng đã xuất hàng; cần xử lý qua tranh chấp thay vì hủy trực tiếp.',
+            409
+          );
+        }
         // A direct payment reported as sent or confirmed cannot be silently
         // cancelled because Preonic does not custody those funds.
         await assertDirectContractHasNoTransferredFundsWithManager(
           manager,
           contract.id
         );
-      } else if (
-        contract.paymentFlow === 'escrow_v1' &&
-        (contract.escrowStatus === 'funded' || Number(contract.paidAmount || 0) > 0)
-      ) {
-        throw makeError('Hop dong da phat sinh thanh toan, khong the huy truc tiep', 400);
       }
 
       const partnerId = isFarmer ? contract.enterpriseId : contract.farmerId;
       const partnerRole: 'farmer' | 'enterprise' = isFarmer ? 'enterprise' : 'farmer';
       const cancelledByName = isFarmer ? contract.farmerName : contract.enterpriseName;
-      const requiresConfirmation =
-        contract.status === 'approved' || contract.status === 'active';
+      const requiresConfirmation = contract.status === 'active';
 
       contract.updatedBy = userId;
 
@@ -967,27 +934,14 @@ export const confirmCancelContract = async (id: string, userId: string, role: st
       if (contract.cancelRequestedBy === userId) {
         throw makeError('Ban la nguoi gui yeu cau huy, khong the tu xac nhan', 400);
       }
-      if (contract.paymentFlow === 'direct_v2') {
-        await assertDirectContractHasNoTransferredFundsWithManager(
-          manager,
-          contract.id
-        );
-        await cancelOpenDirectPaymentsForContractWithManager(
-          manager,
-          contract.id
-        );
-      } else if (
-        contract.escrowStatus === 'funded' ||
-        Number(contract.paidAmount || 0) > 0
-      ) {
-        throw makeError('Hop dong da phat sinh thanh toan, khong the huy truc tiep', 409);
-      }
+      await assertDirectContractHasNoTransferredFundsWithManager(manager, contract.id);
+      await cancelOpenDirectPaymentsForContractWithManager(manager, contract.id);
 
       const requesterId = contract.cancelRequestedBy;
       const confirmerName = isFarmer ? contract.farmerName : contract.enterpriseName;
 
-      // Both approved Escrow V1 and active Direct V2 have reserved inventory.
-      await adjustProductInventory(manager, contract, 'restore');
+      // A signed active contract has reserved inventory.
+      await adjustContractProductInventoryWithManager(manager, contract, 'restore');
 
       contract.status = 'cancelled';
       contract.cancelledAt = new Date();
@@ -1031,7 +985,7 @@ export const confirmCancelContract = async (id: string, userId: string, role: st
   return withRelations(id);
 };
 
-// Ben khong yeu cau huy tu choi -- hop dong quay lai 'approved' nhu cu.
+// Ben khong yeu cau huy tu choi -- hop dong quay lai trang thai active.
 export const declineCancelContract = async (id: string, userId: string, role: string) => {
   const result = await runLockedTransaction(
     async (manager) => {
@@ -1058,11 +1012,8 @@ export const declineCancelContract = async (id: string, userId: string, role: st
       const requesterId = contract.cancelRequestedBy;
       const declinerName = isFarmer ? contract.farmerName : contract.enterpriseName;
 
-      // Inventory was never released while cancel_pending. Restore the state
-      // according to the contract's payment architecture.
-      contract.status = contract.paymentFlow === 'direct_v2'
-        ? 'active'
-        : 'approved';
+      // Inventory was never released while cancel_pending.
+      contract.status = 'active';
       contract.cancelReason = null as any;
       contract.cancelRequestedBy = null as any;
       contract.updatedBy = userId;

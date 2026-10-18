@@ -9,9 +9,9 @@ const contractRepo = () => AppDataSource.getRepository(Contract);
 // Một nhà cung cấp chỉ được xem là đã hình thành quan hệ hợp tác khi hợp đồng
 // đã được cả hai bên ký (hoặc đang ở các trạng thái chỉ xuất hiện sau khi ký).
 // Draft/pending chưa ký và cancelled do từ chối đề xuất không còn làm phình số liệu.
-const SIGNED_RELATIONSHIP_STATUSES = ['approved', 'active', 'cancel_pending', 'completed', 'disputed'];
-const IN_PROGRESS_RELATIONSHIP_STATUSES = ['approved', 'active', 'cancel_pending', 'disputed'];
-const VALUE_STATUSES = ['approved', 'active', 'cancel_pending', 'completed', 'disputed'];
+const SIGNED_RELATIONSHIP_STATUSES = ['active', 'cancel_pending', 'completed', 'disputed'];
+const IN_PROGRESS_RELATIONSHIP_STATUSES = ['active', 'cancel_pending', 'disputed'];
+const VALUE_STATUSES = ['active', 'cancel_pending', 'completed', 'disputed'];
 
 const isSupplierRelationshipContract = (contract: Contract) =>
   Boolean(

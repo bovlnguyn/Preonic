@@ -9,11 +9,11 @@ import { ExtendDirectPaymentV2Phase21791410000000 } from '../migrations/ExtendDi
 const contract = (
   totalValue: number,
   paymentTerms: '50_50' | '30_70' | '100_delivery' | '100_upfront' | 'custom',
-  depositPercentage: number | null = null
+  firstPaymentPercentage: number | null = null
 ) => ({
   totalValue,
   paymentTerms,
-  depositPercentage,
+  firstPaymentPercentage,
 });
 
 describe('Direct Payment V2 Phase 2', () => {

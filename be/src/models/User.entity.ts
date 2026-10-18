@@ -99,9 +99,6 @@ export class User {
   @Column({ name: 'Longitude', type: 'decimal', precision: 10, scale: 7, nullable: true })
   longitude: number;
 
-  @Column({ name: 'VirtualBalance', type: 'decimal', precision: 18, scale: 2, default: 10000000 })
-  virtualBalance: number;
-
   @Column({ name: 'ReputationScore', type: 'decimal', precision: 3, scale: 2, default: 0 })
   reputationScore: number;
 

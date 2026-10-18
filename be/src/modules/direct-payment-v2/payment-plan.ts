@@ -40,17 +40,17 @@ const allocateByBps = (totalAmount: number, parts: number[]): number[] => {
 
 const percentageToBps = (percentage: number): number => {
   if (!Number.isFinite(percentage)) {
-    throw new Error('Custom deposit percentage is invalid');
+    throw new Error('Custom first payment percentage is invalid');
   }
   const bps = Math.round(percentage * 100);
   if (bps < 0 || bps > 10_000) {
-    throw new Error('Custom deposit percentage must be between 0 and 100');
+    throw new Error('Custom first payment percentage must be between 0 and 100');
   }
   return bps;
 };
 
 export const buildDirectPaymentPlan = (
-  contract: Pick<Contract, 'totalValue' | 'paymentTerms' | 'depositPercentage'>
+  contract: Pick<Contract, 'totalValue' | 'paymentTerms' | 'firstPaymentPercentage'>
 ): DirectPaymentInstallmentPlan[] => {
   const total = fromWholeVnd(toWholeVnd(contract.totalValue));
   if (total <= 0) throw new Error('Contract total value must be greater than zero');
@@ -80,16 +80,16 @@ export const buildDirectPaymentPlan = (
   }
 
   if (contract.paymentTerms === 'custom') {
-    const depositBps = percentageToBps(Number(contract.depositPercentage));
+    const firstPaymentBps = percentageToBps(Number(contract.firstPaymentPercentage));
 
-    if (depositBps === 0) {
+    if (firstPaymentBps === 0) {
       return [{ sequence: 1, amount: total, trigger: 'goods_accepted' }];
     }
-    if (depositBps === 10_000) {
+    if (firstPaymentBps === 10_000) {
       return [{ sequence: 1, amount: total, trigger: 'contract_active' }];
     }
 
-    const [first, second] = allocateByBps(total, [depositBps, 10_000 - depositBps]);
+    const [first, second] = allocateByBps(total, [firstPaymentBps, 10_000 - firstPaymentBps]);
     return [
       { sequence: 1, amount: first, trigger: 'contract_active' },
       { sequence: 2, amount: second, trigger: 'goods_accepted' },

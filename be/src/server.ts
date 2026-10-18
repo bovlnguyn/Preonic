@@ -7,14 +7,18 @@ import connectDB from './config/database';
 import { createLogger } from './utils/logger';
 import { startContractExpiryCron } from './jobs/contract-cron';
 import { startWeatherCron } from './jobs/weather-cron';
-import { startShippingCron } from './jobs/shipping-cron';
 import { startSystemLogCleanupCron } from './jobs/systemlog-cron';
 import { startFeeBillingCron } from './jobs/fee-billing-cron';
+import { validateDirectPaymentRuntimeConfiguration } from './modules/direct-payment-v2/runtime-config';
 
 const log = createLogger('Server');
 const PORT = Number(process.env.PORT ?? 8080);
 let cronStarted = false;
 let cronRetryTimer: NodeJS.Timeout | null = null;
+
+if (process.env.NODE_ENV === 'production') {
+  validateDirectPaymentRuntimeConfiguration();
+}
 
 // Khởi động HTTP trước để /health và /auth/logout vẫn phản hồi ngay cả khi
 // Azure SQL đang gián đoạn. Các API cần dữ liệu sẽ được DB health guard trả 503.
@@ -31,7 +35,6 @@ const startBackgroundJobs = () => {
   const jobs = [
     ['contract-expiry', startContractExpiryCron],
     ['weather', startWeatherCron],
-    ['shipping', startShippingCron],
     ['system-log-cleanup', startSystemLogCleanupCron],
     ['fee-billing', startFeeBillingCron],
   ] as const;

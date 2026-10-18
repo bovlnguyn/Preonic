@@ -171,7 +171,7 @@ function PaymentCard({
         </div>
       )}
 
-      {userRole === 'enterprise' && payment.status === 'payable' && (
+      {userRole === 'enterprise' && ['payable', 'awaiting_payment'].includes(payment.status) && (
         <div className="dp-actions">
           <button type="button" className="dp-btn dp-btn--primary" onClick={markSent} disabled={acting}>
             <FiCheckCircle /> Tôi đã chuyển tiền
@@ -279,7 +279,7 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
     <section className="dp-panel">
       <div className="dp-panel__header">
         <div>
-          <p className="dp-eyebrow">Direct Payment V2</p>
+          <p className="dp-eyebrow">Thanh toán hợp đồng</p>
           <h3>Thanh toán trực tiếp & tiến độ giao hàng</h3>
           <p>
             Doanh nghiệp chuyển tiền trực tiếp cho nông dân; PreOnic chỉ theo dõi xác nhận và thu phí dịch vụ riêng.

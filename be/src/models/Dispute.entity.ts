@@ -4,13 +4,11 @@ import {
   ManyToOne, OneToMany, JoinColumn, Index,
 } from 'typeorm';
 import { Contract } from './Contract.entity';
-import { Escrow } from './Escrow.entity';
 import { User } from './User.entity';
 import { DisputeEvidence } from './DisputeEvidence.entity';
 
 @Entity('Disputes')
 @Index(['contractId'])
-@Index(['escrowId'])
 @Index(['raisedBy'])
 @Index(['status'])
 @Index('IX_Disputes_RaisedBy_Status_CreatedAt', ['raisedBy', 'status', 'createdAt'])
@@ -21,12 +19,6 @@ export class Dispute {
 
   @Column({ name: 'ContractId', type: 'uniqueidentifier' })
   contractId: string;
-
-  @Column({ name: 'EscrowId', type: 'uniqueidentifier', nullable: true })
-  escrowId: string | null;
-
-  @Column({ name: 'MilestoneStep', type: 'tinyint', nullable: true })
-  milestoneStep: number | null;
 
   @Column({ name: 'RaisedBy', type: 'uniqueidentifier' })
   raisedBy: string;
@@ -61,10 +53,6 @@ export class Dispute {
   @ManyToOne(() => Contract)
   @JoinColumn({ name: 'ContractId' })
   contract: Contract;
-
-  @ManyToOne(() => Escrow, { nullable: true })
-  @JoinColumn({ name: 'EscrowId' })
-  escrow: Escrow | null;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'RaisedBy' })

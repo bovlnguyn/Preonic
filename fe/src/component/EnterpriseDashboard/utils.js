@@ -41,7 +41,6 @@ export function getStatusClass(status = '') {
   if (
     value.includes('chờ') ||
     value.includes('chuẩn bị') ||
-    value.includes('đang ký quỹ') ||
     value.includes('pending')
   ) {
     return 'warning';
@@ -52,7 +51,6 @@ export function getStatusClass(status = '') {
     value.includes('đang thực hiện') ||
     value.includes('vận chuyển') ||
     value.includes('kiểm tra') ||
-    value.includes('giải ngân') ||
     value.includes('active')
   ) {
     return 'info';

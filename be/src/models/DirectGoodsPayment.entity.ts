@@ -23,6 +23,7 @@ import {
 @Index('UX_DirectGoodsPayments_IdempotencyKey', ['idempotencyKey'], { unique: true })
 @Index('IX_DirectGoodsPayments_Payer_Status', ['payerUserId', 'status', 'createdAt'])
 @Index('IX_DirectGoodsPayments_Payee_Status', ['payeeUserId', 'status', 'createdAt'])
+@Index('IX_DirectGoodsPayments_Contract_Status', ['contractId', 'status'])
 export class DirectGoodsPayment {
   @PrimaryGeneratedColumn('uuid', { name: 'GoodsPaymentId' })
   id: string;

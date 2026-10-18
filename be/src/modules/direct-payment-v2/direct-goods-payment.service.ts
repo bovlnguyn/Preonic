@@ -1,4 +1,4 @@
-import { EntityManager } from 'typeorm';
+import { EntityManager, In } from 'typeorm';
 import { AppDataSource } from '../../config/database';
 import { Contract } from '../../models/Contract.entity';
 import { DirectGoodsPayment } from '../../models/DirectGoodsPayment.entity';
@@ -258,6 +258,7 @@ const getDirectQrBaseUrl = (): string => {
 };
 
 export const getDirectGoodsPaymentInstruction = async (
+  contractId: string,
   paymentId: string,
   enterpriseUserId: string
 ) => {
@@ -266,13 +267,12 @@ export const getDirectGoodsPaymentInstruction = async (
   }
 
   const payment = await AppDataSource.getRepository(DirectGoodsPayment).findOne({
-    where: { id: paymentId },
+    where: { id: paymentId, contractId },
+    relations: ['contract'],
   });
   if (!payment) throw makeError('Không tìm thấy giao dịch tiền hàng', 404);
 
-  const contract = await AppDataSource.getRepository(Contract).findOne({
-    where: { id: payment.contractId },
-  });
+  const contract = payment.contract;
   if (
     !contract ||
     contract.paymentFlow !== 'direct_v2' ||
@@ -281,7 +281,10 @@ export const getDirectGoodsPaymentInstruction = async (
     throw makeError('Hợp đồng không ở trạng thái có thể thanh toán', 409);
   }
 
-  if (payment.payerUserId !== enterpriseUserId) {
+  if (
+    payment.payerUserId !== enterpriseUserId ||
+    contract.enterpriseId !== enterpriseUserId
+  ) {
     throw makeError('Bạn không có quyền xem thông tin thanh toán này', 403);
   }
   if (!['payable', 'awaiting_payment', 'awaiting_confirmation'].includes(payment.status)) {
@@ -355,21 +358,34 @@ export const listDirectGoodsPaymentsForContract = async (
     order: { installmentSequence: 'ASC', createdAt: 'ASC' },
   });
 
-  const result = [];
-  for (const payment of payments) {
-    const feeEntries = await AppDataSource.getRepository(PlatformFeeLedgerEntry).find({
-      where: { goodsPaymentId: payment.id },
-    });
-    const feeAmounts = deriveFeeAmounts(feeEntries);
-    result.push(
-      serializePayment(payment, feeAmounts.buyerFeeAmount, feeAmounts.sellerFeeAmount)
-    );
+  if (payments.length === 0) return [];
+
+  // Load every fee row in one query. A contract normally has only one or two
+  // installments, but avoiding N+1 here keeps the endpoint predictable if more
+  // payment plans are introduced later.
+  const feeEntries = await AppDataSource.getRepository(PlatformFeeLedgerEntry).find({
+    where: { goodsPaymentId: In(payments.map((payment) => payment.id)) },
+  });
+  const entriesByPayment = new Map<string, PlatformFeeLedgerEntry[]>();
+  for (const entry of feeEntries) {
+    if (!entry.goodsPaymentId) continue;
+    const rows = entriesByPayment.get(entry.goodsPaymentId) || [];
+    rows.push(entry);
+    entriesByPayment.set(entry.goodsPaymentId, rows);
   }
 
-  return result;
+  return payments.map((payment) => {
+    const feeAmounts = deriveFeeAmounts(entriesByPayment.get(payment.id) || []);
+    return serializePayment(
+      payment,
+      feeAmounts.buyerFeeAmount,
+      feeAmounts.sellerFeeAmount
+    );
+  });
 };
 
 export const markDirectGoodsPaymentSent = async (
+  contractId: string,
   paymentId: string,
   enterpriseUserId: string
 ) => {
@@ -377,23 +393,20 @@ export const markDirectGoodsPaymentSent = async (
     throw makeError('Database is not initialized', 503);
   }
 
-  const lookup = await AppDataSource.getRepository(DirectGoodsPayment).findOne({
-    where: { id: paymentId },
-    select: ['id', 'contractId'],
-  });
-  if (!lookup) throw makeError('Không tìm thấy giao dịch tiền hàng', 404);
-
   return runLockedTransaction(async (manager) => {
     // Keep the same lock order as cancellation / confirmation:
     // Contract -> DirectGoodsPayment.
     const contract = await lockByIdOrFail(
       manager,
       Contract,
-      lookup.contractId,
+      contractId,
       () => makeError('Không tìm thấy hợp đồng', 404)
     );
     if (contract.paymentFlow !== 'direct_v2' || contract.status !== 'active') {
       throw makeError('Hợp đồng không ở trạng thái có thể thanh toán', 409);
+    }
+    if (contract.enterpriseId !== enterpriseUserId) {
+      throw makeError('Bạn không có quyền cập nhật thanh toán của hợp đồng này', 403);
     }
 
     const payment = await lockByIdOrFail(
@@ -461,6 +474,7 @@ export const refreshDirectContractPaymentProgressWithManager = async (
 };
 
 export const confirmDirectGoodsPaymentReceived = async (
+  contractId: string,
   paymentId: string,
   farmerUserId: string
 ) => {
@@ -468,22 +482,19 @@ export const confirmDirectGoodsPaymentReceived = async (
     throw makeError('Database is not initialized', 503);
   }
 
-  const lookup = await AppDataSource.getRepository(DirectGoodsPayment).findOne({
-    where: { id: paymentId },
-    select: ['id', 'contractId'],
-  });
-  if (!lookup) throw makeError('Không tìm thấy giao dịch tiền hàng', 404);
-
   return runLockedTransaction(async (manager) => {
     // Global lock order for Direct V2 lifecycle: Contract -> DirectGoodsPayment.
     const contract = await lockByIdOrFail(
       manager,
       Contract,
-      lookup.contractId,
+      contractId,
       () => makeError('Không tìm thấy hợp đồng', 404)
     );
     if (contract.paymentFlow !== 'direct_v2') {
       throw makeError('Hợp đồng không sử dụng thanh toán trực tiếp', 409);
+    }
+    if (contract.farmerId !== farmerUserId) {
+      throw makeError('Bạn không có quyền xác nhận thanh toán của hợp đồng này', 403);
     }
     if (contract.status !== 'active') {
       throw makeError(
@@ -581,6 +592,32 @@ export const cancelOpenDirectPaymentsForContractWithManager = async (
 
   for (const payment of rows) {
     payment.status = 'cancelled';
+    await manager.getRepository(DirectGoodsPayment).save(payment);
+    await voidPendingFeesForPaymentWithManager(manager, payment);
+  }
+};
+
+/**
+ * Admin dispute resolution can reject a transfer that the enterprise reported
+ * as sent but the farmer never confirmed. Preserve that audit state while
+ * voiding the still-pending platform fee, because fees are only earned after a
+ * confirmed goods payment.
+ */
+export const disputeReportedDirectPaymentsForContractWithManager = async (
+  manager: EntityManager,
+  contractId: string
+): Promise<void> => {
+  const rows = await manager
+    .getRepository(DirectGoodsPayment)
+    .createQueryBuilder('payment')
+    .where('payment.ContractId = :contractId', { contractId })
+    .andWhere("payment.Status = 'awaiting_confirmation'")
+    .orderBy('payment.InstallmentSequence', 'ASC')
+    .setLock('pessimistic_write')
+    .getMany();
+
+  for (const payment of rows) {
+    payment.status = 'disputed';
     await manager.getRepository(DirectGoodsPayment).save(payment);
     await voidPendingFeesForPaymentWithManager(manager, payment);
   }

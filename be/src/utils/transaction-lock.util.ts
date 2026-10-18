@@ -10,7 +10,7 @@ import { createLogger } from './logger';
 
 /**
  * Lớp tiện ích giao dịch + row lock dùng chung cho các nghiệp vụ nhạy cảm
- * (wallet, escrow, withdrawal, contract inventory, dispute...).
+ * (contract inventory, direct payment, fee ledger, dispute...).
  *
  * Mục tiêu:
  * 1. Mọi thao tác đọc -> kiểm tra -> cập nhật phải nằm trong CÙNG transaction.
@@ -44,7 +44,7 @@ export interface LockedTransactionOptions {
   /** Khoảng chờ cơ sở giữa các lần retry. Lần sau tăng tuyến tính theo attempt. */
   retryDelayMs?: number;
 
-  /** Nhãn để log dễ truy vết, ví dụ: 'wallet.sepayWebhook'. */
+  /** Nhãn để log dễ truy vết, ví dụ: 'directPayment.confirm'. */
   label?: string;
 }
 

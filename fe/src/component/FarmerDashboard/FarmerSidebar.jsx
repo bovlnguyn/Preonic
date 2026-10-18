@@ -3,7 +3,6 @@ import {
   FiBarChart2,
   FiBox,
   FiCloudRain,
-  FiDollarSign,
   FiFileText,
   FiPackage,
   FiPlusCircle,
@@ -19,7 +18,6 @@ const NAV_ITEMS = [
   { to: '/farmer/contracts', label: 'Hợp đồng', icon: FiFileText },
   { to: '/farmer/orders', label: 'Đơn hàng', icon: FiBox },
   { to: '/farmer/billing', label: 'Thanh toán & Phí', icon: FiTrendingUp },
-  { to: '/farmer/finance', label: 'Tài chính', icon: FiDollarSign },
   { to: '/farmer/ratings', label: 'Đánh giá đối tác', icon: FiStar },
   { to: '/farmer/weather-insurance', label: 'Thời tiết & Bảo hiểm', icon: FiCloudRain },
 ];

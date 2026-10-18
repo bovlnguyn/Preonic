@@ -38,7 +38,7 @@ function EnterpriseOverview() {
     pendingContracts: 0,
   });
 
-  // KPI/mini-order duoc tai bang cac endpoint nhe; khong tai 100 contracts + toan bo escrow.
+  // KPI/mini-order được tải bằng các endpoint nhẹ và phân trang tại server.
   useEffect(() => {
     let alive = true;
 
@@ -81,9 +81,9 @@ function EnterpriseOverview() {
             farmer: contract.farmer?.name,
             product: contract.product?.name,
             status: deliveryLabel,
-            milestone: contract.paymentFlow === 'direct_v2'
-              ? 'Thanh toán trực tiếp theo tiến độ hợp đồng'
-              : 'Luồng escrow legacy',
+            milestone: Number(contract.remainingAmount || 0) <= 0
+              ? 'Đã xác nhận thanh toán đủ'
+              : 'Thanh toán trực tiếp theo tiến độ hợp đồng',
           };
         }));
       })

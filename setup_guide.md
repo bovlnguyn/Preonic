@@ -1,154 +1,63 @@
-# PreOnic — Hướng dẫn Setup từ đầu
+# PreOnic — hướng dẫn setup nhanh
 
-## Yêu cầu hệ thống
+Tài liệu đầy đủ và cập nhật nằm trong [README.md](./README.md). Hệ thống hiện dùng thanh toán tiền hàng trực tiếp từ doanh nghiệp đến tài khoản ngân hàng của nông dân; phí dịch vụ được ghi vào sổ phí riêng và thanh toán ngay hoặc theo bảng kê tháng.
 
-* Node.js 18+
-* SQL Server 2019+ (hoặc Azure SQL)
-* npm hoặc yarn
+## Yêu cầu
 
----
+- Node.js 20+
+- npm
+- SQL Server 2019+
+- Cổng `1433`, `8080` và `3000` còn trống
 
-## BƯỚC 1 — Tạo Database
+## 1. Tạo database
 
-Mở SQL Server Management Studio (SSMS) hoặc Azure Data Studio,
-chạy toàn bộ file `preonic_schema.sql` đã có để tạo DB và 12 bảng.
+Chạy theo thứ tự trong SQL Server Management Studio hoặc Azure Data Studio:
 
-Kiểm tra thành công:
+1. `Preonic Database/01_Preonic_V2_CreateDatabase.sql`
+2. `Preonic Database/02_Preonic_V2_SeedData.sql`
 
-```sql
-USE preonic;
-SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES;
--- Phải thấy đủ 12+ bảng
-```
+Database được tạo là `preonic_v2`. Script đầu tạo trực tiếp 27 bảng ứng dụng ở trạng thái cuối; script sau thêm 3 tài khoản, 10 nông sản có ảnh và 10 hợp đồng demo. Seed không tạo tài khoản ngân hàng hoặc dữ liệu dòng tiền giả. Không chạy migration sau hai script này.
 
----
-
-## BƯỚC 2 — Setup Backend
+## 2. Chạy backend
 
 ```bash
-# 1. Vào thư mục backend
 cd be
-
-# 2. Cài dependencies
-npm install
-
-# 3. Copy và điền .env
+npm ci
 cp .env.example .env
-```
-
-Mở `.env`, điền các giá trị bắt buộc:
-
-```
-DB_HOST=localhost          # hoặc IP máy chủ SQL Server
-DB_PORT=1433
-DB_USERNAME=sa             # hoặc tài khoản SQL Server của bạn
-DB_PASSWORD=...            # mật khẩu SQL Server
-DB_DATABASE=preonic
-
-JWT_SECRET=...             # chuỗi ngẫu nhiên dài ≥32 ký tự
-JWT_REFRESH_SECRET=...     # chuỗi khác với JWT_SECRET
-
-FRONTEND_URL=http://localhost:3000
-```
-
-```bash
-# 4. Chạy development
 npm run dev
 ```
 
-Kiểm tra:
+Điền tối thiểu cấu hình SQL Server, hai JWT secret và các khóa thanh toán trong `be/.env`. Giữ `DB_SYNCHRONIZE=false`. Backend chạy tại `http://localhost:8080`.
 
-```
-GET http://localhost:8080/health
-→ { "status": "success", "database": "connected" }
-```
-
----
-
-## BƯỚC 3 — Setup Frontend
+Hai khóa ngân hàng phải là các bí mật base64 độc lập. Tạo từng khóa bằng:
 
 ```bash
-# 1. Vào thư mục frontend
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Ở production, cấu hình tài khoản thu phí và webhook HMAC theo phần “Thanh toán trực tiếp và thu phí nền tảng” trong README. Backend sẽ dừng ngay khi cấu hình thanh toán production thiếu hoặc không hợp lệ.
+
+## 3. Chạy frontend
+
+```bash
 cd fe
-
-# 2. Cài dependencies
-npm install
-
-# 3. Copy và điền .env
+npm ci
 cp .env.example .env
-# Chỉ cần đảm bảo REACT_APP_API_URL khớp với PORT của backend
-
-# 4. Chạy development
 npm start
 ```
 
-Frontend chạy tại: http://localhost:3000
+Frontend chạy tại `http://localhost:3000` và gọi API qua `http://localhost:8080/api/v1`.
 
----
-
-## Cấu trúc thư mục Backend khuyến nghị
-
-```
-be/
-├── src/
-│   ├── config/
-│   │   └── database.ts          ← file kết nối SQL Server
-│   ├── models/                  ← TypeORM Entity (1 file = 1 bảng)
-│   │   ├── User.entity.ts
-│   │   ├── Product.entity.ts
-│   │   ├── Contract.entity.ts
-│   │   └── ...
-│   ├── controllers/
-│   ├── services/
-│   ├── routes/
-│   ├── middlewares/
-│   ├── utils/
-│   │   └── logger.ts
-│   ├── migrations/              ← TypeORM migration files
-│   ├── app.ts
-│   └── server.ts
-├── uploads/                     ← file upload (ảnh sản phẩm, chứng chỉ)
-├── .env                         ← không commit lên Git
-├── .env.example                 ← commit lên Git
-├── package.json
-└── tsconfig.json
-```
-
----
-
-## Lưu ý quan trọng
-
-### DB_SYNCHRONIZE
-
-* `DB_SYNCHRONIZE=false` (mặc định và khuyến nghị)
-  → Schema đã được tạo bằng file SQL, TypeORM chỉ map Entity vào bảng có sẵn.
-* `DB_SYNCHRONIZE=true`
-  → TypeORM tự ALTER TABLE theo Entity. Chỉ dùng khi thêm cột mới trong dev.
-  → **TUYỆT ĐỐI KHÔNG dùng true trên production.**
-
-### DB_TRUST_SERVER_CERTIFICATE
-
-* `true` = môi trường local/dev, SQL Server dùng self-signed cert.
-* `false` = production, Azure SQL đã có cert hợp lệ.
-
-### Naming Convention — Entity vs SQL
-
-SQL Schema dùng PascalCase (UserId, FirstName...).
-TypeORM Entity dùng camelCase (id, firstName...) với `@Column({ name: 'UserId' })`.
-Xem `User.entity.ts` làm mẫu.
-
----
-
-## Các lệnh hữu ích
+## 4. Kiểm tra
 
 ```bash
-# Backend
-npm run dev          # chạy development với hot-reload
-npm run build        # build TypeScript ra dist/
-npm start            # chạy production
+cd be
+npm run build
+npx jest --runInBand
 
-# Migration (khi cần thêm cột mới trên production)
-npm run migration:generate --name=AddPhoneIndex
-npm run migration:run
-npm run migration:revert   # rollback migration cuối
+cd ../fe
+npm run build
+CI=true npm test -- --watchAll=false --runInBand
 ```
+
+`GET http://localhost:8080/health` chỉ xác nhận HTTP server. Log `SQL Server Connected` hoặc một API dữ liệu trả thành công mới xác nhận kết nối database.
