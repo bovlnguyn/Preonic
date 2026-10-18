@@ -1,15 +1,33 @@
 import { useEffect, useMemo, useState } from 'react';
 import contractService from '../services/contract.service';
-import escrowService from '../services/escrow.service';
-import { getActiveMilestone, getOrderStatusLabel } from '../constants/escrow';
 
 const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
 
-const getPendingEscrowMessage = (role) => (
-  role === 'farmer'
-    ? 'Chờ doanh nghiệp nạp ký quỹ để bắt đầu theo dõi'
-    : 'Chờ nạp ký quỹ để bắt đầu theo dõi'
-);
+const DELIVERY_STATUS_LABEL = {
+  pending: 'Chờ chuẩn bị hàng',
+  preparing: 'Đang chuẩn bị hàng',
+  shipping: 'Đang vận chuyển',
+  delivered: 'Đã nhận hàng',
+  failed: 'Giao hàng thất bại',
+};
+
+const getOrderStatusLabel = (contract) => {
+  if (contract.status === 'completed') return 'Hoàn tất';
+  if (contract.status === 'disputed') return 'Tranh chấp';
+  return DELIVERY_STATUS_LABEL[contract.deliveryStatus] || 'Đang thực hiện';
+};
+
+const getPaymentProgressLabel = (contract) => {
+  const total = Number(contract.totalValue || 0);
+  const paid = Math.max(0, Number(contract.paidAmount || 0));
+  const remaining = Math.max(0, Number(contract.remainingAmount ?? total - paid));
+
+  if (total > 0 && remaining <= 0) return 'Đã xác nhận thanh toán đủ';
+  if (paid > 0) {
+    return `Đã xác nhận ${paid.toLocaleString('vi-VN')}đ · còn ${remaining.toLocaleString('vi-VN')}đ`;
+  }
+  return 'Chờ xử lý khoản thanh toán trực tiếp đầu tiên';
+};
 
 const getPartnerName = (contract, role) => (
   role === 'farmer'
@@ -31,26 +49,13 @@ export default function useOrderList({ role, pageSize = 4 }) {
       page,
       limit: pageSize,
     })
-      .then(async (contractsRes) => {
+      .then((contractsRes) => {
         if (!alive) return;
 
         const contracts = contractsRes?.data?.contracts || [];
         const nextPagination = contractsRes?.data?.pagination || {};
-        const contractIds = contracts.map((contract) => contract.id).filter(Boolean);
-        const escrowsRes = contractIds.length
-          ? await escrowService.list({ contractIds, limit: contractIds.length }).catch(() => null)
-          : null;
-
-        if (!alive) return;
-
-        const escrowByContract = new Map(
-          (escrowsRes?.data?.escrows || []).map((escrow) => [escrow.contractId, escrow])
-        );
 
         setOrders(contracts.map((contract) => {
-          const escrow = escrowByContract.get(contract.id);
-          const activeMilestone = getActiveMilestone(escrow);
-
           return {
             id: contract.contractCode,
             contractId: contract.id,
@@ -59,10 +64,8 @@ export default function useOrderList({ role, pageSize = 4 }) {
             quantity: `${contract.quantity} ${contract.unit || ''}`.trim(),
             deliveryDate: contract.deliveryDate,
             address: contract.deliveryAddress,
-            status: getOrderStatusLabel(contract, escrow),
-            milestone: escrow
-              ? activeMilestone?.description || 'Đã hoàn tất tất cả mốc thanh toán'
-              : getPendingEscrowMessage(role),
+            status: getOrderStatusLabel(contract),
+            milestone: getPaymentProgressLabel(contract),
           };
         }));
 

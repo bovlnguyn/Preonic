@@ -16,14 +16,14 @@ import Footer from "../Common/Footer";
 import "./EnterpriseContact.css";
 
 const contactCards = [
-  { icon: FiPhone, title: "Hotline thu mua", value: "1900 8899", desc: "Tư vấn quy trình hợp đồng và đặt cọc." },
+  { icon: FiPhone, title: "Hotline thu mua", value: "1900 8899", desc: "Tư vấn quy trình hợp đồng và thanh toán trực tiếp." },
   { icon: FiMail, title: "Email hỗ trợ", value: "enterprise@preonic.vn", desc: "Phản hồi trong vòng 24 giờ làm việc." },
   { icon: FiMapPin, title: "Văn phòng điều phối", value: "Đà Nẵng, Việt Nam", desc: "Kết nối vùng cung ứng miền Trung - Tây Nguyên." },
 ];
 
 const faqs = [
   "Doanh nghiệp có thể lọc nguồn cung theo chứng chỉ và vùng miền không?",
-  "Quy trình đặt cọc/escrow hoạt động như thế nào?",
+  "Quy trình thanh toán trực tiếp theo hợp đồng hoạt động như thế nào?",
   "Khi farmer chưa giao đủ sản lượng thì xử lý ra sao?",
   "Backend sau này cần API nào để nối phần liên hệ?",
 ];
@@ -47,7 +47,7 @@ function EnterpriseContact() {
               <span className="ec-eyebrow"><FiMessageCircle /> Enterprise support center</span>
               <h1>Kết nối với PreOnic để triển khai quy trình thu mua hiệu quả hơn.</h1>
               <p>
-                Trang liên hệ dành riêng cho doanh nghiệp, tập trung vào nhu cầu tìm nguồn cung, hợp đồng, đặt cọc, thanh toán và quản lý đối tác farmer.
+                Trang liên hệ dành riêng cho doanh nghiệp, tập trung vào nhu cầu tìm nguồn cung, hợp đồng, thanh toán và quản lý đối tác farmer.
               </p>
             </motion.div>
 
@@ -103,7 +103,7 @@ function EnterpriseContact() {
                 <option value="" disabled>Chọn nhu cầu</option>
                 <option>Tìm nguồn cung theo mùa vụ</option>
                 <option>Tạo hợp đồng thu mua</option>
-                <option>Tư vấn đặt cọc/escrow</option>
+                <option>Tư vấn thanh toán hợp đồng</option>
                 <option>Kết nối farmer uy tín</option>
               </select>
             </label>

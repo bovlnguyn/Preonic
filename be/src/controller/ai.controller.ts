@@ -115,9 +115,7 @@ const FARMER_STATIC_NAVIGATION: Partial<Record<FarmerNavigationTarget, string>> 
   create_product: '/farmer/create-product',
   contracts: '/farmer/contracts',
   orders: '/farmer/orders',
-  escrow: '/farmer/escrow',
-  wallet: '/farmer/wallet',
-  finance: '/farmer/finance',
+  billing: '/farmer/billing',
   ratings: '/farmer/ratings',
   weather_insurance: '/farmer/weather-insurance',
   profile: '/profile',
@@ -168,14 +166,8 @@ const inferNavigationIntentsFromMessage = (message: string): FarmerNavigationInt
   if (/don hang|giao hang|van chuyen/.test(normalized)) {
     return [make('orders', 'Mở đơn hàng')];
   }
-  if (/ky quy|escrow|giai ngan/.test(normalized)) {
-    return [make('escrow', 'Mở thanh toán trung gian')];
-  }
-  if (/vi|thanh toan|so du/.test(normalized)) {
-    return [make('wallet', 'Mở Ví & Thanh toán')];
-  }
-  if (/tai chinh|doanh thu|thu nhap/.test(normalized)) {
-    return [make('finance', 'Mở trang Tài chính')];
+  if (/thanh toan|phi dich vu|tai khoan nhan tien|tai chinh|doanh thu|thu nhap/.test(normalized)) {
+    return [make('billing', 'Mở Thanh toán & Phí')];
   }
   if (/danh gia|uy tin|xep hang/.test(normalized)) {
     return [make('ratings', 'Mở Đánh giá đối tác')];
@@ -545,8 +537,8 @@ export const getFarmerAiStatus = asyncHandler(async (_req: AuthRequest, res: Res
         'Kiến thức & canh tác nông nghiệp',
         'Thời tiết & lựa chọn cây trồng',
         'Đăng bán nông sản',
-        'Hợp đồng & ký quỹ',
-        'Ví & giao dịch',
+        'Hợp đồng & thanh toán trực tiếp',
+        'Tài khoản nhận tiền & phí dịch vụ',
         'Chất lượng, ảnh & chứng chỉ',
       ],
       suggestedQuestions: [

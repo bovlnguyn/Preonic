@@ -74,7 +74,8 @@ export const COMPANY = {
   HOTLINE: '0349 940 617',
   ADDRESS: 'Đà Nẵng, Việt Nam',
   COPYRIGHT_YEAR: 2026,
-  COMMISSION_RATE: 3, // % hoa hồng trung gian — phải khớp với CONTRACT_CONFIG.COMMISSION_RATE trong be/src/constants/index.ts
+  BUYER_SERVICE_FEE_RATE: 0.5,
+  SELLER_SERVICE_FEE_RATE: 0.3,
 };
 
 // ===== REGIONS =====
@@ -91,7 +92,6 @@ export const REGIONS = {
 export const CONTRACT_STATUS = {
   DRAFT: 'draft',
   PENDING: 'pending',
-  APPROVED: 'approved',
   ACTIVE: 'active',
   CANCEL_PENDING: 'cancel_pending',
   COMPLETED: 'completed',
@@ -102,7 +102,6 @@ export const CONTRACT_STATUS = {
 export const CONTRACT_STATUS_META = {
   [CONTRACT_STATUS.DRAFT]: { label: 'Nháp — chưa gửi', color: '#9ca3af' },
   [CONTRACT_STATUS.PENDING]: { label: 'Chờ ký xác nhận', color: '#f59e0b' },
-  [CONTRACT_STATUS.APPROVED]: { label: 'Đã ký — chờ khóa ký quỹ', color: '#0ea5e9' },
   [CONTRACT_STATUS.ACTIVE]: { label: 'Đang hiệu lực', color: '#1d4ed8' },
   [CONTRACT_STATUS.CANCEL_PENDING]: { label: 'Đang chờ xác nhận hủy', color: '#f97316' },
   [CONTRACT_STATUS.COMPLETED]: { label: 'Hoàn tất', color: '#16a34a' },
@@ -123,9 +122,7 @@ export const FARMER_DASHBOARD_NAV_ITEMS = [
   { key: 'muavu', label: 'Mùa vụ của tôi', cls: 'nav-season' },
   { key: 'hopdong', label: 'Hợp đồng', cls: 'nav-contract' },
   { key: 'donhang', label: 'Đơn hàng', cls: 'nav-order' },
-  { key: 'escrow', label: 'Thanh toán trung gian', cls: 'nav-escrow' },
-  { key: 'vi', label: 'Ví & Thanh toán', cls: 'nav-wallet' },
-  { key: 'taichinh', label: 'Tài chính', cls: 'nav-finance' },
+  { key: 'thanhtoan', label: 'Thanh toán & Phí', cls: 'nav-finance' },
   { key: 'danhgia', label: 'Đánh giá đối tác', cls: 'nav-rating' },
   { key: 'thoitiet', label: 'Thời tiết & Bảo hiểm', cls: 'nav-weather' },
 ];
@@ -135,8 +132,7 @@ export const ENTERPRISE_DASHBOARD_NAV_ITEMS = [
   { key: 'hopdong', label: 'Hợp đồng', cls: 'nav-contract' },
   { key: 'sanpham', label: 'Danh sách sản phẩm', cls: 'nav-product' },
   { key: 'donhang', label: 'Theo dõi đơn hàng', cls: 'nav-order' },
-  { key: 'escrow', label: 'Thanh toán trung gian', cls: 'nav-escrow' },
-  { key: 'vi', label: 'Ví & Thanh toán', cls: 'nav-wallet' },
+  { key: 'thanhtoan', label: 'Thanh toán & Phí', cls: 'nav-finance' },
   { key: 'nhacc', label: 'Nhà cung cấp', cls: 'nav-contacts' },
   { key: 'lichsu', label: 'Lịch sử giao dịch', cls: 'nav-warehouse' },
   { key: 'danhgia', label: 'Đánh giá đối tác', cls: 'nav-rating' },
@@ -211,10 +207,6 @@ export const INSURANCE_PROGRAMS = [
     note: "Đặc biệt phù hợp cho nông dân đã ký hợp đồng bao tiêu, bảo vệ đôi bên.",
   },
 ];
-
-// ===== WALLET / TOPUP =====
-export const GATEWAY_MIN_TOPUP = 10000; // VND
-export const TOPUP_PRESETS = [100_000_000, 500_000_000, 1_000_000_000, 5_000_000_000, 10_000_000_000, 100_000_000_000]; // VND
 
 // ===== FILE UPLOAD =====
 export const FILE_SIZE_LIMIT = 5 * 1024 * 1024; // 5 MB

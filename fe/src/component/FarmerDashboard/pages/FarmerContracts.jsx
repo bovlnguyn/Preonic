@@ -11,7 +11,6 @@ import useContractList from '../../../hooks/useContractList';
 const TABS = [
   { key: 'all',       label: 'Tất cả' },
   { key: 'pending',   label: 'Chờ ký xác nhận' },
-  { key: 'approved',  label: 'Đã ký — legacy escrow' },
   { key: 'active',    label: 'Đang hiệu lực' },
   { key: 'completed', label: 'Hoàn tất' },
   { key: 'disputed',  label: 'Tranh chấp' },

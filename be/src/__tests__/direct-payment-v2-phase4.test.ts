@@ -1,9 +1,10 @@
 import { getMetadataArgsStorage } from 'typeorm';
+import fs from 'fs';
+import path from 'path';
 import { Contract } from '../models/Contract.entity';
 import { Dispute } from '../models/Dispute.entity';
 import { buildDirectPaymentPlan } from '../modules/direct-payment-v2/payment-plan';
 import { getConfiguredContractPaymentFlow } from '../modules/direct-payment-v2/payment-flow.config';
-import { ExtendDirectPaymentV2Phase41791430000000 } from '../migrations/ExtendDirectPaymentV2Phase4';
 
 describe('Direct Payment V2 Phase 4', () => {
   const originalFlow = process.env.CONTRACT_PAYMENT_FLOW;
@@ -16,22 +17,19 @@ describe('Direct Payment V2 Phase 4', () => {
     }
   });
 
-  test('new contracts default to Direct V2 but rollback mode remains explicit', () => {
+  test('new contracts always use Direct V2 and env cannot re-enable Escrow', () => {
     delete process.env.CONTRACT_PAYMENT_FLOW;
     expect(getConfiguredContractPaymentFlow()).toBe('direct_v2');
 
     process.env.CONTRACT_PAYMENT_FLOW = 'escrow_v1';
-    expect(getConfiguredContractPaymentFlow()).toBe('escrow_v1');
-
-    process.env.CONTRACT_PAYMENT_FLOW = 'invalid';
-    expect(() => getConfiguredContractPaymentFlow()).toThrow();
+    expect(getConfiguredContractPaymentFlow()).toBe('direct_v2');
   });
 
   test('custom 0% and 100% remain compatible as one-installment plans', () => {
     expect(buildDirectPaymentPlan({
       totalValue: 100_000_000,
       paymentTerms: 'custom',
-      depositPercentage: 0,
+      firstPaymentPercentage: 0,
     } as Contract)).toEqual([
       { sequence: 1, amount: 100_000_000, trigger: 'goods_accepted' },
     ]);
@@ -39,7 +37,7 @@ describe('Direct Payment V2 Phase 4', () => {
     expect(buildDirectPaymentPlan({
       totalValue: 100_000_000,
       paymentTerms: 'custom',
-      depositPercentage: 100,
+      firstPaymentPercentage: 100,
     } as Contract)).toEqual([
       { sequence: 1, amount: 100_000_000, trigger: 'contract_active' },
     ]);
@@ -52,25 +50,22 @@ describe('Direct Payment V2 Phase 4', () => {
     expect(columns).toContain('paymentFlow');
   });
 
-  test('Direct V2 disputes can exist without Escrow', () => {
-    const escrowColumn = getMetadataArgsStorage().columns
-      .find(
-        (item) =>
-          item.target === Dispute &&
-          item.propertyName === 'escrowId'
-      );
-
-    expect(escrowColumn).toBeDefined();
-    expect((escrowColumn!.options as any).nullable).toBe(true);
+  test('Disputes no longer carry legacy escrow references', () => {
+    const columns = getMetadataArgsStorage().columns
+      .filter((item) => item.target === Dispute)
+      .map((item) => item.propertyName);
+    expect(columns).not.toContain('escrowId');
+    expect(columns).not.toContain('milestoneStep');
   });
 
-  test('Phase 4 migration preserves legacy rows as escrow_v1 and is non-destructive', () => {
-    const source = new ExtendDirectPaymentV2Phase41791430000000().up.toString();
-
-    expect(source).toContain("DEFAULT 'escrow_v1'");
-    expect(source).toContain("'direct_v2'");
-    expect(source).toContain("ALTER COLUMN EscrowId UNIQUEIDENTIFIER NULL");
-    expect(source).not.toMatch(/DROP\s+TABLE\s+dbo\.Escrows/i);
-    expect(source).not.toMatch(/DROP\s+TABLE\s+dbo\.Contracts/i);
+  test('fresh schema is direct-only and contains no legacy finance tables', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../../../Preonic Database/01_Preonic_V2_CreateDatabase.sql'),
+      'utf8'
+    );
+    expect(source).toContain("CHECK (PaymentFlow = 'direct_v2')");
+    expect(source).toContain('CREATE TABLE dbo.DirectGoodsPayments');
+    expect(source).not.toContain('CREATE TABLE dbo.Escrows');
+    expect(source).not.toContain('CREATE TABLE dbo.PaymentTransactions');
   });
 });

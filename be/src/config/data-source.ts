@@ -13,7 +13,7 @@ const CliDataSource = new DataSource({
   port:     Number(process.env.DB_PORT ?? 1433),
   username: process.env.DB_USERNAME ?? 'sa',
   password: process.env.DB_PASSWORD ?? '',
-  database: process.env.DB_DATABASE ?? 'preonic',
+  database: process.env.DB_DATABASE ?? 'preonic_v2',
 
   entities:   ['src/models/**/*.entity.ts'],
   migrations: ['src/migrations/**/*.ts'],

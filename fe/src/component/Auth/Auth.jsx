@@ -31,7 +31,7 @@ const HIGHLIGHTS = [
   {
     icon: <FiTrendingUp />,
     title: "Giao dịch minh bạch",
-    desc: "Escrow bảo lãnh, hợp đồng điện tử có pháp lý.",
+    desc: "Thanh toán trực tiếp có mã đối soát, hợp đồng điện tử rõ ràng.",
   },
 ];
 

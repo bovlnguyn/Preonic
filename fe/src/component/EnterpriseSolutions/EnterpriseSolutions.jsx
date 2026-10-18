@@ -26,12 +26,12 @@ const solutions = [
   {
     icon: FiFileText,
     title: "Hợp đồng thu mua số",
-    desc: "Chuẩn hóa đề xuất hợp đồng, sản lượng, lịch giao, giá dự kiến và điều khoản đặt cọc trong một luồng rõ ràng.",
+    desc: "Chuẩn hóa đề xuất hợp đồng, sản lượng, lịch giao, giá dự kiến và lịch thanh toán trong một luồng rõ ràng.",
   },
   {
     icon: FiShield,
-    title: "Escrow giảm rủi ro",
-    desc: "Tiền đặt cọc được theo dõi minh bạch, giúp doanh nghiệp và farmer tin tưởng hơn trước khi giao dịch lớn.",
+    title: "Thanh toán trực tiếp có đối soát",
+    desc: "Hệ thống tạo QR và mã chuyển khoản theo từng đợt; nông dân xác nhận tiền đã nhận ngay trên hợp đồng.",
   },
   {
     icon: FiBarChart2,
@@ -43,7 +43,7 @@ const solutions = [
 const process = [
   "Xác định nhu cầu thu mua theo sản phẩm, khu vực và thời gian.",
   "Hệ thống gợi ý nguồn cung phù hợp từ farmer đã đăng sản phẩm/mùa vụ.",
-  "Doanh nghiệp gửi đề xuất hợp đồng và đặt cọc qua escrow.",
+  "Doanh nghiệp ký hợp đồng và chuyển tiền trực tiếp theo mã hệ thống tạo.",
   "Hai bên theo dõi giao hàng, thanh toán và đánh giá sau giao dịch.",
 ];
 
@@ -51,7 +51,7 @@ const enterpriseBenefits = [
   { icon: FiTruck, value: "-28%", label: "thời gian tìm nguồn cung" },
   { icon: FiRefreshCw, value: "2.4x", label: "tốc độ xử lý hợp đồng" },
   { icon: FiUsers, value: "18+", label: "nhà cung cấp tiềm năng" },
-  { icon: FiCreditCard, value: "100%", label: "theo dõi đặt cọc minh bạch" },
+  { icon: FiCreditCard, value: "100%", label: "theo dõi thanh toán theo hợp đồng" },
 ];
 
 function EnterpriseSolutions() {
@@ -68,7 +68,7 @@ function EnterpriseSolutions() {
               <span className="es-eyebrow"><FiShield /> Enterprise supply solutions</span>
               <h1>Giải pháp thu mua nông sản số dành cho doanh nghiệp.</h1>
               <p>
-                Thay vì chỉ xem danh sách sản phẩm, doanh nghiệp có một quy trình đầy đủ: tìm nguồn cung, đánh giá farmer, tạo hợp đồng, đặt cọc và quản trị rủi ro trong dashboard.
+                Thay vì chỉ xem danh sách sản phẩm, doanh nghiệp có một quy trình đầy đủ: tìm nguồn cung, đánh giá farmer, tạo hợp đồng, thanh toán trực tiếp và quản trị rủi ro trong dashboard.
               </p>
               <div className="es-hero__actions">
                 <button type="button" onClick={() => navigate("/enterprise-products")}>Tìm nguồn cung <FiArrowRight /></button>
@@ -80,7 +80,7 @@ function EnterpriseSolutions() {
               <div className="es-orbit-card__center"><FiLayers /><strong>PreOnic</strong></div>
               <span className="point point-1">Nguồn cung</span>
               <span className="point point-2">Hợp đồng</span>
-              <span className="point point-3">Escrow</span>
+              <span className="point point-3">Thanh toán</span>
               <span className="point point-4">Đánh giá</span>
             </motion.div>
           </div>
@@ -117,10 +117,9 @@ function EnterpriseSolutions() {
           <div className="es-container es-process-grid">
             <motion.div className="es-process-copy" initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
               <span className="es-eyebrow es-eyebrow--light"><FiCheckCircle /> Quy trình đề xuất</span>
-              <h2>Luồng nghiệp vụ rõ ràng để backend dễ nối dữ liệu sau này.</h2>
+              <h2>Luồng nghiệp vụ thanh toán trực tiếp, rõ ràng và có đối soát.</h2>
               <p>
-                Phần frontend hiện dùng mock data để trình bày giao diện. Khi backend hoàn thiện,
-                mỗi bước có thể lấy dữ liệu từ products, contracts, escrow, transactions và reviews.
+                Mỗi bước sử dụng dữ liệu sản phẩm, hợp đồng, thanh toán trực tiếp, giao nhận và đánh giá để theo dõi xuyên suốt giao dịch.
               </p>
             </motion.div>
 

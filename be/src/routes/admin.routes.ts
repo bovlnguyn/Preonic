@@ -11,15 +11,10 @@ import {
   getDisputeDetail,
   resolveDispute,
   getTransactions,
-  getCommissions,
+  getFees,
   getSystemLogs,
   getSystemLogDetail,
 } from '../controller/admin.controller';
-import {
-  getAdminWithdrawals,
-  completeAdminWithdrawal,
-  rejectAdminWithdrawal,
-} from '../controller/withdrawal.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
 import {
   validateResolveDispute,
@@ -72,11 +67,7 @@ router.patch(
 );
 
 router.get('/transactions', getTransactions as RequestHandler);
-router.get('/commissions', getCommissions as RequestHandler);
-
-router.get('/withdrawals', getAdminWithdrawals as RequestHandler);
-router.patch('/withdrawals/:id/complete', completeAdminWithdrawal as RequestHandler);
-router.patch('/withdrawals/:id/reject', rejectAdminWithdrawal as RequestHandler);
+router.get('/fees', getFees as RequestHandler);
 
 router.get('/system-logs', getSystemLogs as RequestHandler);
 router.get('/system-logs/:id', validateSystemLogIdParam as RequestHandler[], getSystemLogDetail as RequestHandler);

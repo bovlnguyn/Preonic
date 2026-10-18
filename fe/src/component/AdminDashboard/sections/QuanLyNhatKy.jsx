@@ -5,7 +5,6 @@ import { useToast } from "../../../contexts/ToastContext";
 const CATEGORY_META = {
   auth:     { label: "Đăng nhập",  cls: "adm-badge-blue" },
   contract: { label: "Hợp đồng",   cls: "adm-badge-purple" },
-  escrow:   { label: "Ký quỹ",     cls: "adm-badge-green" },
   dispute:  { label: "Tranh chấp", cls: "adm-badge-yellow" },
   payment:  { label: "Thanh toán", cls: "adm-badge-blue" },
   cron:     { label: "Cron job",   cls: "adm-badge-gray" },
@@ -22,7 +21,6 @@ const CATEGORY_OPTIONS = [
   { val: "", label: "Tất cả danh mục" },
   { val: "auth", label: "Đăng nhập" },
   { val: "contract", label: "Hợp đồng" },
-  { val: "escrow", label: "Ký quỹ" },
   { val: "dispute", label: "Tranh chấp" },
   { val: "payment", label: "Thanh toán" },
   { val: "cron", label: "Cron job" },
@@ -81,7 +79,7 @@ export default function QuanLyNhatKy() {
         <div>
           <h1 className="adm-page-title">Nhật ký hệ thống</h1>
           <p className="adm-page-subtitle">
-            Theo dõi hành động quan trọng (đăng nhập, hợp đồng, ký quỹ, tranh chấp), lỗi hệ thống và hoạt động của từng người dùng.
+            Theo dõi hành động quan trọng (đăng nhập, hợp đồng, thanh toán trực tiếp, phí dịch vụ, tranh chấp), lỗi hệ thống và hoạt động của từng người dùng.
             Log được lưu trong 30 ngày, tự động xóa sau đó.
           </p>
         </div>

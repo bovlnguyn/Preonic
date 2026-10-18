@@ -1,4 +1,5 @@
 import React, { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 
 // Fix 08: chỉ tải code của route Farmer khi route đó thực sự được mở.
@@ -13,9 +14,6 @@ const FarmerOverview = lazy(() => import('../component/FarmerDashboard/pages/Far
 const FarmerCrops = lazy(() => import('../component/FarmerDashboard/pages/FarmerCrops'));
 const FarmerContracts = lazy(() => import('../component/FarmerDashboard/pages/FarmerContracts'));
 const FarmerOrders = lazy(() => import('../component/FarmerDashboard/pages/FarmerOrders'));
-const FarmerEscrow = lazy(() => import('../component/FarmerDashboard/pages/FarmerEscrow'));
-const FarmerWallet = lazy(() => import('../component/FarmerDashboard/pages/FarmerWallet'));
-const FarmerFinance = lazy(() => import('../component/FarmerDashboard/pages/FarmerFinance'));
 const FarmerRatings = lazy(() => import('../component/FarmerDashboard/pages/FarmerRatings'));
 const FarmerWeatherInsurance = lazy(() => import('../component/FarmerDashboard/pages/FarmerWeatherInsurance'));
 const FarmerCreateProduct = lazy(() => import('../component/FarmerDashboard/pages/FarmerCreateProduct'));
@@ -46,10 +44,8 @@ const farmerRoutes = [
       { path: 'contracts', element: <FarmerContracts /> },
       { path: 'contracts/:id', element: <ContractDetailView /> },
       { path: 'orders', element: <FarmerOrders /> },
-      { path: 'escrow', element: <FarmerEscrow /> },
-      { path: 'wallet', element: <FarmerWallet /> },
       { path: 'billing', element: <BillingCenter /> },
-      { path: 'finance', element: <FarmerFinance /> },
+      { path: 'finance', element: <Navigate to="../billing" replace /> },
       { path: 'ratings', element: <FarmerRatings /> },
       { path: 'weather-insurance', element: <FarmerWeatherInsurance /> },
       { path: 'create-product', element: <FarmerCreateProduct /> },

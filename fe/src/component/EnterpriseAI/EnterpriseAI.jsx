@@ -20,13 +20,13 @@ import "./EnterpriseAI.css";
 const suggestions = [
   "Gợi ý nguồn cung xoài trong tháng 7 ở miền Tây",
   "So sánh farmer nào phù hợp để ký hợp đồng 30 tấn gạo",
-  "Dự báo rủi ro giao hàng khi đặt cọc sầu riêng Đắk Lắk",
+  "Dự báo rủi ro giao hàng cho hợp đồng sầu riêng Đắk Lắk",
   "Tóm tắt sản phẩm có chứng chỉ VietGAP và rating cao",
 ];
 
 const aiInsights = [
   { icon: FiSearch, title: "Tìm nguồn cung thông minh", desc: "Gợi ý sản phẩm theo sản lượng, vùng miền, mùa vụ và lịch sử giao dịch." },
-  { icon: FiShield, title: "Cảnh báo rủi ro đặt cọc", desc: "Mô phỏng rủi ro dựa trên trạng thái hợp đồng, giao hàng và uy tín farmer." },
+  { icon: FiShield, title: "Cảnh báo rủi ro thanh toán", desc: "Mô phỏng rủi ro dựa trên trạng thái hợp đồng, giao hàng và uy tín farmer." },
   { icon: FiTrendingUp, title: "Phân tích xu hướng giá", desc: "Hỗ trợ doanh nghiệp so sánh giá mock theo khu vực và thời điểm thu hoạch." },
 ];
 
@@ -47,7 +47,7 @@ function EnterpriseAI() {
 
   const quickReply = useMemo(() => {
     if (!prompt.trim()) return "Hãy nhập nhu cầu thu mua để AI mô phỏng câu trả lời.";
-    return `Dựa trên nhu cầu “${prompt}”, hệ thống có thể ưu tiên nguồn cung có chứng chỉ rõ ràng, rating từ 4.7 trở lên, khu vực gần kho và hỗ trợ escrow để giảm rủi ro đặt cọc.`;
+    return `Dựa trên nhu cầu “${prompt}”, hệ thống có thể ưu tiên nguồn cung có chứng chỉ rõ ràng, rating từ 4.7 trở lên, khu vực gần kho và lịch thanh toán phù hợp tiến độ giao hàng.`;
   }, [prompt]);
 
   const handleSubmit = (e) => {
@@ -151,12 +151,12 @@ function EnterpriseAI() {
             <span className="ea-eyebrow ea-eyebrow--blue"><FiBarChart2 /> AI dashboard preview</span>
             <h2>Backend có thể nối AI với dữ liệu nào?</h2>
             <p>
-              Product API để lấy nguồn cung, Contract API để đọc đề xuất hợp đồng, Review API để đánh giá uy tín farmer, Transaction/Escrow API để phân tích rủi ro thanh toán.
+              Product API để lấy nguồn cung, Contract API để đọc đề xuất hợp đồng, Review API để đánh giá uy tín farmer và Direct Payment API để phân tích tiến độ thanh toán.
             </p>
           </div>
           <div className="ea-preview-list">
             <span><FiPackage /> Product matching</span>
-            <span><FiShield /> Escrow risk scoring</span>
+            <span><FiShield /> Payment risk scoring</span>
             <span><FiActivity /> Delivery performance</span>
           </div>
         </section>

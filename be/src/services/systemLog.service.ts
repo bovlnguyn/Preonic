@@ -8,7 +8,7 @@ const repo = () => AppDataSource.getRepository(SystemLog);
 
 export const SYSTEM_LOG_RETENTION_DAYS = 30;
 
-export type LogCategory = 'auth' | 'contract' | 'escrow' | 'dispute' | 'payment' | 'cron' | 'api';
+export type LogCategory = 'auth' | 'contract' | 'dispute' | 'payment' | 'cron' | 'api';
 
 export interface LogActionParams {
   category: LogCategory;

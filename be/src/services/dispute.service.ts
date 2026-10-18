@@ -1,7 +1,5 @@
 import { AppDataSource } from '../config/database';
 import { Contract } from '../models/Contract.entity';
-import { Escrow } from '../models/Escrow.entity';
-import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { Dispute } from '../models/Dispute.entity';
 import { DisputeEvidence } from '../models/DisputeEvidence.entity';
 import { Notification } from '../models/Notification.entity';
@@ -9,7 +7,6 @@ import { makeError } from '../utils/error.util';
 import { notifyContractEmail as notifyEmail } from '../utils/notify.util';
 import {
   lockByIdOrFail,
-  lockOne,
   runLockedTransaction,
 } from '../utils/transaction-lock.util';
 
@@ -17,7 +14,6 @@ const disputeRepo = () => AppDataSource.getRepository(Dispute);
 
 export interface CreateDisputeDto {
   contractId: string;
-  milestoneStep?: number;
   reason: string;
   evidenceUrls?: string[];
   evidenceFiles?: Array<{
@@ -27,8 +23,6 @@ export interface CreateDisputeDto {
 }
 
 const DISPUTABLE_CONTRACT_STATUSES = ['active', 'disputed'];
-const DISPUTABLE_ESCROW_STATUSES = ['active', 'disputed'];
-const DISPUTABLE_MILESTONE_STATUSES = ['pending', 'waiting_confirmation', 'disputed'];
 
 const normalizeEvidenceUrls = (value?: string[]) => {
   if (!Array.isArray(value)) return [];
@@ -101,13 +95,11 @@ export const createDispute = async (
   const result = await runLockedTransaction(
     async (manager) => {
       const txContractRepo = manager.getRepository(Contract);
-      const txEscrowRepo = manager.getRepository(Escrow);
-      const txMilestoneRepo = manager.getRepository(EscrowMilestone);
       const txDisputeRepo = manager.getRepository(Dispute);
       const txEvidenceRepo = manager.getRepository(DisputeEvidence);
       const txNotificationRepo = manager.getRepository(Notification);
 
-      // Contract remains the business mutex for both payment architectures.
+      // Contract is the business mutex for delivery, payment and disputes.
       const contract = await lockByIdOrFail(
         manager,
         Contract,
@@ -128,6 +120,10 @@ export const createDispute = async (
         throw makeError('Chi co the tao tranh chap voi hop dong dang hoat dong', 400);
       }
 
+      if (contract.paymentFlow !== 'direct_v2') {
+        throw makeError('Hop dong cu dang cho chuyen doi du lieu thanh toan', 409);
+      }
+
       // One active dispute per Contract, regardless of payment architecture.
       const existingActiveDispute = await txDisputeRepo.findOne({
         where: [
@@ -144,55 +140,6 @@ export const createDispute = async (
         );
       }
 
-      let escrow: Escrow | null = null;
-      let milestone: EscrowMilestone | null = null;
-
-      if (contract.paymentFlow === 'direct_v2') {
-        // Direct V2 has no escrow milestones and Preonic does not custody funds.
-        if (dto.milestoneStep !== undefined && dto.milestoneStep !== null) {
-          throw makeError(
-            'Hop dong thanh toan truc tiep khong su dung milestone ky quy',
-            400
-          );
-        }
-      } else {
-        escrow = await lockOne(manager, Escrow, { contractId: contract.id });
-        if (!escrow) {
-          throw makeError(
-            'Hop dong chua co ky quy, khong the tao tranh chap theo milestone',
-            400
-          );
-        }
-
-        if (!DISPUTABLE_ESCROW_STATUSES.includes(escrow.status)) {
-          throw makeError(
-            'Ky quy hien tai khong o trang thai co the tao tranh chap',
-            400
-          );
-        }
-
-        if (dto.milestoneStep !== undefined && dto.milestoneStep !== null) {
-          const step = Number(dto.milestoneStep);
-
-          if (!Number.isInteger(step) || step < 1) {
-            throw makeError('Moc milestone khong hop le', 400);
-          }
-
-          milestone = await lockOne(manager, EscrowMilestone, {
-            escrowId: escrow.id,
-            step,
-          });
-
-          if (!milestone) {
-            throw makeError('Khong tim thay milestone can tranh chap', 404);
-          }
-
-          if (!DISPUTABLE_MILESTONE_STATUSES.includes(milestone.status)) {
-            throw makeError('Milestone hien tai khong the tao tranh chap', 400);
-          }
-        }
-      }
-
       const againstUserId = getPartnerId(contract, userId);
       if (!againstUserId) {
         throw makeError('Khong xac dinh duoc doi tac trong hop dong', 400);
@@ -201,8 +148,6 @@ export const createDispute = async (
       const dispute = await txDisputeRepo.save(
         txDisputeRepo.create({
           contractId: contract.id,
-          escrowId: escrow?.id ?? null,
-          milestoneStep: milestone?.step ?? null,
           raisedBy: userId,
           raisedByRole: roleInContract,
           againstUserId,
@@ -228,25 +173,12 @@ export const createDispute = async (
       contract.updatedBy = userId;
       await txContractRepo.save(contract);
 
-      if (escrow) {
-        escrow.status = 'disputed';
-        await txEscrowRepo.save(escrow);
-      }
-
-      if (milestone) {
-        milestone.status = 'disputed';
-        await txMilestoneRepo.save(milestone);
-      }
-
       const title = 'Hop dong co tranh chap moi';
-      const directNote = contract.paymentFlow === 'direct_v2'
-        ? ' Preonic se ghi nhan va xu ly tranh chap thuong mai; he thong khong tu dong thu hoi tien da chuyen truc tiep.'
-        : '';
+      const directNote = ' Preonic se ghi nhan va xu ly tranh chap thuong mai; he thong khong tu dong thu hoi tien da chuyen truc tiep.';
       const message =
         `${roleInContract === 'farmer' ? contract.farmerName || 'Nong dan' : contract.enterpriseName || 'Doanh nghiep'} ` +
         `da tao tranh chap cho hop dong ${contract.contractCode}` +
-        `${milestone ? ` tai moc ${milestone.step} - ${milestone.name}` : ''}. ` +
-        `Ly do: ${reason}.${directNote}`;
+        `. Ly do: ${reason}.${directNote}`;
 
       await txNotificationRepo.save(
         txNotificationRepo.create({
@@ -279,7 +211,7 @@ export const createDispute = async (
   // Side effect outside the transaction: retry-safe.
   const createdDispute = await disputeRepo().findOne({
     where: { id: result.disputeId },
-    relations: ['contract', 'escrow', 'raisedByUser', 'againstUser', 'evidences'],
+    relations: ['contract', 'raisedByUser', 'againstUser', 'evidences'],
   });
 
   if (!createdDispute) {
@@ -304,7 +236,7 @@ export const getDisputeForUser = async (
 ) => {
   const dispute = await disputeRepo().findOne({
     where: { id: disputeId },
-    relations: ['contract', 'escrow', 'raisedByUser', 'againstUser', 'evidences'],
+    relations: ['contract', 'raisedByUser', 'againstUser', 'evidences'],
   });
 
   if (!dispute) {
@@ -338,8 +270,7 @@ export const listDisputesForUser = async (
     : 1;
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
 
-  // List view chỉ lấy relation thực sự được format ra response. Escrow/user relation
-  // chỉ cần ở detail/resolution flow, tránh join thừa cho mỗi dòng danh sách.
+  // List view chỉ lấy relation thực sự được format ra response để tránh join thừa.
   const qb = disputeRepo()
     .createQueryBuilder('dispute')
     .leftJoinAndSelect('dispute.contract', 'contract')

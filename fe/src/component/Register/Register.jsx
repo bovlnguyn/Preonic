@@ -219,7 +219,7 @@ const PrivacyModal = () => (
       <div style={{ padding:'24px 32px', overflowY:'auto', flex:1 }}>
         {[
           { title:'Thông tin chúng tôi thu thập', content:'Họ tên, email, số điện thoại, địa chỉ + dữ liệu hoạt động trên nền tảng + dữ liệu kỹ thuật (IP, thiết bị).' },
-          { title:'Mục đích sử dụng', content:'Xác minh tài khoản, xử lý giao dịch Escrow, gửi thông báo hợp đồng, cải thiện trải nghiệm, tuân thủ pháp luật.' },
+          { title:'Mục đích sử dụng', content:'Xác minh tài khoản, xử lý thanh toán hợp đồng và phí dịch vụ, gửi thông báo, cải thiện trải nghiệm, tuân thủ pháp luật.' },
           { title:'Chia sẻ thông tin', bold:'không bán', content1:'PreOnic ', content2:' thông tin của bạn. Chỉ chia sẻ với đối tác giao dịch + đơn vị thanh toán + cơ quan nhà nước khi có yêu cầu hợp pháp.' },
           { title:'Bảo mật', content:'Mã hóa SSL 256-bit, mật khẩu băm bcrypt, kiểm tra bảo mật định kỳ.' },
           { title:'Liên hệ', content:'privacy@preonic.vn', boldAll: true },
@@ -527,7 +527,7 @@ và{' '}
                 <span className="feature__icon"><IconShield /></span>
                 <div>
                   <h4>Giao dịch an toàn</h4>
-                  <p>Ký quỹ Escrow bảo lãnh 100%, không lo mất tiền.</p>
+                  <p>Thanh toán trực tiếp theo QR và mã riêng của từng hợp đồng.</p>
                 </div>
               </div>
               <div className="feature">

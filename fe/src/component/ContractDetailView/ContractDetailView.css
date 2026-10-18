@@ -183,7 +183,6 @@
 
 .cdv-badge--active,
 .cdv-badge--completed,
-.cdv-badge--approved { background: #f0fdf4; color: #15803d; }
 .cdv-badge--pending,
 .cdv-badge--draft,
 .cdv-badge--cancel_pending { background: #fffbeb; color: #b45309; }
@@ -594,4 +593,24 @@
 
 .cdv-page--enterprise .cdv-modal__field textarea:focus {
   border-color: #3b82f6;
+}
+.cdv-payment-migration-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px 18px;
+  border: 1px solid #f59e0b;
+  border-radius: 12px;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.cdv-payment-migration-notice svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.cdv-payment-migration-notice p {
+  margin: 4px 0 0;
 }

@@ -26,7 +26,6 @@ const REQUIRED_SCHEMA: SchemaRequirement[] = [
             "Role",
             "AuthProvider",
             "IsActive",
-            "VirtualBalance",
             "ReputationScore",
             "TotalRatings",
         ],
@@ -39,8 +38,8 @@ const REQUIRED_SCHEMA: SchemaRequirement[] = [
             "ProductId",
             "CreatedBy",
             "Name",
-            "Price",
-            "Quantity",
+            "PriceMin",
+            "TotalQuantity",
             "Remaining",
             "PriceUnit",
             "PlantDate",
@@ -57,7 +56,8 @@ const REQUIRED_SCHEMA: SchemaRequirement[] = [
             "EnterpriseId",
             "ProductId",
             "Status",
-            "EscrowStatus",
+            "FirstPaymentPercentage",
+            "PaymentFlow",
             "PaidAmount",
             "RemainingAmount",
             "DeliveryStatus",
@@ -66,12 +66,119 @@ const REQUIRED_SCHEMA: SchemaRequirement[] = [
 
 
     {
-        table: "PaymentTransactions",
+        table: "DirectGoodsPayments",
         columns: [
-            "TransactionId",
-            "Type",
+            "GoodsPaymentId",
+            "ContractId",
+            "PayerUserId",
+            "PayeeUserId",
+            "BankAccountId",
+            "Amount",
             "Status",
-            "PaymentMethod",
+            "TransferContent",
+            "ConfirmationMethod",
+            "ConfirmedAt",
+            "ConfirmedBy",
+        ],
+    },
+
+    {
+        table: "UserSettlementBankAccounts",
+        columns: [
+            "BankAccountId",
+            "UserId",
+            "BankCode",
+            "AccountNumberCiphertext",
+            "AccountNumberIv",
+            "AccountNumberAuthTag",
+            "EncryptionKeyVersion",
+            "AccountNumberFingerprint",
+            "IsDefault",
+            "Status",
+        ],
+    },
+
+    {
+        table: "PlatformFeePolicies",
+        columns: [
+            "FeePolicyId",
+            "BuyerFeeBps",
+            "SellerFeeBps",
+            "IsActive",
+            "EffectiveFrom",
+            "EffectiveTo",
+        ],
+    },
+
+    {
+        table: "ContractFeeTerms",
+        columns: [
+            "ContractFeeTermsId",
+            "ContractId",
+            "FeePolicyId",
+            "BuyerFeeBps",
+            "SellerFeeBps",
+        ],
+    },
+
+    {
+        table: "PlatformFeeAccounts",
+        columns: [
+            "FeeAccountId",
+            "UserId",
+            "OutstandingAmount",
+            "OverdueAmount",
+            "Status",
+        ],
+    },
+
+    {
+        table: "PlatformFeeStatements",
+        columns: [
+            "FeeStatementId",
+            "UserId",
+            "AmountDueSnapshot",
+            "AmountPaid",
+            "Status",
+        ],
+    },
+
+    {
+        table: "PlatformFeeLedgerEntries",
+        columns: ["FeeLedgerEntryId", "UserId", "Direction", "Amount", "Status"],
+    },
+
+    {
+        table: "PlatformFeePayments",
+        columns: [
+            "FeePaymentId",
+            "UserId",
+            "Amount",
+            "Provider",
+            "ProviderPaymentId",
+            "Status",
+            "TransferContent",
+        ],
+    },
+
+    {
+        table: "PlatformFeePaymentEvents",
+        columns: [
+            "FeePaymentEventId",
+            "FeePaymentId",
+            "Provider",
+            "ProviderEventId",
+            "PayloadHash",
+        ],
+    },
+
+    {
+        table: "PlatformFeePaymentApplications",
+        columns: [
+            "FeePaymentApplicationId",
+            "FeePaymentId",
+            "FeeLedgerEntryId",
+            "Amount",
         ],
     },
 

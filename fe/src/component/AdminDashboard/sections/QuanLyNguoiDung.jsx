@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import adminService from "../../../services/admin.service";
-import { formatMoney } from "../../../hooks/useApiData";
 import { useToast } from "../../../contexts/ToastContext";
 
 const ROLE_LABELS = { farmer: "Nông dân", enterprise: "Doanh nghiệp" };
@@ -111,7 +110,6 @@ export default function QuanLyNguoiDung() {
                     <th>Email</th>
                     <th>Vai trò</th>
                     <th>Trạng thái</th>
-                    <th>Số dư ví</th>
                     <th>Ngày tham gia</th>
                     <th>Hành động</th>
                   </tr>
@@ -138,7 +136,6 @@ export default function QuanLyNguoiDung() {
                           {u.isActive ? "Hoạt động" : "Vô hiệu hóa"}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 600, color: "#1d4ed8" }}>{formatMoney(u.virtualBalance || 0)}</td>
                       <td style={{ color: "#64748b" }}>{fmtDate(u.createdAt)}</td>
                       <td>
                         <div style={{ display: "flex", gap: 6 }}>
@@ -197,7 +194,6 @@ export default function QuanLyNguoiDung() {
                   <div className="adm-detail-row"><span className="adm-detail-label">Xác minh email</span><span className="adm-detail-val">{selectedUser.isVerified ? "Đã xác minh" : "Chưa xác minh"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Số điện thoại</span><span className="adm-detail-val">{selectedUser.phone || "—"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Tỉnh/TP</span><span className="adm-detail-val">{selectedUser.province || "—"}</span></div>
-                  <div className="adm-detail-row"><span className="adm-detail-label">Số dư ví</span><span className="adm-detail-val" style={{ color: "#1d4ed8" }}>{formatMoney(selectedUser.virtualBalance || 0)}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Điểm uy tín</span><span className="adm-detail-val">{Number(selectedUser.totalRatings || 0) > 0 ? `${Number(selectedUser.reputationScore || 0).toFixed(1)} / 5.0` : "Chưa có đánh giá"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Hợp đồng liên quan</span><span className="adm-detail-val">{selectedUser.contractCount ?? "—"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Giao dịch hoàn thành</span><span className="adm-detail-val">{selectedUser.transactionCount ?? "—"}</span></div>

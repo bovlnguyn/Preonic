@@ -98,9 +98,9 @@ function FarmerHome() {
         icon: FiTrendingUp,
       },
       {
-        label: "Bảo vệ giao dịch",
-        value: `${COMPANY.COMMISSION_RATE}%`,
-        note: "Phí trung gian khi ký hợp đồng",
+        label: "Phí dịch vụ",
+        value: `${COMPANY.SELLER_SERVICE_FEE_RATE}%`,
+        note: "Ghi nhận sau khi xác nhận nhận tiền",
         icon: FiShield,
       },
       {
@@ -117,7 +117,7 @@ function FarmerHome() {
   const quickActions = [
     {
       title: "Vào dashboard",
-      desc: "Theo dõi tổng quan mùa vụ, hợp đồng và ví.",
+      desc: "Theo dõi tổng quan mùa vụ, hợp đồng và thanh toán.",
       icon: FiBarChart2,
       action: () => navigate(ROUTES.FARMER),
       primary: true,
@@ -135,10 +135,10 @@ function FarmerHome() {
       action: () => navigate("/farmer/crops"),
     },
     {
-      title: "Ví & thanh toán",
-      desc: "Kiểm tra giao dịch, đặt cọc và thanh toán.",
+      title: "Thanh toán & phí",
+      desc: "Quản lý tài khoản nhận tiền và bảng kê phí dịch vụ.",
       icon: FiCreditCard,
-      action: () => navigate("/farmer/wallet"),
+      action: () => navigate("/farmer/billing"),
     },
   ];
 
@@ -168,7 +168,7 @@ function FarmerHome() {
   const process = [
     "Đăng mùa vụ với thông tin rõ ràng",
     "Doanh nghiệp tìm kiếm và gửi đề xuất",
-    "Thống nhất hợp đồng, đặt cọc an toàn",
+    "Thống nhất hợp đồng và lịch thanh toán",
     "Giao hàng, nghiệm thu và nhận thanh toán",
   ];
 
@@ -235,7 +235,7 @@ function FarmerHome() {
 
               <div className="frh-panel-list">
                 <span><FiCheckCircle /> Hồ sơ mùa vụ rõ ràng</span>
-                <span><FiShield /> Đặt cọc qua trung gian</span>
+                <span><FiShield /> Thanh toán trực tiếp có mã đối soát</span>
                 <span><FiStar /> Đánh giá đối tác sau giao dịch</span>
               </div>
             </motion.div>
@@ -314,7 +314,7 @@ function FarmerHome() {
               <motion.span variants={fadeUp}>Quy trình giao dịch</motion.span>
               <motion.h2 variants={fadeUp}>Từ mùa vụ đến hợp đồng bao tiêu</motion.h2>
               <motion.p variants={fadeUp}>
-                Farmer không chỉ đăng sản phẩm. Bạn đang xây dựng một hồ sơ cung ứng đáng tin cậy để doanh nghiệp có thể đặt cọc,
+                Farmer không chỉ đăng sản phẩm. Bạn đang xây dựng một hồ sơ cung ứng đáng tin cậy để doanh nghiệp có thể thanh toán trực tiếp,
                 ký hợp đồng và theo dõi đơn hàng minh bạch.
               </motion.p>
               <motion.button type="button" className="frh-btn frh-btn-primary" onClick={() => navigate("/farmer/contracts")} variants={fadeUp}>

@@ -4,7 +4,7 @@ import { User } from './User.entity';
 // Bảng log chung: vừa ghi hành động quan trọng (Level='info'), vừa ghi lỗi hệ thống
 // (Level='warn'/'error') — tránh trùng schema giữa 2 loại và cho phép truy vấn
 // "toàn bộ log của 1 user" (kể cả lỗi họ gây ra) trên cùng 1 bảng. Append-only,
-// không có UpdatedAt, theo đúng pattern của EscrowTransaction.
+// Nhật ký bất biến nên không có UpdatedAt.
 @Entity('SystemLogs')
 @Index(['category', 'createdAt'])
 @Index(['level', 'createdAt'])
@@ -14,7 +14,7 @@ export class SystemLog {
   id: number;
 
   @Column({ name: 'Category', type: 'nvarchar', length: 30 })
-  category: 'auth' | 'contract' | 'escrow' | 'dispute' | 'payment' | 'cron' | 'api';
+  category: 'auth' | 'contract' | 'dispute' | 'payment' | 'cron' | 'api';
 
   @Column({ name: 'Action', type: 'nvarchar', length: 60 })
   action: string;

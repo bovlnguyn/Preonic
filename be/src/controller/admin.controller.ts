@@ -50,7 +50,6 @@ const formatDisputeForAdmin = (dispute: any) => ({
     : null,
   reason: dispute.reason,
   status: dispute.status,
-  milestoneStep: dispute.milestoneStep,
   adminNotes: dispute.adminNotes,
   resolution: dispute.resolution,
   resolvedAt: dispute.resolvedAt,
@@ -224,10 +223,10 @@ export const getTransactions = async (req: Request, res: Response) => {
   }
 };
 
-export const getCommissions = async (req: Request, res: Response) => {
+export const getFees = async (req: Request, res: Response) => {
   try {
     const { page, limit, search, status } = req.query;
-    const result = await adminService.getCommissions({
+    const result = await adminService.getFees({
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       search: search as string,
@@ -236,12 +235,12 @@ export const getCommissions = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      data: result.commissions,
+      data: result.fees,
       pagination: result.pagination,
       stats: result.stats,
     });
   } catch (err: any) {
-    sendError(res, err, 'Lấy danh sách hoa hồng thất bại');
+    sendError(res, err, 'Lấy sổ phí nền tảng thất bại');
   }
 };
 

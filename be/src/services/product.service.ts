@@ -6,8 +6,6 @@ import { ProductCommitment } from '../models/ProductCommitment.entity';
 import { Review } from '../models/Review.entity';
 import { User } from '../models/User.entity';
 import { Contract } from '../models/Contract.entity';
-import { Escrow } from '../models/Escrow.entity';
-import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { PRODUCT_CONFIG } from '../constants';
 import { makeError } from '../utils/error.util';
 import { lockByIdOrFail, runLockedTransaction } from '../utils/transaction-lock.util';
@@ -28,22 +26,18 @@ const commitRepo    = () => AppDataSource.getRepository(ProductCommitment);
 const reviewRepo    = () => AppDataSource.getRepository(Review);
 const userRepo      = () => AppDataSource.getRepository(User);
 const contractRepo  = () => AppDataSource.getRepository(Contract);
-const milestoneRepo = () => AppDataSource.getRepository(EscrowMilestone);
 
-// Moc 4 (Kiem tra chat luong) hoan tat = doanh nghiep da thuc su nhan hang.
-// Chi doanh nghiep da tung nhan hang cua san pham nay (o bat ky hop dong nao)
-// moi duoc danh gia — tranh review ao tu nguoi chua tung giao dich.
-const RECEIVED_GOODS_MILESTONE_STEP = 4;
-
+// Product reviews use the same direct-settlement completion invariant as partner
+// ratings. This prevents reviews from accounts that never completed a purchase.
 const hasReceivedGoods = async (productId: string, enterpriseId: string) => {
-  const received = await milestoneRepo()
-    .createQueryBuilder('milestone')
-    .innerJoin(Escrow, 'escrow', 'escrow.id = milestone.escrowId')
-    .innerJoin(Contract, 'contract', 'contract.id = escrow.contractId')
+  const received = await contractRepo()
+    .createQueryBuilder('contract')
     .where('contract.productId = :productId', { productId })
     .andWhere('contract.enterpriseId = :enterpriseId', { enterpriseId })
-    .andWhere('milestone.step = :step', { step: RECEIVED_GOODS_MILESTONE_STEP })
-    .andWhere('milestone.status = :status', { status: 'completed' })
+    .andWhere("contract.status = 'completed'")
+    .andWhere("contract.deliveryStatus = 'delivered'")
+    .andWhere('contract.paidAmount >= contract.totalValue')
+    .andWhere('contract.remainingAmount <= 0')
     .getOne();
 
   return Boolean(received);
@@ -51,11 +45,11 @@ const hasReceivedGoods = async (productId: string, enterpriseId: string) => {
 
 // Trạng thái hợp đồng đã vượt qua đề xuất ban đầu ('draft') và chưa bị hủy —
 // một khi tồn tại, sản phẩm liên quan không còn được sửa/xóa nữa.
-const LOCKED_CONTRACT_STATUSES = ['pending', 'approved', 'active', 'cancel_pending', 'completed', 'disputed'];
+const LOCKED_CONTRACT_STATUSES = ['pending', 'active', 'cancel_pending', 'completed', 'disputed'];
 
 // So hop dong hien tren Product Detail chi tinh cac hop dong da duoc ky du hai ben
 // hoac dang/da thuc hien. Draft/pending/cancelled khong duoc tinh la kinh nghiem hop tac.
-const SELLER_EXPERIENCE_STATUSES = ['approved', 'active', 'cancel_pending', 'completed', 'disputed'];
+const SELLER_EXPERIENCE_STATUSES = ['active', 'cancel_pending', 'completed', 'disputed'];
 
 const hydrateCropProgress = <T extends Product>(product: T): T => {
   product.progress = calculateCropProgress(product.plantDate, product.expectedDate);
@@ -754,7 +748,7 @@ export const addReview = async (
 
   if (!(await hasReceivedGoods(productId, reviewerId))) {
     throw makeError(
-      'Bạn cần nhận hàng (hoàn tất mốc Kiểm tra chất lượng) ở một hợp đồng với sản phẩm này trước khi đánh giá',
+      'Bạn cần hoàn tất nhận hàng và thanh toán cho sản phẩm này trước khi đánh giá',
       403
     );
   }

@@ -37,8 +37,8 @@ const supportAreas = [
   },
   {
     icon: FiShield,
-    title: "Escrow và thanh toán",
-    description: "Hiểu quy trình đặt cọc, trạng thái thanh toán và các bước xử lý khi phát sinh vấn đề.",
+    title: "Thanh toán hợp đồng và phí",
+    description: "Hiểu quy trình chuyển tiền trực tiếp, trạng thái thanh toán và các bước xử lý khi phát sinh vấn đề.",
   },
   {
     icon: FiMessageCircle,
@@ -211,7 +211,7 @@ function Contact() {
 
               <motion.div className="pc-login-reasons" variants={stagger}>
                 <motion.div variants={fadeUp}><FiLock /><span>Xác định đúng người dùng và vai trò</span></motion.div>
-                <motion.div variants={fadeUp}><FiShield /><span>Bảo vệ thông tin hợp đồng, ví và thanh toán</span></motion.div>
+                <motion.div variants={fadeUp}><FiShield /><span>Bảo vệ thông tin hợp đồng và thanh toán</span></motion.div>
                 <motion.div variants={fadeUp}><FiCheckCircle /><span>Liên kết yêu cầu với dữ liệu cần xử lý</span></motion.div>
               </motion.div>
             </motion.div>
@@ -224,7 +224,7 @@ function Contact() {
                     <option value="account">Tài khoản và hồ sơ</option>
                     <option value="product">Sản phẩm và nguồn cung</option>
                     <option value="contract">Hợp đồng và đơn hàng</option>
-                    <option value="payment">Escrow, ví và thanh toán</option>
+                    <option value="payment">Thanh toán hợp đồng và phí dịch vụ</option>
                     <option value="other">Vấn đề khác</option>
                   </select>
                 </label>

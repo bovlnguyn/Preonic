@@ -30,7 +30,7 @@ const buildDto = (body: any) => {
     farmLocation: body.farmLocation ?? terms.farmLocation,
     deliveryAddress: body.deliveryAddress ?? terms.deliveryAddress,
 
-    depositPercentage: toNumber(body.depositPercentage ?? payment.depositPercentage),
+    firstPaymentPercentage: toNumber(body.firstPaymentPercentage ?? payment.firstPaymentPercentage),
 
     insuranceEnabled: body.insuranceEnabled ?? insurance.enabled ?? Boolean(insuranceEnterprise),
     insuranceProvider: insuranceEnterprise?.insuranceCompany ?? (body.insuranceProvider ?? insurance.provider),
@@ -69,10 +69,7 @@ const formatContract = (contract: any) => ({
   pricePerUnit: contract.pricePerUnit,
   totalValue: contract.totalValue,
 
-  commission: contract.commission,
-  commissionRate: contract.commissionRate,
-  depositAmount: contract.depositAmount,
-  depositPercentage: contract.depositPercentage,
+  firstPaymentPercentage: contract.firstPaymentPercentage,
 
   paymentTerms: contract.paymentTerms,
   deliveryDate: contract.deliveryDate,
@@ -92,7 +89,6 @@ const formatContract = (contract: any) => ({
   insuranceValidTo: contract.insuranceValidTo,
   insuranceRiskSharingTerms: contract.insuranceRiskSharingTerms,
 
-  escrowStatus: contract.escrowStatus,
   deliveryStatus: contract.deliveryStatus,
 
   signedByFarmer: contract.signedByFarmer,

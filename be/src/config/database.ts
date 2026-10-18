@@ -40,7 +40,7 @@ function buildOptions(): DataSourceOptions {
     port,
     username: process.env.DB_USERNAME ?? 'sa',
     password: process.env.DB_PASSWORD ?? '',
-    database: process.env.DB_DATABASE ?? 'preonic',
+    database: process.env.DB_DATABASE ?? 'preonic_v2',
 
     entities: [
       process.env.NODE_ENV === 'production'

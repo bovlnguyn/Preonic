@@ -45,12 +45,12 @@ const workflow = [
   {
     icon: FiFileText,
     title: "Gửi đề xuất hợp đồng",
-    desc: "Tạo đề xuất thu mua, thống nhất sản lượng, giá, lịch giao và điều khoản đặt cọc.",
+    desc: "Tạo đề xuất thu mua, thống nhất sản lượng, giá, lịch giao và lịch thanh toán.",
   },
   {
     icon: FiShield,
-    title: "Giữ cọc minh bạch",
-    desc: "Theo dõi trạng thái escrow để giảm rủi ro cho cả doanh nghiệp và nông dân.",
+    title: "Thanh toán trực tiếp",
+    desc: "Chuyển tiền theo QR và mã riêng của từng hợp đồng, sau đó theo dõi xác nhận từ nông dân.",
   },
   {
     icon: FiStar,
@@ -182,7 +182,7 @@ function EnterpriseHome() {
               <motion.p variants={fadeUp}>
                 Trang chủ doanh nghiệp giúp bạn nắm nhanh cơ hội thu mua trên PreOnic:
                 tìm nông sản theo mùa vụ, kiểm tra nhà cung cấp, tạo hợp đồng và quản lý
-                đặt cọc minh bạch qua dashboard.
+                thanh toán trực tiếp theo tiến độ qua dashboard.
               </motion.p>
 
               <motion.div className="eh-hero__actions" variants={fadeUp}>
@@ -220,7 +220,7 @@ function EnterpriseHome() {
 
               <div className="eh-checklist">
                 <span><FiCheckCircle /> Lọc sản phẩm theo vùng miền</span>
-                <span><FiShield /> Đặt cọc và hợp đồng minh bạch</span>
+                <span><FiShield /> Thanh toán và hợp đồng minh bạch</span>
                 <span><FiStar /> Ưu tiên farmer có hồ sơ uy tín</span>
               </div>
             </motion.div>
@@ -334,7 +334,7 @@ function EnterpriseHome() {
         <section className="eh-container eh-cta">
           <div>
             <span className="eh-kicker">Sẵn sàng thu mua?</span>
-            <h2>Mở dashboard để quản lý hợp đồng, ví và nhà cung cấp.</h2>
+            <h2>Mở dashboard để quản lý hợp đồng, thanh toán và nhà cung cấp.</h2>
           </div>
           <button type="button" className="eh-btn eh-btn--primary" onClick={() => navigate("/enterprise")}>
             Đi đến dashboard <FiArrowRight />

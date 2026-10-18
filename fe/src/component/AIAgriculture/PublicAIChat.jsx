@@ -27,7 +27,7 @@ const welcomeMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    'Xin chào! Tôi là PreOnic AI dành cho khách. Bạn có thể hỏi nhanh về PreOnic, vai trò Farmer/Enterprise, quy trình hợp đồng, ký quỹ hoặc cách đăng ký tài khoản.',
+    'Xin chào! Tôi là PreOnic AI dành cho khách. Bạn có thể hỏi nhanh về PreOnic, vai trò Farmer/Enterprise, quy trình hợp đồng, thanh toán trực tiếp hoặc cách đăng ký tài khoản.',
   createdAt: Date.now(),
 };
 

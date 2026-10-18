@@ -328,8 +328,8 @@ export default function QuanLyKhieuNai() {
 
               <div style={{ background: resolution === "farmer" ? "#dcfce7" : "#dbeafe", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: resolution === "farmer" ? "#166534" : "#1e3a5f" }}>
                 {resolution === "farmer"
-                  ? "Tiền escrow sẽ được giải ngân cho Nông dân."
-                  : "Số tiền còn lại trong escrow sẽ hoàn trả cho Doanh nghiệp."}
+                  ? "Hợp đồng sẽ tiếp tục hoặc hoàn tất theo tiến độ giao hàng và số tiền đã được hai bên xác nhận."
+                  : "Hợp đồng sẽ bị hủy. Khoản đã chuyển trực tiếp (nếu có) phải được hai bên hoàn trả theo phán quyết; PreOnic không tự động thu hồi tiền."}
               </div>
             </div>
             <div className="adm-modal-ft">

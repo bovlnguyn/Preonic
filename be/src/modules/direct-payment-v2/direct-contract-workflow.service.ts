@@ -366,8 +366,6 @@ export const getDirectContractWorkflow = async (
     deliveredAt: contract.deliveredAt,
     paidAmount: Math.round(Number(contract.paidAmount || 0)),
     remainingAmount: Math.max(0, Math.round(Number(contract.remainingAmount || 0))),
-    plan: contract.paymentFlow === 'direct_v2'
-      ? buildDirectPaymentPlan(contract)
-      : [],
+    plan: buildDirectPaymentPlan(contract),
   };
 };

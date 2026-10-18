@@ -48,6 +48,18 @@ const decodeHmacKey = (keyBase64: string): Buffer => {
   return key;
 };
 
+export const validateBankAccountCryptoConfiguration = (params: {
+  encryptionKeyBase64: string;
+  hmacKeyBase64: string;
+  encryptionKeyVersion: number;
+}): void => {
+  decodeEncryptionKey(params.encryptionKeyBase64);
+  decodeHmacKey(params.hmacKeyBase64);
+  if (!Number.isInteger(params.encryptionKeyVersion) || params.encryptionKeyVersion < 1) {
+    throw new Error('PAYMENT_BANK_DATA_ACTIVE_KEY_VERSION must be a positive integer');
+  }
+};
+
 export const normalizeBankAccountNumber = (value: string): string => {
   const normalized = String(value || '').replace(/[\s-]+/g, '').toUpperCase();
   if (!/^[A-Z0-9]{4,34}$/.test(normalized)) {

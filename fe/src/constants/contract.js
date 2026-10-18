@@ -6,7 +6,6 @@
 export const CONTRACT_STATUS_LABEL = {
   draft: 'Nháp — chưa gửi cho nông dân',
   pending: 'Chờ ký xác nhận',
-  approved: 'Đã ký đủ hai bên — chờ khóa ký quỹ',
   active: 'Đang hiệu lực',
   cancel_pending: 'Đang chờ xác nhận hủy',
   completed: 'Hoàn tất',
@@ -28,8 +27,8 @@ export const resolveContractStatusLabel = (contract) => {
 };
 
 export const PAYMENT_TERMS_LABEL = {
-  '50_50': '50% đặt cọc — 50% khi nhận hàng',
-  '30_70': '30% đặt cọc — 70% khi nhận hàng',
+  '50_50': '50% khi hợp đồng có hiệu lực — 50% sau khi nhận hàng',
+  '30_70': '30% khi hợp đồng có hiệu lực — 70% sau khi nhận hàng',
   '100_delivery': '100% khi nhận hàng',
   '100_upfront': '100% trả trước',
   'custom': 'Thanh toán tùy chỉnh',
@@ -38,17 +37,17 @@ export const PAYMENT_TERMS_LABEL = {
 export const resolvePaymentTermsLabel = (contract) => {
   if (!contract) return '';
   if (contract.paymentTerms === 'custom') {
-    const deposit = Number(contract.depositPercentage);
-    if (Number.isFinite(deposit)) {
-      const normalized = Math.min(100, Math.max(0, deposit));
+    const firstPayment = Number(contract.firstPaymentPercentage);
+    if (Number.isFinite(firstPayment)) {
+      const normalized = Math.min(100, Math.max(0, firstPayment));
       const remaining = Math.max(0, 100 - normalized);
-      return `${normalized.toLocaleString('vi-VN')}% đặt cọc — ${remaining.toLocaleString('vi-VN')}% khi nhận hàng`;
+      return `${normalized.toLocaleString('vi-VN')}% khi hợp đồng có hiệu lực — ${remaining.toLocaleString('vi-VN')}% sau khi nhận hàng`;
     }
   }
   return PAYMENT_TERMS_LABEL[contract.paymentTerms] || contract.paymentTerms || 'Chưa cập nhật';
 };
 
-export const CAN_CANCEL_STATUSES = ['pending', 'draft', 'approved', 'active'];
+export const CAN_CANCEL_STATUSES = ['pending', 'draft', 'active'];
 
 export const CANCEL_PENDING_STATUS = 'cancel_pending';
 
@@ -59,7 +58,6 @@ export const CANCEL_PENDING_STATUS = 'cancel_pending';
 const CONTRACT_PROGRESS_BY_STATUS = {
   draft: 0,
   pending: 15,
-  approved: 35,
   active: 65,
   cancel_pending: 65,
   completed: 100,

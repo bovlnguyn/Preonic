@@ -15,21 +15,6 @@ import {
 } from '../modules/direct-payment-v2/direct-contract-workflow.service';
 import { getFeeAccountSummary } from '../modules/direct-payment-v2/fee-ledger.service';
 
-const ensurePaymentBelongsToContract = async (
-  contractId: string,
-  paymentId: string,
-  userId: string
-) => {
-  const payments = await listDirectGoodsPaymentsForContract(contractId, userId);
-  const payment = payments.find((item) => item.id === paymentId);
-  if (!payment) {
-    const error: any = new Error('Không tìm thấy khoản thanh toán trong hợp đồng này');
-    error.statusCode = 404;
-    throw error;
-  }
-  return payment;
-};
-
 export const getDirectContractProgress = async (
   req: AuthRequest,
   res: Response
@@ -39,9 +24,7 @@ export const getDirectContractProgress = async (
       req.params.id,
       req.user!.id
     );
-    const payments = workflow.paymentFlow === 'direct_v2'
-      ? await listDirectGoodsPaymentsForContract(req.params.id, req.user!.id)
-      : [];
+    const payments = await listDirectGoodsPaymentsForContract(req.params.id, req.user!.id);
 
     return res.status(200).json({
       success: true,
@@ -76,13 +59,8 @@ export const getDirectPaymentInstruction = async (
   res: Response
 ) => {
   try {
-    await ensurePaymentBelongsToContract(
-      req.params.id,
-      req.params.paymentId,
-      req.user!.id
-    );
-
     const instruction = await getDirectGoodsPaymentInstruction(
+      req.params.id,
       req.params.paymentId,
       req.user!.id
     );
@@ -101,13 +79,8 @@ export const markDirectPaymentSent = async (
   res: Response
 ) => {
   try {
-    await ensurePaymentBelongsToContract(
-      req.params.id,
-      req.params.paymentId,
-      req.user!.id
-    );
-
     const payment = await markDirectGoodsPaymentSent(
+      req.params.id,
       req.params.paymentId,
       req.user!.id
     );
@@ -127,13 +100,8 @@ export const confirmDirectPaymentReceived = async (
   res: Response
 ) => {
   try {
-    await ensurePaymentBelongsToContract(
-      req.params.id,
-      req.params.paymentId,
-      req.user!.id
-    );
-
     const result = await confirmDirectGoodsPaymentReceived(
+      req.params.id,
       req.params.paymentId,
       req.user!.id
     );

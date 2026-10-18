@@ -115,7 +115,7 @@ function Footer() {
 
             <p className="preonic-footer__description">
               Nền tảng kết nối nông dân và doanh nghiệp, hỗ trợ quản lý nguồn
-              cung, hợp đồng, đặt cọc và uy tín đối tác trong một luồng thống
+              cung, hợp đồng, thanh toán và uy tín đối tác trong một luồng thống
               nhất.
             </p>
 
@@ -169,7 +169,7 @@ function Footer() {
                 <FiLock />
               </span>
               <div>
-                <strong>Đặt cọc minh bạch</strong>
+                <strong>Thanh toán minh bạch</strong>
                 <small>Theo dõi thanh toán trực tiếp, phí dịch vụ và lịch sử giao dịch.</small>
               </div>
             </div>

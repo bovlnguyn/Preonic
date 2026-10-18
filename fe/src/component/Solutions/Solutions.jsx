@@ -46,8 +46,8 @@ const roleContent = {
       },
       {
         icon: FiCreditCard,
-        title: "Ví và thanh toán",
-        description: "Theo dõi khoản đặt cọc, dòng tiền và lịch sử giao dịch ngay trong tài khoản.",
+        title: "Thanh toán và phí dịch vụ",
+        description: "Nhận tiền trực tiếp, quản lý tài khoản ngân hàng và đối soát phí dịch vụ trong tài khoản.",
       },
       {
         icon: FiCloudRain,
@@ -102,8 +102,8 @@ const platformSolutions = [
   },
   {
     icon: FiShield,
-    title: "Thanh toán trung gian",
-    description: "Theo dõi tiền đặt cọc và các mốc thanh toán nhằm giảm rủi ro trong giao dịch.",
+    title: "Thanh toán trực tiếp",
+    description: "Tạo QR và mã chuyển khoản theo từng đợt, theo dõi xác nhận nhận tiền và phí tách riêng.",
   },
   {
     icon: FiTruck,
@@ -141,7 +141,7 @@ const journey = [
   {
     step: "04",
     title: "Thực hiện giao dịch",
-    description: "Hai bên quản lý hợp đồng, đặt cọc, giao hàng, thanh toán và đánh giá.",
+    description: "Hai bên quản lý hợp đồng, lịch thanh toán, giao hàng, xác nhận tiền và đánh giá.",
   },
 ];
 

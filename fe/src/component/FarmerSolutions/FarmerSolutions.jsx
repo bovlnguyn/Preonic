@@ -41,16 +41,16 @@ const solutions = [
     to: "/farmer/contracts",
   },
   {
-    title: "Đặt cọc qua escrow",
-    desc: "Tiền cọc được quản lý trung gian, giúp farmer yên tâm chuẩn bị hàng và doanh nghiệp yên tâm nguồn cung.",
+    title: "Thanh toán trực tiếp",
+    desc: "Nhận tiền hàng vào tài khoản ngân hàng đã đăng ký, theo đúng mã và tiến độ của từng hợp đồng.",
     icon: FiShield,
-    to: "/farmer/escrow",
+    to: "/farmer/billing",
   },
   {
-    title: "Ví & thanh toán",
-    desc: "Theo dõi số dư, thanh toán, lịch sử giao dịch và doanh thu từ các đơn hàng nông sản.",
+    title: "Tài khoản nhận tiền & phí",
+    desc: "Quản lý tài khoản nhận tiền, công nợ phí dịch vụ và bảng kê đối soát theo tháng.",
     icon: FiCreditCard,
-    to: "/farmer/wallet",
+    to: "/farmer/billing",
   },
   {
     title: "Đánh giá đối tác",
@@ -90,7 +90,7 @@ function FarmerSolutions() {
               <motion.h1 variants={fadeUp}>Từ mùa vụ ngoài đồng đến hợp đồng minh bạch trên PreOnic.</motion.h1>
               <motion.p variants={fadeUp}>
                 Farmer không chỉ đăng bán nông sản, mà còn có một bộ công cụ để chuẩn hóa sản phẩm,
-                quản lý hợp đồng, đặt cọc, ví thanh toán, đánh giá đối tác và bảo vệ mùa vụ.
+                quản lý hợp đồng, thanh toán trực tiếp, phí dịch vụ, đánh giá đối tác và bảo vệ mùa vụ.
               </motion.p>
               <motion.div className="fsol-actions" variants={fadeUp}>
                 <button type="button" className="fsol-btn primary" onClick={() => navigate("/farmer")}>Vào dashboard <FiArrowRight /></button>

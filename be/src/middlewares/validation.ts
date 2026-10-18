@@ -1,4 +1,4 @@
-import { body, param, query, validationResult } from 'express-validator';
+import { body, header, param, query, validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
 import { assertStrongPassword } from '../utils/password.util';
 import { cleanupUploadedFiles } from './uploads.middlewares';
@@ -690,7 +690,6 @@ const CONTRACT_PAYMENT_TERMS = ['50_50', '30_70', '100_delivery', '100_upfront',
 const CONTRACT_STATUSES = [
   'draft',
   'pending',
-  'approved',
   'active',
   'cancel_pending',
   'completed',
@@ -718,6 +717,76 @@ export const validateDirectDeliveryNote = [
     .trim()
     .isLength({ max: 500 })
     .withMessage('Ghi chú giao hàng không được vượt quá 500 ký tự'),
+  handleValidationErrors,
+];
+
+/* ============================================================
+ * Direct settlement and platform-fee billing validation
+ * ============================================================ */
+
+export const validateBillingPagination = [
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Số trang không hợp lệ'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Giới hạn bảng kê phải từ 1 đến 100'),
+  handleValidationErrors,
+];
+
+export const validateFeePaymentIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã giao dịch phí không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateCreateFeePayment = [
+  header('Idempotency-Key')
+    .trim()
+    .matches(/^[A-Za-z0-9._:-]{8,128}$/)
+    .withMessage('Idempotency-Key phải dài 8-128 ký tự và có định dạng hợp lệ'),
+  body('statementId')
+    .optional({ values: 'null' })
+    .matches(GUID_REGEX)
+    .withMessage('Mã bảng kê phí không hợp lệ'),
+  body('amount')
+    .optional({ values: 'null' })
+    .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+    .withMessage('Số tiền thanh toán phí phải là số nguyên VND dương'),
+  handleValidationErrors,
+];
+
+export const validateSettlementAccountIdParam = [
+  param('id').matches(GUID_REGEX).withMessage('Mã tài khoản nhận tiền không hợp lệ'),
+  handleValidationErrors,
+];
+
+export const validateSaveSettlementAccount = [
+  body('bankCode')
+    .trim()
+    .matches(/^[A-Za-z0-9._-]{2,30}$/)
+    .withMessage('Mã ngân hàng không hợp lệ'),
+  body('bankName')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Tên ngân hàng không được vượt quá 100 ký tự'),
+  body('accountHolder')
+    .trim()
+    .notEmpty()
+    .withMessage('Vui lòng nhập tên chủ tài khoản')
+    .isLength({ max: 150 })
+    .withMessage('Tên chủ tài khoản không được vượt quá 150 ký tự'),
+  body('accountNumber')
+    .trim()
+    .matches(/^[A-Za-z0-9\s-]{4,40}$/)
+    .withMessage('Số tài khoản ngân hàng không hợp lệ'),
+  body('makeDefault')
+    .optional()
+    .isBoolean()
+    .withMessage('Cờ tài khoản mặc định không hợp lệ')
+    .toBoolean(),
   handleValidationErrors,
 ];
 
@@ -810,19 +879,19 @@ export const validateCreateContract = [
     .isLength({ max: 2000 })
     .withMessage('Ghi chú không được vượt quá 2000 ký tự'),
 
-  body('depositPercentage')
+  body('firstPaymentPercentage')
     .custom((value, { req }) => {
       const paymentTerms = req.body?.paymentTerms;
       const isEmpty = value === undefined || value === null || String(value).trim() === '';
 
       if (paymentTerms === 'custom' && isEmpty) {
-        throw new Error('Vui lòng nhập tỷ lệ đặt cọc tùy chỉnh');
+        throw new Error('Vui lòng nhập tỷ lệ thanh toán đợt đầu');
       }
       if (isEmpty) return true;
 
       const percentage = Number(value);
       if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
-        throw new Error('Tỷ lệ đặt cọc phải nằm trong khoảng 0-100');
+        throw new Error('Tỷ lệ thanh toán đợt đầu phải nằm trong khoảng 0-100');
       }
 
       // Với các điều khoản chuẩn, backend tự quyết định tỷ lệ. Nếu client vẫn gửi
@@ -838,7 +907,7 @@ export const validateCreateContract = [
         expected[paymentTerms] !== undefined &&
         Math.abs(percentage - expected[paymentTerms]) > 0.01
       ) {
-        throw new Error('Tỷ lệ đặt cọc không khớp với điều khoản thanh toán');
+        throw new Error('Tỷ lệ thanh toán đợt đầu không khớp với điều khoản thanh toán');
       }
 
       return true;
@@ -1013,51 +1082,6 @@ export const validateListContracts = [
   handleValidationErrors,
 ];
 
-/* ============================================================
- * Escrow validation
- * Matches escrow.controller.ts + escrow.service.ts business rules
- * ============================================================ */
-
-const ESCROW_STATUSES = ['pending', 'active', 'completed', 'disputed', 'refunded'];
-
-export const validateListEscrows = [
-  query('page').optional().isInt({ min: 1 }).withMessage('Số trang không hợp lệ'),
-  query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Giới hạn ký quỹ không hợp lệ'),
-  query('status').optional().isIn(ESCROW_STATUSES).withMessage('Trạng thái ký quỹ không hợp lệ'),
-  query('contractIds')
-    .optional()
-    .custom((value) => {
-      const ids = String(value).split(',').map((id) => id.trim()).filter(Boolean);
-      if (ids.length > 50) throw new Error('Chỉ được truy vấn tối đa 50 hợp đồng mỗi lần');
-      if (ids.some((id) => !GUID_REGEX.test(id))) throw new Error('Danh sách mã hợp đồng không hợp lệ');
-      return true;
-    }),
-  handleValidationErrors,
-];
-
-export const validateEscrowContractIdParam = [
-  param('contractId').matches(GUID_REGEX).withMessage('Mã hợp đồng không hợp lệ'),
-
-  handleValidationErrors,
-];
-
-export const validateConfirmMilestone = [
-  param('contractId').matches(GUID_REGEX).withMessage('Mã hợp đồng không hợp lệ'),
-
-  param('step')
-    .isInt({ min: 1, max: 5 })
-    .withMessage('Mốc thanh toán không hợp lệ'),
-
-  body('evidence')
-    .optional({ checkFalsy: true })
-    .trim()
-    .isLength({ max: 1000 })
-    .withMessage('Minh chứng không được vượt quá 1000 ký tự'),
-
-  handleValidationErrors,
-];
-
-
 export const validateUserIdParam = [
   param('id').matches(GUID_REGEX).withMessage('Mã người dùng không hợp lệ'),
 
@@ -1086,11 +1110,6 @@ export const validateCreateDispute = [
     .withMessage('Vui lòng chọn hợp đồng cần tạo tranh chấp')
     .matches(GUID_REGEX)
     .withMessage('Mã hợp đồng không hợp lệ'),
-
-  body('milestoneStep')
-    .optional({ checkFalsy: true })
-    .isInt({ min: 1, max: 5 })
-    .withMessage('Mốc milestone không hợp lệ'),
 
   body('reason')
     .trim()

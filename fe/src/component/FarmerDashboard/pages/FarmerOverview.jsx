@@ -23,7 +23,7 @@ function FarmerOverview() {
   const statIcons = {
     'active-products': FiPackage,
     'active-contracts': FiFileText,
-    wallet: FiCreditCard,
+    billing: FiCreditCard,
     reputation: FiStar,
   };
 
@@ -80,8 +80,7 @@ function FarmerOverview() {
       });
   }, []);
 
-  // Don hang tren Overview duoc phan trang o server va chi lay escrow cua chinh
-  // cac contract dang hien thi. Khong con tai toan bo lich su escrow moi lan vao dashboard.
+  // Đơn hàng trên Overview được phân trang tại server theo trạng thái hợp đồng.
   useEffect(() => {
     let alive = true;
 
@@ -154,7 +153,7 @@ function FarmerOverview() {
       tone: 'blue',
     },
     {
-      id: 'wallet',
+      id: 'billing',
       label: 'Phí dịch vụ cần trả',
       value: formatMoney(feesDue),
       change: 'Xem tại Thanh toán & Phí',

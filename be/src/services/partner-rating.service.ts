@@ -2,8 +2,6 @@ import { AppDataSource } from '../config/database';
 import { Contract } from '../models/Contract.entity';
 import { User } from '../models/User.entity';
 import { PartnerRating } from '../models/PartnerRating.entity';
-import { Escrow } from '../models/Escrow.entity';
-import { EscrowMilestone } from '../models/EscrowMilestone.entity';
 import { Product } from '../models/Product.entity';
 import { AppError } from '../middlewares/error.middleware';
 import {
@@ -12,11 +10,11 @@ import {
   isWholeStarRating,
   normalizeReputation,
 } from '../utils/rating.util';
+import { isDirectContractFulfilled } from '../utils/contract-completion.util';
 
 const contractRepo       = () => AppDataSource.getRepository(Contract);
 const userRepo           = () => AppDataSource.getRepository(User);
 const partnerRatingRepo  = () => AppDataSource.getRepository(PartnerRating);
-const milestoneRepo      = () => AppDataSource.getRepository(EscrowMilestone);
 
 export type UserRole = 'farmer' | 'enterprise';
 
@@ -58,21 +56,11 @@ export interface EligiblePartner {
   contracts: EligiblePartnerContract[];
 }
 
-// Moc 4 (Kiem tra chat luong) hoan tat = doanh nghiep da nhan hang va giao hang
-// coi nhu hoan thanh — chi luc nay hai ben moi duoc phep danh gia doi tac.
-const DELIVERY_MILESTONE_STEP = 4;
-
-const hasCompletedDelivery = async (contractId: string): Promise<boolean> => {
-  const milestone = await milestoneRepo()
-    .createQueryBuilder('milestone')
-    .innerJoin(Escrow, 'escrow', 'escrow.id = milestone.escrowId')
-    .where('escrow.contractId = :contractId', { contractId })
-    .andWhere('milestone.step = :step', { step: DELIVERY_MILESTONE_STEP })
-    .andWhere('milestone.status = :status', { status: 'completed' })
-    .getOne();
-
-  return Boolean(milestone);
-};
+// Direct settlement completes a contract only after the buyer accepted delivery
+// and every goods installment was confirmed received by the Farmer. This is the
+// Single eligibility gate for partner ratings after delivery and full payment.
+const hasCompletedDelivery = (contract: Contract): boolean =>
+  isDirectContractFulfilled(contract);
 
 
 const ensureDirection = (role: UserRole, revieweeRole: UserRole): void => {
@@ -167,19 +155,16 @@ export const getEligiblePartners = async (
 ): Promise<EligiblePartner[]> => {
   const contracts = await contractRepo()
     .createQueryBuilder('contract')
-    .innerJoin(Escrow, 'escrow', 'escrow.contractId = contract.id')
-    .innerJoin(
-      EscrowMilestone,
-      'milestone',
-      'milestone.escrowId = escrow.id AND milestone.step = :step AND milestone.status = :status',
-      { step: DELIVERY_MILESTONE_STEP, status: 'completed' }
-    )
     .leftJoinAndSelect('contract.farmer', 'farmer')
     .leftJoinAndSelect('contract.enterprise', 'enterprise')
     .where(
       role === 'farmer' ? 'contract.farmerId = :userId' : 'contract.enterpriseId = :userId',
       { userId }
     )
+    .andWhere("contract.status = 'completed'")
+    .andWhere("contract.deliveryStatus = 'delivered'")
+    .andWhere('contract.paidAmount >= contract.totalValue')
+    .andWhere('contract.remainingAmount <= 0')
     .orderBy('contract.createdAt', 'DESC')
     .getMany();
 
@@ -235,9 +220,9 @@ export const createRating = async (
     throw new AppError('Hợp đồng không tồn tại', 404);
   }
 
-  if (!(await hasCompletedDelivery(contractId))) {
+  if (!hasCompletedDelivery(contract)) {
     throw new AppError(
-      'Chỉ có thể đánh giá đối tác sau khi hoàn thành giao hàng (mốc Kiểm tra chất lượng) ở hợp đồng này',
+      'Chỉ có thể đánh giá đối tác sau khi hợp đồng đã giao hàng và thanh toán hoàn tất',
       400
     );
   }
