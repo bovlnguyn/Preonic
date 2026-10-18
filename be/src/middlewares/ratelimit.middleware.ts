@@ -84,6 +84,18 @@ export const farmerAiLimiter = rateLimit({
   },
 });
 
+export const enterpriseAiLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: Number(process.env.ENTERPRISE_AI_LIMIT_PER_15_MIN || 50),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: 'ENTERPRISE_AI_RATE_LIMITED',
+    message: 'Bạn đã gửi quá nhiều câu hỏi cho PreOnic Enterprise AI. Vui lòng thử lại sau ít phút.',
+  },
+});
+
 
 // Tạo QR thanh toán phí: tránh spam provider / tạo hàng loạt payment pending.
 export const feePaymentCreateLimiter = rateLimit({
@@ -95,6 +107,18 @@ export const feePaymentCreateLimiter = rateLimit({
     success: false,
     code: 'FEE_PAYMENT_RATE_LIMITED',
     message: 'Bạn đã tạo quá nhiều yêu cầu thanh toán phí. Vui lòng thử lại sau.',
+  },
+});
+
+export const bankAccountVerificationLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: Number(process.env.BANK_ACCOUNT_VERIFICATION_LIMIT_PER_15_MIN || 20),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: 'BANK_ACCOUNT_VERIFICATION_RATE_LIMITED',
+    message: 'Bạn đã xác minh quá nhiều lần. Vui lòng thử lại sau ít phút.',
   },
 });
 

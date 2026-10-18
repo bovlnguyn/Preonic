@@ -1,9 +1,42 @@
 .profile-page {
+  --profile-primary: #16a34a;
+  --profile-primary-strong: #15803d;
+  --profile-primary-dark: #052e16;
+  --profile-accent: #84cc16;
+  --profile-soft: #ecfccb;
+  --profile-soft-2: #dcfce7;
+  --profile-wash: #f0fdf4;
+  --profile-border: rgba(22, 163, 74, 0.16);
+  --profile-shadow: rgba(5, 46, 22, 0.07);
   display: grid;
   gap: 20px;
   max-width: 1080px;
   margin: 0 auto;
   padding: clamp(20px, 3vw, 32px);
+}
+
+.profile-page--enterprise {
+  --profile-primary: #2563eb;
+  --profile-primary-strong: #1d4ed8;
+  --profile-primary-dark: #172554;
+  --profile-accent: #38bdf8;
+  --profile-soft: #dbeafe;
+  --profile-soft-2: #e0f2fe;
+  --profile-wash: #eff6ff;
+  --profile-border: rgba(37, 99, 235, 0.18);
+  --profile-shadow: rgba(30, 64, 175, 0.1);
+}
+
+.profile-page--admin {
+  --profile-primary: #0f766e;
+  --profile-primary-strong: #1d4ed8;
+  --profile-primary-dark: #0f2f4f;
+  --profile-accent: #22c55e;
+  --profile-soft: #dbeafe;
+  --profile-soft-2: #dcfce7;
+  --profile-wash: #f0fdfa;
+  --profile-border: rgba(15, 118, 110, 0.18);
+  --profile-shadow: rgba(15, 47, 79, 0.09);
 }
 
 .profile-back-btn {
@@ -29,7 +62,7 @@
   margin: 0 0 6px;
   font-size: clamp(24px, 2.4vw, 32px);
   font-weight: 900;
-  color: #052e16;
+  color: var(--profile-primary-dark);
   letter-spacing: -0.6px;
 }
 
@@ -66,10 +99,10 @@
 }
 
 .profile-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--profile-border);
   background: #ffffff;
   border-radius: 24px;
-  box-shadow: 0 18px 50px rgba(5, 46, 22, 0.06);
+  box-shadow: 0 18px 50px var(--profile-shadow);
   padding: clamp(20px, 3vw, 28px);
 }
 
@@ -89,8 +122,8 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: linear-gradient(135deg, #22c55e, #bef264);
-  color: #052e16;
+  background: linear-gradient(135deg, var(--profile-primary), var(--profile-accent));
+  color: #ffffff;
   font-size: 30px;
   font-weight: 900;
   margin-bottom: 8px;
@@ -154,8 +187,8 @@
   display: inline-flex;
   padding: 4px 12px;
   border-radius: 999px;
-  background: #ecfccb;
-  color: #15803d;
+  background: var(--profile-soft);
+  color: var(--profile-primary-strong);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
@@ -206,7 +239,7 @@
   margin: 0 0 14px;
   font-size: 16px;
   font-weight: 800;
-  color: #052e16;
+  color: var(--profile-primary-dark);
 }
 
 .profile-row {
@@ -250,8 +283,9 @@
 }
 
 .profile-input-icon:focus-within {
-  border-color: #16a34a;
+  border-color: var(--profile-primary);
   background: #ffffff;
+  box-shadow: 0 0 0 3px var(--profile-border);
 }
 
 .profile-input-icon--invalid {
@@ -302,7 +336,7 @@
   gap: 14px;
   padding-bottom: 20px;
   margin-bottom: 22px;
-  border-bottom: 1px solid #eef2f0;
+  border-bottom: 1px solid var(--profile-border);
 }
 
 .profile-password-header__icon {
@@ -313,17 +347,17 @@
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #dcfce7, #ecfccb);
-  color: #15803d;
+  background: linear-gradient(135deg, var(--profile-soft-2), var(--profile-soft));
+  color: var(--profile-primary-strong);
   font-size: 21px;
-  box-shadow: inset 0 0 0 1px rgba(22, 163, 74, 0.12);
+  box-shadow: inset 0 0 0 1px var(--profile-border);
 }
 
 .profile-password-card h2 {
   margin: 1px 0 6px;
   font-size: 18px;
   font-weight: 900;
-  color: #052e16;
+  color: var(--profile-primary-dark);
 }
 
 .profile-password-hint {
@@ -359,7 +393,7 @@
   padding: 13px 14px;
   border: 1px solid #e5e7eb;
   border-radius: 14px;
-  background: linear-gradient(180deg, #fbfefc 0%, #f8faf9 100%);
+  background: linear-gradient(180deg, #ffffff 0%, var(--profile-wash) 100%);
 }
 
 .profile-password-rules__title {
@@ -426,7 +460,7 @@
 .profile-password-actions {
   margin-top: 26px;
   padding-top: 22px;
-  border-top: 1px solid #eef2f0;
+  border-top: 1px solid var(--profile-border);
 }
 
 .profile-password-submit {
@@ -438,7 +472,7 @@
 
 .profile-password-submit:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(22, 163, 74, 0.2);
+  box-shadow: 0 10px 22px var(--profile-border);
 }
 
 .profile-actions {
@@ -453,11 +487,16 @@
   border: none;
   border-radius: 12px;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #16a34a, #22c55e);
+  background: linear-gradient(135deg, var(--profile-primary-strong), var(--profile-primary));
   color: #ffffff;
   font-weight: 800;
   font-size: 14px;
   cursor: pointer;
+}
+
+.profile-submit:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px var(--profile-border);
 }
 
 .profile-submit:disabled {

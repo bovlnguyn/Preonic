@@ -223,7 +223,7 @@ function FloatingChatWidget() {
   if (!canUseChat) return null;
 
   return (
-    <div className="fcw-root">
+    <div className={`fcw-root fcw-root--${user?.role || 'enterprise'}`}>
       {isOpen && (
         <div className={`fcw-panel${user?.role === 'farmer' ? ' fcw-panel--farmer' : ''}`}>
           {!activeConversation ? (

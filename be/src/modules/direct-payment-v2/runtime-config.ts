@@ -4,6 +4,7 @@ import {
   getFeePaymentProvider,
 } from './providers/fee-payment-provider.factory';
 import { validateBankTransferFeePaymentConfiguration } from './providers/bank-transfer/bank-transfer-fee-payment.provider';
+import { validateBankAccountVerificationConfiguration } from './bank-account-verification.service';
 
 const requireHttpsUrl = (name: string, fallback: string): void => {
   const value = String(process.env[name] || fallback).trim();
@@ -20,6 +21,7 @@ export const validateDirectPaymentRuntimeConfiguration = (): void => {
   });
 
   requireHttpsUrl('DIRECT_PAYMENT_QR_BASE_URL', 'https://qr.sepay.vn/img');
+  validateBankAccountVerificationConfiguration();
 
   const providerName = getConfiguredFeePaymentProviderName();
   getFeePaymentProvider(providerName);

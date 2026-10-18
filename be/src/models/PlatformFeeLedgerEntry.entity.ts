@@ -21,6 +21,7 @@ import {
 @Entity('PlatformFeeLedgerEntries')
 @Index('UX_PlatformFeeLedgerEntries_IdempotencyKey', ['idempotencyKey'], { unique: true })
 @Index('IX_PlatformFeeLedgerEntries_User_Status_CreatedAt', ['userId', 'status', 'createdAt'])
+@Index('IX_PlatformFeeLedgerEntries_User_Status_PostedAt', ['userId', 'status', 'postedAt'])
 @Index('IX_PlatformFeeLedgerEntries_Statement', ['statementId'])
 @Index('IX_PlatformFeeLedgerEntries_Contract', ['contractId'])
 @Index('IX_PlatformFeeLedgerEntries_GoodsPayment', ['goodsPaymentId', 'status'])

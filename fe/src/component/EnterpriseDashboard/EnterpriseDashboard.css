@@ -18,6 +18,15 @@
   --ent-border:   rgba(37, 99, 235, 0.14);
   --ent-card:     rgba(255, 255, 255, 0.95);
   --ent-shadow:   0 24px 70px rgba(30, 58, 138, 0.09);
+  --role-primary: #2563eb;
+  --role-primary-strong: #1d4ed8;
+  --role-primary-deep: #172554;
+  --role-primary-soft: #dbeafe;
+  --role-primary-wash: #eff6ff;
+  --role-muted: #64748b;
+  --role-border: rgba(37, 99, 235, 0.14);
+  --role-shadow-color: rgba(30, 58, 138, 0.09);
+  --select-arrow-color: #2563eb;
 
   min-height: 100vh;
   display: grid;
@@ -448,7 +457,31 @@
 }
 
 .ent-section-header--page {
+  position: relative;
+  overflow: hidden;
   margin-bottom: 24px;
+  padding: clamp(22px, 3vw, 30px);
+  border: 1px solid var(--ent-border);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 98% 0, rgba(191, 219, 254, 0.38), transparent 28%),
+    var(--ent-card);
+  box-shadow: 0 18px 50px rgba(30, 58, 138, 0.07);
+}
+
+.ent-card > .ent-section-header--page {
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ent-stack > .ent-section-header--page,
+.billing-page > .ent-section-header--page,
+.cashflow-report > .ent-section-header--page {
+  margin-bottom: 0;
 }
 
 .ent-page-breadcrumb {
@@ -576,7 +609,7 @@
 .ent-stat strong { display: block; color: var(--ent-blue-950); font-size: 30px; line-height: 1; font-weight: 950; letter-spacing: -0.8px; }
 .ent-stat span   { display: block; margin-top: 10px; color: var(--ent-blue-700); font-size: 12px; font-weight: 850; }
 
-.ent-stat--green  .ent-stat__icon { color: #14532d; background: #dcfce7; }
+.ent-stat--green  .ent-stat__icon { color: var(--ent-blue-800); background: var(--ent-blue-100); }
 .ent-stat--gold   .ent-stat__icon { color: #92400e; background: #fef3c7; }
 .ent-stat--purple .ent-stat__icon { color: #6d28d9; background: #ede9fe; }
 

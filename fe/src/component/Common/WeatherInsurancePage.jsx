@@ -320,16 +320,18 @@ export default function WeatherInsurancePage({ role }) {
 
   return (
     <div className={`wi-shell wi-shell--${resolvedRole}`}>
-      <div className="wi-breadcrumb"><span>Trang chủ</span><span>/</span><strong>Thời tiết &amp; Bảo hiểm</strong></div>
+      <div className="wi-page-heading-card">
+        <div className="wi-breadcrumb"><span>Trang chủ</span><span>/</span><strong>Thời tiết &amp; Bảo hiểm</strong></div>
 
-      <header className="wi-page-header">
-        <div>
-          <span className="wi-page-eyebrow">{content.eyebrow}</span>
-          <h2>Thời tiết &amp; Bảo hiểm</h2>
-          <p>{content.subtitle}</p>
-        </div>
-        <div className="wi-page-role"><FiShield size={15} /> {resolvedRole === "enterprise" ? "Không gian doanh nghiệp" : "Không gian nông dân"}</div>
-      </header>
+        <header className="wi-page-header">
+          <div>
+            <span className="wi-page-eyebrow">{content.eyebrow}</span>
+            <h2>Thời tiết &amp; Bảo hiểm</h2>
+            <p>{content.subtitle}</p>
+          </div>
+          <div className="wi-page-role"><FiShield size={15} /> {resolvedRole === "enterprise" ? "Không gian doanh nghiệp" : "Không gian nông dân"}</div>
+        </header>
+      </div>
 
       {error && (
         <div className="wi-error-banner" role="alert">

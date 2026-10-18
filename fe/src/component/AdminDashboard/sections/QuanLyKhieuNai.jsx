@@ -34,7 +34,7 @@ const DISPUTE_KPIS = [
   { key: "under_review", label: "Đang xem xét", abbr: "XX", color: "#d97706", bg: "#fef3c7" },
   { key: "resolved", label: "Đã giải quyết", abbr: "GQ", color: "#16a34a", bg: "#dcfce7" },
   { key: "closed", label: "Đã đóng", abbr: "DD", color: "#64748b", bg: "#f1f5f9" },
-  { key: "total", label: "Tổng khiếu nại", abbr: "TC", color: "#4f46e5", bg: "#ede9fe" },
+  { key: "total", label: "Tổng khiếu nại", abbr: "TC", color: "#2563eb", bg: "#dbeafe" },
 ];
 
 export default function QuanLyKhieuNai() {
@@ -106,7 +106,7 @@ export default function QuanLyKhieuNai() {
     <>
       <div className="adm-page-header">
         <div>
-          <h1 className="adm-page-title">Quản lý Khiếu nại</h1>
+          <h1 className="adm-page-title">Quản lý khiếu nại</h1>
           <p className="adm-page-subtitle">Xem xét và giải quyết các tranh chấp giữa Nông dân và Doanh nghiệp</p>
         </div>
       </div>
@@ -171,7 +171,7 @@ export default function QuanLyKhieuNai() {
                     return (
                       <tr key={d.id} style={{ borderLeft: `3px solid ${meta.color}` }}>
                         <td>
-                          <div style={{ fontWeight: 700, color: "#4f46e5", fontSize: 12 }}>
+                          <div style={{ fontWeight: 700, color: "#2563eb", fontSize: 12 }}>
                             {contract?.contractCode || "—"}
                           </div>
                           <div style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -233,7 +233,7 @@ export default function QuanLyKhieuNai() {
                   {selectedDispute.contractId && (
                     <div style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
                       <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Hợp đồng liên quan</div>
-                      <div style={{ fontWeight: 700, color: "#4f46e5" }}>{selectedDispute.contractId.contractCode}</div>
+                      <div style={{ fontWeight: 700, color: "#2563eb" }}>{selectedDispute.contractId.contractCode}</div>
                       <div style={{ fontSize: 12, color: "#64748b" }}>{selectedDispute.contractId.farmerName} ↔ {selectedDispute.contractId.enterpriseName}</div>
                       <div style={{ fontWeight: 600, color: "#1d4ed8", marginTop: 4 }}>{formatMoney(selectedDispute.contractId.totalValue || 0)}</div>
                     </div>
@@ -261,7 +261,7 @@ export default function QuanLyKhieuNai() {
                               {isImage ? (
                                 <img src={url} alt={`Bằng chứng ${i + 1}`} style={{ width: 84, height: 84, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
                               ) : (
-                                <span style={{ fontSize: 12, color: "#4f46e5", textDecoration: "underline" }}>Tệp đính kèm {i + 1}</span>
+                                <span style={{ fontSize: 12, color: "#2563eb", textDecoration: "underline" }}>Tệp đính kèm {i + 1}</span>
                               )}
                             </a>
                           );
@@ -273,7 +273,7 @@ export default function QuanLyKhieuNai() {
                   {selectedDispute.adminNotes && (
                     <>
                       <div style={{ marginTop: 14, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ghi chú Admin</div>
-                      <div style={{ background: "#ede9fe", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#4c1d95" }}>{selectedDispute.adminNotes}</div>
+                      <div style={{ background: "#e0f2fe", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#075985" }}>{selectedDispute.adminNotes}</div>
                     </>
                   )}
 

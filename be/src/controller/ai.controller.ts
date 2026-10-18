@@ -4,6 +4,7 @@ import {
   PUBLIC_AI_COOKIE_NAME,
   PUBLIC_AI_LIMIT,
   createFarmerAiReply,
+  createEnterpriseAiReply,
   createPublicAiReply,
   getPublicAiCookieOptions,
   getRemainingQuestions,
@@ -15,6 +16,10 @@ import {
   signGuestUsage,
   FarmerNavigationIntent,
   FarmerNavigationTarget,
+  EnterpriseNavigationIntent,
+  EnterpriseNavigationTarget,
+  sanitizeEnterpriseHistory,
+  sanitizeEnterpriseMessage,
 } from '../services/ai.service';
 import { asyncHandler } from '../middlewares/error.middleware';
 import { getMe as getAuthenticatedUser } from '../services/auth.service';
@@ -25,6 +30,8 @@ import {
 } from '../services/weather.service';
 import * as contractService from '../services/contract.service';
 import * as productService from '../services/product.service';
+import * as enterpriseService from '../services/enterprise.service';
+import { getCashflowReport } from '../modules/direct-payment-v2/cashflow-report.service';
 
 const writeGuestCookie = (res: Response, usage: ReturnType<typeof readGuestUsage>) => {
   res.cookie(
@@ -393,6 +400,149 @@ const resolveFarmerNavigationActions = async (
   });
 };
 
+type EnterpriseAiAction = {
+  type: 'navigate' | 'open_chat';
+  target: EnterpriseNavigationTarget;
+  label: string;
+  path?: string;
+  partnerId?: string;
+  partnerName?: string;
+};
+
+const ENTERPRISE_STATIC_NAVIGATION: Partial<Record<EnterpriseNavigationTarget, string>> = {
+  dashboard: '/enterprise',
+  products: '/enterprise/products',
+  contracts: '/enterprise/contracts',
+  orders: '/enterprise/orders',
+  billing: '/enterprise/billing',
+  cashflow_report: '/enterprise/reports/cashflow',
+  suppliers: '/enterprise/suppliers',
+  ratings: '/enterprise/ratings',
+  weather_insurance: '/enterprise/weather-insurance',
+  profile: '/profile',
+  enterprise_home: '/enterprise-home',
+  enterprise_products: '/enterprise-products',
+  enterprise_solutions: '/enterprise-solutions',
+  enterprise_contact: '/enterprise-contact',
+};
+
+const inferEnterpriseNavigationIntents = (message: string): EnterpriseNavigationIntent[] => {
+  const normalized = normalizeAiText(message);
+  if (!NAVIGATION_REQUEST_PATTERNS.some((pattern) => pattern.test(normalized))) return [];
+  const intent = (target: EnterpriseNavigationTarget, label: string, entityQuery = '') => ({ target, label, entityQuery });
+  if (/bao cao|dong tien|chi phi|doanh thu/.test(normalized)) return [intent('cashflow_report', 'Mở báo cáo chi phí')];
+  if (/thanh toan|phi dich vu/.test(normalized)) return [intent('billing', 'Mở Thanh toán & Phí')];
+  if (/hop dong/.test(normalized)) return [intent('contract_detail', 'Mở hợp đồng', message)];
+  if (/nha cung cap|farmer|nong dan/.test(normalized)) return [intent('supplier_detail', 'Xem nhà cung cấp', message)];
+  if (/san pham|nong san|nguon cung/.test(normalized)) return [intent('product_detail', 'Xem nguồn cung', message)];
+  if (/don hang|giao hang|van chuyen/.test(normalized)) return [intent('orders', 'Mở đơn hàng')];
+  if (/tin nhan|nhan tin|chat/.test(normalized)) return [intent('messages', 'Mở tin nhắn', message)];
+  if (/danh gia|uy tin/.test(normalized)) return [intent('ratings', 'Mở đánh giá đối tác')];
+  if (/thoi tiet|bao hiem/.test(normalized)) return [intent('weather_insurance', 'Mở Thời tiết & Bảo hiểm')];
+  return [intent('dashboard', 'Về dashboard doanh nghiệp')];
+};
+
+const resolveEnterpriseNavigationActions = async (
+  userId: string,
+  message: string,
+  modelIntents: EnterpriseNavigationIntent[]
+): Promise<EnterpriseAiAction[]> => {
+  const intents = [...inferEnterpriseNavigationIntents(message), ...modelIntents]
+    .filter((item, index, list) => list.findIndex((candidate) => candidate.target === item.target) === index)
+    .slice(0, 2);
+  if (!intents.length) return [];
+
+  let contractsPromise: ReturnType<typeof contractService.listContractsForUser> | null = null;
+  let productsPromise: ReturnType<typeof productService.getAll> | null = null;
+  let suppliersPromise: ReturnType<typeof enterpriseService.getSuppliers> | null = null;
+  const getContracts = () => contractsPromise ||= contractService.listContractsForUser(userId, 'enterprise', { page: 1, limit: 100 });
+  const getProducts = () => productsPromise ||= productService.getAll({ page: 1, limit: 100, sort: 'rating' });
+  const getSuppliers = () => suppliersPromise ||= enterpriseService.getSuppliers(userId, { page: 1, limit: 50 });
+  const actions: EnterpriseAiAction[] = [];
+
+  for (const item of intents) {
+    const label = item.label?.trim().slice(0, 80) || 'Mở chức năng';
+    const query = item.entityQuery || message;
+    if (item.target === 'contract_detail') {
+      try {
+        const result = await getContracts();
+        const match = result.contracts
+          .map((contract: any) => ({ contract, score: scoreNavigationCandidate(query, [contract.contractCode, contract.productName, contract.farmerName, contract.farmer?.fullName]) }))
+          .sort((a, b) => b.score - a.score)[0];
+        if (match?.score >= 55 && match.contract?.id) {
+          actions.push({ type: 'navigate', target: item.target, label: `Mở hợp đồng ${match.contract.contractCode}`, path: `/enterprise/contracts/${match.contract.id}` });
+          continue;
+        }
+      } catch { /* fallback to list */ }
+      actions.push({ type: 'navigate', target: 'contracts', label: 'Xem danh sách hợp đồng', path: '/enterprise/contracts' });
+      continue;
+    }
+    if (item.target === 'product_detail') {
+      try {
+        const result = await getProducts();
+        const match = result.products
+          .map((product: any) => ({ product, score: scoreNavigationCandidate(query, [product.name, product.location, product.farm, product.sellerName, product.category]) }))
+          .sort((a, b) => b.score - a.score)[0];
+        if (match?.score >= 55 && match.product?.id) {
+          actions.push({ type: 'navigate', target: item.target, label: `Xem ${match.product.name}`, path: `/enterprise/products/${match.product.id}` });
+          continue;
+        }
+      } catch { /* fallback to list */ }
+      actions.push({ type: 'navigate', target: 'products', label: 'Xem danh sách nguồn cung', path: '/enterprise/products' });
+      continue;
+    }
+    if (item.target === 'supplier_detail' || item.target === 'messages') {
+      try {
+        const result = await getSuppliers();
+        const match = result.suppliers
+          .map((supplier: any) => ({ supplier, score: scoreNavigationCandidate(query, [supplier.name, supplier.location, ...(supplier.products || [])]) }))
+          .sort((a, b) => b.score - a.score)[0];
+        if (match?.score >= 55 && match.supplier?.id) {
+          if (item.target === 'messages') {
+            actions.push({ type: 'open_chat', target: 'messages', label: `Nhắn tin ${match.supplier.name}`, partnerId: match.supplier.id, partnerName: match.supplier.name });
+          } else {
+            actions.push({ type: 'navigate', target: item.target, label: `Xem ${match.supplier.name}`, path: `/enterprise/suppliers/${match.supplier.id}` });
+          }
+          continue;
+        }
+      } catch { /* fallback below */ }
+      if (item.target === 'messages') actions.push({ type: 'open_chat', target: 'messages', label });
+      else actions.push({ type: 'navigate', target: 'suppliers', label: 'Xem danh sách nhà cung cấp', path: '/enterprise/suppliers' });
+      continue;
+    }
+    const path = ENTERPRISE_STATIC_NAVIGATION[item.target];
+    if (path) actions.push({ type: 'navigate', target: item.target, label, path });
+  }
+  return actions.slice(0, 2);
+};
+
+const buildEnterpriseLiveContext = async (userId: string): Promise<string> => {
+  const [productsResult, contractsResult, suppliersResult, cashflowResult] = await Promise.allSettled([
+    productService.getAll({ page: 1, limit: 12, sort: 'rating' }),
+    contractService.listContractsForUser(userId, 'enterprise', { page: 1, limit: 20 }),
+    enterpriseService.getSuppliers(userId, { page: 1, limit: 12 }),
+    getCashflowReport(userId, 'enterprise', 12),
+  ]);
+  const products = productsResult.status === 'fulfilled' ? productsResult.value.products : [];
+  const contracts = contractsResult.status === 'fulfilled' ? contractsResult.value.contracts : [];
+  const suppliers = suppliersResult.status === 'fulfilled' ? suppliersResult.value.suppliers : [];
+  const cashflow = cashflowResult.status === 'fulfilled' ? cashflowResult.value.summary : null;
+
+  return [
+    'DỮ LIỆU TRỰC TIẾP ĐƯỢC PHÉP DÙNG:',
+    `- Nguồn cung nổi bật (${products.length}):`,
+    ...products.map((product: any) => `  • ${product.name}; vùng=${product.location || product.region || 'chưa cập nhật'}; còn=${Number(product.remaining || 0)} ${product.unit || ''}; giá=${Number(product.priceMin || 0)}-${Number(product.priceMax || 0)}; Farmer=${product.sellerName || 'chưa cập nhật'}; rating=${Number(product.rating || 0)}.`),
+    `- Hợp đồng gần nhất của doanh nghiệp (${contracts.length}):`,
+    ...contracts.map((contract: any) => `  • ${contract.contractCode}; ${contract.productName || contract.product?.name}; Farmer=${contract.farmerName || contract.farmer?.fullName || 'chưa cập nhật'}; trạng thái=${contract.status}; giao hàng=${contract.deliveryStatus || 'chưa bắt đầu'}; tổng=${Number(contract.totalValue || 0)}; đã trả=${Number(contract.paidAmount || 0)}; còn=${Number(contract.remainingAmount || 0)}.`),
+    `- Nhà cung cấp đã hợp tác (${suppliers.length}):`,
+    ...suppliers.map((supplier: any) => `  • ${supplier.name}; ${supplier.location}; rating=${Number(supplier.rating || 0)}; hợp đồng=${Number(supplier.contracts || 0)}; hoàn thành=${Number(supplier.completedContracts || 0)}; nông sản=${(supplier.products || []).join(', ') || 'chưa có'}.`),
+    cashflow
+      ? `- Dòng tiền: tiền hàng đã chi=${cashflow.goodsCashflowAllTime}; phí dịch vụ=${cashflow.serviceFeeAllTime}; chờ thanh toán=${cashflow.pendingGoodsAmount}; giá trị hợp đồng theo dõi=${cashflow.committedContractValue}.`
+      : '- Dòng tiền: tạm thời chưa tải được.',
+    'Không được suy diễn rằng danh sách nguồn cung trên là toàn bộ thị trường; đây chỉ là các bản ghi nổi bật đang hoạt động.',
+  ].join('\n');
+};
+
 const buildWeatherLiveContext = async (
   message: string,
   userId?: string
@@ -583,5 +733,52 @@ export const farmerAiChat = asyncHandler(async (req: AuthRequest, res: Response)
       category: reply.category,
       actions,
     },
+  });
+});
+
+export const getEnterpriseAiStatus = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      available: Boolean(process.env.OPENAI_API_KEY),
+      assistantName: 'PreOnic Enterprise AI',
+      specialties: [
+        'Tìm & so sánh nguồn cung',
+        'Phân tích nhà cung cấp',
+        'Hợp đồng & tiến độ giao nhận',
+        'Thanh toán trực tiếp & phí dịch vụ',
+        'Báo cáo chi phí doanh nghiệp',
+      ],
+      suggestedQuestions: [
+        'Nguồn cung nào đang có rating tốt và còn sản lượng?',
+        'Tóm tắt các hợp đồng doanh nghiệp cần theo dõi.',
+        'Phân tích các khoản chi và phí dịch vụ hiện tại.',
+        'Mở báo cáo chi phí cho tôi.',
+      ],
+    },
+  });
+});
+
+export const enterpriseAiChat = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const message = sanitizeEnterpriseMessage(req.body?.message);
+  const history = sanitizeEnterpriseHistory(req.body?.history);
+  const currentFeature = typeof req.body?.currentFeature === 'string'
+    ? req.body.currentFeature.trim().slice(0, 120)
+    : '';
+  const liveContext = await buildEnterpriseLiveContext(req.user!.id);
+  const reply = await createEnterpriseAiReply(
+    { userName: req.user?.fullName || 'Enterprise', currentFeature, liveContext },
+    message,
+    history
+  );
+  const actions = await resolveEnterpriseNavigationActions(
+    req.user!.id,
+    message,
+    reply.navigationIntents
+  );
+
+  return res.status(200).json({
+    success: true,
+    data: { answer: reply.answer, category: reply.category, actions },
   });
 });

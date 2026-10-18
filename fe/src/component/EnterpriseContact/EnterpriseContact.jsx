@@ -127,7 +127,7 @@ function EnterpriseContact() {
               <FiUsers />
               <h2>Đội hỗ trợ doanh nghiệp</h2>
               <p>
-                Phối hợp giữa tư vấn nguồn cung, vận hành hợp đồng, thanh toán trung gian và chăm sóc đối tác sau giao dịch.
+                Phối hợp giữa tư vấn nguồn cung, vận hành hợp đồng, theo dõi thanh toán trực tiếp và chăm sóc đối tác sau giao dịch.
               </p>
             </div>
 

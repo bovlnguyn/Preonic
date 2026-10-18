@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FiCheckCircle,
   FiClock,
@@ -39,8 +40,9 @@ const buildIdempotencyKey = () => {
   return `fee-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
 };
 
-function FeePrompt({ feeAccount, onClose }) {
+function FeePrompt({ feeAccount, userRole, onClose }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
   const outstanding = Number(feeAccount?.outstandingAmount || 0);
 
@@ -53,11 +55,11 @@ function FeePrompt({ feeAccount, onClose }) {
         idempotencyKey: buildIdempotencyKey(),
       });
       const payment = res?.data?.payment;
-      if (payment?.paymentUrl) {
-        window.open(payment.paymentUrl, '_blank', 'noopener,noreferrer');
-      }
       toast.success('Đã tạo yêu cầu thanh toán phí PreOnic.');
       onClose();
+      navigate(userRole === 'enterprise' ? '/enterprise/billing' : '/farmer/billing', {
+        state: { feePayment: payment },
+      });
     } catch (err) {
       toast.error(err?.message || 'Không thể tạo thanh toán phí.');
     } finally {
@@ -384,7 +386,7 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
       )}
 
       {feePrompt && (
-        <FeePrompt feeAccount={feePrompt} onClose={() => setFeePrompt(null)} />
+        <FeePrompt feeAccount={feePrompt} userRole={userRole} onClose={() => setFeePrompt(null)} />
       )}
     </section>
   );

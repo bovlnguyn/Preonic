@@ -82,6 +82,9 @@ CREATE TABLE Users (
 
 CREATE INDEX IX_Users_Role               ON Users (Role);
 CREATE INDEX IX_Users_IsActive           ON Users (IsActive);
+CREATE INDEX IX_Users_CreatedAt
+    ON Users (CreatedAt DESC)
+    INCLUDE (Role, IsActive, FullName, Email);
 CREATE INDEX IX_Users_PasswordResetToken ON Users (PasswordResetToken) WHERE PasswordResetToken IS NOT NULL;
 CREATE INDEX IX_Users_EmailVerToken      ON Users (EmailVerificationToken) WHERE EmailVerificationToken IS NOT NULL;
 CREATE UNIQUE INDEX UX_Users_Phone       ON Users (Phone) WHERE Phone IS NOT NULL;
@@ -223,6 +226,9 @@ CREATE TABLE Reviews (
     CONSTRAINT FK_Reviews_Product  FOREIGN KEY (ProductId)  REFERENCES Products (ProductId) ON DELETE CASCADE,
     CONSTRAINT FK_Reviews_Reviewer FOREIGN KEY (ReviewerId) REFERENCES Users    (UserId)
 );
+CREATE INDEX IX_Reviews_Product_CreatedAt
+    ON Reviews (ProductId, CreatedAt DESC)
+    INCLUDE (ReviewerId, Rating, ReviewerName, ReviewerAvatar);
 GO
 
 -- Trigger tính lại Rating và ReviewCount trên Products
@@ -340,6 +346,12 @@ CREATE INDEX IX_Contracts_Enterprise_Status ON Contracts (EnterpriseId, Status);
 CREATE INDEX IX_Contracts_Status            ON Contracts (Status);
 CREATE INDEX IX_Contracts_Farmer_CreatedAt ON Contracts (FarmerId, CreatedAt);
 CREATE INDEX IX_Contracts_Enterprise_CreatedAt ON Contracts (EnterpriseId, CreatedAt);
+CREATE INDEX IX_Contracts_CreatedAt
+    ON Contracts (CreatedAt DESC)
+    INCLUDE (Status, ContractCode, FarmerName, EnterpriseName, TotalValue);
+CREATE INDEX IX_Contracts_UnsignedExpiry
+    ON Contracts (Status, SignedByFarmer, UpdatedAt)
+    INCLUDE (ContractId);
 CREATE INDEX IX_Contracts_PaymentFlow_Status
     ON Contracts (PaymentFlow, Status);
 CREATE INDEX IX_Contracts_Product_Enterprise_Status_Delivery
@@ -593,8 +605,12 @@ CREATE TABLE PartnerRatings (
     CONSTRAINT FK_PR_Reviewee  FOREIGN KEY (RevieweeId) REFERENCES Users     (UserId)
 );
 
-CREATE INDEX IX_PR_RevieweeId ON PartnerRatings (RevieweeId);
-CREATE INDEX IX_PR_ReviewerId ON PartnerRatings (ReviewerId);
+CREATE INDEX IX_PR_Reviewee_CreatedAt
+    ON PartnerRatings (RevieweeId, CreatedAt DESC)
+    INCLUDE (ContractId, ReviewerId, ReviewerRole, OverallRating);
+CREATE INDEX IX_PR_Reviewer_CreatedAt
+    ON PartnerRatings (ReviewerId, CreatedAt DESC)
+    INCLUDE (ContractId, RevieweeId, RevieweeRole, OverallRating);
 GO
 
 -- Trigger tính lại reputationScore và totalRatings của reviewee
@@ -770,6 +786,12 @@ CREATE TABLE dbo.UserSettlementBankAccounts (
         CONSTRAINT DF_UserSettlementBankAccounts_IsDefault DEFAULT 0,
     Status                     NVARCHAR(20)     NOT NULL
         CONSTRAINT DF_UserSettlementBankAccounts_Status DEFAULT 'active',
+    VerificationStatus         NVARCHAR(20)     NOT NULL
+        CONSTRAINT DF_UserSettlementBankAccounts_VerificationStatus DEFAULT 'unverified',
+    VerifiedAccountHolder      NVARCHAR(150)    NULL,
+    VerificationProvider       NVARCHAR(50)     NULL,
+    VerificationReference      NVARCHAR(120)    NULL,
+    VerifiedAt                 DATETIME2        NULL,
     CreatedAt                  DATETIME2        NOT NULL
         CONSTRAINT DF_UserSettlementBankAccounts_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt                  DATETIME2        NOT NULL
@@ -779,12 +801,18 @@ CREATE TABLE dbo.UserSettlementBankAccounts (
         FOREIGN KEY (UserId) REFERENCES dbo.Users(UserId),
     CONSTRAINT CK_UserSettlementBankAccounts_Status
         CHECK (Status IN ('active','disabled')),
+    CONSTRAINT CK_UserSettlementBankAccounts_VerificationStatus
+        CHECK (VerificationStatus IN ('unverified','verified','failed')),
+    CONSTRAINT CK_UserSettlementBankAccounts_VerifiedFields
+        CHECK (VerificationStatus <> 'verified' OR (VerifiedAccountHolder IS NOT NULL AND VerifiedAt IS NOT NULL)),
     CONSTRAINT CK_UserSettlementBankAccounts_KeyVersion
         CHECK (EncryptionKeyVersion > 0)
 );
 
 CREATE INDEX IX_UserSettlementBankAccounts_User_Status
     ON dbo.UserSettlementBankAccounts(UserId, Status);
+CREATE INDEX IX_UserSettlementBankAccounts_User_Verification
+    ON dbo.UserSettlementBankAccounts(UserId, VerificationStatus);
 CREATE UNIQUE INDEX UX_UserSettlementBankAccounts_User_Fingerprint
     ON dbo.UserSettlementBankAccounts(UserId, AccountNumberFingerprint);
 CREATE UNIQUE INDEX UX_UserSettlementBankAccounts_Default
@@ -870,6 +898,12 @@ CREATE INDEX IX_DirectGoodsPayments_Payer_Status
     ON dbo.DirectGoodsPayments(PayerUserId, Status, CreatedAt);
 CREATE INDEX IX_DirectGoodsPayments_Payee_Status
     ON dbo.DirectGoodsPayments(PayeeUserId, Status, CreatedAt);
+CREATE INDEX IX_DirectGoodsPayments_Payer_Status_ConfirmedAt
+    ON dbo.DirectGoodsPayments(PayerUserId, Status, ConfirmedAt)
+    INCLUDE (Amount, ContractId);
+CREATE INDEX IX_DirectGoodsPayments_Payee_Status_ConfirmedAt
+    ON dbo.DirectGoodsPayments(PayeeUserId, Status, ConfirmedAt)
+    INCLUDE (Amount, ContractId);
 CREATE INDEX IX_DirectGoodsPayments_Contract_Status
     ON dbo.DirectGoodsPayments(ContractId, Status)
     INCLUDE (Amount, InstallmentSequence, ConfirmedAt);

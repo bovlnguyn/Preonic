@@ -9,13 +9,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import authService from '../../services/auth.service';
 import { resolveImageUrl } from '../../services/product.service';
-import { VN_DISTRICTS, VN_WARDS } from '../../data/vn-locations';
+import { matchProvince, VN_DISTRICTS, VN_WARDS } from '../../data/vn-locations';
 import { formatReputation } from '../../utils/rating';
 import { getPasswordPolicyChecks, getPasswordPolicyError } from '../../utils/password';
 import { getInitials } from '../../utils/dashboard';
 import './Profile.css';
 
 const VN_PROVINCES = Object.keys(VN_DISTRICTS || {});
+const PERSON_NAME_PATTERN = /^[\p{L}\s.'’-]+$/u;
+const GENERAL_TEXT_PATTERN = /^[\p{L}\p{N}\s.,'’/&()#-]+$/u;
+const VN_PHONE_PATTERN = /^0(?:3|5|7|8|9)[0-9]{8}$/;
+const VN_TAX_CODE_PATTERN = /^[0-9]{10}(?:-[0-9]{3})?$/;
+const normalizeSpaces = (value) => String(value || '').normalize('NFC').replace(/\s+/g, ' ').trim();
 
 const ROLE_LABEL = {
   farmer: 'Nông dân',
@@ -23,20 +28,101 @@ const ROLE_LABEL = {
   admin: 'Quản trị viên',
 };
 
-const buildForm = (user) => ({
+const normalizeLocationText = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/gi, 'd')
+  .toLowerCase()
+  .trim();
+
+const resolveDistrict = (province, district) => {
+  const options = VN_DISTRICTS?.[province] || [];
+  const normalized = normalizeLocationText(district);
+  return options.find((option) => {
+    const candidate = normalizeLocationText(option);
+    return candidate === normalized || candidate.endsWith(` ${normalized}`);
+  }) || district || '';
+};
+
+const buildForm = (user) => {
+  const province = matchProvince(user?.province) || user?.province || '';
+  return ({
   firstName: user?.firstName || '',
   lastName: user?.lastName || '',
   phone: user?.phone || '',
   avatar: user?.avatar || '',
-  province: user?.province || '',
-  district: user?.district || '',
+  province,
+  district: resolveDistrict(province, user?.district),
   ward: user?.ward || '',
   address: user?.address || '',
   farmName: user?.farmName || '',
   farmSize: user?.farmSize ?? '',
   companyName: user?.companyName || '',
   taxCode: user?.taxCode || '',
-});
+  });
+};
+
+const validateProfileForm = (values, role) => {
+  const nextErrors = {};
+  const firstName = normalizeSpaces(values.firstName);
+  const lastName = normalizeSpaces(values.lastName);
+  const address = normalizeSpaces(values.address);
+
+  const validateName = (value, label, key) => {
+    if (!value) nextErrors[key] = `${label} là bắt buộc`;
+    else if (value.length > 100) nextErrors[key] = `${label} không được vượt quá 100 ký tự`;
+    else if (!PERSON_NAME_PATTERN.test(value) || !/\p{L}/u.test(value)) {
+      nextErrors[key] = `${label} chỉ được chứa chữ cái và dấu phân cách tên`;
+    }
+  };
+  validateName(firstName, 'Tên', 'firstName');
+  validateName(lastName, 'Họ', 'lastName');
+
+  const phone = String(values.phone || '').trim();
+  if (!phone) nextErrors.phone = 'Số điện thoại là bắt buộc';
+  else if (!VN_PHONE_PATTERN.test(phone)) nextErrors.phone = 'Nhập số di động Việt Nam hợp lệ gồm 10 chữ số';
+
+  if (!address) nextErrors.address = 'Địa chỉ cụ thể là bắt buộc';
+  else if (address.length < 5 || address.length > 500 || !GENERAL_TEXT_PATTERN.test(address)) {
+    nextErrors.address = 'Địa chỉ phải từ 5-500 ký tự và không chứa ký tự lạ';
+  }
+
+  if (!VN_PROVINCES.includes(values.province)) nextErrors.province = 'Vui lòng chọn tỉnh / thành phố hợp lệ';
+  const districts = VN_DISTRICTS?.[values.province] || [];
+  if (!districts.includes(values.district)) nextErrors.district = 'Vui lòng chọn quận / huyện hợp lệ';
+  const wards = VN_WARDS?.[values.district] || [];
+  const ward = normalizeSpaces(values.ward);
+  if (ward && ((wards.length > 0 && !wards.includes(ward)) || (wards.length === 0 && !GENERAL_TEXT_PATTERN.test(ward)))) {
+    nextErrors.ward = 'Xã / phường / thị trấn không hợp lệ';
+  }
+
+  if (role === 'farmer') {
+    const farmName = normalizeSpaces(values.farmName);
+    if (!farmName) nextErrors.farmName = 'Tên trang trại là bắt buộc';
+    else if (farmName.length < 2 || farmName.length > 255 || !GENERAL_TEXT_PATTERN.test(farmName) || !/\p{L}/u.test(farmName)) {
+      nextErrors.farmName = 'Tên trang trại phải từ 2-255 ký tự và có chữ cái';
+    }
+    if (values.farmSize !== '') {
+      const farmSize = Number(values.farmSize);
+      if (!Number.isFinite(farmSize) || farmSize < 0 || farmSize > 1000000) {
+        nextErrors.farmSize = 'Diện tích phải từ 0 đến 1.000.000 ha';
+      }
+    }
+  }
+
+  if (role === 'enterprise') {
+    const companyName = normalizeSpaces(values.companyName);
+    if (!companyName) nextErrors.companyName = 'Tên doanh nghiệp là bắt buộc';
+    else if (companyName.length < 2 || companyName.length > 255 || !GENERAL_TEXT_PATTERN.test(companyName) || !/\p{L}/u.test(companyName)) {
+      nextErrors.companyName = 'Tên doanh nghiệp phải từ 2-255 ký tự và có chữ cái';
+    }
+    const taxCode = String(values.taxCode || '').trim();
+    if (!taxCode) nextErrors.taxCode = 'Mã số thuế là bắt buộc';
+    else if (!VN_TAX_CODE_PATTERN.test(taxCode)) nextErrors.taxCode = 'Mã số thuế phải gồm 10 số hoặc dạng 10 số-3 số';
+  }
+
+  return nextErrors;
+};
 
 
 function Profile() {
@@ -88,6 +174,11 @@ function Profile() {
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      toast.error('Ảnh đại diện chỉ hỗ trợ định dạng JPG hoặc PNG');
+      e.target.value = '';
+      return;
+    }
     if (file.size > MAX_AVATAR_SIZE) {
       toast.error('Ảnh đại diện không được vượt quá 5MB');
       e.target.value = '';
@@ -108,40 +199,14 @@ function Profile() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    const fieldError = validateProfileForm(form, user?.role)[name];
+    setErrors((prev) => ({ ...prev, [name]: fieldError || '' }));
+  };
+
   const validate = () => {
-    const e = {};
-    if (!form.firstName.trim()) e.firstName = 'Tên là bắt buộc';
-    if (!form.lastName.trim()) e.lastName = 'Họ là bắt buộc';
-
-    const phoneVal = form.phone.trim();
-    if (!phoneVal) {
-      e.phone = 'Số điện thoại là bắt buộc';
-    } else if (/[^0-9]/.test(phoneVal)) {
-      e.phone = 'Số điện thoại không được chứa chữ hoặc ký tự đặc biệt';
-    } else if (!/^[0-9]{10,11}$/.test(phoneVal)) {
-      e.phone = 'Số điện thoại phải có 10-11 chữ số';
-    }
-
-    if (!form.address.trim()) e.address = 'Địa chỉ cụ thể là bắt buộc';
-    else if (form.address.trim().length > 500) e.address = 'Địa chỉ không được vượt quá 500 ký tự';
-    if (!form.province.trim()) e.province = 'Vui lòng chọn tỉnh / thành phố';
-    if (!form.district.trim()) e.district = 'Vui lòng chọn quận / huyện';
-
-    if (user?.role === 'farmer') {
-      if (!form.farmName.trim()) e.farmName = 'Tên trang trại là bắt buộc';
-      else if (form.farmName.trim().length > 255) e.farmName = 'Tên trang trại không được vượt quá 255 ký tự';
-    }
-
-    if (user?.role === 'enterprise') {
-      if (!form.companyName.trim()) e.companyName = 'Tên doanh nghiệp là bắt buộc';
-      else if (form.companyName.trim().length > 255) e.companyName = 'Tên doanh nghiệp không được vượt quá 255 ký tự';
-      if (!form.taxCode.trim()) e.taxCode = 'Mã số thuế là bắt buộc';
-      else if (form.taxCode.trim().length > 20) e.taxCode = 'Mã số thuế không được vượt quá 20 ký tự';
-    }
-
-    if (form.farmSize !== '' && Number(form.farmSize) < 0) {
-      e.farmSize = 'Diện tích phải là số không âm';
-    }
+    const e = validateProfileForm(form, user?.role);
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -152,21 +217,21 @@ function Profile() {
     if (!validate()) return;
 
     const payload = {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
+      firstName: normalizeSpaces(form.firstName),
+      lastName: normalizeSpaces(form.lastName),
       phone: form.phone.trim(),
       province: form.province,
       district: form.district,
       ward: form.ward,
-      address: form.address.trim(),
+      address: normalizeSpaces(form.address),
     };
 
     if (user?.role === 'farmer') {
-      payload.farmName = form.farmName.trim();
+      payload.farmName = normalizeSpaces(form.farmName);
       payload.farmSize = form.farmSize === '' ? undefined : Number(form.farmSize);
     }
     if (user?.role === 'enterprise') {
-      payload.companyName = form.companyName.trim();
+      payload.companyName = normalizeSpaces(form.companyName);
       payload.taxCode = form.taxCode.trim();
     }
 
@@ -317,7 +382,7 @@ function Profile() {
   const fullName = `${form.firstName} ${form.lastName}`.trim() || 'Chưa cập nhật';
 
   return (
-    <div className="profile-page">
+    <div className={`profile-page profile-page--${user?.role || 'farmer'}`}>
       <button type="button" className="profile-back-btn" onClick={() => navigate(-1)}>
         <FiArrowLeft /> Quay lại
       </button>
@@ -395,7 +460,7 @@ function Profile() {
                 <label>Họ <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.lastName ? 'profile-input-icon--invalid' : ''}`}>
                   <FiUser />
-                  <input type="text" name="lastName" value={form.lastName} onChange={handleChange} placeholder="Nhập họ" />
+                  <input type="text" name="lastName" value={form.lastName} onChange={handleChange} onBlur={handleBlur} maxLength={100} autoComplete="family-name" placeholder="Nhập họ" />
                 </div>
                 {errors.lastName && <div className="profile-field-error">{errors.lastName}</div>}
               </div>
@@ -403,7 +468,7 @@ function Profile() {
                 <label>Tên <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.firstName ? 'profile-input-icon--invalid' : ''}`}>
                   <FiUser />
-                  <input type="text" name="firstName" value={form.firstName} onChange={handleChange} placeholder="Nhập tên" />
+                  <input type="text" name="firstName" value={form.firstName} onChange={handleChange} onBlur={handleBlur} maxLength={100} autoComplete="given-name" placeholder="Nhập tên" />
                 </div>
                 {errors.firstName && <div className="profile-field-error">{errors.firstName}</div>}
               </div>
@@ -414,7 +479,7 @@ function Profile() {
                 <label>Số điện thoại <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.phone ? 'profile-input-icon--invalid' : ''}`}>
                   <FiPhone />
-                  <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="09xx xxx xxx" />
+                  <input type="tel" name="phone" value={form.phone} onChange={handleChange} onBlur={handleBlur} inputMode="numeric" maxLength={10} autoComplete="tel" placeholder="09xx xxx xxx" />
                 </div>
                 {errors.phone && <div className="profile-field-error">{errors.phone}</div>}
               </div>
@@ -422,7 +487,7 @@ function Profile() {
                 <label>Địa chỉ cụ thể <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.address ? 'profile-input-icon--invalid' : ''}`}>
                   <FiHome />
-                  <input type="text" name="address" value={form.address} onChange={handleChange} placeholder="Số nhà, tên đường..." />
+                  <input type="text" name="address" value={form.address} onChange={handleChange} onBlur={handleBlur} maxLength={500} autoComplete="street-address" placeholder="Số nhà, tên đường..." />
                 </div>
                 {errors.address && <div className="profile-field-error">{errors.address}</div>}
               </div>
@@ -436,7 +501,7 @@ function Profile() {
                 <label>Tỉnh / Thành phố <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.province ? 'profile-input-icon--invalid' : ''}`}>
                   <FiMapPin />
-                  <select name="province" value={form.province} onChange={handleChange}>
+                  <select name="province" value={form.province} onChange={handleChange} onBlur={handleBlur}>
                     <option value="">Chọn tỉnh / thành phố</option>
                     {VN_PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
@@ -447,7 +512,7 @@ function Profile() {
                 <label>Quận / Huyện <span className="profile-required">*</span></label>
                 <div className={`profile-input-icon ${errors.district ? 'profile-input-icon--invalid' : ''}`}>
                   <FiMapPin />
-                  <select name="district" value={form.district} onChange={handleChange} disabled={!form.province}>
+                  <select name="district" value={form.district} onChange={handleChange} onBlur={handleBlur} disabled={!form.province}>
                     <option value="">{form.province ? 'Chọn quận / huyện' : '— chọn tỉnh trước —'}</option>
                     {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
@@ -458,17 +523,18 @@ function Profile() {
 
             <div className="profile-field">
               <label>Xã / Phường / Thị trấn <span className="profile-optional">(tùy chọn)</span></label>
-              <div className="profile-input-icon">
+              <div className={`profile-input-icon ${errors.ward ? 'profile-input-icon--invalid' : ''}`}>
                 <FiMapPin />
                 {wardOptions.length > 0 ? (
-                  <select name="ward" value={form.ward} onChange={handleChange} disabled={!form.district}>
+                  <select name="ward" value={form.ward} onChange={handleChange} onBlur={handleBlur} disabled={!form.district}>
                     <option value="">{form.district ? 'Chọn xã / phường / thị trấn' : '— chọn quận/huyện trước —'}</option>
                     {wardOptions.map((w) => <option key={w} value={w}>{w}</option>)}
                   </select>
                 ) : (
-                  <input type="text" name="ward" value={form.ward} onChange={handleChange} placeholder="VD: Phường Dịch Vọng..." />
+                  <input type="text" name="ward" value={form.ward} onChange={handleChange} onBlur={handleBlur} maxLength={100} placeholder="VD: Phường Dịch Vọng..." />
                 )}
               </div>
+              {errors.ward && <div className="profile-field-error">{errors.ward}</div>}
             </div>
           </section>
 
@@ -478,9 +544,9 @@ function Profile() {
               <div className="profile-row">
                 <div className="profile-field">
                   <label>Tên trang trại <span className="profile-required">*</span></label>
-                  <div className="profile-input-icon">
+                  <div className={`profile-input-icon ${errors.farmName ? 'profile-input-icon--invalid' : ''}`}>
                     <FiBriefcase />
-                    <input type="text" name="farmName" value={form.farmName} onChange={handleChange} placeholder="VD: Trang trại Xuân Thọ" />
+                    <input type="text" name="farmName" value={form.farmName} onChange={handleChange} onBlur={handleBlur} maxLength={255} placeholder="VD: Trang trại Xuân Thọ" />
                   </div>
                   {errors.farmName && <div className="profile-field-error">{errors.farmName}</div>}
                 </div>
@@ -488,7 +554,7 @@ function Profile() {
                   <label>Diện tích canh tác (ha)</label>
                   <div className={`profile-input-icon ${errors.farmSize ? 'profile-input-icon--invalid' : ''}`}>
                     <FiHash />
-                    <input type="number" min="0" step="0.1" name="farmSize" value={form.farmSize} onChange={handleChange} placeholder="0.0" />
+                    <input type="number" min="0" max="1000000" step="0.1" name="farmSize" value={form.farmSize} onChange={handleChange} onBlur={handleBlur} placeholder="0.0" />
                   </div>
                   {errors.farmSize && <div className="profile-field-error">{errors.farmSize}</div>}
                 </div>
@@ -502,17 +568,17 @@ function Profile() {
               <div className="profile-row">
                 <div className="profile-field">
                   <label>Tên doanh nghiệp <span className="profile-required">*</span></label>
-                  <div className="profile-input-icon">
+                  <div className={`profile-input-icon ${errors.companyName ? 'profile-input-icon--invalid' : ''}`}>
                     <FiBriefcase />
-                    <input type="text" name="companyName" value={form.companyName} onChange={handleChange} placeholder="Công ty TNHH..." />
+                    <input type="text" name="companyName" value={form.companyName} onChange={handleChange} onBlur={handleBlur} maxLength={255} autoComplete="organization" placeholder="Công ty TNHH..." />
                   </div>
                   {errors.companyName && <div className="profile-field-error">{errors.companyName}</div>}
                 </div>
                 <div className="profile-field">
                   <label>Mã số thuế <span className="profile-required">*</span></label>
-                  <div className="profile-input-icon">
+                  <div className={`profile-input-icon ${errors.taxCode ? 'profile-input-icon--invalid' : ''}`}>
                     <FiHash />
-                    <input type="text" name="taxCode" value={form.taxCode} onChange={handleChange} placeholder="VD: 0312345678" />
+                    <input type="text" name="taxCode" value={form.taxCode} onChange={handleChange} onBlur={handleBlur} inputMode="numeric" maxLength={14} placeholder="VD: 0312345678" />
                   </div>
                   {errors.taxCode && <div className="profile-field-error">{errors.taxCode}</div>}
                 </div>

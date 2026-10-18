@@ -90,6 +90,26 @@
   white-space: nowrap;
 }
 
+.fep-page-heading-card {
+  margin-bottom: 18px;
+  padding: clamp(22px, 3vw, 30px);
+  border: 1px solid rgba(22, 101, 52, 0.15);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 98% 0, rgba(187, 247, 208, 0.28), transparent 28%),
+    rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 50px rgba(5, 46, 22, 0.07);
+}
+
+.fep-page-heading-card .fep-heading,
+.fep-page-heading-card .fep-breadcrumb {
+  margin-bottom: 0;
+}
+
+.fep-page-heading-card .fep-breadcrumb {
+  margin-bottom: 12px;
+}
+
 /* =========================================================
    MAIN DASHBOARD SURFACE
    ========================================================= */

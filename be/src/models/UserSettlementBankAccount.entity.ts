@@ -57,6 +57,21 @@ export class UserSettlementBankAccount {
   @Column({ name: 'Status', type: 'nvarchar', length: 20, default: 'active' })
   status: 'active' | 'disabled';
 
+  @Column({ name: 'VerificationStatus', type: 'nvarchar', length: 20, default: 'unverified' })
+  verificationStatus: 'unverified' | 'verified' | 'failed';
+
+  @Column({ name: 'VerifiedAccountHolder', type: 'nvarchar', length: 150, nullable: true })
+  verifiedAccountHolder: string | null;
+
+  @Column({ name: 'VerificationProvider', type: 'nvarchar', length: 50, nullable: true })
+  verificationProvider: string | null;
+
+  @Column({ name: 'VerificationReference', type: 'nvarchar', length: 120, nullable: true })
+  verificationReference: string | null;
+
+  @Column({ name: 'VerifiedAt', type: 'datetime2', nullable: true })
+  verifiedAt: Date | null;
+
   @CreateDateColumn({ name: 'CreatedAt', type: 'datetime2' })
   createdAt: Date;
 

@@ -1,169 +1,160 @@
-import React, { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
-  FiActivity,
-  FiArrowRight,
-  FiBarChart2,
-  FiCpu,
-  FiMapPin,
-  FiMessageSquare,
-  FiPackage,
-  FiSearch,
-  FiShield,
-  FiTrendingUp,
-  FiZap,
-} from "react-icons/fi";
-import Header from "../Common/Header";
-import Footer from "../Common/Footer";
-import "./EnterpriseAI.css";
+  FiArrowRight, FiBarChart2, FiCheckCircle, FiCpu, FiFileText, FiLoader,
+  FiMessageCircle, FiPackage, FiRefreshCw, FiSearch, FiSend, FiShield,
+  FiTrendingUp, FiTruck, FiUser, FiUsers,
+} from 'react-icons/fi';
+import Header from '../Common/Header';
+import Footer from '../Common/Footer';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMessagingWidget } from '../../contexts/MessagingWidgetContext';
+import { getEnterpriseAiStatus, sendEnterpriseAiMessage } from '../../services/ai.service';
+import './EnterpriseAI.css';
 
-const suggestions = [
-  "Gợi ý nguồn cung xoài trong tháng 7 ở miền Tây",
-  "So sánh farmer nào phù hợp để ký hợp đồng 30 tấn gạo",
-  "Dự báo rủi ro giao hàng cho hợp đồng sầu riêng Đắk Lắk",
-  "Tóm tắt sản phẩm có chứng chỉ VietGAP và rating cao",
+const CHAT_STORAGE_KEY = 'preonic_enterprise_ai_chat_v2';
+const MAX_STORED_MESSAGES = 36;
+const MAX_HISTORY_MESSAGES = 12;
+const MAX_MESSAGE_LENGTH = 600;
+const starterPrompts = [
+  'Nguồn cung nào đang có rating tốt và còn sản lượng?',
+  'Tóm tắt các hợp đồng doanh nghiệp cần theo dõi.',
+  'Phân tích các khoản chi và phí dịch vụ hiện tại.',
+  'Mở báo cáo chi phí cho tôi.',
 ];
-
-const aiInsights = [
-  { icon: FiSearch, title: "Tìm nguồn cung thông minh", desc: "Gợi ý sản phẩm theo sản lượng, vùng miền, mùa vụ và lịch sử giao dịch." },
-  { icon: FiShield, title: "Cảnh báo rủi ro thanh toán", desc: "Mô phỏng rủi ro dựa trên trạng thái hợp đồng, giao hàng và uy tín farmer." },
-  { icon: FiTrendingUp, title: "Phân tích xu hướng giá", desc: "Hỗ trợ doanh nghiệp so sánh giá mock theo khu vực và thời điểm thu hoạch." },
+const capabilities = [
+  { icon: FiSearch, title: 'Tìm nguồn cung', text: 'Đối chiếu nông sản đang hoạt động theo vùng, sản lượng, giá và uy tín người bán.' },
+  { icon: FiUsers, title: 'Phân tích nhà cung cấp', text: 'Tổng hợp lịch sử hợp tác, số hợp đồng hoàn thành và nhóm nông sản đã cung ứng.' },
+  { icon: FiFileText, title: 'Theo dõi hợp đồng', text: 'Nhận diện hợp đồng đang chờ, tiến độ giao nhận và các khoản còn phải thanh toán.' },
+  { icon: FiBarChart2, title: 'Kiểm soát dòng tiền', text: 'Giải thích tiền hàng đã chi, khoản đang chờ và phí dịch vụ từ báo cáo thật của doanh nghiệp.' },
 ];
-
-const marketSignals = [
-  { crop: "Gạo ST25", signal: "Nhu cầu ổn định", level: 78, region: "Sóc Trăng" },
-  { crop: "Sầu riêng Ri6", signal: "Giá tăng nhẹ", level: 86, region: "Tây Nguyên" },
-  { crop: "Rau Đà Lạt", signal: "Ưu tiên giao nhanh", level: 69, region: "Lâm Đồng" },
-];
+const ACTION_ICONS = {
+  products: FiPackage, product_detail: FiPackage, contracts: FiFileText,
+  contract_detail: FiFileText, orders: FiTruck, suppliers: FiUsers,
+  supplier_detail: FiUsers, billing: FiTrendingUp, cashflow_report: FiBarChart2,
+  messages: FiMessageCircle,
+};
+const buildMessage = (role, content, extra = {}) => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, role, content, actions: [], ...extra,
+});
+const createWelcome = (name) => buildMessage('assistant', `Xin chào ${name}. Tôi đã kết nối với dữ liệu nguồn cung, nhà cung cấp, hợp đồng và báo cáo chi phí mà doanh nghiệp của bạn được phép xem. Bạn muốn bắt đầu từ phần nào?`);
+const normalizeActions = (actions) => Array.isArray(actions)
+  ? actions.filter((item) => item && (item.type === 'navigate' || item.type === 'open_chat')).slice(0, 2)
+  : [];
+const isSafeEnterprisePath = (path) => typeof path === 'string' && (
+  /^\/enterprise(?:\/|$)/.test(path) ||
+  ['/profile', '/enterprise-home', '/enterprise-products', '/enterprise-solutions', '/enterprise-contact'].includes(path)
+);
+const loadMessages = (name) => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY) || '[]');
+    const safe = Array.isArray(saved) ? saved
+      .filter((item) => item && ['assistant', 'user'].includes(item.role) && typeof item.content === 'string')
+      .slice(-MAX_STORED_MESSAGES)
+      .map((item) => ({ ...item, actions: normalizeActions(item.actions) })) : [];
+    return safe.length ? safe : [createWelcome(name)];
+  } catch { return [createWelcome(name)]; }
+};
 
 function EnterpriseAI() {
-  const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      text: "Xin chào, tôi là trợ lý AI thu mua của PreOnic. Tôi có thể gợi ý nguồn cung, phân tích rủi ro hợp đồng và đề xuất farmer phù hợp cho doanh nghiệp.",
-    },
-  ]);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { openWidget, openChatWith } = useMessagingWidget();
+  const name = useMemo(() => user?.fullName?.trim()?.split(/\s+/).pop() || 'doanh nghiệp', [user]);
+  const chatRef = useRef(null);
+  const inputRef = useRef(null);
+  const [messages, setMessages] = useState(() => loadMessages(name));
+  const [prompt, setPrompt] = useState('');
+  const [sending, setSending] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [status, setStatus] = useState({ available: true, assistantName: 'PreOnic Enterprise AI', specialties: [], suggestedQuestions: starterPrompts });
 
-  const quickReply = useMemo(() => {
-    if (!prompt.trim()) return "Hãy nhập nhu cầu thu mua để AI mô phỏng câu trả lời.";
-    return `Dựa trên nhu cầu “${prompt}”, hệ thống có thể ưu tiên nguồn cung có chứng chỉ rõ ràng, rating từ 4.7 trở lên, khu vực gần kho và lịch thanh toán phù hợp tiến độ giao hàng.`;
-  }, [prompt]);
+  useEffect(() => {
+    let active = true;
+    getEnterpriseAiStatus().then((data) => {
+      if (!active || !data) return;
+      setStatus({
+        available: Boolean(data.available),
+        assistantName: data.assistantName || 'PreOnic Enterprise AI',
+        specialties: Array.isArray(data.specialties) ? data.specialties : [],
+        suggestedQuestions: Array.isArray(data.suggestedQuestions) && data.suggestedQuestions.length ? data.suggestedQuestions : starterPrompts,
+      });
+    }).catch(() => {}).finally(() => active && setStatusLoading(false));
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-MAX_STORED_MESSAGES)));
+    const frame = window.requestAnimationFrame(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages, sending]);
+  const history = useMemo(() => messages.filter((item) => !item.isError).slice(-MAX_HISTORY_MESSAGES).map((item) => ({ role: item.role, content: item.content })), [messages]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!prompt.trim()) return;
-
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: prompt.trim() },
-      { role: "assistant", text: quickReply },
-    ]);
-    setPrompt("");
+  const submit = async (rawPrompt) => {
+    const question = rawPrompt.trim();
+    if (!question || sending) return;
+    setMessages((current) => [...current, buildMessage('user', question)]);
+    setPrompt(''); setSending(true);
+    try {
+      const data = await sendEnterpriseAiMessage({ message: question, history, currentFeature: 'enterprise-ai-page' });
+      if (!data?.answer) throw new Error('Empty AI response');
+      setMessages((current) => [...current, buildMessage('assistant', data.answer, { category: data.category, actions: normalizeActions(data.actions) })]);
+    } catch (error) {
+      const errorMessage = error?.response?.status === 429
+        ? 'Bạn đang gửi câu hỏi quá nhanh. Vui lòng chờ ít phút rồi thử lại.'
+        : error?.response?.data?.message || 'PreOnic Enterprise AI đang tạm thời chưa phản hồi. Vui lòng thử lại.';
+      setMessages((current) => [...current, buildMessage('assistant', errorMessage, { isError: true })]);
+    } finally { setSending(false); window.setTimeout(() => inputRef.current?.focus(), 0); }
   };
-
-  const handleSuggestion = (item) => {
-    setPrompt(item);
+  const handleAction = (action) => {
+    if (action.type === 'navigate' && isSafeEnterprisePath(action.path)) navigate(action.path);
+    if (action.type === 'open_chat') action.partnerId ? openChatWith(action.partnerId, action.partnerName) : openWidget();
   };
+  const reset = () => { const next = [createWelcome(name)]; setMessages(next); setPrompt(''); };
 
   return (
     <div className="enterprise-ai-page">
       <Header />
-
       <main>
-        <section className="ea-hero">
-          <div className="ea-container ea-hero__grid">
-            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
-              <span className="ea-eyebrow"><FiCpu /> Enterprise AI procurement assistant</span>
-              <h1>AI hỗ trợ doanh nghiệp tìm nguồn cung và giảm rủi ro thu mua.</h1>
-              <p>
-                Trang này mô phỏng giao diện AI dành cho enterprise. Khi backend AI hoàn thiện,
-                phần chat có thể nối với service phân tích sản phẩm, hợp đồng, farmer và dữ liệu thị trường.
-              </p>
-            </motion.div>
-
-            <motion.div className="ea-ai-core" initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.12 }}>
-              <FiZap />
-              <strong>AI matching score</strong>
-              <span>92%</span>
-              <p>Khớp nhu cầu thu mua với nguồn cung đã xác thực.</p>
-            </motion.div>
-          </div>
-        </section>
-
-        <section className="ea-container ea-ai-grid">
-          <motion.div className="ea-chat-card" initial={{ opacity: 0, x: -24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-            <div className="ea-chat-card__head">
-              <div>
-                <span><FiMessageSquare /> PreOnic AI</span>
-                <h2>Trợ lý thu mua</h2>
-              </div>
-              <em>Mock mode</em>
-            </div>
-
-            <div className="ea-messages">
-              {messages.map((message, index) => (
-                <div key={`${message.role}-${index}`} className={`ea-message ea-message--${message.role}`}>
-                  {message.text}
-                </div>
-              ))}
-            </div>
-
-            <div className="ea-suggestions">
-              {suggestions.map((item) => (
-                <button type="button" key={item} onClick={() => handleSuggestion(item)}>{item}</button>
-              ))}
-            </div>
-
-            <form className="ea-input" onSubmit={handleSubmit}>
-              <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Nhập nhu cầu: 30 tấn gạo ST25, giao trong tháng 8..." />
-              <button type="submit"><FiArrowRight /></button>
-            </form>
+        <section className="ea-hero"><div className="ea-container ea-hero__grid">
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
+            <span className="ea-eyebrow"><FiCpu /> AI dành cho doanh nghiệp</span>
+            <h1>Ra quyết định thu mua dựa trên <span>dữ liệu thật của PreOnic.</span></h1>
+            <p>Hỏi về nguồn cung, nhà cung cấp, hợp đồng và dòng tiền. Trợ lý chỉ sử dụng dữ liệu mà doanh nghiệp của bạn được quyền truy cập.</p>
+            <div className="ea-hero__badges"><span><FiCheckCircle /> Nguồn cung đang hoạt động</span><span><FiCheckCircle /> Hợp đồng của doanh nghiệp</span><span><FiCheckCircle /> Dòng tiền đã đối chiếu</span></div>
+            <div className="ea-hero__actions"><button type="button" onClick={() => inputRef.current?.focus()}>Bắt đầu hỏi AI <FiArrowRight /></button><button type="button" onClick={() => navigate('/enterprise/products')}>Xem nguồn cung</button></div>
           </motion.div>
-
-          <motion.aside className="ea-insight-panel" initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-            <h2>Tín hiệu thị trường</h2>
-            {marketSignals.map((item) => (
-              <article key={item.crop}>
-                <div>
-                  <strong>{item.crop}</strong>
-                  <span><FiMapPin /> {item.region}</span>
-                </div>
-                <em>{item.signal}</em>
-                <div className="ea-signal"><i style={{ width: `${item.level}%` }} /></div>
-              </article>
-            ))}
+          <motion.aside className="ea-ai-core" initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }}>
+            <FiShield /><span>ENTERPRISE AI WORKSPACE</span><h2>Một trợ lý hiểu đúng luồng thu mua và thanh toán trực tiếp.</h2>
+            <div className="ea-ai-core__list">{(status.specialties.length ? status.specialties : capabilities.map((item) => item.title)).slice(0, 5).map((item) => <p key={item}><FiCheckCircle /> {item}</p>)}</div>
           </motion.aside>
-        </section>
+        </div></section>
 
-        <section className="ea-container ea-feature-grid">
-          {aiInsights.map(({ icon: Icon, title, desc }, index) => (
-            <motion.article key={title} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.06 }}>
-              <Icon />
-              <h3>{title}</h3>
-              <p>{desc}</p>
-            </motion.article>
-          ))}
-        </section>
-
-        <section className="ea-container ea-dashboard-preview">
-          <div>
-            <span className="ea-eyebrow ea-eyebrow--blue"><FiBarChart2 /> AI dashboard preview</span>
-            <h2>Backend có thể nối AI với dữ liệu nào?</h2>
-            <p>
-              Product API để lấy nguồn cung, Contract API để đọc đề xuất hợp đồng, Review API để đánh giá uy tín farmer và Direct Payment API để phân tích tiến độ thanh toán.
-            </p>
+        <section className="ea-chat-section"><div className="ea-container">
+          <div className="ea-section-head"><span><FiMessageCircle /> Không gian phân tích</span><h2>Trao đổi với trợ lý thu mua.</h2><p>AI có thể đọc bản tóm tắt dữ liệu hiện tại nhưng không ký hợp đồng hay chuyển tiền thay bạn.</p></div>
+          <div className="ea-workspace">
+            <motion.div className="ea-chat-card" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+              <div className="ea-chat-card__head"><div><span><FiCpu /> {status.assistantName}</span><small>Xin chào {name}</small></div><button type="button" onClick={reset}><FiRefreshCw /> Hội thoại mới</button></div>
+              <div className="ea-chat-status"><span className={!status.available && !statusLoading ? 'is-offline' : ''}>{statusLoading ? <FiLoader className="ea-spin" /> : <FiCpu />}{statusLoading ? 'Đang kiểm tra kết nối...' : status.available ? 'AI backend đang hoạt động' : 'AI chưa được cấu hình trên máy chủ'}</span><small>{messages.filter((item) => item.role === 'user').length} câu trong phiên</small></div>
+              <div className="ea-messages" ref={chatRef}>
+                {messages.map((message) => <div key={message.id} className={`ea-message ea-message--${message.role} ${message.isError ? 'is-error' : ''}`}>
+                  <span className="ea-message__avatar">{message.role === 'assistant' ? <FiCpu /> : <FiUser />}</span><div><strong>{message.role === 'assistant' ? 'PreOnic AI' : 'Bạn'}</strong><p>{message.content}</p>
+                  {!!message.actions?.length && <div className="ea-message__actions">{message.actions.map((action, index) => { const Icon = ACTION_ICONS[action.target] || FiArrowRight; return <button type="button" key={`${message.id}-${index}`} onClick={() => handleAction(action)}><Icon /> {action.label} <FiArrowRight /></button>; })}</div>}</div>
+                </div>)}
+                {sending && <div className="ea-message ea-message--assistant"><span className="ea-message__avatar"><FiCpu /></span><div><strong>PreOnic AI</strong><p><FiLoader className="ea-spin" /> Đang đối chiếu dữ liệu doanh nghiệp...</p></div></div>}
+              </div>
+              <div className="ea-suggestions">{status.suggestedQuestions.slice(0, 4).map((item) => <button type="button" key={item} onClick={() => setPrompt(item)}>{item}</button>)}</div>
+              <form className="ea-input" onSubmit={(event) => { event.preventDefault(); submit(prompt); }}>
+                <textarea ref={inputRef} value={prompt} maxLength={MAX_MESSAGE_LENGTH} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(prompt); } }} placeholder="Hỏi về nguồn cung, nhà cung cấp, hợp đồng hoặc chi phí..." rows={3} />
+                <div><small>{prompt.length}/{MAX_MESSAGE_LENGTH} ký tự</small><button type="submit" disabled={sending || !prompt.trim()}>{sending ? <FiLoader className="ea-spin" /> : <FiSend />} {sending ? 'Đang gửi' : 'Gửi câu hỏi'}</button></div>
+              </form>
+            </motion.div>
+            <aside className="ea-side-panel"><span>Gợi ý nhanh</span><h3>Bắt đầu bằng dữ liệu đang có.</h3>{starterPrompts.map((item) => <button type="button" key={item} onClick={() => { setPrompt(item); inputRef.current?.focus(); }}><FiArrowRight /> {item}</button>)}<div className="ea-side-panel__note"><FiShield /><p>AI chỉ phân tích và điều hướng. Mọi thao tác hợp đồng hoặc thanh toán vẫn cần bạn tự xác nhận trong màn hình nghiệp vụ.</p></div></aside>
           </div>
-          <div className="ea-preview-list">
-            <span><FiPackage /> Product matching</span>
-            <span><FiShield /> Payment risk scoring</span>
-            <span><FiActivity /> Delivery performance</span>
-          </div>
-        </section>
-      </main>
-      <Footer />
+        </div></section>
+        <section className="ea-container ea-capabilities"><div className="ea-section-head"><span>Năng lực chính</span><h2>Thông tin phục vụ đúng quyết định thu mua.</h2></div><div className="ea-feature-grid">{capabilities.map(({ icon: Icon, title, text }) => <article key={title}><Icon /><h3>{title}</h3><p>{text}</p></article>)}</div></section>
+      </main><Footer />
     </div>
   );
 }
-
 export default EnterpriseAI;

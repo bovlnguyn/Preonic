@@ -1,7 +1,14 @@
 import { RequestHandler, Router } from 'express';
-import { farmerAiChat, getFarmerAiStatus, getPublicAiStatus, publicAiChat } from '../controller/ai.controller';
+import {
+  enterpriseAiChat,
+  farmerAiChat,
+  getEnterpriseAiStatus,
+  getFarmerAiStatus,
+  getPublicAiStatus,
+  publicAiChat,
+} from '../controller/ai.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
-import { farmerAiLimiter, publicAiLimiter } from '../middlewares/ratelimit.middleware';
+import { enterpriseAiLimiter, farmerAiLimiter, publicAiLimiter } from '../middlewares/ratelimit.middleware';
 
 const router = Router();
 
@@ -20,6 +27,20 @@ router.post(
   restrictTo('farmer') as RequestHandler,
   farmerAiLimiter as RequestHandler,
   farmerAiChat as RequestHandler
+);
+
+router.get(
+  '/enterprise/status',
+  protect as RequestHandler,
+  restrictTo('enterprise') as RequestHandler,
+  getEnterpriseAiStatus as RequestHandler
+);
+router.post(
+  '/enterprise/chat',
+  protect as RequestHandler,
+  restrictTo('enterprise') as RequestHandler,
+  enterpriseAiLimiter as RequestHandler,
+  enterpriseAiChat as RequestHandler
 );
 
 export default router;

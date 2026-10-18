@@ -11,3 +11,24 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Một dấu mũi tên thống nhất cho các ô chọn trong ứng dụng.
+   Menu tài khoản ở header là button/popover nên không bị selector này tác động. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 38px !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--select-arrow-color, #475569) 50%),
+    linear-gradient(135deg, var(--select-arrow-color, #475569) 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px) !important;
+  background-size: 5px 5px, 5px 5px !important;
+  background-repeat: no-repeat !important;
+  cursor: pointer;
+}
+
+select:not([multiple]):not([size]):disabled {
+  cursor: not-allowed;
+}

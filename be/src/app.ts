@@ -48,11 +48,14 @@ app.use(helmet()); // Security headers
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   ...(process.env.FRONTEND_URLS?.split(',') ?? []),
-].filter(Boolean) as string[];
+]
+  .map((origin) => String(origin || '').trim().replace(/\/$/, ''))
+  .filter(Boolean) as string[];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const normalizedOrigin = origin?.replace(/\/$/, '');
+    if (!origin || (normalizedOrigin && allowedOrigins.includes(normalizedOrigin))) {
       callback(null, true);
     } else {
       callback(new Error(`CORS: origin ${origin} not allowed`));

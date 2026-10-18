@@ -1,13 +1,14 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn, Unique,
+  ManyToOne, JoinColumn, Unique, Index,
 } from 'typeorm';
 import { Product } from './Product.entity';
 import { User } from './User.entity';
 
 @Entity('Reviews')
 @Unique(['productId', 'reviewerId'])   // UQ_Reviews_Product_Reviewer
+@Index('IX_Reviews_Product_CreatedAt', ['productId', 'createdAt'])
 export class Review {
   @PrimaryGeneratedColumn('uuid', { name: 'ReviewId' })
   id: string;

@@ -862,14 +862,12 @@ export default function FarmerCreateProduct() {
 
   return (
     <div className="fcp-page">
-      {/* Breadcrumb */}
-      <div className="fcp-breadcrumb">
-        <button type="button" onClick={() => navigate('/farmer')}>Trang chủ</button>
-        <span>/</span>
-        <span>Đăng bán nông sản</span>
-      </div>
-
       <div className="fcp-heading">
+        <div className="fcp-breadcrumb">
+          <button type="button" onClick={() => navigate('/farmer')}>Trang chủ</button>
+          <span>/</span>
+          <span>Đăng bán nông sản</span>
+        </div>
         <span className="fcp-heading__eyebrow">MÙA VỤ MỚI</span>
         <h1>Đăng bán nông sản mới</h1>
         <p>Hoàn thiện thông tin mùa vụ theo 4 bước để sản phẩm sẵn sàng tiếp cận doanh nghiệp thu mua.</p>

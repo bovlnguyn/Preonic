@@ -7,6 +7,7 @@ import {
   NormalizedFeePaymentWebhookEvent,
 } from '../fee-payment-provider.interface';
 import { verifyTimestampedHmacWebhook } from '../../security/webhook-security';
+import { buildFeePaymentQrExpiry, getFeePaymentQrTtlMinutes } from '../fee-payment-expiry';
 
 const requiredEnv = (name: string): string => {
   const value = String(process.env[name] || '').trim();
@@ -23,9 +24,31 @@ const parseAmount = (value: unknown, required: boolean): number | null => {
 
 const parseDate = (value: unknown): Date | null => {
   if (value == null) return null;
-  const date = new Date(String(value));
+  const raw = String(value).trim();
+  const date = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+    ? new Date(`${raw.replace(' ', 'T')}+07:00`)
+    : new Date(raw);
   if (Number.isNaN(date.getTime())) throw new Error('Webhook occurredAt is invalid');
   return date;
+};
+
+export const getBankTransferFeeRecipient = () => ({
+  bankCode: requiredEnv('FEE_PAYMENT_BANK_CODE'),
+  accountNumber: requiredEnv('FEE_PAYMENT_BANK_ACCOUNT_NUMBER'),
+  accountHolder: requiredEnv('FEE_PAYMENT_BANK_ACCOUNT_HOLDER'),
+});
+
+const extractOrderCode = (body: any): string => {
+  const code = String(body?.code || '').trim().toUpperCase().replace(/\s+/g, '');
+  const content = String(body?.content || '').trim().toUpperCase();
+  const reference = code.startsWith('PRNFEE')
+    ? code
+    : content.match(/PRNFEE(PF[A-Z0-9]{8,38})/)?.[0] || '';
+  const orderCode = reference.slice('PRNFEE'.length);
+  if (!/^PF[A-Z0-9]{8,38}$/.test(orderCode)) {
+    throw new Error('SePay payment code is invalid');
+  }
+  return orderCode;
 };
 
 export const validateBankTransferFeePaymentConfiguration = (): void => {
@@ -60,6 +83,7 @@ export const validateBankTransferFeePaymentConfiguration = (): void => {
   if (!Number.isFinite(maxAgeSeconds) || maxAgeSeconds < 30 || maxAgeSeconds > 3600) {
     throw new Error('Fee payment webhook max age must be between 30 and 3600 seconds');
   }
+  getFeePaymentQrTtlMinutes();
 };
 
 export class BankTransferFeePaymentProvider implements FeePaymentProvider {
@@ -86,7 +110,7 @@ export class BankTransferFeePaymentProvider implements FeePaymentProvider {
       providerPaymentId: `bank_${fingerprint}`,
       paymentUrl: url.toString(),
       qrPayload: null,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      expiresAt: buildFeePaymentQrExpiry(),
     };
   }
 
@@ -95,31 +119,44 @@ export class BankTransferFeePaymentProvider implements FeePaymentProvider {
       rawBody,
       headers,
       secret: requiredEnv('FEE_PAYMENT_BANK_WEBHOOK_SECRET'),
-      signatureHeader: 'x-preonic-bank-signature',
-      timestampHeader: 'x-preonic-bank-timestamp',
+      signatureHeader: 'x-sepay-signature',
+      timestampHeader: 'x-sepay-timestamp',
       maxAgeSeconds: Number(process.env.FEE_PAYMENT_WEBHOOK_MAX_AGE_SECONDS || 300),
     });
 
     let body: any;
     try { body = JSON.parse(rawBody.toString('utf8')); } catch { throw new Error('Webhook body is not valid JSON'); }
-    const eventId = String(body?.eventId || '').trim();
-    if (!/^[A-Za-z0-9._:-]{8,150}$/.test(eventId)) throw new Error('Webhook eventId is invalid');
-    const providerPaymentId = body?.providerPaymentId == null ? null : String(body.providerPaymentId).trim();
-    const orderCode = body?.orderCode == null ? null : String(body.orderCode).trim();
-    if (!providerPaymentId && !orderCode) throw new Error('Webhook must identify a payment');
-    const allowed = new Set<NormalizedFeePaymentEventStatus>(['processing', 'paid', 'failed', 'expired']);
-    const status = String(body?.status || '') as NormalizedFeePaymentEventStatus;
-    if (!allowed.has(status)) throw new Error('Webhook status is invalid');
-    const amount = parseAmount(body?.amount, status === 'paid');
+    const sepayId = String(body?.id ?? '').trim();
+    if (!/^\d{1,20}$/.test(sepayId)) throw new Error('SePay transaction id is invalid');
+    if (String(body?.transferType || '').trim().toLowerCase() !== 'in') {
+      throw new Error('SePay transaction is not incoming');
+    }
+    const configuredAccount = requiredEnv('FEE_PAYMENT_BANK_ACCOUNT_NUMBER');
+    if (String(body?.accountNumber || '').trim() !== configuredAccount) {
+      throw new Error('SePay destination account does not match');
+    }
+
+    const eventId = `sepay:${sepayId}`;
+    const orderCode = extractOrderCode(body);
+    const status: NormalizedFeePaymentEventStatus = 'paid';
+    const amount = parseAmount(body?.transferAmount, true);
     return {
       provider: this.name,
       providerEventId: eventId,
-      providerPaymentId,
+      providerPaymentId: null,
       orderCode,
       status,
       amount,
-      occurredAt: parseDate(body?.occurredAt),
-      sanitizedPayload: { eventId, providerPaymentId, orderCode, status, amount },
+      occurredAt: parseDate(body?.transactionDate),
+      sanitizedPayload: {
+        sepayId,
+        gateway: String(body?.gateway || '').slice(0, 100),
+        accountNumber: configuredAccount,
+        orderCode,
+        status,
+        amount,
+        referenceCode: String(body?.referenceCode || '').slice(0, 150),
+      },
     };
   }
 }

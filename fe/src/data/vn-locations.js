@@ -83,6 +83,11 @@ export const VN_DISTRICTS = {
     "Huyện Thủ Thừa","Huyện Tân Trụ","Huyện Cần Đước","Huyện Cần Giuộc","Huyện Châu Thành",
     "Huyện Tân Thạnh","Huyện Bình Phước","Huyện Mộc Hóa","Huyện Vĩnh Hưng","Huyện Tân Hưng",
   ],
+  "Dong Thap": [
+    "Thành phố Cao Lãnh","Thành phố Sa Đéc","Thành phố Hồng Ngự","Huyện Cao Lãnh",
+    "Huyện Châu Thành","Huyện Lai Vung","Huyện Lấp Vò","Huyện Tam Nông",
+    "Huyện Tân Hồng","Huyện Thanh Bình","Huyện Tháp Mười",
+  ],
   "Tien Giang": [
     "Thành phố Mỹ Tho","Thị xã Gò Công","Thị xã Cai Lậy","Huyện Cái Bè","Huyện Cai Lậy",
     "Huyện Châu Thành","Huyện Chợ Gạo","Huyện Gò Công Tây","Huyện Gò Công Đông","Huyện Tân Phước",
@@ -147,6 +152,11 @@ export const VN_DISTRICTS = {
 };
 
 export const VN_WARDS = {
+  "Thành phố Cao Lãnh": [
+    "Phường 1","Phường 2","Phường 3","Phường 4","Phường 6","Phường 11",
+    "Phường Hòa Thuận","Phường Mỹ Phú","Xã Hòa An","Xã Mỹ Ngãi","Xã Mỹ Tân",
+    "Xã Tân Thuận Đông","Xã Tân Thuận Tây","Xã Tịnh Thới",
+  ],
   // Hà Nội - Ba Đình
   "Quận Ba Đình": [
     "Phường Phúc Xá","Phường Trúc Bạch","Phường Vĩnh Phúc","Phường Cống Vị",
@@ -237,6 +247,7 @@ const PROVINCE_ALIASES = {
   "tp.hcm": "Ho Chi Minh",
   "tp. hcm": "Ho Chi Minh",
   "tp hcm": "Ho Chi Minh",
+  "tp. ho chi minh": "Ho Chi Minh",
   "ho chi minh": "Ho Chi Minh",
   "hồ chí minh": "Ho Chi Minh",
   "sai gon": "Ho Chi Minh",
@@ -270,6 +281,8 @@ const PROVINCE_ALIASES = {
   "binh thuan": "Binh Thuan",
   "bình thuận": "Binh Thuan",
   "long an": "Long An",
+  "dong thap": "Dong Thap",
+  "đồng tháp": "Dong Thap",
   // duplicate removed
   "tien giang": "Tien Giang",
   "tiền giang": "Tien Giang",

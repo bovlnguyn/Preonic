@@ -95,6 +95,11 @@ const REQUIRED_SCHEMA: SchemaRequirement[] = [
             "AccountNumberFingerprint",
             "IsDefault",
             "Status",
+            "VerificationStatus",
+            "VerifiedAccountHolder",
+            "VerificationProvider",
+            "VerificationReference",
+            "VerifiedAt",
         ],
     },
 

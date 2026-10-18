@@ -6,6 +6,7 @@ import {
   NormalizedFeePaymentWebhookEvent,
 } from '../fee-payment-provider.interface';
 import { verifyTimestampedHmacWebhook } from '../../security/webhook-security';
+import { buildFeePaymentQrExpiry } from '../fee-payment-expiry';
 
 const normalizeMockAmount = (value: unknown): number | null => {
   if (value == null) return null;
@@ -46,7 +47,7 @@ export class MockFeePaymentProvider implements FeePaymentProvider {
       providerPaymentId: `mock_${fingerprint}`,
       paymentUrl: `https://mock-payments.local/pay/${encodeURIComponent(request.orderCode)}`,
       qrPayload: `MOCK|${request.orderCode}|${request.amount}|${request.transferContent}`,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      expiresAt: buildFeePaymentQrExpiry(),
     };
   }
 

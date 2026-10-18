@@ -1,4 +1,3 @@
-import { Between } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { User } from '../models/User.entity';
 import { Contract } from '../models/Contract.entity';
@@ -104,25 +103,75 @@ export const deleteUser = async (userId: string, actorAdminId?: string) => {
 };
 
 export const getDashboardStats = async () => {
-  const [totalUsers, totalFarmers, totalEnterprises, totalContracts, activeContracts, completedContracts, cancelledContracts, openDisputes, reviewDisputes, totalGoodsPayments, totalFeePayments] = await Promise.all([
-    userRepo().count(), userRepo().count({ where: { role: 'farmer' } }), userRepo().count({ where: { role: 'enterprise' } }),
-    contractRepo().count(), contractRepo().count({ where: { status: 'active' } }), contractRepo().count({ where: { status: 'completed' } }), contractRepo().count({ where: { status: 'cancelled' } }),
-    disputeRepo().count({ where: { status: 'open' } }), disputeRepo().count({ where: { status: 'under_review' } }),
-    goodsPaymentRepo().count(), feePaymentRepo().count(),
-  ]);
-  const feeCollected = await feePaymentRepo().createQueryBuilder('payment').select('COALESCE(SUM(payment.Amount), 0)', 'sum').where("payment.Status = 'paid'").getRawOne();
   const now = new Date();
-  const monthlyUserData = await Promise.all(Array.from({ length: 6 }, (_, index) => 5 - index).map(async offset => {
-    const start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
-    return { month: `T${start.getMonth() + 1}`, count: await userRepo().count({ where: { createdAt: Between(start, end) } }) };
-  }));
-  const [recentUsers, recentContracts] = await Promise.all([
+  const monthStarts = Array.from({ length: 6 }, (_, index) => {
+    const offset = 5 - index;
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1));
+  });
+  const rangeStart = monthStarts[0];
+
+  // Aggregate each table once. The former implementation issued a separate
+  // COUNT query for every KPI and every month (20 queries for one dashboard).
+  const [userStats, contractStats, disputeStats, goodsPaymentStats, feePaymentStats,
+    monthlyUsers, recentUsers, recentContracts] = await Promise.all([
+    userRepo().createQueryBuilder('user')
+      .select('COUNT(*)', 'totalUsers')
+      .addSelect("COALESCE(SUM(CASE WHEN user.Role = 'farmer' THEN 1 ELSE 0 END), 0)", 'totalFarmers')
+      .addSelect("COALESCE(SUM(CASE WHEN user.Role = 'enterprise' THEN 1 ELSE 0 END), 0)", 'totalEnterprises')
+      .getRawOne(),
+    contractRepo().createQueryBuilder('contract')
+      .select('COUNT(*)', 'totalContracts')
+      .addSelect("COALESCE(SUM(CASE WHEN contract.Status = 'active' THEN 1 ELSE 0 END), 0)", 'activeContracts')
+      .addSelect("COALESCE(SUM(CASE WHEN contract.Status = 'completed' THEN 1 ELSE 0 END), 0)", 'completedContracts')
+      .addSelect("COALESCE(SUM(CASE WHEN contract.Status = 'cancelled' THEN 1 ELSE 0 END), 0)", 'cancelledContracts')
+      .getRawOne(),
+    disputeRepo().createQueryBuilder('dispute')
+      .select("COALESCE(SUM(CASE WHEN dispute.Status IN ('open','under_review') THEN 1 ELSE 0 END), 0)", 'openDisputes')
+      .getRawOne(),
+    goodsPaymentRepo().createQueryBuilder('payment')
+      .select('COUNT(*)', 'totalGoodsPayments')
+      .getRawOne(),
+    feePaymentRepo().createQueryBuilder('payment')
+      .select('COUNT(*)', 'totalFeePayments')
+      .addSelect("COALESCE(SUM(CASE WHEN payment.Status = 'paid' THEN payment.Amount ELSE 0 END), 0)", 'totalFeeCollected')
+      .getRawOne(),
+    userRepo().createQueryBuilder('user')
+      .select('YEAR(user.CreatedAt)', 'year')
+      .addSelect('MONTH(user.CreatedAt)', 'month')
+      .addSelect('COUNT(*)', 'count')
+      .where('user.CreatedAt >= :rangeStart', { rangeStart })
+      .groupBy('YEAR(user.CreatedAt)')
+      .addGroupBy('MONTH(user.CreatedAt)')
+      .getRawMany(),
     userRepo().find({ select: { id: true, fullName: true, email: true, role: true }, order: { createdAt: 'DESC' }, take: 5 }),
     contractRepo().find({ order: { createdAt: 'DESC' }, take: 5 }),
   ]);
+
+  const monthlyCount = new Map<string, number>(monthlyUsers.map((row: any) => [
+    `${Number(row.year)}-${Number(row.month)}`,
+    Number(row.count || 0),
+  ]));
+  const monthlyUserData = monthStarts.map((start) => ({
+    month: `T${start.getUTCMonth() + 1}`,
+    count: monthlyCount.get(`${start.getUTCFullYear()}-${start.getUTCMonth() + 1}`) || 0,
+  }));
+
+  const numberOf = (value: unknown): number => Number(value || 0);
   return {
-    stats: { totalUsers, totalFarmers, totalEnterprises, totalContracts, activeContracts, completedContracts, cancelledContracts, openDisputes: openDisputes + reviewDisputes, totalTransactions: totalGoodsPayments + totalFeePayments, totalFeeCollected: Number(feeCollected?.sum || 0) },
+    stats: {
+      totalUsers: numberOf(userStats?.totalUsers),
+      totalFarmers: numberOf(userStats?.totalFarmers),
+      totalEnterprises: numberOf(userStats?.totalEnterprises),
+      totalContracts: numberOf(contractStats?.totalContracts),
+      activeContracts: numberOf(contractStats?.activeContracts),
+      completedContracts: numberOf(contractStats?.completedContracts),
+      cancelledContracts: numberOf(contractStats?.cancelledContracts),
+      openDisputes: numberOf(disputeStats?.openDisputes),
+      totalTransactions:
+        numberOf(goodsPaymentStats?.totalGoodsPayments) +
+        numberOf(feePaymentStats?.totalFeePayments),
+      totalFeeCollected: numberOf(feePaymentStats?.totalFeeCollected),
+    },
     monthlyUserData, recentUsers, recentContracts,
   };
 };

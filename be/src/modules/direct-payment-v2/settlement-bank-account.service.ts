@@ -13,6 +13,17 @@ import {
   decryptBankAccountNumber,
   encryptBankAccountNumber,
 } from './bank-account-crypto';
+import {
+  isBankAccountVerificationRequired,
+  normalizeAccountHolderForMatch,
+  verifyBankAccount,
+} from './bank-account-verification.service';
+import {
+  normalizeSettlementBankCode,
+  normalizeSettlementBankName,
+  normalizeSettlementAccountHolder,
+  normalizeSettlementAccountNumber,
+} from './bank-account-input';
 
 export interface SaveFarmerBankAccountInput {
   bankCode: string;
@@ -21,22 +32,6 @@ export interface SaveFarmerBankAccountInput {
   accountNumber: string;
   makeDefault?: boolean;
 }
-
-const normalizeText = (value: string, field: string, maxLength: number): string => {
-  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
-  if (!normalized || normalized.length > maxLength || /[\u0000-\u001f\u007f]/.test(normalized)) {
-    throw makeError(`${field} không hợp lệ`, 400);
-  }
-  return normalized;
-};
-
-const normalizeBankCode = (value: string): string => {
-  const code = String(value || '').trim().toUpperCase();
-  if (!/^[A-Z0-9._-]{2,30}$/.test(code)) {
-    throw makeError('Mã ngân hàng không hợp lệ', 400);
-  }
-  return code;
-};
 
 const getCryptoConfig = () => {
   const encryptionKeyBase64 = process.env.PAYMENT_BANK_DATA_ENCRYPTION_KEY || '';
@@ -59,6 +54,10 @@ const sanitize = (account: UserSettlementBankAccount) => ({
   maskedAccountNumber: account.maskedAccountNumber,
   isDefault: account.isDefault,
   status: account.status,
+  verificationStatus: account.verificationStatus,
+  verifiedAccountHolder: account.verifiedAccountHolder,
+  verificationProvider: account.verificationProvider,
+  verifiedAt: account.verifiedAt,
   createdAt: account.createdAt,
   updatedAt: account.updatedAt,
 });
@@ -99,23 +98,53 @@ const hasInFlightPaymentUsingAccount = async (
   return count > 0;
 };
 
+export const verifyFarmerSettlementBankAccount = async (input: SaveFarmerBankAccountInput) => {
+  const bankCode = normalizeSettlementBankCode(input.bankCode);
+  const accountHolder = normalizeSettlementAccountHolder(input.accountHolder);
+  const accountNumber = normalizeSettlementAccountNumber(input.accountNumber);
+
+  const result = await verifyBankAccount(bankCode, accountNumber);
+  const nameMatches = result.accountHolder
+    ? normalizeAccountHolderForMatch(result.accountHolder) === normalizeAccountHolderForMatch(accountHolder)
+    : null;
+  return {
+    ...result,
+    nameMatches,
+    message: result.status === 'verified' && nameMatches === false
+      ? `Tài khoản tồn tại nhưng tên chủ tài khoản phải là ${result.accountHolder}.`
+      : result.message,
+  };
+};
+
 export const saveFarmerSettlementBankAccount = async (
   userId: string,
   input: SaveFarmerBankAccountInput
-) => runLockedTransaction(async (manager) => {
-  await assertFarmer(manager, userId);
+) => {
+  const bankCode = normalizeSettlementBankCode(input.bankCode);
+  const bankName = normalizeSettlementBankName(input.bankName, bankCode);
+  const accountHolder = normalizeSettlementAccountHolder(input.accountHolder);
+  const accountNumber = normalizeSettlementAccountNumber(input.accountNumber);
+  const verification = await verifyBankAccount(bankCode, accountNumber);
+  if (verification.status === 'failed') {
+    throw makeError(verification.message, 400);
+  }
+  if (verification.status === 'unavailable' && isBankAccountVerificationRequired()) {
+    throw makeError('Cần xác minh tài khoản ngân hàng trước khi lưu. Dịch vụ xác minh hiện chưa sẵn sàng.', 503);
+  }
+  if (
+    verification.status === 'verified' &&
+    verification.accountHolder &&
+    normalizeAccountHolderForMatch(verification.accountHolder) !== normalizeAccountHolderForMatch(accountHolder)
+  ) {
+    throw makeError(`Tên chủ tài khoản không khớp. Tên xác minh từ ngân hàng là ${verification.accountHolder}.`, 409);
+  }
 
-  const bankCode = normalizeBankCode(input.bankCode);
-  const bankName = input.bankName
-    ? normalizeText(input.bankName, 'Tên ngân hàng', 100)
-    : null;
-  const accountHolder = normalizeText(input.accountHolder, 'Tên chủ tài khoản', 150);
   const cryptoConfig = getCryptoConfig();
 
   let encrypted;
   try {
     encrypted = encryptBankAccountNumber({
-      accountNumber: input.accountNumber,
+      accountNumber,
       userId,
       bankCode,
       encryptionKeyBase64: cryptoConfig.encryptionKeyBase64,
@@ -130,68 +159,81 @@ export const saveFarmerSettlementBankAccount = async (
     throw makeError('Số tài khoản ngân hàng không hợp lệ', 400);
   }
 
-  const repo = manager.getRepository(UserSettlementBankAccount);
-  let account = await repo.findOne({
-    where: {
-      userId,
-      accountNumberFingerprint: encrypted.fingerprint,
-    },
-  });
-
-  const activeCount = await repo.count({
-    where: { userId, status: 'active' },
-  });
-  const shouldBeDefault = Boolean(input.makeDefault) || activeCount === 0;
-
-  if (shouldBeDefault) {
-    await repo
-      .createQueryBuilder()
-      .update(UserSettlementBankAccount)
-      .set({ isDefault: false })
-      .where('UserId = :userId', { userId })
-      .execute();
-  }
-
-  if (!account) {
-    account = repo.create({
-      userId,
-      bankCode,
-      bankName,
-      accountHolder,
-      accountNumberCiphertext: encrypted.ciphertext,
-      accountNumberIv: encrypted.iv,
-      accountNumberAuthTag: encrypted.authTag,
-      encryptionKeyVersion: encrypted.encryptionKeyVersion,
-      accountNumberFingerprint: encrypted.fingerprint,
-      maskedAccountNumber: encrypted.maskedAccountNumber,
-      isDefault: shouldBeDefault,
-      status: 'active',
+  return runLockedTransaction(async (manager) => {
+    await assertFarmer(manager, userId);
+    const repo = manager.getRepository(UserSettlementBankAccount);
+    let account = await repo.findOne({
+      where: {
+        userId,
+        accountNumberFingerprint: encrypted.fingerprint,
+      },
     });
-  } else {
-    if (
-      account.accountHolder !== accountHolder &&
-      await hasInFlightPaymentUsingAccount(manager, account.id)
-    ) {
-      throw makeError(
-        'Không thể đổi tên chủ tài khoản khi tài khoản đang được dùng cho khoản thanh toán chưa hoàn tất',
-        409
-      );
+
+    const activeCount = await repo.count({
+      where: { userId, status: 'active' },
+    });
+    const shouldBeDefault = Boolean(input.makeDefault) || activeCount === 0;
+
+    if (shouldBeDefault) {
+      await repo
+        .createQueryBuilder()
+        .update(UserSettlementBankAccount)
+        .set({ isDefault: false })
+        .where('UserId = :userId', { userId })
+        .execute();
     }
 
-    account.bankCode = bankCode;
-    account.bankName = bankName;
-    account.accountHolder = accountHolder;
-    account.accountNumberCiphertext = encrypted.ciphertext;
-    account.accountNumberIv = encrypted.iv;
-    account.accountNumberAuthTag = encrypted.authTag;
-    account.encryptionKeyVersion = encrypted.encryptionKeyVersion;
-    account.maskedAccountNumber = encrypted.maskedAccountNumber;
-    account.status = 'active';
-    if (shouldBeDefault) account.isDefault = true;
-  }
+    if (!account) {
+      account = repo.create({
+        userId,
+        bankCode,
+        bankName,
+        accountHolder,
+        accountNumberCiphertext: encrypted.ciphertext,
+        accountNumberIv: encrypted.iv,
+        accountNumberAuthTag: encrypted.authTag,
+        encryptionKeyVersion: encrypted.encryptionKeyVersion,
+        accountNumberFingerprint: encrypted.fingerprint,
+        maskedAccountNumber: encrypted.maskedAccountNumber,
+        isDefault: shouldBeDefault,
+        status: 'active',
+        verificationStatus: verification.status === 'verified' ? 'verified' : 'unverified',
+        verifiedAccountHolder: verification.accountHolder,
+        verificationProvider: verification.provider,
+        verificationReference: verification.reference,
+        verifiedAt: verification.status === 'verified' ? new Date() : null,
+      });
+    } else {
+      if (
+        account.accountHolder !== accountHolder &&
+        await hasInFlightPaymentUsingAccount(manager, account.id)
+      ) {
+        throw makeError(
+          'Không thể đổi tên chủ tài khoản khi tài khoản đang được dùng cho khoản thanh toán chưa hoàn tất',
+          409
+        );
+      }
 
-  return sanitize(await repo.save(account));
-}, { label: 'paymentV2.saveFarmerBankAccount' });
+      account.bankCode = bankCode;
+      account.bankName = bankName;
+      account.accountHolder = accountHolder;
+      account.accountNumberCiphertext = encrypted.ciphertext;
+      account.accountNumberIv = encrypted.iv;
+      account.accountNumberAuthTag = encrypted.authTag;
+      account.encryptionKeyVersion = encrypted.encryptionKeyVersion;
+      account.maskedAccountNumber = encrypted.maskedAccountNumber;
+      account.status = 'active';
+      account.verificationStatus = verification.status === 'verified' ? 'verified' : 'unverified';
+      account.verifiedAccountHolder = verification.accountHolder;
+      account.verificationProvider = verification.provider;
+      account.verificationReference = verification.reference;
+      account.verifiedAt = verification.status === 'verified' ? new Date() : null;
+      if (shouldBeDefault) account.isDefault = true;
+    }
+
+    return sanitize(await repo.save(account));
+  }, { label: 'paymentV2.saveFarmerBankAccount' });
+};
 
 export const listFarmerSettlementBankAccounts = async (userId: string) => {
   if (!AppDataSource?.isInitialized) {
@@ -228,6 +270,9 @@ export const setDefaultFarmerSettlementBankAccount = async (
 
   if (account.status !== 'active') {
     throw makeError('Không thể đặt tài khoản đã vô hiệu hóa làm tài khoản mặc định', 409);
+  }
+  if (isBankAccountVerificationRequired() && account.verificationStatus !== 'verified') {
+    throw makeError('Tài khoản cần được xác minh trước khi đặt làm mặc định', 409);
   }
 
   await repo
@@ -296,6 +341,10 @@ const loadSensitiveAccount = async (
     .addSelect('account.accountNumberFingerprint')
     .where('account.userId = :userId', { userId: where.userId })
     .andWhere("account.status = 'active'");
+
+  if (isBankAccountVerificationRequired()) {
+    qb.andWhere("account.verificationStatus = 'verified'");
+  }
 
   if (where.id) qb.andWhere('account.id = :id', { id: where.id });
   if (where.isDefault) qb.andWhere('account.isDefault = 1');

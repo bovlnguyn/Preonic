@@ -110,29 +110,62 @@ describe('Direct Payment V2 Phase 3', () => {
       holder: process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER,
       qr: process.env.FEE_PAYMENT_QR_BASE_URL,
       secret: process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET,
+      ttl: process.env.FEE_PAYMENT_QR_TTL_MINUTES,
     };
     process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = '0123456789';
     process.env.FEE_PAYMENT_BANK_CODE = 'MBBank';
     process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER = 'PREONIC';
     process.env.FEE_PAYMENT_QR_BASE_URL = 'https://qr.sepay.vn/img';
     process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET = '12345678901234567890123456789012';
+    process.env.FEE_PAYMENT_QR_TTL_MINUTES = '10';
     try {
       expect(() => validateBankTransferFeePaymentConfiguration()).not.toThrow();
       const result = await new BankTransferFeePaymentProvider().createPayment({
-        orderCode: 'PFTEST002', amount: 125_000, currency: 'VND',
-        transferContent: 'PRNFEEPFTEST002', idempotencyKey: 'fee:fedcba9876543210',
+        orderCode: 'PFTEST0002', amount: 125_000, currency: 'VND',
+        transferContent: 'PRNFEEPFTEST0002', idempotencyKey: 'fee:fedcba9876543210',
       });
       const url = new URL(result.paymentUrl!);
       expect(result.provider).toBe('bank_transfer');
       expect(url.protocol).toBe('https:');
       expect(url.searchParams.get('amount')).toBe('125000');
-      expect(url.searchParams.get('des')).toBe('PRNFEEPFTEST002');
+      expect(url.searchParams.get('des')).toBe('PRNFEEPFTEST0002');
+      expect(result.expiresAt!.getTime() - Date.now()).toBeGreaterThan(9 * 60 * 1000);
+      expect(result.expiresAt!.getTime() - Date.now()).toBeLessThanOrEqual(10 * 60 * 1000);
+
+      const rawBody = Buffer.from(JSON.stringify({
+        id: 92704,
+        gateway: 'MBBank',
+        transactionDate: '2026-10-18 22:30:00',
+        accountNumber: '0123456789',
+        code: 'PRNFEEPFTEST0002',
+        content: 'PRNFEEPFTEST0002 chuyen tien',
+        transferType: 'in',
+        transferAmount: 125_000,
+        referenceCode: 'FT24012345678',
+      }));
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const signature = `sha256=${crypto
+        .createHmac('sha256', process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET)
+        .update(`${timestamp}.${rawBody.toString('utf8')}`)
+        .digest('hex')}`;
+      const event = await new BankTransferFeePaymentProvider().verifyAndNormalizeWebhook(rawBody, {
+        'x-sepay-signature': signature,
+        'x-sepay-timestamp': timestamp,
+      });
+      expect(event).toMatchObject({
+        provider: 'bank_transfer',
+        providerEventId: 'sepay:92704',
+        orderCode: 'PFTEST0002',
+        status: 'paid',
+        amount: 125_000,
+      });
     } finally {
       if (previous.account === undefined) delete process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER; else process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = previous.account;
       if (previous.bank === undefined) delete process.env.FEE_PAYMENT_BANK_CODE; else process.env.FEE_PAYMENT_BANK_CODE = previous.bank;
       if (previous.holder === undefined) delete process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER; else process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER = previous.holder;
       if (previous.qr === undefined) delete process.env.FEE_PAYMENT_QR_BASE_URL; else process.env.FEE_PAYMENT_QR_BASE_URL = previous.qr;
       if (previous.secret === undefined) delete process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET; else process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET = previous.secret;
+      if (previous.ttl === undefined) delete process.env.FEE_PAYMENT_QR_TTL_MINUTES; else process.env.FEE_PAYMENT_QR_TTL_MINUTES = previous.ttl;
     }
   });
 

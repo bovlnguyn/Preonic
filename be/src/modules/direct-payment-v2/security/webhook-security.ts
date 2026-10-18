@@ -46,10 +46,10 @@ export const verifyTimestampedHmacWebhook = (params: {
     throw new Error('Webhook secret must contain at least 32 characters');
   }
 
-  const signature = getHeader(params.headers, params.signatureHeader);
+  const signatureHeader = getHeader(params.headers, params.signatureHeader);
   const timestampRaw = getHeader(params.headers, params.timestampHeader);
 
-  if (!signature || !timestampRaw || !/^\d{10,13}$/.test(timestampRaw)) {
+  if (!signatureHeader || !timestampRaw || !/^\d{10,13}$/.test(timestampRaw)) {
     throw new Error('Webhook signature or timestamp is missing');
   }
 
@@ -76,8 +76,10 @@ export const verifyTimestampedHmacWebhook = (params: {
     throw new Error('Webhook timestamp is outside the accepted replay window');
   }
 
+  // Providers sign the timestamp exactly as it appears in the request. A
+  // 10-digit value is seconds (SePay), while a 13-digit value is milliseconds.
   const signedPayload = Buffer.concat([
-    Buffer.from(String(timestampMs), 'utf8'),
+    Buffer.from(timestampRaw, 'utf8'),
     Buffer.from('.', 'utf8'),
     params.rawBody,
   ]);
@@ -87,6 +89,11 @@ export const verifyTimestampedHmacWebhook = (params: {
     .update(signedPayload)
     .digest();
 
+  // SePay prefixes the digest with `sha256=`. Older/internal adapters may send
+  // only the hexadecimal digest, so accepting both keeps the helper reusable.
+  const signature = signatureHeader.startsWith('sha256=')
+    ? signatureHeader.slice('sha256='.length)
+    : signatureHeader;
   const provided = safeHexBuffer(signature);
   if (!provided || provided.length !== expected.length) {
     throw new Error('Webhook signature is invalid');

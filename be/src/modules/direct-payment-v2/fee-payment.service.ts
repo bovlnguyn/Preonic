@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { IncomingHttpHeaders } from 'http';
-import { EntityManager } from 'typeorm';
+import { EntityManager, In, LessThanOrEqual, MoreThan } from 'typeorm';
 import { AppDataSource } from '../../config/database';
 import { PlatformFeeLedgerEntry } from '../../models/PlatformFeeLedgerEntry.entity';
 import { PlatformFeePayment } from '../../models/PlatformFeePayment.entity';
@@ -19,6 +19,7 @@ import {
   getFeePaymentProvider,
 } from './providers/fee-payment-provider.factory';
 import { hashWebhookPayload } from './security/webhook-security';
+import { getBankTransferFeeRecipient } from './providers/bank-transfer/bank-transfer-fee-payment.provider';
 import {
   ensureFeeAccountWithManager,
   recalculateFeeAccountWithManager,
@@ -57,22 +58,29 @@ const generateOrderCode = (): string => {
   return `PF${time}${random}`.slice(0, 40);
 };
 
-const serializePayment = (payment: PlatformFeePayment) => ({
-  id: payment.id,
-  orderCode: payment.orderCode,
-  amount: money(payment.amount),
-  currency: payment.currency,
-  provider: payment.provider,
-  providerPaymentId: payment.providerPaymentId,
-  transferContent: payment.transferContent,
-  paymentUrl: payment.paymentUrl,
-  qrPayload: payment.qrPayload,
-  status: payment.status,
-  statementId: payment.statementId,
-  expiresAt: payment.expiresAt,
-  paidAt: payment.paidAt,
-  createdAt: payment.createdAt,
-});
+const serializePayment = (payment: PlatformFeePayment) => {
+  const recipient = payment.provider === 'bank_transfer'
+    ? getBankTransferFeeRecipient()
+    : null;
+
+  return {
+    id: payment.id,
+    orderCode: payment.orderCode,
+    amount: money(payment.amount),
+    currency: payment.currency,
+    provider: payment.provider,
+    providerPaymentId: payment.providerPaymentId,
+    transferContent: payment.transferContent,
+    paymentUrl: payment.paymentUrl,
+    qrPayload: payment.qrPayload,
+    recipient,
+    status: payment.status,
+    statementId: payment.statementId,
+    expiresAt: payment.expiresAt,
+    paidAt: payment.paidAt,
+    createdAt: payment.createdAt,
+  };
+};
 
 const validateHttpsUrl = (value?: string | null): string | null => {
   if (!value) return null;
@@ -124,6 +132,19 @@ const getActivePendingFeePaymentsWithManager = async (
   return Math.max(0, money(raw?.amount));
 };
 
+const expireStaleFeePaymentsWithManager = async (
+  manager: EntityManager,
+  userId: string
+): Promise<void> => {
+  await manager.getRepository(PlatformFeePayment).update({
+    userId,
+    status: In(['pending', 'processing']),
+    expiresAt: LessThanOrEqual(new Date()),
+  }, {
+    status: 'expired',
+  });
+};
+
 const getStatementRemaining = (statement: PlatformFeeStatement): number =>
   Math.max(0, money(statement.amountDueSnapshot) - money(statement.amountPaid));
 
@@ -159,6 +180,28 @@ export const createPlatformFeePayment = async (
         throw makeError('Idempotency key đã được dùng cho người dùng khác', 409);
       }
       return { payment: existing, needsProviderCall: !existing.providerPaymentId };
+    }
+
+    // Let a user immediately generate a new QR after the ten-minute window,
+    // even if the scheduled expiration job has not run yet.
+    await expireStaleFeePaymentsWithManager(manager, userId);
+
+    // A valid QR may have been created in another tab/device. Return it instead
+    // of trapping the user with "no available amount" while the reservation is
+    // still active.
+    const activePayment = await paymentRepo.findOne({
+      where: {
+        userId,
+        status: In(['pending', 'processing']),
+        expiresAt: MoreThan(new Date()),
+      },
+      order: { createdAt: 'DESC' },
+    });
+    if (activePayment) {
+      return {
+        payment: activePayment,
+        needsProviderCall: !activePayment.providerPaymentId,
+      };
     }
 
     const account = await recalculateFeeAccountWithManager(manager, userId);
@@ -618,7 +661,8 @@ export const getPlatformFeePayment = async (
     throw makeError('Database is not initialized', 503);
   }
 
-  const payment = await AppDataSource.getRepository(PlatformFeePayment).findOne({
+  const repository = AppDataSource.getRepository(PlatformFeePayment);
+  let payment = await repository.findOne({
     where: { id: paymentId },
   });
   if (!payment) throw makeError('Không tìm thấy giao dịch phí', 404);
@@ -626,5 +670,43 @@ export const getPlatformFeePayment = async (
     throw makeError('Bạn không có quyền xem giao dịch phí này', 403);
   }
 
+  if (
+    payment.expiresAt &&
+    payment.expiresAt.getTime() <= Date.now() &&
+    ['pending', 'processing'].includes(payment.status)
+  ) {
+    await repository.update({
+      id: payment.id,
+      userId,
+      status: In(['pending', 'processing']),
+      expiresAt: LessThanOrEqual(new Date()),
+    }, { status: 'expired' });
+    payment = await repository.findOne({ where: { id: paymentId } }) || payment;
+  }
+
   return serializePayment(payment);
+};
+
+export const getActivePlatformFeePayment = async (userId: string) => {
+  if (!AppDataSource?.isInitialized) {
+    throw makeError('Database is not initialized', 503);
+  }
+
+  const repository = AppDataSource.getRepository(PlatformFeePayment);
+  await repository.update({
+    userId,
+    status: In(['pending', 'processing']),
+    expiresAt: LessThanOrEqual(new Date()),
+  }, { status: 'expired' });
+
+  const payment = await repository.findOne({
+    where: {
+      userId,
+      status: In(['pending', 'processing']),
+      expiresAt: MoreThan(new Date()),
+    },
+    order: { createdAt: 'DESC' },
+  });
+
+  return payment ? serializePayment(payment) : null;
 };
