@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiMenu } from "react-icons/fi";
+import {
+  FiActivity,
+  FiAlertTriangle,
+  FiCreditCard,
+  FiFileText,
+  FiGrid,
+  FiLogOut,
+  FiMenu,
+  FiPercent,
+  FiShield,
+  FiUsers,
+} from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
 import { ROUTES } from "../../constants";
 import "../Common/DashboardResponsive.css";
@@ -14,13 +25,13 @@ import QuanLyNhatKy from "./sections/QuanLyNhatKy";
 import "./AdminDashboard.css";
 
 const NAV_ITEMS = [
-  { key: "tongquan",   label: "Tổng quan",           icon: "TQ" },
-  { key: "nguoidung",  label: "Quản lý Người dùng",   icon: "ND" },
-  { key: "hopdong",    label: "Quản lý Hợp đồng",     icon: "HD" },
-  { key: "khieuuai",  label: "Quản lý Khiếu nại",    icon: "KN" },
-  { key: "giaodich",  label: "Quản lý Giao dịch",    icon: "GD" },
-  { key: "phidichvu", label: "Quản lý Phí dịch vụ",  icon: "PD" },
-  { key: "nhatky",    label: "Nhật ký hệ thống",     icon: "NK" },
+  { key: "tongquan", label: "Tổng quan", icon: FiGrid },
+  { key: "nguoidung", label: "Quản lý người dùng", icon: FiUsers },
+  { key: "hopdong", label: "Quản lý hợp đồng", icon: FiFileText },
+  { key: "khieunai", label: "Quản lý khiếu nại", icon: FiAlertTriangle },
+  { key: "giaodich", label: "Quản lý giao dịch", icon: FiCreditCard },
+  { key: "phidichvu", label: "Quản lý phí dịch vụ", icon: FiPercent },
+  { key: "nhatky", label: "Nhật ký hệ thống", icon: FiActivity },
 ];
 
 export default function AdminDashboard() {
@@ -42,35 +53,34 @@ export default function AdminDashboard() {
 
       {/* SIDEBAR */}
       <aside className={`ad-sidebar dash-drawer ${sidebarOpen ? "open" : ""}`}>
-        <div className="ad-logo" onClick={() => navigate(ROUTES.HOME)} style={{ cursor: "pointer" }}>
+        <button type="button" className="ad-logo" onClick={() => navigate(ROUTES.HOME)} aria-label="Về trang chủ">
           <div className="ad-logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
+            <FiShield />
           </div>
           <div className="ad-logo-text">
             <h1>PreOnic</h1>
             <p>Bảng quản trị</p>
           </div>
-        </div>
+        </button>
 
         <nav className="ad-nav" role="tablist" aria-label="Điều hướng quản trị">
-          {NAV_ITEMS.map(item => (
+          {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
             <button
-              key={item.key}
+              key={key}
               role="tab"
-              aria-selected={activeNav === item.key}
-              className={`ad-nav-btn ${activeNav === item.key ? "active" : ""}`}
-              onClick={() => go(item.key)}
+              aria-selected={activeNav === key}
+              className={`ad-nav-btn ${activeNav === key ? "active" : ""}`}
+              onClick={() => go(key)}
             >
-              <span className="ad-nav-icon" aria-hidden="true">{item.icon}</span>
-              <span className="ad-nav-label">{item.label}</span>
+              <span className="ad-nav-icon" aria-hidden="true"><Icon /></span>
+              <span className="ad-nav-label">{label}</span>
             </button>
           ))}
         </nav>
 
         <div className="ad-sidebar-footer">
           <button className="ad-logout-btn" onClick={handleLogout}>
+            <FiLogOut aria-hidden="true" />
             <span>Đăng xuất</span>
           </button>
         </div>
@@ -84,7 +94,6 @@ export default function AdminDashboard() {
               className="dash-hamburger"
               onClick={() => setSidebarOpen(true)}
               aria-label="Mở menu điều hướng"
-              style={{ marginRight: 4 }}
             >
               <FiMenu size={20} />
             </button>
@@ -108,7 +117,7 @@ export default function AdminDashboard() {
           {activeNav === "tongquan"   && <TongQuanContent onNavigate={setActiveNav} />}
           {activeNav === "nguoidung"  && <QuanLyNguoiDung />}
           {activeNav === "hopdong"    && <QuanLyHopDong />}
-          {activeNav === "khieuuai"  && <QuanLyKhieuNai />}
+          {activeNav === "khieunai"  && <QuanLyKhieuNai />}
           {activeNav === "giaodich"  && <QuanLyGiaoDich />}
           {activeNav === "phidichvu" && <QuanLyHoaHong />}
           {activeNav === "nhatky"    && <QuanLyNhatKy />}

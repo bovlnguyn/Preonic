@@ -17,6 +17,7 @@ import { Product } from './Product.entity';
 @Index(['status'])
 @Index('IX_Contracts_Farmer_CreatedAt', ['farmerId', 'createdAt'])
 @Index('IX_Contracts_Enterprise_CreatedAt', ['enterpriseId', 'createdAt'])
+@Index('IX_Contracts_UnsignedExpiry', ['status', 'signedByFarmer', 'updatedAt'])
 @Index('IX_Contracts_Product_Enterprise_Status_Delivery', [
   'productId',
   'enterpriseId',

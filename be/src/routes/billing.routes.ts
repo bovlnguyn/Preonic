@@ -3,20 +3,25 @@ import {
   createMyFeePayment,
   disableMySettlementAccount,
   getMyFeeAccount,
+  getMyActiveFeePayment,
   getMyFeePayment,
   getMyFeeStatements,
+  getMyCashflowReport,
   handleFeePaymentWebhook,
   listMySettlementAccounts,
   saveMySettlementAccount,
   setMyDefaultSettlementAccount,
+  verifyMySettlementAccount,
 } from '../controller/billing.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
 import {
   feePaymentCreateLimiter,
   feePaymentWebhookLimiter,
+  bankAccountVerificationLimiter,
 } from '../middlewares/ratelimit.middleware';
 import {
   validateBillingPagination,
+  validateCashflowReport,
   validateCreateFeePayment,
   validateFeePaymentIdParam,
   validateSaveSettlementAccount,
@@ -39,6 +44,19 @@ router.get(
   '/account',
   restrictTo('farmer', 'enterprise') as RequestHandler,
   getMyFeeAccount as RequestHandler
+);
+
+router.get(
+  '/fee-payments/active',
+  restrictTo('farmer', 'enterprise') as RequestHandler,
+  getMyActiveFeePayment as RequestHandler
+);
+
+router.get(
+  '/cashflow-report',
+  restrictTo('farmer', 'enterprise') as RequestHandler,
+  validateCashflowReport as RequestHandler[],
+  getMyCashflowReport as RequestHandler
 );
 
 router.get(
@@ -67,6 +85,14 @@ router.get(
   '/settlement-accounts',
   restrictTo('farmer') as RequestHandler,
   listMySettlementAccounts as RequestHandler
+);
+
+router.post(
+  '/settlement-accounts/verify',
+  restrictTo('farmer') as RequestHandler,
+  bankAccountVerificationLimiter,
+  validateSaveSettlementAccount as RequestHandler[],
+  verifyMySettlementAccount as RequestHandler
 );
 
 router.post(

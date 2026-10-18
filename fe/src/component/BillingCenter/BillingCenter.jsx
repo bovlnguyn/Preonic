@@ -1,11 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import {
   FiAlertCircle,
   FiCheckCircle,
+  FiClock,
+  FiCopy,
   FiCreditCard,
+  FiLock,
   FiPlus,
+  FiSmartphone,
   FiRefreshCw,
+  FiShield,
+  FiLoader,
   FiTrash2,
+  FiX,
 } from 'react-icons/fi';
 import billingService from '../../services/billing.service';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +28,20 @@ const fmtMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
 const fmtDate = (value) => (value ? new Date(value).toLocaleDateString('vi-VN') : '—');
 const idempotencyKey = () => window.crypto?.randomUUID?.()
   || `fee-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+const OPEN_PAYMENT_STATUSES = new Set(['pending', 'processing']);
+
+const formatCountdown = (seconds) => {
+  const safe = Math.max(0, Number(seconds) || 0);
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+};
+
+const isPaymentActive = (payment) => Boolean(
+  payment
+  && OPEN_PAYMENT_STATUSES.has(payment.status)
+  && payment.expiresAt
+  && new Date(payment.expiresAt).getTime() > Date.now()
+);
 
 const INITIAL_BANK_FORM = {
   bankCode: '',
@@ -43,9 +66,11 @@ const validateSettlementForm = (values) => {
   if (!accountHolder) {
     errors.accountHolder = 'Vui lòng nhập tên chủ tài khoản.';
   } else if (accountHolder.length < 2 || accountHolder.length > 150) {
-    errors.accountHolder = 'Tên chủ tài khoản không phù hợp.';
-  } else if (!/^[\p{L}\p{N}\s.,&'()/-]+$/u.test(accountHolder)) {
-    errors.accountHolder = 'Tên chủ tài khoản không phù hợp.';
+    errors.accountHolder = 'Tên chủ tài khoản phải từ 2 đến 150 ký tự.';
+  } else if (/\p{N}/u.test(accountHolder)) {
+    errors.accountHolder = 'Tên chủ tài khoản không được chứa số.';
+  } else if (!/^[\p{L}\s.'’&()-]+$/u.test(accountHolder) || (accountHolder.match(/\p{L}/gu) || []).length < 2) {
+    errors.accountHolder = 'Chỉ nhập chữ cái và dấu phân cách tên hợp lệ.';
   }
 
   if (!accountNumber) {
@@ -64,6 +89,7 @@ function SettlementAccounts() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(INITIAL_BANK_FORM);
   const [touched, setTouched] = useState({});
+  const [verification, setVerification] = useState({ status: 'idle', message: '', accountHolder: '', key: '' });
 
   const errors = useMemo(() => validateSettlementForm(form), [form]);
   const isFormValid = Object.keys(errors).length === 0;
@@ -86,6 +112,10 @@ function SettlementAccounts() {
     setTouched((prev) => ({ ...prev, [fieldName]: true }));
   };
 
+  const resetVerification = () => {
+    setVerification({ status: 'idle', message: '', accountHolder: '', key: '' });
+  };
+
   const handleBankChange = (event) => {
     const bankCode = event.target.value;
     const bank = getVietnamBankByCode(bankCode);
@@ -95,16 +125,50 @@ function SettlementAccounts() {
       bankCode: bank?.code || '',
       bankName: bank?.name || '',
     }));
+    resetVerification();
     touchField('bankName');
   };
 
   const handleFieldChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (['accountHolder', 'accountNumber'].includes(name)) resetVerification();
     touchField(name);
   };
 
   const handleBlur = (event) => touchField(event.target.name);
+
+  const verify = async () => {
+    const allTouched = { bankName: true, accountHolder: true, accountNumber: true };
+    setTouched(allTouched);
+    if (!isFormValid || verification.status === 'checking') return null;
+
+    setVerification({ status: 'checking', message: 'Đang kết nối dịch vụ xác minh...', accountHolder: '', key: '' });
+    try {
+      const response = await billingService.verifySettlementAccount({
+        ...form,
+        accountHolder: normalizeSpaces(form.accountHolder),
+        accountNumber: form.accountNumber.trim(),
+      });
+      const result = response?.data?.verification;
+      const key = `${form.bankCode}:${form.accountNumber.trim()}`;
+      if (result?.status === 'verified') {
+        const verifiedHolder = result.accountHolder || normalizeSpaces(form.accountHolder);
+        if (verifiedHolder && result.nameMatches === false) {
+          setForm((prev) => ({ ...prev, accountHolder: verifiedHolder }));
+        }
+        setVerification({ status: 'verified', message: result.message, accountHolder: verifiedHolder, key });
+      } else if (result?.status === 'failed') {
+        setVerification({ status: 'failed', message: result.message, accountHolder: '', key });
+      } else {
+        setVerification({ status: 'unavailable', message: result?.message || 'Chưa thể xác minh trực tuyến.', accountHolder: '', key });
+      }
+      return result;
+    } catch (err) {
+      setVerification({ status: 'failed', message: err?.message || 'Không thể xác minh tài khoản.', accountHolder: '', key: '' });
+      return null;
+    }
+  };
 
   const save = async (event) => {
     event.preventDefault();
@@ -117,16 +181,27 @@ function SettlementAccounts() {
 
     if (!isFormValid || saving) return;
 
+    let verifiedHolder = normalizeSpaces(form.accountHolder);
+    const currentKey = `${form.bankCode}:${form.accountNumber.trim()}`;
+    if (verification.key !== currentKey || !['verified', 'unavailable'].includes(verification.status)) {
+      const result = await verify();
+      if (!result || result.status === 'failed') return;
+      if (result.status === 'verified' && result.accountHolder) verifiedHolder = result.accountHolder;
+    } else if (verification.status === 'verified' && verification.accountHolder) {
+      verifiedHolder = verification.accountHolder;
+    }
+
     setSaving(true);
     try {
       await billingService.saveSettlementAccount({
         ...form,
-        accountHolder: normalizeSpaces(form.accountHolder),
+        accountHolder: verifiedHolder,
         accountNumber: form.accountNumber.trim(),
       });
       toast.success('Đã lưu tài khoản nhận tiền.');
       setForm(INITIAL_BANK_FORM);
       setTouched({});
+      resetVerification();
       await load();
     } catch (err) {
       toast.error(err?.message || 'Không thể lưu tài khoản nhận tiền.');
@@ -215,6 +290,7 @@ function SettlementAccounts() {
             onBlur={handleBlur}
             className={touched.accountHolder && errors.accountHolder ? 'billing-control--invalid' : ''}
             autoComplete="name"
+            maxLength={150}
           />
           {touched.accountHolder && errors.accountHolder && (
             <span className="billing-field-error" role="alert">{errors.accountHolder}</span>
@@ -250,14 +326,35 @@ function SettlementAccounts() {
             Đặt làm mặc định
           </label>
 
-          <button
-            type="submit"
-            className="billing-btn billing-btn--primary billing-btn--save"
-            disabled={!isFormValid || saving}
-          >
-            <FiPlus /> {saving ? 'Đang lưu...' : 'Lưu tài khoản'}
-          </button>
+          <div className="billing-bank-form__actions">
+            <button
+              type="button"
+              className="billing-btn billing-btn--verify"
+              disabled={!isFormValid || saving || verification.status === 'checking'}
+              onClick={verify}
+            >
+              {verification.status === 'checking' ? <FiLoader className="billing-spin" /> : <FiShield />}
+              {verification.status === 'checking' ? 'Đang kiểm tra' : 'Kiểm tra tài khoản'}
+            </button>
+            <button
+              type="submit"
+              className="billing-btn billing-btn--primary billing-btn--save"
+              disabled={!isFormValid || saving || verification.status === 'checking' || verification.status === 'failed'}
+            >
+              <FiPlus /> {saving ? 'Đang lưu...' : 'Lưu tài khoản'}
+            </button>
+          </div>
         </div>
+
+        {verification.status !== 'idle' && (
+          <div className={`billing-verification billing-verification--${verification.status}`} role="status">
+            {verification.status === 'checking' ? <FiLoader className="billing-spin" /> : verification.status === 'verified' ? <FiCheckCircle /> : <FiAlertCircle />}
+            <div>
+              <strong>{verification.status === 'verified' ? 'Đã xác minh với ngân hàng' : verification.status === 'unavailable' ? 'Chưa thể xác minh trực tuyến' : verification.status === 'checking' ? 'Đang xác minh' : 'Xác minh không thành công'}</strong>
+              <span>{verification.message}</span>
+            </div>
+          </div>
+        )}
       </form>
 
       {loading ? (
@@ -279,6 +376,10 @@ function SettlementAccounts() {
                 {account.isDefault && (
                   <span className="billing-default"><FiCheckCircle /> Mặc định</span>
                 )}
+                <span className={`billing-verification-badge billing-verification-badge--${account.verificationStatus || 'unverified'}`}>
+                  {account.verificationStatus === 'verified' ? <FiCheckCircle /> : <FiShield />}
+                  {account.verificationStatus === 'verified' ? 'Đã xác minh' : 'Chưa xác minh'}
+                </span>
               </div>
 
               <div className="billing-bank-actions">
@@ -306,6 +407,150 @@ function SettlementAccounts() {
   );
 }
 
+function FeePaymentSuccessModal({ payment, role, onClose }) {
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  if (!payment) return null;
+
+  return createPortal(
+    <div className={`billing-success-backdrop billing-success-backdrop--${role}`} role="presentation" onMouseDown={onClose}>
+      <section
+        className="billing-success-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="billing-success-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <button type="button" className="billing-success-modal__close" onClick={onClose} aria-label="Đóng thông báo">
+          <FiX />
+        </button>
+        <span className="billing-success-modal__icon"><FiCheckCircle /></span>
+        <h3 id="billing-success-title">Thanh toán thành công</h3>
+        <p>PreOnic đã xác nhận khoản phí của bạn qua SePay.</p>
+        <strong>{fmtMoney(payment.amount)}</strong>
+        <small>Mã thanh toán: {payment.transferContent}</small>
+        <button type="button" className="billing-btn billing-btn--primary" onClick={onClose} autoFocus>
+          Hoàn tất
+        </button>
+      </section>
+    </div>,
+    document.body
+  );
+}
+
+function FeePaymentBox({
+  sectionRef,
+  payment,
+  secondsLeft,
+  paying,
+  outstanding,
+  onCreate,
+  onRegenerate,
+  onCopy,
+}) {
+  const active = isPaymentActive(payment);
+  const expired = payment?.status === 'expired'
+    || (OPEN_PAYMENT_STATUSES.has(payment?.status) && secondsLeft <= 0);
+  const mismatched = payment?.status === 'amount_mismatch';
+
+  return (
+    <section ref={sectionRef} className={`billing-card billing-payment ${payment ? 'billing-payment--ready' : 'billing-payment--empty'}`}>
+      <div className="billing-card__head billing-card__head--spacious">
+        <div>
+          <span className="billing-card__eyebrow">Thanh toán phí qua SePay</span>
+          <h3>Quét mã QR để thanh toán</h3>
+          <p>Mã QR chứa sẵn số tiền và nội dung chuyển khoản. Hệ thống tự kiểm tra giao dịch và cập nhật công nợ.</p>
+        </div>
+        {active && (
+          <div className="billing-payment__timer" aria-live="polite">
+            <FiClock />
+            <span>Còn hiệu lực</span>
+            <strong>{formatCountdown(secondsLeft)}</strong>
+          </div>
+        )}
+      </div>
+
+      {!payment ? (
+        <div className="billing-payment-placeholder">
+          <div className="billing-payment-placeholder__preview" aria-hidden="true">
+            <span className="billing-payment-placeholder__qr" />
+            <span className="billing-payment-placeholder__line" />
+            <span className="billing-payment-placeholder__line billing-payment-placeholder__line--short" />
+          </div>
+          <div className="billing-payment-placeholder__message">
+            <span><FiLock /></span>
+            <strong>Chưa có thông tin thanh toán</strong>
+            <p>Nhấn “Thanh toán ngay” ở phần công nợ để hệ thống tạo mã QR có hiệu lực trong 10 phút.</p>
+            {outstanding > 0 && (
+              <button type="button" className="billing-btn billing-btn--primary" onClick={() => onCreate({ amount: outstanding })} disabled={paying}>
+                {paying ? 'Đang tạo mã...' : 'Tạo mã thanh toán'}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className={`billing-payment__body ${expired || mismatched ? 'billing-payment__body--inactive' : ''}`}>
+          <div className="billing-payment__qr-wrap">
+            {payment.paymentUrl && payment.provider === 'bank_transfer' ? (
+              <img src={payment.paymentUrl} alt={`Mã QR thanh toán ${fmtMoney(payment.amount)}`} className="billing-payment__qr" />
+            ) : (
+              <div className="billing-payment__qr-fallback"><FiSmartphone /><span>Mã QR chỉ hiển thị khi dùng cấu hình SePay.</span></div>
+            )}
+            {(expired || mismatched) && (
+              <div className="billing-payment__inactive-cover">
+                <FiAlertCircle />
+                <strong>{mismatched ? 'Số tiền nhận chưa khớp' : 'Mã QR đã hết hiệu lực'}</strong>
+              </div>
+            )}
+          </div>
+
+          <div className="billing-payment__details">
+            <div className="billing-payment__amount">
+              <span>Số tiền thanh toán</span>
+              <strong>{fmtMoney(payment.amount)}</strong>
+            </div>
+            <dl>
+              <div><dt>Ngân hàng</dt><dd>{payment.recipient?.bankCode || 'Theo mã QR'}</dd></div>
+              <div><dt>Chủ tài khoản</dt><dd>{payment.recipient?.accountHolder || 'PREONIC'}</dd></div>
+              <div><dt>Số tài khoản</dt><dd>{payment.recipient?.accountNumber || 'Đã mã hóa trong QR'}</dd></div>
+              <div>
+                <dt>Nội dung chuyển khoản</dt>
+                <dd>
+                  <code>{payment.transferContent}</code>
+                  <button type="button" onClick={() => onCopy(payment.transferContent)} aria-label="Sao chép nội dung chuyển khoản"><FiCopy /></button>
+                </dd>
+              </div>
+            </dl>
+            {payment.status === 'paid' ? (
+              <div className="billing-payment__confirmed"><FiCheckCircle /><p><strong>Đã thanh toán</strong>Giao dịch đã được SePay xác nhận thành công.</p></div>
+            ) : active ? (
+              <div className="billing-payment__waiting"><span /><p><strong>Đang chờ thanh toán</strong>Giữ trang này mở, hệ thống sẽ tự xác nhận sau khi SePay nhận giao dịch.</p></div>
+            ) : (
+              <div className={`billing-payment__notice ${mismatched ? 'billing-payment__notice--danger' : ''}`}>
+                <FiAlertCircle />
+                <p>{mismatched
+                  ? 'Số tiền ngân hàng ghi nhận không khớp. Vui lòng liên hệ hỗ trợ và không chuyển thêm vào mã này.'
+                  : 'Mã này không còn hiệu lực. Hãy tạo mã mới trước khi chuyển khoản.'}</p>
+              </div>
+            )}
+            {expired && (
+              <button type="button" className="billing-btn billing-btn--primary billing-payment__regenerate" onClick={onRegenerate} disabled={paying}>
+                <FiRefreshCw /> {paying ? 'Đang tạo mã...' : 'Tạo mã mới'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 const getStatusLabel = (status) => {
   if (status === 'restricted') return 'Đang bị giới hạn';
   if (status === 'overdue') return 'Quá hạn';
@@ -316,10 +561,19 @@ const getStatusLabel = (status) => {
 export default function BillingCenter() {
   const { user } = useAuth();
   const toast = useToast();
+  const location = useLocation();
+  const paymentSectionRef = useRef(null);
   const [account, setAccount] = useState(null);
   const [statements, setStatements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [activePayment, setActivePayment] = useState(() => location.state?.feePayment || null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [successPayment, setSuccessPayment] = useState(null);
+  const paymentStorageKey = useMemo(
+    () => `preonic:active-fee-payment:${user?.id || user?._id || user?.role || 'anonymous'}`,
+    [user?.id, user?._id, user?.role]
+  );
 
   const load = async () => {
     setLoading(true);
@@ -339,8 +593,92 @@ export default function BillingCenter() {
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const routedPayment = location.state?.feePayment;
+    if (routedPayment?.id) {
+      setActivePayment(routedPayment);
+      sessionStorage.setItem(paymentStorageKey, routedPayment.id);
+      window.requestAnimationFrame(() => paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+      return;
+    }
+
+    const cachedId = sessionStorage.getItem(paymentStorageKey);
+    let cancelled = false;
+    const request = cachedId
+      ? billingService.getFeePayment(cachedId)
+      : billingService.getActiveFeePayment();
+    request
+      .then((response) => {
+        const payment = response?.data?.payment || null;
+        if (!cancelled) setActivePayment(payment);
+        if (payment?.id) sessionStorage.setItem(paymentStorageKey, payment.id);
+      })
+      .catch(() => sessionStorage.removeItem(paymentStorageKey));
+    return () => { cancelled = true; };
+  }, [location.state, paymentStorageKey]);
+
+  useEffect(() => {
+    if (!activePayment?.expiresAt || !OPEN_PAYMENT_STATUSES.has(activePayment.status)) {
+      setSecondsLeft(0);
+      return undefined;
+    }
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((new Date(activePayment.expiresAt).getTime() - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining === 0) {
+        setActivePayment((current) => current?.id === activePayment.id
+          ? { ...current, status: 'expired' }
+          : current);
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [activePayment?.id, activePayment?.expiresAt, activePayment?.status]);
+
+  useEffect(() => {
+    if (!activePayment?.id || !OPEN_PAYMENT_STATUSES.has(activePayment.status)) return undefined;
+    let cancelled = false;
+    let checking = false;
+
+    const checkStatus = async () => {
+      if (checking || cancelled) return;
+      checking = true;
+      try {
+        const response = await billingService.getFeePayment(activePayment.id);
+        const updated = response?.data?.payment;
+        if (!updated || cancelled) return;
+        setActivePayment(updated);
+        if (updated.status === 'paid') {
+          sessionStorage.removeItem(paymentStorageKey);
+          setSuccessPayment(updated);
+          await load();
+        } else if (!OPEN_PAYMENT_STATUSES.has(updated.status)) {
+          sessionStorage.removeItem(paymentStorageKey);
+        }
+      } catch {
+        // A temporary network failure should not invalidate a still-valid QR.
+      } finally {
+        checking = false;
+      }
+    };
+
+    const poller = window.setInterval(checkStatus, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poller);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePayment?.id, activePayment?.status, paymentStorageKey]);
+
   const payAmount = async ({ amount, statementId }) => {
     if (!amount || amount <= 0) return;
+    if (isPaymentActive(activePayment)) {
+      paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast.info('Bạn đang có một mã thanh toán còn hiệu lực.');
+      return;
+    }
     setPaying(true);
     try {
       const res = await billingService.createFeePayment({
@@ -349,15 +687,25 @@ export default function BillingCenter() {
         idempotencyKey: idempotencyKey(),
       });
       const payment = res?.data?.payment;
-      if (payment?.paymentUrl) {
-        window.open(payment.paymentUrl, '_blank', 'noopener,noreferrer');
+      if (payment?.id) {
+        setActivePayment(payment);
+        sessionStorage.setItem(paymentStorageKey, payment.id);
+        window.requestAnimationFrame(() => paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
       }
-      toast.success('Đã tạo yêu cầu thanh toán phí.');
-      await load();
+      toast.success('Đã tạo mã QR thanh toán có hiệu lực trong 10 phút.');
     } catch (err) {
       toast.error(err?.message || 'Không thể tạo thanh toán phí.');
     } finally {
       setPaying(false);
+    }
+  };
+
+  const copyTransferContent = async (value) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success('Đã sao chép nội dung chuyển khoản.');
+    } catch {
+      toast.error('Không thể sao chép tự động. Vui lòng sao chép thủ công.');
     }
   };
 
@@ -511,6 +859,29 @@ export default function BillingCenter() {
       </section>
 
       {user?.role === 'farmer' && <SettlementAccounts />}
+
+      <FeePaymentBox
+        sectionRef={paymentSectionRef}
+        payment={activePayment}
+        secondsLeft={secondsLeft}
+        paying={paying}
+        outstanding={outstanding}
+        onCreate={payAmount}
+        onRegenerate={() => payAmount({
+          amount: Number(activePayment?.amount || outstanding),
+          statementId: activePayment?.statementId || undefined,
+        })}
+        onCopy={copyTransferContent}
+      />
+
+      <FeePaymentSuccessModal
+        payment={successPayment}
+        role={user?.role || 'farmer'}
+        onClose={() => {
+          setSuccessPayment(null);
+          setActivePayment(null);
+        }}
+      />
     </div>
   );
 }

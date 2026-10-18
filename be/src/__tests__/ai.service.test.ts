@@ -7,6 +7,7 @@ import {
   sanitizePublicMessage,
   signGuestUsage,
   createPublicAiReply,
+  createEnterpriseAiReply,
 } from '../services/ai.service';
 
 describe('public AI guest service', () => {
@@ -129,6 +130,42 @@ describe('public AI guest service', () => {
     expect(reply.category).toBe('out_of_scope');
     expect(reply.requiresLogin).toBe(false);
     expect(reply.answer).toContain('không thể hỗ trợ');
+  });
+
+  it('creates a structured Enterprise AI reply with safe navigation intents', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.OPENAI_MODERATION_ENABLED = 'false';
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        status: 'completed',
+        output: [{
+          type: 'message',
+          content: [{
+            type: 'output_text',
+            text: JSON.stringify({
+              answer: 'Bạn đang có một hợp đồng cần theo dõi.',
+              category: 'contract_risk',
+              navigation_intents: [
+                { target: 'contracts', label: 'Mở hợp đồng', entity_query: 'HD-001' },
+                { target: 'unsafe_url', label: 'Không hợp lệ', entity_query: '' },
+              ],
+            }),
+          }],
+        }],
+      }),
+    } as Response);
+
+    await expect(createEnterpriseAiReply(
+      { userName: 'Doanh nghiệp A', liveContext: 'Hợp đồng HD-001 đang active.' },
+      'Xem hợp đồng HD-001',
+      []
+    )).resolves.toEqual({
+      answer: 'Bạn đang có một hợp đồng cần theo dõi.',
+      category: 'contract_risk',
+      navigationIntents: [{ target: 'contracts', label: 'Mở hợp đồng', entityQuery: 'HD-001' }],
+    });
   });
 
   it('creates a fresh session for an invalid token', () => {

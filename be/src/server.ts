@@ -10,6 +10,7 @@ import { startWeatherCron } from './jobs/weather-cron';
 import { startSystemLogCleanupCron } from './jobs/systemlog-cron';
 import { startFeeBillingCron } from './jobs/fee-billing-cron';
 import { validateDirectPaymentRuntimeConfiguration } from './modules/direct-payment-v2/runtime-config';
+import { validateProductionRuntimeConfiguration } from './config/production-runtime';
 
 const log = createLogger('Server');
 const PORT = Number(process.env.PORT ?? 8080);
@@ -17,6 +18,7 @@ let cronStarted = false;
 let cronRetryTimer: NodeJS.Timeout | null = null;
 
 if (process.env.NODE_ENV === 'production') {
+  validateProductionRuntimeConfiguration();
   validateDirectPaymentRuntimeConfiguration();
 }
 

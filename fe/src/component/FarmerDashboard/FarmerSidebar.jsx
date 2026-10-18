@@ -8,6 +8,7 @@ import {
   FiPlusCircle,
   FiStar,
   FiTrendingUp,
+  FiPieChart,
 } from 'react-icons/fi';
 import DashboardSidebar from '../Common/Dashboard/DashboardSidebar';
 
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { to: '/farmer/contracts', label: 'Hợp đồng', icon: FiFileText },
   { to: '/farmer/orders', label: 'Đơn hàng', icon: FiBox },
   { to: '/farmer/billing', label: 'Thanh toán & Phí', icon: FiTrendingUp },
+  { to: '/farmer/reports/cashflow', label: 'Báo cáo doanh thu', icon: FiPieChart },
   { to: '/farmer/ratings', label: 'Đánh giá đối tác', icon: FiStar },
   { to: '/farmer/weather-insurance', label: 'Thời tiết & Bảo hiểm', icon: FiCloudRain },
 ];

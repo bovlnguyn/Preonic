@@ -377,9 +377,13 @@
 }
 
 /* Bubble tin nhắn của mình — Farmer */
-.fcw-bubble-row--farmer.mine .fcw-bubble {
+.fcw-panel--farmer .fcw-bubble-row.mine .fcw-msg-bubble {
   background: #16a34a;
   border-color: #16a34a;
+}
+
+.fcw-panel--farmer .fcw-conversation:hover {
+  background: rgba(22, 163, 74, 0.06);
 }
 
 /* Input focus — Farmer */

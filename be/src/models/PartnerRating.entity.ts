@@ -8,8 +8,8 @@ import { User } from './User.entity';
 
 @Entity('PartnerRatings')
 @Unique(['contractId', 'reviewerId'])
-@Index(['reviewerId'])
-@Index(['revieweeId'])
+@Index('IX_PR_Reviewer_CreatedAt', ['reviewerId', 'createdAt'])
+@Index('IX_PR_Reviewee_CreatedAt', ['revieweeId', 'createdAt'])
 export class PartnerRating {
   @PrimaryGeneratedColumn('uuid', { name: 'PartnerRatingId' })
   id: string;

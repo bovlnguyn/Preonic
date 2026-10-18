@@ -2,6 +2,7 @@ import { body, header, param, query, validationResult } from 'express-validator'
 import { Request, Response, NextFunction } from 'express';
 import { assertStrongPassword } from '../utils/password.util';
 import { cleanupUploadedFiles } from './uploads.middlewares';
+import { SETTLEMENT_BANKS } from '../modules/direct-payment-v2/bank-account-input';
 
 // SQL Server sinh cac cot uniqueidentifier bang NEWSEQUENTIALID() (xem
 // @PrimaryGeneratedColumn('uuid') tren cac entity), khong phai UUID v4 chuan
@@ -214,8 +215,8 @@ export const validateUpdateProfile = [
     .withMessage('Tên không được để trống')
     .isLength({ min: 1, max: 100 })
     .withMessage('Tên phải từ 1-100 ký tự')
-    .matches(/^[^\d0-9]+$/)
-    .withMessage('Tên không được chứa số'),
+    .matches(/^[\p{L}\s.'’-]+$/u)
+    .withMessage('Tên chỉ được chứa chữ cái và dấu phân cách tên'),
 
   body('lastName')
     .optional()
@@ -224,14 +225,14 @@ export const validateUpdateProfile = [
     .withMessage('Họ không được để trống')
     .isLength({ min: 1, max: 100 })
     .withMessage('Họ phải từ 1-100 ký tự')
-    .matches(/^[^\d0-9]+$/)
-    .withMessage('Họ không được chứa số'),
+    .matches(/^[\p{L}\s.'’-]+$/u)
+    .withMessage('Họ chỉ được chứa chữ cái và dấu phân cách tên'),
 
   body('phone')
     .optional()
     .trim()
-    .matches(/^[0-9]{10,11}$/)
-    .withMessage('Số điện thoại không được chứa chữ và phải có 10-11 chữ số'),
+    .matches(/^0(?:3|5|7|8|9)[0-9]{8}$/)
+    .withMessage('Số điện thoại phải là số di động Việt Nam hợp lệ gồm 10 chữ số'),
 
   body('avatar')
     .optional()
@@ -242,52 +243,64 @@ export const validateUpdateProfile = [
   body('province')
     .optional()
     .trim()
-    .isLength({ max: 100 })
-    .withMessage('Tỉnh / thành phố không hợp lệ'),
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Tỉnh / thành phố không hợp lệ')
+    .matches(/^[\p{L}\p{N}\s.'’/()-]+$/u)
+    .withMessage('Tỉnh / thành phố chứa ký tự không hợp lệ'),
 
   body('district')
     .optional()
     .trim()
-    .isLength({ max: 100 })
-    .withMessage('Quận / huyện không hợp lệ'),
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Quận / huyện không hợp lệ')
+    .matches(/^[\p{L}\p{N}\s.'’/()-]+$/u)
+    .withMessage('Quận / huyện chứa ký tự không hợp lệ'),
 
   body('ward')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 100 })
-    .withMessage('Xã / phường / thị trấn không hợp lệ'),
+    .withMessage('Xã / phường / thị trấn không hợp lệ')
+    .matches(/^[\p{L}\p{N}\s.'’/()-]+$/u)
+    .withMessage('Xã / phường / thị trấn chứa ký tự không hợp lệ'),
 
   body('address')
     .optional()
     .trim()
-    .isLength({ max: 500 })
-    .withMessage('Địa chỉ không được vượt quá 500 ký tự'),
+    .isLength({ min: 5, max: 500 })
+    .withMessage('Địa chỉ phải từ 5 đến 500 ký tự')
+    .matches(/^[\p{L}\p{N}\s.,'’/&()#-]+$/u)
+    .withMessage('Địa chỉ chứa ký tự không hợp lệ'),
 
   body('farmName')
     .optional()
     .trim()
-    .isLength({ max: 255 })
-    .withMessage('Tên trang trại không được vượt quá 255 ký tự'),
+    .isLength({ min: 2, max: 255 })
+    .withMessage('Tên trang trại phải từ 2 đến 255 ký tự')
+    .matches(/^(?=.*\p{L})[\p{L}\p{N}\s.,'’/&()#-]+$/u)
+    .withMessage('Tên trang trại chứa ký tự không hợp lệ'),
 
   body('farmSize')
     .optional({ checkFalsy: true })
     .trim()
     .matches(/^\d+(\.\d+)?$/)
     .withMessage('Diện tích trang trại không được chứa chữ')
-    .isFloat({ min: 0 })
-    .withMessage('Diện tích trang trại phải là số không âm'),
+    .isFloat({ min: 0, max: 1000000 })
+    .withMessage('Diện tích trang trại phải từ 0 đến 1.000.000 ha'),
 
   body('companyName')
     .optional()
     .trim()
-    .isLength({ max: 255 })
-    .withMessage('Tên doanh nghiệp không được vượt quá 255 ký tự'),
+    .isLength({ min: 2, max: 255 })
+    .withMessage('Tên doanh nghiệp phải từ 2 đến 255 ký tự')
+    .matches(/^(?=.*\p{L})[\p{L}\p{N}\s.,'’/&()#-]+$/u)
+    .withMessage('Tên doanh nghiệp chứa ký tự không hợp lệ'),
 
   body('taxCode')
     .optional()
     .trim()
-    .isLength({ max: 20 })
-    .withMessage('Mã số thuế không được vượt quá 20 ký tự'),
+    .matches(/^[0-9]{10}(?:-[0-9]{3})?$/)
+    .withMessage('Mã số thuế phải gồm 10 số hoặc dạng 10 số-3 số'),
 
   handleValidationErrors,
 ];
@@ -736,6 +749,14 @@ export const validateBillingPagination = [
   handleValidationErrors,
 ];
 
+export const validateCashflowReport = [
+  query('months')
+    .optional()
+    .isInt({ min: 3, max: 24 })
+    .withMessage('Khoảng báo cáo phải từ 3 đến 24 tháng'),
+  handleValidationErrors,
+];
+
 export const validateFeePaymentIdParam = [
   param('id').matches(GUID_REGEX).withMessage('Mã giao dịch phí không hợp lệ'),
   handleValidationErrors,
@@ -765,22 +786,32 @@ export const validateSettlementAccountIdParam = [
 export const validateSaveSettlementAccount = [
   body('bankCode')
     .trim()
-    .matches(/^[A-Za-z0-9._-]{2,30}$/)
-    .withMessage('Mã ngân hàng không hợp lệ'),
+    .toUpperCase()
+    .custom((value) => Object.prototype.hasOwnProperty.call(SETTLEMENT_BANKS, value))
+    .withMessage('Ngân hàng không được hệ thống hỗ trợ'),
   body('bankName')
-    .optional({ checkFalsy: true })
     .trim()
-    .isLength({ max: 100 })
-    .withMessage('Tên ngân hàng không được vượt quá 100 ký tự'),
+    .notEmpty()
+    .withMessage('Vui lòng chọn ngân hàng')
+    .custom((value, { req }) => value === SETTLEMENT_BANKS[String(req.body?.bankCode || '').toUpperCase()])
+    .withMessage('Tên ngân hàng không khớp với mã ngân hàng đã chọn'),
   body('accountHolder')
     .trim()
     .notEmpty()
     .withMessage('Vui lòng nhập tên chủ tài khoản')
-    .isLength({ max: 150 })
-    .withMessage('Tên chủ tài khoản không được vượt quá 150 ký tự'),
+    .isLength({ min: 2, max: 150 })
+    .withMessage('Tên chủ tài khoản phải từ 2 đến 150 ký tự')
+    .custom((value) => {
+      const normalized = String(value || '').normalize('NFC').replace(/\s+/g, ' ').trim();
+      if (/\p{N}/u.test(normalized)) throw new Error('Tên chủ tài khoản không được chứa số');
+      if (!/^[\p{L}\s.'’&()-]+$/u.test(normalized) || (normalized.match(/\p{L}/gu) || []).length < 2) {
+        throw new Error('Tên chủ tài khoản chỉ được chứa chữ cái và dấu phân cách tên hợp lệ');
+      }
+      return true;
+    }),
   body('accountNumber')
     .trim()
-    .matches(/^[A-Za-z0-9\s-]{4,40}$/)
+    .matches(/^[0-9]{6,20}$/)
     .withMessage('Số tài khoản ngân hàng không hợp lệ'),
   body('makeDefault')
     .optional()

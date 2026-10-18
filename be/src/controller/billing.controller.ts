@@ -9,6 +9,7 @@ import {
 } from '../modules/direct-payment-v2/fee-statement.service';
 import {
   createPlatformFeePayment,
+  getActivePlatformFeePayment,
   getPlatformFeePayment,
   processPlatformFeePaymentWebhook,
 } from '../modules/direct-payment-v2/fee-payment.service';
@@ -17,7 +18,9 @@ import {
   listFarmerSettlementBankAccounts,
   saveFarmerSettlementBankAccount,
   setDefaultFarmerSettlementBankAccount,
+  verifyFarmerSettlementBankAccount,
 } from '../modules/direct-payment-v2/settlement-bank-account.service';
+import { getCashflowReport } from '../modules/direct-payment-v2/cashflow-report.service';
 
 const parsePositiveInt = (
   value: unknown,
@@ -36,6 +39,24 @@ export const getMyFeeAccount = async (req: AuthRequest, res: Response) => {
     });
   } catch (err: any) {
     return sendError(res, err, 'Không thể lấy công nợ phí');
+  }
+};
+
+export const getMyCashflowReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const role = req.user!.role;
+    if (role !== 'farmer' && role !== 'enterprise') {
+      return res.status(403).json({ success: false, message: 'Vai trò không được hỗ trợ' });
+    }
+
+    const report = await getCashflowReport(
+      req.user!.id,
+      role,
+      parsePositiveInt(req.query.months, 12)
+    );
+    return res.status(200).json({ success: true, data: report });
+  } catch (err: any) {
+    return sendError(res, err, 'Không thể tạo báo cáo dòng tiền');
   }
 };
 
@@ -92,6 +113,15 @@ export const getMyFeePayment = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getMyActiveFeePayment = async (req: AuthRequest, res: Response) => {
+  try {
+    const payment = await getActivePlatformFeePayment(req.user!.id);
+    return res.status(200).json({ success: true, data: { payment } });
+  } catch (err: any) {
+    return sendError(res, err, 'Không thể lấy mã thanh toán đang hoạt động');
+  }
+};
+
 export const handleFeePaymentWebhook = async (
   req: Request,
   res: Response
@@ -112,10 +142,10 @@ export const handleFeePaymentWebhook = async (
       req.headers
     );
 
-    return res.status(200).json({
-      success: true,
-      data: result,
-    });
+    // SePay accepts a 2xx JSON response containing success=true. Processing is
+    // already idempotent, so internal payment references stay private.
+    void result;
+    return res.status(200).json({ success: true });
   } catch (err: any) {
     return sendError(res, err, 'Webhook thanh toán không hợp lệ', 400);
   }
@@ -156,6 +186,23 @@ export const saveMySettlementAccount = async (
     });
   } catch (err: any) {
     return sendError(res, err, 'Không thể lưu tài khoản nhận tiền');
+  }
+};
+
+export const verifyMySettlementAccount = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const verification = await verifyFarmerSettlementBankAccount({
+      bankCode: req.body?.bankCode,
+      bankName: req.body?.bankName,
+      accountHolder: req.body?.accountHolder,
+      accountNumber: req.body?.accountNumber,
+    });
+    return res.status(200).json({ success: true, data: { verification } });
+  } catch (err: any) {
+    return sendError(res, err, 'Không thể xác minh tài khoản ngân hàng');
   }
 };
 

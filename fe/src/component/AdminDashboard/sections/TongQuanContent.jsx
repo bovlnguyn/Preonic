@@ -3,6 +3,12 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import adminService from "../../../services/admin.service";
 import { formatMoney } from "../../../hooks/useApiData";
 
+const USER_ROLE_META = {
+  farmer: { label: "Nông dân", badge: "adm-badge-green", background: "#dcfce7", color: "#16a34a" },
+  enterprise: { label: "Doanh nghiệp", badge: "adm-badge-blue", background: "#dbeafe", color: "#1d4ed8" },
+  admin: { label: "Quản trị viên", badge: "adm-badge-teal", background: "#ccfbf1", color: "#0f766e" },
+};
+
 export default function TongQuanContent({ onNavigate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,13 +30,13 @@ export default function TongQuanContent({ onNavigate }) {
   const recentContracts = data?.recentContracts || [];
 
   const kpis = [
-    { label: "Tổng người dùng", val: stats.totalUsers || 0, abbr: "ND", color: "#4f46e5", bg: "#ede9fe" },
+    { label: "Tổng người dùng", val: stats.totalUsers || 0, abbr: "ND", color: "#2563eb", bg: "#dbeafe" },
     { label: "Nông dân", val: stats.totalFarmers || 0, abbr: "NN", color: "#16a34a", bg: "#dcfce7" },
     { label: "Doanh nghiệp", val: stats.totalEnterprises || 0, abbr: "DN", color: "#0ea5e9", bg: "#e0f2fe" },
     { label: "Hợp đồng", val: stats.totalContracts || 0, abbr: "HD", color: "#d97706", bg: "#fef3c7" },
     { label: "Đang hoạt động", val: stats.activeContracts || 0, abbr: "HĐ", color: "#1d4ed8", bg: "#dbeafe" },
     { label: "Khiếu nại mở", val: stats.openDisputes || 0, abbr: "KN", color: "#dc2626", bg: "#fee2e2" },
-    { label: "Tổng giao dịch", val: stats.totalTransactions || 0, abbr: "GD", color: "#7c3aed", bg: "#ede9fe" },
+    { label: "Tổng giao dịch", val: stats.totalTransactions || 0, abbr: "GD", color: "#0891b2", bg: "#cffafe" },
     { label: "Phí đã thu", val: null, money: stats.totalFeeCollected || 0, abbr: "PT", color: "#059669", bg: "#d1fae5" },
   ];
 
@@ -38,7 +44,7 @@ export default function TongQuanContent({ onNavigate }) {
     <>
       <div className="adm-page-header">
         <div>
-          <h1 className="adm-page-title">Tổng quan Hệ thống</h1>
+          <h1 className="adm-page-title">Tổng quan hệ thống</h1>
           <p className="adm-page-subtitle">Theo dõi hoạt động toàn bộ nền tảng PreOnic</p>
         </div>
       </div>
@@ -72,7 +78,7 @@ export default function TongQuanContent({ onNavigate }) {
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={28} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} />
-                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} name="Người dùng mới" />
+                <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} name="Người dùng mới" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -116,20 +122,23 @@ export default function TongQuanContent({ onNavigate }) {
             <div className="adm-empty"><p>Chưa có người dùng</p></div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {recentUsers.map(u => (
+              {recentUsers.map(u => {
+                const roleMeta = USER_ROLE_META[u.role] || USER_ROLE_META.enterprise;
+                return (
                 <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f8fafc" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: u.role === "farmer" ? "#dcfce7" : "#dbeafe", color: u.role === "farmer" ? "#16a34a" : "#1d4ed8", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: roleMeta.background, color: roleMeta.color, fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {(u.fullName || "?").slice(0, 2).toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.fullName}</div>
                     <div style={{ fontSize: 11, color: "#94a3b8" }}>{u.email}</div>
                   </div>
-                  <span className={`adm-badge ${u.role === "farmer" ? "adm-badge-green" : "adm-badge-blue"}`}>
-                    {u.role === "farmer" ? "Nông dân" : "Doanh nghiệp"}
+                  <span className={`adm-badge ${roleMeta.badge}`}>
+                    {roleMeta.label}
                   </span>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -148,7 +157,7 @@ export default function TongQuanContent({ onNavigate }) {
               {recentContracts.map(c => (
                 <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid #f8fafc" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#4f46e5" }}>{c.contractCode}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#2563eb" }}>{c.contractCode}</span>
                     <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b" }}>{formatMoney(c.totalValue || 0)}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>

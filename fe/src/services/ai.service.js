@@ -36,3 +36,17 @@ export const sendFarmerAiMessage = async ({ message, history = [], currentFeatur
 
   return response.data?.data;
 };
+
+export const getEnterpriseAiStatus = async () => {
+  const response = await api.get('/ai/enterprise/status', { timeout: 40_000 });
+  return response.data?.data;
+};
+
+export const sendEnterpriseAiMessage = async ({ message, history = [], currentFeature = '' }) => {
+  const response = await api.post(
+    '/ai/enterprise/chat',
+    { message, history, currentFeature },
+    { timeout: 45_000 }
+  );
+  return response.data?.data;
+};

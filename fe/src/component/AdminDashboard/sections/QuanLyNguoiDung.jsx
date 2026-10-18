@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import adminService from "../../../services/admin.service";
 import { useToast } from "../../../contexts/ToastContext";
+import { useAuth } from "../../../contexts/AuthContext";
 
-const ROLE_LABELS = { farmer: "Nông dân", enterprise: "Doanh nghiệp" };
+const ROLE_LABELS = { farmer: "Nông dân", enterprise: "Doanh nghiệp", admin: "Quản trị viên" };
+const roleBadgeClass = (role) => role === "farmer" ? "adm-badge-green" : role === "admin" ? "adm-badge-teal" : "adm-badge-blue";
 
 export default function QuanLyNguoiDung() {
   const toast = useToast();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -67,7 +70,7 @@ export default function QuanLyNguoiDung() {
     <>
       <div className="adm-page-header">
         <div>
-          <h1 className="adm-page-title">Quản lý Người dùng</h1>
+          <h1 className="adm-page-title">Quản lý người dùng</h1>
           <p className="adm-page-subtitle">Tổng cộng {pagination.total} người dùng</p>
         </div>
       </div>
@@ -87,6 +90,7 @@ export default function QuanLyNguoiDung() {
             <option value="">Tất cả vai trò</option>
             <option value="farmer">Nông dân</option>
             <option value="enterprise">Doanh nghiệp</option>
+            <option value="admin">Quản trị viên</option>
           </select>
           <select className="adm-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">Tất cả trạng thái</option>
@@ -127,7 +131,7 @@ export default function QuanLyNguoiDung() {
                       </td>
                       <td style={{ color: "#64748b" }}>{u.email}</td>
                       <td>
-                        <span className={`adm-badge ${u.role === "farmer" ? "adm-badge-green" : "adm-badge-blue"}`}>
+                        <span className={`adm-badge ${roleBadgeClass(u.role)}`}>
                           {ROLE_LABELS[u.role] || u.role}
                         </span>
                       </td>
@@ -143,9 +147,10 @@ export default function QuanLyNguoiDung() {
                           <button
                             className={`adm-btn ${u.isActive ? "adm-btn-danger" : "adm-btn-success"}`}
                             onClick={() => handleToggle(u.id, u.isActive)}
-                            disabled={toggling === u.id}
+                            disabled={toggling === u.id || u.id === currentUser?.id}
+                            title={u.id === currentUser?.id ? "Không thể tự khóa tài khoản đang đăng nhập" : undefined}
                           >
-                            {toggling === u.id ? "..." : u.isActive ? "Khóa" : "Mở khóa"}
+                            {u.id === currentUser?.id ? "Đang đăng nhập" : toggling === u.id ? "..." : u.isActive ? "Khóa" : "Mở khóa"}
                           </button>
                         </div>
                       </td>

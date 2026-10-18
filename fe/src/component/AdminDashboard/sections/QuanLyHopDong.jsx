@@ -57,7 +57,7 @@ export default function QuanLyHopDong() {
     <>
       <div className="adm-page-header">
         <div>
-          <h1 className="adm-page-title">Quản lý Hợp đồng</h1>
+          <h1 className="adm-page-title">Quản lý hợp đồng</h1>
           <p className="adm-page-subtitle">Tổng cộng {pagination.total} hợp đồng trên hệ thống</p>
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function QuanLyHopDong() {
                     const meta = getContractStatusMeta(c.status);
                     return (
                       <tr key={c.id}>
-                        <td><span style={{ fontWeight: 700, color: "#4f46e5", fontSize: 12 }}>{c.contractCode}</span></td>
+                        <td><span style={{ fontWeight: 700, color: "#2563eb", fontSize: 12 }}>{c.contractCode}</span></td>
                         <td style={{ color: "#334155" }}>{c.farmerName}</td>
                         <td style={{ color: "#334155" }}>{c.enterpriseName}</td>
                         <td style={{ color: "#64748b" }}>{c.productName}</td>
@@ -149,7 +149,7 @@ export default function QuanLyHopDong() {
               ) : (
                 <>
                   <div style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
-                    <div style={{ fontWeight: 700, fontSize: 16, color: "#4f46e5" }}>{selectedContract.contractCode}</div>
+                    <div style={{ fontWeight: 700, fontSize: 16, color: "#2563eb" }}>{selectedContract.contractCode}</div>
                     {(() => {
                       const m = getContractStatusMeta(selectedContract.status);
                       return <span className="adm-badge" style={{ background: m.color + "22", color: m.color, marginTop: 4, display: "inline-block" }}>{m.label}</span>;

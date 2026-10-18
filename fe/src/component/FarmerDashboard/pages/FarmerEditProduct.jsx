@@ -375,18 +375,20 @@ export default function FarmerEditProduct() {
         </button>
       </div>
 
-      <div className="fep-breadcrumb" aria-label="Điều hướng chỉnh sửa sản phẩm">
-        <button type="button" onClick={() => navigate('/farmer')}>Dashboard</button>
-        <span>/</span>
-        <button type="button" onClick={() => navigate('/farmer/crops')}>Mùa vụ của tôi</button>
-        <span>/</span>
-        <strong>{product.name}</strong>
-      </div>
+      <div className="fep-page-heading-card">
+        <div className="fep-breadcrumb" aria-label="Điều hướng chỉnh sửa sản phẩm">
+          <button type="button" onClick={() => navigate('/farmer')}>Dashboard</button>
+          <span>/</span>
+          <button type="button" onClick={() => navigate('/farmer/crops')}>Mùa vụ của tôi</button>
+          <span>/</span>
+          <strong>{product.name}</strong>
+        </div>
 
-      <div className="fep-heading">
-        <span className="fep-heading__eyebrow">QUẢN LÝ MÙA VỤ</span>
-        <h1>Chỉnh sửa sản phẩm</h1>
-        <p>Cập nhật thông tin nông sản, giá bán và chứng chỉ trong cùng một màn hình.</p>
+        <div className="fep-heading">
+          <span className="fep-heading__eyebrow">QUẢN LÝ MÙA VỤ</span>
+          <h1>Chỉnh sửa sản phẩm</h1>
+          <p>Cập nhật thông tin nông sản, giá bán và chứng chỉ trong cùng một màn hình.</p>
+        </div>
       </div>
 
       <section className="fep-surface">

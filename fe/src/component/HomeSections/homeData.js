@@ -43,7 +43,7 @@ export const solutionCards = [
     icon: "shield",
     title: "Giao dịch an toàn",
     description:
-      "Hỗ trợ quy trình hợp đồng, đánh giá đối tác và thanh toán trung gian để giảm rủi ro.",
+      "Hỗ trợ quy trình hợp đồng, đánh giá đối tác và theo dõi thanh toán trực tiếp để giảm rủi ro.",
   },
 ];
 
