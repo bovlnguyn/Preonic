@@ -9,6 +9,7 @@ import {
   normalizeSettlementBankName,
   normalizeSettlementAccountHolder,
   normalizeSettlementAccountNumber,
+  toVietQrBankCode,
 } from '../modules/direct-payment-v2/bank-account-input';
 
 describe('bank account verification adapter', () => {
@@ -184,5 +185,11 @@ describe('settlement bank account input', () => {
     expect(normalizeSettlementBankName('Vietcombank', 'VCB')).toBe('Vietcombank');
     expect(() => normalizeSettlementBankCode('FAKEBANK')).toThrow();
     expect(() => normalizeSettlementBankName('BIDV', 'VCB')).toThrow();
+  });
+
+  test('maps Preonic bank codes to the canonical VietQR identifier', () => {
+    expect(toVietQrBankCode('MBB')).toBe('MB');
+    expect(toVietQrBankCode('VCB')).toBe('VCB');
+    expect(toVietQrBankCode('CBBANK')).toBe('CBB');
   });
 });

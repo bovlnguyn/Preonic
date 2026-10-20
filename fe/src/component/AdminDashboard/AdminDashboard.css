@@ -250,6 +250,23 @@
   margin: 4px 0 0;
 }
 
+.adm-inline-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -10px 0 18px;
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.adm-spin { animation: adm-spin .8s linear infinite; }
+@keyframes adm-spin { to { transform: rotate(360deg); } }
+
 /* KPI cards */
 .adm-kpis {
   display: grid;

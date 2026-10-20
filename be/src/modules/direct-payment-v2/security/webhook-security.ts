@@ -10,6 +10,13 @@ const getHeader = (
   return value == null ? undefined : String(value);
 };
 
+const safeEqualText = (expected: string, actual: string): boolean => {
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const actualBuffer = Buffer.from(actual, 'utf8');
+  return expectedBuffer.length === actualBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, actualBuffer);
+};
+
 const safeHexBuffer = (value: string): Buffer | null => {
   if (!/^[a-f0-9]+$/i.test(value) || value.length % 2 !== 0) return null;
   try {
@@ -104,6 +111,51 @@ export const verifyTimestampedHmacWebhook = (params: {
   }
 
   return timestampMs;
+};
+
+/**
+ * SePay lets each webhook use either HMAC-SHA256 or an API key. During a
+ * migration both credentials may exist in the environment, so select the
+ * verifier from the headers SePay actually sent. A malformed HMAC request is
+ * never allowed to fall back to API-key verification.
+ */
+export const verifySePayWebhookAuthentication = (params: {
+  rawBody: Buffer;
+  headers: IncomingHttpHeaders;
+  hmacSecret?: string;
+  apiKey?: string;
+  maxAgeSeconds?: number;
+  nowMs?: number;
+}): 'hmac' | 'api_key' => {
+  assertWebhookBodySize(params.rawBody);
+
+  const signature = getHeader(params.headers, 'x-sepay-signature');
+  const timestamp = getHeader(params.headers, 'x-sepay-timestamp');
+  if (signature || timestamp) {
+    const secret = String(params.hmacSecret || '').trim();
+    if (secret.length < 32) throw new Error('SePay HMAC secret is not configured');
+    verifyTimestampedHmacWebhook({
+      rawBody: params.rawBody,
+      headers: params.headers,
+      secret,
+      signatureHeader: 'x-sepay-signature',
+      timestampHeader: 'x-sepay-timestamp',
+      maxAgeSeconds: params.maxAgeSeconds,
+      nowMs: params.nowMs,
+    });
+    return 'hmac';
+  }
+
+  const expectedApiKey = String(params.apiKey || '').trim();
+  const authorization = String(getHeader(params.headers, 'authorization') || '').trim();
+  const prefix = 'Apikey ';
+  if (expectedApiKey.length < 32 || !authorization.startsWith(prefix)) {
+    throw new Error('SePay webhook authentication is missing');
+  }
+  if (!safeEqualText(expectedApiKey, authorization.slice(prefix.length))) {
+    throw new Error('SePay webhook API key is invalid');
+  }
+  return 'api_key';
 };
 
 export const hashWebhookPayload = (rawBody: Buffer): string =>

@@ -18,7 +18,7 @@
 
 ## Thanh toán hợp đồng và thu phí qua SePay
 
-Đặt `FEE_PAYMENT_PROVIDER=bank_transfer`, thông tin tài khoản nhận phí, `FEE_PAYMENT_QR_BASE_URL=https://qr.sepay.vn/img` và `FEE_PAYMENT_QR_TTL_MINUTES=10`. Với cấu hình này trang **Thanh toán & Phí** hiển thị QR trực tiếp, khóa mã sau 10 phút và tự kiểm tra trạng thái mỗi 3 giây.
+Đặt `FEE_PAYMENT_PROVIDER=bank_transfer`, thông tin tài khoản nhận phí, `FEE_PAYMENT_QR_BASE_URL=https://vietqr.app/img`, `FEE_PAYMENT_QR_TTL_MINUTES=10` và `DIRECT_PAYMENT_QR_TTL_MINUTES=10`. QR phí và QR tiền hàng đều khóa sau 10 phút; giao diện tự kiểm tra trạng thái và hiển thị popup khi SePay xác nhận.
 
 Trên SePay, tạo webhook nhận giao dịch tiền vào với URL:
 
@@ -26,7 +26,7 @@ Trên SePay, tạo webhook nhận giao dịch tiền vào với URL:
 https://<backend-domain>/api/v1/billing/webhooks/sepay
 ```
 
-Chọn **Tất cả tài khoản**, chỉ nhận **Tiền vào**, bảo mật **HMAC-SHA256**, đặt Secret Key trùng `SEPAY_WEBHOOK_SECRET` và chọn tiền tố `PRN`. Endpoint này tự phân luồng mã `PRNFE...` sang phí nền tảng và `PRN...P<n>` sang tiền hàng. Backend kiểm tra chữ ký `X-SePay-Signature`, timestamp chống phát lại, ID giao dịch duy nhất, đúng tài khoản nhận, đúng mã và đúng số tiền trước khi ghi nhận. Không dùng webhook “Không xác thực” ở production.
+Chọn **Tất cả tài khoản**, chỉ nhận **Tiền vào** và chọn tiền tố `PRN`. Nên dùng **HMAC-SHA256** với Secret Key trùng `SEPAY_WEBHOOK_SECRET`. Nếu webhook hiện tại dùng **API Key**, đặt khóa tương ứng trong `SEPAY_WEBHOOK_API_KEY`; backend nhận diện và kiểm tra đúng header `Authorization: Apikey ...`. Endpoint tự phân luồng mã `PRNFE...` sang phí nền tảng và `PRN...P<n>` sang tiền hàng. Đặt thêm `SEPAY_API_TOKEN` để backend có thể đối soát API v2 khi một lần giao webhook thất bại. Không dùng webhook “Không xác thực” ở production.
 
 ## Xác minh tài khoản ngân hàng
 

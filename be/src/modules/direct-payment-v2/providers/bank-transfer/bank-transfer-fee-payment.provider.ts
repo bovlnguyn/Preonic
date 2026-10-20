@@ -6,8 +6,9 @@ import {
   NormalizedFeePaymentEventStatus,
   NormalizedFeePaymentWebhookEvent,
 } from '../fee-payment-provider.interface';
-import { verifyTimestampedHmacWebhook } from '../../security/webhook-security';
+import { verifySePayWebhookAuthentication } from '../../security/webhook-security';
 import { buildFeePaymentQrExpiry, getFeePaymentQrTtlMinutes } from '../fee-payment-expiry';
+import { toVietQrBankCode } from '../../bank-account-input';
 
 const requiredEnv = (name: string): string => {
   const value = String(process.env[name] || '').trim();
@@ -56,7 +57,8 @@ export const validateBankTransferFeePaymentConfiguration = (): void => {
   const bankCode = requiredEnv('FEE_PAYMENT_BANK_CODE');
   const accountHolder = requiredEnv('FEE_PAYMENT_BANK_ACCOUNT_HOLDER');
   const webhookSecret = String(process.env.SEPAY_WEBHOOK_SECRET || process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET || '').trim();
-  const baseUrl = process.env.FEE_PAYMENT_QR_BASE_URL || 'https://qr.sepay.vn/img';
+  const webhookApiKey = String(process.env.SEPAY_WEBHOOK_API_KEY || '').trim();
+  const baseUrl = process.env.FEE_PAYMENT_QR_BASE_URL || 'https://vietqr.app/img';
 
   if (!/^[A-Za-z0-9.-]{4,40}$/.test(accountNumber)) {
     throw new Error('Fee bank account number is invalid');
@@ -70,8 +72,8 @@ export const validateBankTransferFeePaymentConfiguration = (): void => {
   ) {
     throw new Error('Fee bank account holder is invalid');
   }
-  if (webhookSecret.length < 32) {
-    throw new Error('Fee payment webhook secret must contain at least 32 characters');
+  if (webhookSecret.length < 32 && webhookApiKey.length < 32) {
+    throw new Error('Fee payment webhook requires an HMAC secret or API key');
   }
 
   const url = new URL(baseUrl);
@@ -96,13 +98,14 @@ export class BankTransferFeePaymentProvider implements FeePaymentProvider {
     if (!/^[A-Za-z0-9.-]{4,40}$/.test(accountNumber)) throw new Error('Fee bank account number is invalid');
     if (!/^[A-Za-z0-9_-]{2,30}$/.test(bankCode)) throw new Error('Fee bank code is invalid');
 
-    const baseUrl = process.env.FEE_PAYMENT_QR_BASE_URL || 'https://qr.sepay.vn/img';
+    const baseUrl = process.env.FEE_PAYMENT_QR_BASE_URL || 'https://vietqr.app/img';
     const url = new URL(baseUrl);
     if (url.protocol !== 'https:') throw new Error('Fee payment QR base URL must use HTTPS');
     url.searchParams.set('acc', accountNumber);
-    url.searchParams.set('bank', bankCode);
+    url.searchParams.set('bank', toVietQrBankCode(bankCode));
     url.searchParams.set('amount', String(request.amount));
     url.searchParams.set('des', request.transferContent);
+    url.searchParams.set('template', 'compact');
 
     const fingerprint = crypto.createHash('sha256').update(request.idempotencyKey).digest('hex').slice(0, 24);
     return {
@@ -115,12 +118,11 @@ export class BankTransferFeePaymentProvider implements FeePaymentProvider {
   }
 
   async verifyAndNormalizeWebhook(rawBody: Buffer, headers: import('http').IncomingHttpHeaders): Promise<NormalizedFeePaymentWebhookEvent> {
-    verifyTimestampedHmacWebhook({
+    verifySePayWebhookAuthentication({
       rawBody,
       headers,
-      secret: String(process.env.SEPAY_WEBHOOK_SECRET || process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET || '').trim(),
-      signatureHeader: 'x-sepay-signature',
-      timestampHeader: 'x-sepay-timestamp',
+      hmacSecret: String(process.env.SEPAY_WEBHOOK_SECRET || process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET || '').trim(),
+      apiKey: String(process.env.SEPAY_WEBHOOK_API_KEY || '').trim(),
       maxAgeSeconds: Number(process.env.FEE_PAYMENT_WEBHOOK_MAX_AGE_SECONDS || 300),
     });
 

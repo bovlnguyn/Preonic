@@ -122,6 +122,21 @@ export const bankAccountVerificationLimiter = rateLimit({
   },
 });
 
+// Recovery polling is only needed when a SePay webhook is delayed or failed.
+// The UI checks every 10 seconds, so this still allows a full payment session
+// while preventing one client from exhausting the provider API quota.
+export const directPaymentReconciliationLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: Number(process.env.DIRECT_PAYMENT_RECONCILIATION_LIMIT_PER_15_MIN || 120),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: 'DIRECT_PAYMENT_RECONCILIATION_RATE_LIMITED',
+    message: 'Đối soát giao dịch đang được thực hiện quá thường xuyên. Vui lòng chờ ít giây.',
+  },
+});
+
 // Webhook provider đã có chữ ký nhưng vẫn cần hạn chế flood request theo IP.
 export const feePaymentWebhookLimiter = rateLimit({
   windowMs: FIFTEEN_MINUTES_MS,

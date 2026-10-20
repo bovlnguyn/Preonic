@@ -21,9 +21,11 @@ import {
   markContractPreparing,
   markContractShipped,
   markDirectPaymentSent,
+  reconcileDirectPayment,
 } from '../controller/direct-contract.controller';
 import { protect, requireCompleteProfile, restrictTo } from '../middlewares/auth.middlewares';
 import { requireCommercialAccess } from '../middlewares/commercial-access.middleware';
+import { directPaymentReconciliationLimiter } from '../middlewares/ratelimit.middleware';
 import {
   validateCreateContract,
   validateContractIdParam,
@@ -75,6 +77,15 @@ router.get(
   validateContractIdParam as RequestHandler[],
   validateDirectPaymentIdParam as RequestHandler[],
   getDirectPaymentInstruction as RequestHandler
+);
+router.post(
+  '/:id/direct-payments/:paymentId/reconcile',
+  protect as RequestHandler,
+  restrictTo('enterprise') as RequestHandler,
+  directPaymentReconciliationLimiter,
+  validateContractIdParam as RequestHandler[],
+  validateDirectPaymentIdParam as RequestHandler[],
+  reconcileDirectPayment as RequestHandler
 );
 router.post(
   '/:id/direct-payments/:paymentId/sent',

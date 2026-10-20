@@ -595,14 +595,18 @@ PAYMENT_BANK_DATA_ENCRYPTION_KEY=base64_32_random_bytes
 PAYMENT_BANK_DATA_HMAC_KEY=another_base64_random_secret
 PAYMENT_BANK_DATA_ACTIVE_KEY_VERSION=1
 
-DIRECT_PAYMENT_QR_BASE_URL=https://qr.sepay.vn/img
+DIRECT_PAYMENT_QR_BASE_URL=https://vietqr.app/img
+DIRECT_PAYMENT_QR_TTL_MINUTES=10
+SEPAY_WEBHOOK_SECRET=at_least_32_random_characters
+# Hoặc dùng SEPAY_WEBHOOK_API_KEY nếu webhook SePay chọn phương thức API Key.
+SEPAY_API_TOKEN=sepay_api_v2_bearer_token
 
 # Production mặc định dùng bank_transfer; local/test có thể chọn mock.
 FEE_PAYMENT_PROVIDER=bank_transfer
 FEE_PAYMENT_BANK_ACCOUNT_NUMBER=your_platform_account_number
 FEE_PAYMENT_BANK_CODE=your_bank_code
 FEE_PAYMENT_BANK_ACCOUNT_HOLDER=PREONIC
-FEE_PAYMENT_QR_BASE_URL=https://qr.sepay.vn/img
+FEE_PAYMENT_QR_BASE_URL=https://vietqr.app/img
 FEE_PAYMENT_QR_TTL_MINUTES=10
 FEE_PAYMENT_BANK_WEBHOOK_SECRET=at_least_32_random_characters
 FEE_PAYMENT_WEBHOOK_MAX_AGE_SECONDS=300
@@ -610,7 +614,7 @@ FEE_STATEMENT_DUE_DAYS=10
 FEE_RESTRICTION_GRACE_DAYS=3
 ```
 
-Số tài khoản nông dân được mã hóa AES-256-GCM và fingerprint bằng khóa HMAC riêng. Cổng đối soát phí phải chuẩn hóa callback, ký HMAC-SHA256 trên chuỗi `<timestamp>.<raw-body>` và gửi các header `x-preonic-bank-signature`, `x-preonic-bank-timestamp`. Không dùng provider `mock` ở production.
+Số tài khoản nông dân được mã hóa AES-256-GCM và fingerprint bằng khóa HMAC riêng. Webhook SePay hỗ trợ HMAC-SHA256 (khuyến nghị) hoặc API Key theo cấu hình trên SePay. API v2 chỉ được dùng làm đường đối soát dự phòng khi webhook không giao thành công. Không dùng provider `mock` ở production.
 
 ### 9.8. Cookie, proxy và nhiều frontend origin
 

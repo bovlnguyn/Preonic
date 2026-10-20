@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  FiAlertCircle,
   FiCheckCircle,
   FiClock,
   FiCreditCard,
@@ -15,6 +16,11 @@ import './DirectPaymentPanel.css';
 
 const fmtMoney = (value) =>
   `${Number(value || 0).toLocaleString('vi-VN')}đ`;
+
+const fmtCountdown = (seconds) => {
+  const safe = Math.max(0, Number(seconds || 0));
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+};
 
 const PAYMENT_STATUS = {
   planned: 'Đã lên kế hoạch',
@@ -98,12 +104,62 @@ function PaymentCard({
   const toast = useToast();
   const [acting, setActing] = useState(false);
   const [instruction, setInstruction] = useState(null);
+  const [qrLoadFailed, setQrLoadFailed] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const instructionPaymentId = instruction?.paymentId;
+  const canReconcile = Boolean(
+    instructionPaymentId && payment.status !== 'confirmed' && secondsLeft > 0
+  );
 
   useEffect(() => {
     if (!instruction || payment.status === 'confirmed') return undefined;
     const timer = window.setInterval(() => onRefresh(), 3000);
     return () => window.clearInterval(timer);
   }, [instruction, payment.status, onRefresh]);
+
+  useEffect(() => {
+    if (!instruction?.expiresAt || payment.status === 'confirmed') {
+      setSecondsLeft(0);
+      return undefined;
+    }
+    const tick = () => setSecondsLeft(Math.max(
+      0,
+      Math.ceil((new Date(instruction.expiresAt).getTime() - Date.now()) / 1000)
+    ));
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [instruction?.expiresAt, payment.status]);
+
+  useEffect(() => {
+    if (!canReconcile) return undefined;
+    let cancelled = false;
+    let checking = false;
+    const reconcile = async () => {
+      if (checking || cancelled) return;
+      checking = true;
+      try {
+        const response = await contractService.reconcileDirectPayment(contractId, payment.id);
+        const updated = response?.data?.payment;
+        if (!cancelled && updated?.status === 'confirmed') {
+          setInstruction(null);
+          onPaymentConfirmed(updated);
+          await onRefresh();
+        }
+      } catch {
+        // Webhook remains the primary path. Keep the valid QR visible if the
+        // recovery lookup is temporarily unavailable.
+      } finally {
+        checking = false;
+      }
+    };
+    reconcile();
+    const timer = window.setInterval(reconcile, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [canReconcile, instructionPaymentId, payment.id, contractId, onPaymentConfirmed, onRefresh]);
 
   useEffect(() => {
     if (instruction && payment.status === 'confirmed') {
@@ -114,13 +170,21 @@ function PaymentCard({
 
   const canShowInstruction =
     userRole === 'enterprise' &&
-    ['payable', 'awaiting_payment', 'awaiting_confirmation'].includes(payment.status);
+    ['payable', 'awaiting_payment', 'awaiting_confirmation', 'expired'].includes(payment.status);
+
+  const sessionExpired = Boolean(instruction && secondsLeft === 0);
 
   const loadInstruction = async () => {
     setActing(true);
     try {
       const res = await contractService.getDirectPaymentInstruction(contractId, payment.id);
-      setInstruction(res?.data?.instruction || null);
+      const nextInstruction = res?.data?.instruction || null;
+      setQrLoadFailed(false);
+      setSecondsLeft(nextInstruction?.expiresAt
+        ? Math.max(0, Math.ceil((new Date(nextInstruction.expiresAt).getTime() - Date.now()) / 1000))
+        : 0);
+      setInstruction(nextInstruction);
+      toast.success('Mã QR có hiệu lực trong 10 phút.');
     } catch (err) {
       toast.error(err?.message || 'Không thể lấy mã QR thanh toán.');
     } finally {
@@ -151,19 +215,34 @@ function PaymentCard({
       {canShowInstruction && (
         <div className="dp-actions">
           <button type="button" className="dp-btn dp-btn--secondary" onClick={loadInstruction} disabled={acting}>
-            <FiCreditCard /> {acting ? 'Đang tải...' : 'Xem QR & thông tin chuyển khoản'}
+            <FiCreditCard /> {acting ? 'Đang tải...' : payment.status === 'expired' || sessionExpired ? 'Tạo lại mã QR' : 'Xem QR & thông tin chuyển khoản'}
           </button>
         </div>
       )}
 
       {instruction && (
-        <div className="dp-instruction">
+        <div className={`dp-instruction${sessionExpired ? ' dp-instruction--expired' : ''}`}>
+          <div className="dp-instruction__timer" aria-live="polite">
+            <FiClock />
+            {sessionExpired
+              ? 'Mã QR đã hết hiệu lực'
+              : <>Thời gian thanh toán còn lại <strong>{fmtCountdown(secondsLeft)}</strong></>}
+          </div>
+          <div className="dp-instruction__content">
           <div className="dp-instruction__qr">
-            <img
-              src={instruction.qrUrl}
-              alt={`QR thanh toán ${fmtMoney(instruction.amount)}`}
-              loading="lazy"
-            />
+            {qrLoadFailed ? (
+              <div className="dp-instruction__qr-error" role="alert">
+                <FiAlertCircle />
+                <span>Không thể tải ảnh QR. Bạn vẫn có thể chuyển khoản theo thông tin bên cạnh.</span>
+              </div>
+            ) : (
+              <img
+                src={instruction.qrUrl}
+                alt={`QR thanh toán ${fmtMoney(instruction.amount)}`}
+                loading="lazy"
+                onError={() => setQrLoadFailed(true)}
+              />
+            )}
           </div>
           <div className="dp-instruction__details">
             <h4>Chuyển trực tiếp cho nông dân</h4>
@@ -176,6 +255,17 @@ function PaymentCard({
               Tiền đi thẳng từ tài khoản doanh nghiệp tới tài khoản nông dân. Giữ trang này mở; SePay sẽ tự xác nhận sau khi nhận giao dịch.
             </small>
           </div>
+          </div>
+          {sessionExpired && (
+            <div className="dp-instruction__expired-message">
+              <FiAlertCircle />
+              <strong>Phiên thanh toán đã hết 10 phút.</strong>
+              <span>Hãy tạo lại mã QR trước khi thực hiện chuyển khoản.</span>
+              <button type="button" className="dp-btn dp-btn--primary" onClick={loadInstruction} disabled={acting}>
+                <FiRefreshCw /> {acting ? 'Đang tạo...' : 'Tạo mã QR mới'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </article>

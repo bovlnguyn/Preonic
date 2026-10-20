@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { FiAlertCircle, FiRefreshCw } from "react-icons/fi";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import adminService from "../../../services/admin.service";
 import { formatMoney } from "../../../hooks/useApiData";
@@ -12,17 +13,51 @@ const USER_ROLE_META = {
 export default function TongQuanContent({ onNavigate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    adminService.getDashboard()
-      .then(res => { if (!cancelled) setData(res?.data); })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+  const loadDashboard = useCallback(async ({ initial = false } = {}) => {
+    if (initial) setLoading(true);
+    else setRefreshing(true);
+    try {
+      const response = await adminService.getDashboard();
+      setData(response?.data || null);
+      setError("");
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || "Không thể tải dữ liệu quản trị. Hệ thống sẽ tự thử lại.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
+  useEffect(() => {
+    loadDashboard({ initial: true });
+    // Dashboard may be open while a local database is being recreated. Polling
+    // prevents a valid zero snapshot or a temporary 503 from remaining on
+    // screen after schema/seed initialization has completed.
+    const timer = window.setInterval(() => loadDashboard(), 15_000);
+    const handleFocus = () => loadDashboard();
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadDashboard]);
+
   if (loading) return <div className="adm-loading">Đang tải dữ liệu...</div>;
+
+  if (error && !data) {
+    return (
+      <div className="adm-card adm-empty" role="alert">
+        <FiAlertCircle size={28} />
+        <p>{error}</p>
+        <button className="adm-btn adm-btn-primary" type="button" onClick={() => loadDashboard({ initial: true })}>
+          <FiRefreshCw /> Thử lại
+        </button>
+      </div>
+    );
+  }
 
   const stats = data?.stats || {};
   const monthlyData = data?.monthlyUserData || [];
@@ -47,7 +82,13 @@ export default function TongQuanContent({ onNavigate }) {
           <h1 className="adm-page-title">Tổng quan hệ thống</h1>
           <p className="adm-page-subtitle">Theo dõi hoạt động toàn bộ nền tảng PreOnic</p>
         </div>
+        <button className="adm-btn adm-btn-outline" type="button" onClick={() => loadDashboard()} disabled={refreshing}>
+          <FiRefreshCw className={refreshing ? "adm-spin" : ""} />
+          {refreshing ? "Đang tải..." : "Làm mới"}
+        </button>
       </div>
+
+      {error && <div className="adm-inline-error" role="status"><FiAlertCircle /> {error}</div>}
 
       {/* KPI Cards */}
       <div className="adm-kpis">

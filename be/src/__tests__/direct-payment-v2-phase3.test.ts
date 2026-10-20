@@ -6,7 +6,9 @@ import {
 } from '../modules/direct-payment-v2/billing-period';
 import {
   verifyTimestampedHmacWebhook,
+  verifySePayWebhookAuthentication,
 } from '../modules/direct-payment-v2/security/webhook-security';
+import { buildDirectPaymentQrExpiry } from '../modules/direct-payment-v2/direct-payment-expiry';
 import { MockFeePaymentProvider } from '../modules/direct-payment-v2/providers/mock/mock-fee-payment.provider';
 import {
   BankTransferFeePaymentProvider,
@@ -85,6 +87,34 @@ describe('Direct Payment V2 Phase 3', () => {
     })).toThrow();
   });
 
+  test('SePay API-key webhook authentication uses constant-time exact matching', () => {
+    const rawBody = Buffer.from('{"id":92704}');
+    const apiKey = 'a'.repeat(64);
+    expect(verifySePayWebhookAuthentication({
+      rawBody,
+      headers: { authorization: `Apikey ${apiKey}` },
+      apiKey,
+    })).toBe('api_key');
+
+    expect(() => verifySePayWebhookAuthentication({
+      rawBody,
+      headers: { authorization: `Apikey ${'b'.repeat(64)}` },
+      apiKey,
+    })).toThrow('API key is invalid');
+  });
+
+  test('direct goods QR expires after the configured ten-minute session', () => {
+    const previous = process.env.DIRECT_PAYMENT_QR_TTL_MINUTES;
+    process.env.DIRECT_PAYMENT_QR_TTL_MINUTES = '10';
+    try {
+      const now = Date.now();
+      expect(buildDirectPaymentQrExpiry(now).getTime()).toBe(now + 10 * 60 * 1000);
+    } finally {
+      if (previous === undefined) delete process.env.DIRECT_PAYMENT_QR_TTL_MINUTES;
+      else process.env.DIRECT_PAYMENT_QR_TTL_MINUTES = previous;
+    }
+  });
+
   test('mock fee provider is deterministic by idempotency key', async () => {
     const provider = new MockFeePaymentProvider();
     const request = {
@@ -115,7 +145,7 @@ describe('Direct Payment V2 Phase 3', () => {
     process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = '96247TESTVA';
     process.env.FEE_PAYMENT_BANK_CODE = 'BIDV';
     process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER = 'PREONIC';
-    process.env.FEE_PAYMENT_QR_BASE_URL = 'https://qr.sepay.vn/img';
+    process.env.FEE_PAYMENT_QR_BASE_URL = 'https://vietqr.app/img';
     process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET = '12345678901234567890123456789012';
     process.env.FEE_PAYMENT_QR_TTL_MINUTES = '10';
     try {
@@ -130,6 +160,7 @@ describe('Direct Payment V2 Phase 3', () => {
       expect(url.searchParams.get('acc')).toBe('96247TESTVA');
       expect(url.searchParams.get('amount')).toBe('125000');
       expect(url.searchParams.get('des')).toBe('PRNFEPFTEST0002');
+      expect(url.searchParams.get('template')).toBe('compact');
       expect(result.expiresAt!.getTime() - Date.now()).toBeGreaterThan(9 * 60 * 1000);
       expect(result.expiresAt!.getTime() - Date.now()).toBeLessThanOrEqual(10 * 60 * 1000);
 

@@ -25,6 +25,8 @@ import {
   getDefaultFarmerBankAccountForPaymentWithManager,
 } from './settlement-bank-account.service';
 import { calculateFeeVnd } from './fee-calculator';
+import { toVietQrBankCode } from './bank-account-input';
+import { buildDirectPaymentQrExpiry } from './direct-payment-expiry';
 
 const ACTIVE_CONTRACT_STATUSES = new Set(['active']);
 const isManualGoodsPaymentConfirmationEnabled = () =>
@@ -244,7 +246,7 @@ const getDirectQrBaseUrl = (): string => {
   const base = String(
     process.env.DIRECT_PAYMENT_QR_BASE_URL ||
     process.env.SEPAY_QR_BASE_URL ||
-    'https://qr.sepay.vn/img'
+    'https://vietqr.app/img'
   ).trim();
 
   let parsed: URL;
@@ -268,7 +270,8 @@ export const getDirectGoodsPaymentInstruction = async (
     throw makeError('Database is not initialized', 503);
   }
 
-  const payment = await AppDataSource.getRepository(DirectGoodsPayment).findOne({
+  const paymentRepo = AppDataSource.getRepository(DirectGoodsPayment);
+  const payment = await paymentRepo.findOne({
     where: { id: paymentId, contractId },
     relations: ['contract'],
   });
@@ -289,8 +292,20 @@ export const getDirectGoodsPaymentInstruction = async (
   ) {
     throw makeError('Bạn không có quyền xem thông tin thanh toán này', 403);
   }
-  if (!['payable', 'awaiting_payment', 'awaiting_confirmation'].includes(payment.status)) {
+  if (!['payable', 'awaiting_payment', 'awaiting_confirmation', 'expired'].includes(payment.status)) {
     throw makeError('Giao dịch không còn ở trạng thái có thể thanh toán', 409);
+  }
+
+  const now = new Date();
+  if (
+    payment.status === 'payable' ||
+    payment.status === 'expired' ||
+    !payment.expiresAt ||
+    payment.expiresAt.getTime() <= now.getTime()
+  ) {
+    payment.status = 'awaiting_payment';
+    payment.expiresAt = buildDirectPaymentQrExpiry(now.getTime());
+    await paymentRepo.save(payment);
   }
 
   const { entity: account, accountNumber } = await getBankAccountForPaymentWithManager(
@@ -312,11 +327,12 @@ export const getDirectGoodsPaymentInstruction = async (
 
   const amount = Math.round(Number(payment.amount));
   const qrBaseUrl = getDirectQrBaseUrl();
-  const qrUrl =
-    `${qrBaseUrl}?acc=${encodeURIComponent(accountNumber)}` +
-    `&bank=${encodeURIComponent(account.bankCode)}` +
-    `&amount=${amount}` +
-    `&des=${encodeURIComponent(payment.transferContent)}`;
+  const qrUrl = new URL(qrBaseUrl);
+  qrUrl.searchParams.set('acc', accountNumber);
+  qrUrl.searchParams.set('bank', toVietQrBankCode(account.bankCode));
+  qrUrl.searchParams.set('amount', String(amount));
+  qrUrl.searchParams.set('des', payment.transferContent);
+  qrUrl.searchParams.set('template', 'compact');
 
   return {
     paymentId: payment.id,
@@ -332,7 +348,9 @@ export const getDirectGoodsPaymentInstruction = async (
       accountNumber,
       maskedAccountNumber: account.maskedAccountNumber,
     },
-    qrUrl,
+    qrUrl: qrUrl.toString(),
+    status: payment.status,
+    expiresAt: payment.expiresAt,
   };
 };
 
@@ -355,7 +373,17 @@ export const listDirectGoodsPaymentsForContract = async (
     throw makeError('Bạn không có quyền xem thanh toán của hợp đồng này', 403);
   }
 
-  const payments = await AppDataSource.getRepository(DirectGoodsPayment).find({
+  const paymentRepo = AppDataSource.getRepository(DirectGoodsPayment);
+  await paymentRepo
+    .createQueryBuilder()
+    .update(DirectGoodsPayment)
+    .set({ status: 'expired' })
+    .where('ContractId = :contractId', { contractId })
+    .andWhere("Status IN ('awaiting_payment', 'awaiting_confirmation')")
+    .andWhere('ExpiresAt IS NOT NULL AND ExpiresAt <= :now', { now: new Date() })
+    .execute();
+
+  const payments = await paymentRepo.find({
     where: { contractId },
     order: { installmentSequence: 'ASC', createdAt: 'ASC' },
   });

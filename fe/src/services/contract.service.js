@@ -118,6 +118,15 @@ const contractService = {
     }
   },
 
+  reconcileDirectPayment: async (id, paymentId) => {
+    try {
+      const response = await api.post(`/contracts/${id}/direct-payments/${paymentId}/reconcile`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: 'Không thể đối soát giao dịch SePay' };
+    }
+  },
+
   markDirectPaymentSent: async (id, paymentId) => {
     try {
       const response = await api.post(`/contracts/${id}/direct-payments/${paymentId}/sent`);

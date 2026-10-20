@@ -14,6 +14,23 @@ export const SETTLEMENT_BANKS: Readonly<Record<string, string>> = Object.freeze(
   KEBHANA: 'KEB Hana Bank Vietnam',
 });
 
+// Preonic keeps the familiar VietQR/Napas codes used by the product UI, while
+// the QR generator uses a few different canonical codes from banks.json.
+const VIETQR_BANK_CODE_OVERRIDES: Readonly<Record<string, string>> = Object.freeze({
+  MBB: 'MB',
+  CBBANK: 'CBB',
+  SGB: 'SGICB',
+  WOORI: 'WVN',
+});
+
+export const toVietQrBankCode = (value: unknown): string => {
+  const code = String(value || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{2,30}$/.test(code)) {
+    throw makeError('Mã ngân hàng dùng để tạo VietQR không hợp lệ', 400);
+  }
+  return VIETQR_BANK_CODE_OVERRIDES[code] || code;
+};
+
 export const normalizeSettlementBankCode = (value: unknown): string => {
   const code = String(value || '').trim().toUpperCase();
   if (!Object.prototype.hasOwnProperty.call(SETTLEMENT_BANKS, code)) {

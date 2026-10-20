@@ -7,6 +7,7 @@ import {
   markDirectGoodsPaymentSent,
   confirmDirectGoodsPaymentReceived,
 } from '../modules/direct-payment-v2/direct-goods-payment.service';
+import { reconcileDirectGoodsPaymentWithSePay } from '../modules/direct-payment-v2/direct-goods-payment-reconciliation.service';
 import {
   acceptDirectContractDelivery,
   getDirectContractWorkflow,
@@ -71,6 +72,28 @@ export const getDirectPaymentInstruction = async (
     });
   } catch (err: any) {
     return sendError(res, err, 'Không thể tạo chỉ dẫn thanh toán');
+  }
+};
+
+export const reconcileDirectPayment = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const reconciliation = await reconcileDirectGoodsPaymentWithSePay(
+      req.params.id,
+      req.params.paymentId,
+      req.user!.id
+    );
+    const payments = await listDirectGoodsPaymentsForContract(req.params.id, req.user!.id);
+    const payment = payments.find((item: any) => item.id === req.params.paymentId) || null;
+
+    return res.status(200).json({
+      success: true,
+      data: { reconciliation, payment },
+    });
+  } catch (err: any) {
+    return sendError(res, err, 'Không thể đối soát giao dịch SePay');
   }
 };
 
