@@ -103,7 +103,7 @@ export async function getCashflowReport(
       .addSelect('contract.CreatedAt', 'createdAt')
       .where(`${contractUserColumn} = :userId`, { userId })
       .andWhere("contract.Status <> 'draft'")
-      .orderBy('contract.CreatedAt', 'DESC')
+      .orderBy('contract.createdAt', 'DESC')
       .take(50)
       .getRawMany(),
   ]);

@@ -45,6 +45,9 @@ const billingService = {
   verifySettlementAccount: (payload) =>
     unwrap(api.post('/billing/settlement-accounts/verify', payload), 'Không thể xác minh tài khoản ngân hàng'),
 
+  reverifySettlementAccount: (id) =>
+    unwrap(api.post(`/billing/settlement-accounts/${id}/verify`), 'Không thể xác minh lại tài khoản ngân hàng'),
+
   setDefaultSettlementAccount: (id) =>
     unwrap(api.patch(`/billing/settlement-accounts/${id}/default`), 'Không thể đặt tài khoản mặc định'),
 

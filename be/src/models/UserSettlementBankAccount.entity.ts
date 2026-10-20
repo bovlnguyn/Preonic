@@ -57,8 +57,22 @@ export class UserSettlementBankAccount {
   @Column({ name: 'Status', type: 'nvarchar', length: 20, default: 'active' })
   status: 'active' | 'disabled';
 
-  @Column({ name: 'VerificationStatus', type: 'nvarchar', length: 20, default: 'unverified' })
-  verificationStatus: 'unverified' | 'verified' | 'failed';
+  @Column({ name: 'VerificationStatus', type: 'nvarchar', length: 30, default: 'pending_admin_review' })
+  verificationStatus:
+    | 'pending_admin_review'
+    | 'awaiting_sepay_link'
+    | 'verified'
+    | 'rejected'
+    | 'failed';
+
+  @Column({ name: 'AdminReviewedBy', type: 'uniqueidentifier', nullable: true })
+  adminReviewedBy: string | null;
+
+  @Column({ name: 'AdminReviewedAt', type: 'datetime2', nullable: true })
+  adminReviewedAt: Date | null;
+
+  @Column({ name: 'AdminReviewNote', type: 'nvarchar', length: 500, nullable: true })
+  adminReviewNote: string | null;
 
   @Column({ name: 'VerifiedAccountHolder', type: 'nvarchar', length: 150, nullable: true })
   verifiedAccountHolder: string | null;
@@ -81,4 +95,8 @@ export class UserSettlementBankAccount {
   @ManyToOne(() => User, { onDelete: 'NO ACTION' })
   @JoinColumn({ name: 'UserId' })
   user: User;
+
+  @ManyToOne(() => User, { onDelete: 'NO ACTION', nullable: true })
+  @JoinColumn({ name: 'AdminReviewedBy' })
+  adminReviewer: User | null;
 }

@@ -786,8 +786,11 @@ CREATE TABLE dbo.UserSettlementBankAccounts (
         CONSTRAINT DF_UserSettlementBankAccounts_IsDefault DEFAULT 0,
     Status                     NVARCHAR(20)     NOT NULL
         CONSTRAINT DF_UserSettlementBankAccounts_Status DEFAULT 'active',
-    VerificationStatus         NVARCHAR(20)     NOT NULL
-        CONSTRAINT DF_UserSettlementBankAccounts_VerificationStatus DEFAULT 'unverified',
+    VerificationStatus         NVARCHAR(30)     NOT NULL
+        CONSTRAINT DF_UserSettlementBankAccounts_VerificationStatus DEFAULT 'pending_admin_review',
+    AdminReviewedBy            UNIQUEIDENTIFIER NULL,
+    AdminReviewedAt            DATETIME2        NULL,
+    AdminReviewNote            NVARCHAR(500)    NULL,
     VerifiedAccountHolder      NVARCHAR(150)    NULL,
     VerificationProvider       NVARCHAR(50)     NULL,
     VerificationReference      NVARCHAR(120)    NULL,
@@ -799,12 +802,22 @@ CREATE TABLE dbo.UserSettlementBankAccounts (
 
     CONSTRAINT FK_UserSettlementBankAccounts_Users
         FOREIGN KEY (UserId) REFERENCES dbo.Users(UserId),
+    CONSTRAINT FK_UserSettlementBankAccounts_AdminReviewer
+        FOREIGN KEY (AdminReviewedBy) REFERENCES dbo.Users(UserId),
     CONSTRAINT CK_UserSettlementBankAccounts_Status
         CHECK (Status IN ('active','disabled')),
     CONSTRAINT CK_UserSettlementBankAccounts_VerificationStatus
-        CHECK (VerificationStatus IN ('unverified','verified','failed')),
+        CHECK (VerificationStatus IN ('pending_admin_review','awaiting_sepay_link','verified','rejected','failed')),
+    CONSTRAINT CK_UserSettlementBankAccounts_AdminReview
+        CHECK (
+            (VerificationStatus = 'pending_admin_review' AND AdminReviewedBy IS NULL AND AdminReviewedAt IS NULL)
+            OR
+            (VerificationStatus <> 'pending_admin_review' AND AdminReviewedBy IS NOT NULL AND AdminReviewedAt IS NOT NULL)
+        ),
     CONSTRAINT CK_UserSettlementBankAccounts_VerifiedFields
-        CHECK (VerificationStatus <> 'verified' OR (VerifiedAccountHolder IS NOT NULL AND VerifiedAt IS NOT NULL)),
+        CHECK (VerificationStatus <> 'verified' OR (VerifiedAccountHolder IS NOT NULL AND VerificationProvider IS NOT NULL AND VerifiedAt IS NOT NULL)),
+    CONSTRAINT CK_UserSettlementBankAccounts_DefaultVerified
+        CHECK (IsDefault = 0 OR ([Status] = 'active' AND VerificationStatus = 'verified')),
     CONSTRAINT CK_UserSettlementBankAccounts_KeyVersion
         CHECK (EncryptionKeyVersion > 0)
 );
@@ -848,6 +861,8 @@ CREATE TABLE dbo.DirectGoodsPayments (
     ExpiresAt                      DATETIME2        NULL,
     ConfirmedAt                    DATETIME2        NULL,
     ConfirmedBy                    UNIQUEIDENTIFIER NULL,
+    ProviderTransactionId          NVARCHAR(80)     NULL,
+    ProviderPayloadHash            CHAR(64)         NULL,
     CreatedAt                      DATETIME2        NOT NULL
         CONSTRAINT DF_DirectGoodsPayments_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt                      DATETIME2        NOT NULL
@@ -884,7 +899,8 @@ CREATE TABLE dbo.DirectGoodsPayments (
     ),
     CONSTRAINT CK_DirectGoodsPayments_ConfirmedMetadata CHECK (
         Status <> 'confirmed' OR
-        (ConfirmedAt IS NOT NULL AND ConfirmedBy IS NOT NULL AND ConfirmationMethod IS NOT NULL)
+        (ConfirmedAt IS NOT NULL AND ConfirmationMethod IS NOT NULL
+         AND (ConfirmationMethod = 'provider_webhook' OR ConfirmedBy IS NOT NULL))
     )
 );
 
@@ -894,6 +910,9 @@ CREATE UNIQUE INDEX UX_DirectGoodsPayments_TransferContent
     ON dbo.DirectGoodsPayments(TransferContent);
 CREATE UNIQUE INDEX UX_DirectGoodsPayments_IdempotencyKey
     ON dbo.DirectGoodsPayments(IdempotencyKey);
+CREATE UNIQUE INDEX UX_DirectGoodsPayments_ProviderTransaction
+    ON dbo.DirectGoodsPayments(ProviderTransactionId)
+    WHERE ProviderTransactionId IS NOT NULL;
 CREATE INDEX IX_DirectGoodsPayments_Payer_Status
     ON dbo.DirectGoodsPayments(PayerUserId, Status, CreatedAt);
 CREATE INDEX IX_DirectGoodsPayments_Payee_Status

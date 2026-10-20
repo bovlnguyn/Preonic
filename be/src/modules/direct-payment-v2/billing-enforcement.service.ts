@@ -111,7 +111,7 @@ export const refreshFeeBillingEnforcement = async (now = new Date()) => {
         .andWhere("statement.Status = 'overdue'")
         .andWhere('statement.AmountPaid < statement.AmountDueSnapshot')
         .andWhere('statement.DueAt IS NOT NULL')
-        .orderBy('statement.DueAt', 'ASC')
+        .orderBy('statement.dueAt', 'ASC')
         .setLock('pessimistic_write')
         .getOne();
 

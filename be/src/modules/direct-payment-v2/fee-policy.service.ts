@@ -23,8 +23,8 @@ export const resolveActiveFeePolicy = async (
     .where('policy.IsActive = :active', { active: true })
     .andWhere('policy.EffectiveFrom <= :at', { at })
     .andWhere('(policy.EffectiveTo IS NULL OR policy.EffectiveTo > :at)', { at })
-    .orderBy('policy.EffectiveFrom', 'DESC')
-    .addOrderBy('policy.CreatedAt', 'DESC')
+    .orderBy('policy.effectiveFrom', 'DESC')
+    .addOrderBy('policy.createdAt', 'DESC')
     .getMany();
 
   if (rows.length === 0) {

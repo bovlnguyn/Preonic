@@ -79,6 +79,8 @@ const REQUIRED_SCHEMA: SchemaRequirement[] = [
             "ConfirmationMethod",
             "ConfirmedAt",
             "ConfirmedBy",
+            "ProviderTransactionId",
+            "ProviderPayloadHash",
         ],
     },
 
@@ -96,6 +98,9 @@ const REQUIRED_SCHEMA: SchemaRequirement[] = [
             "IsDefault",
             "Status",
             "VerificationStatus",
+            "AdminReviewedBy",
+            "AdminReviewedAt",
+            "AdminReviewNote",
             "VerifiedAccountHolder",
             "VerificationProvider",
             "VerificationReference",

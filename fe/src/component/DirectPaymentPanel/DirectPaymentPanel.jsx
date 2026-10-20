@@ -20,8 +20,8 @@ const PAYMENT_STATUS = {
   planned: 'Đã lên kế hoạch',
   payable: 'Chờ doanh nghiệp thanh toán',
   awaiting_payment: 'Chờ thanh toán',
-  awaiting_confirmation: 'Đã báo chuyển — chờ nông dân xác nhận',
-  confirmed: 'Đã nhận tiền',
+  awaiting_confirmation: 'Đang chờ SePay xác nhận',
+  confirmed: 'SePay đã xác nhận',
   disputed: 'Đang tranh chấp',
   expired: 'Hết hạn',
   cancelled: 'Đã hủy',
@@ -93,11 +93,24 @@ function PaymentCard({
   payment,
   userRole,
   onRefresh,
-  onFeePrompt,
+  onPaymentConfirmed,
 }) {
   const toast = useToast();
   const [acting, setActing] = useState(false);
   const [instruction, setInstruction] = useState(null);
+
+  useEffect(() => {
+    if (!instruction || payment.status === 'confirmed') return undefined;
+    const timer = window.setInterval(() => onRefresh(), 3000);
+    return () => window.clearInterval(timer);
+  }, [instruction, payment.status, onRefresh]);
+
+  useEffect(() => {
+    if (instruction && payment.status === 'confirmed') {
+      setInstruction(null);
+      onPaymentConfirmed(payment);
+    }
+  }, [instruction, payment, onPaymentConfirmed]);
 
   const canShowInstruction =
     userRole === 'enterprise' &&
@@ -110,36 +123,6 @@ function PaymentCard({
       setInstruction(res?.data?.instruction || null);
     } catch (err) {
       toast.error(err?.message || 'Không thể lấy mã QR thanh toán.');
-    } finally {
-      setActing(false);
-    }
-  };
-
-  const markSent = async () => {
-    setActing(true);
-    try {
-      await contractService.markDirectPaymentSent(contractId, payment.id);
-      toast.success('Đã báo cho nông dân rằng bạn đã chuyển tiền.');
-      setInstruction(null);
-      onRefresh();
-    } catch (err) {
-      toast.error(err?.message || 'Không thể cập nhật trạng thái thanh toán.');
-    } finally {
-      setActing(false);
-    }
-  };
-
-  const confirmReceived = async () => {
-    setActing(true);
-    try {
-      const res = await contractService.confirmDirectPaymentReceived(contractId, payment.id);
-      toast.success('Đã xác nhận nhận tiền.');
-      if (res?.data?.promptFeePayment) {
-        onFeePrompt(res.data.feeAccount);
-      }
-      onRefresh();
-    } catch (err) {
-      toast.error(err?.message || 'Không thể xác nhận nhận tiền.');
     } finally {
       setActing(false);
     }
@@ -173,22 +156,6 @@ function PaymentCard({
         </div>
       )}
 
-      {userRole === 'enterprise' && ['payable', 'awaiting_payment'].includes(payment.status) && (
-        <div className="dp-actions">
-          <button type="button" className="dp-btn dp-btn--primary" onClick={markSent} disabled={acting}>
-            <FiCheckCircle /> Tôi đã chuyển tiền
-          </button>
-        </div>
-      )}
-
-      {userRole === 'farmer' && payment.status === 'awaiting_confirmation' && (
-        <div className="dp-actions">
-          <button type="button" className="dp-btn dp-btn--primary" onClick={confirmReceived} disabled={acting}>
-            <FiCheckCircle /> Tôi đã nhận đủ tiền
-          </button>
-        </div>
-      )}
-
       {instruction && (
         <div className="dp-instruction">
           <div className="dp-instruction__qr">
@@ -206,7 +173,7 @@ function PaymentCard({
             <p><span>Số tiền:</span><strong>{fmtMoney(instruction.amount)}</strong></p>
             <p><span>Nội dung:</span><strong>{instruction.transferContent}</strong></p>
             <small>
-              Tiền đi thẳng từ tài khoản doanh nghiệp tới tài khoản nông dân. PreOnic không giữ tiền hàng.
+              Tiền đi thẳng từ tài khoản doanh nghiệp tới tài khoản nông dân. Giữ trang này mở; SePay sẽ tự xác nhận sau khi nhận giao dịch.
             </small>
           </div>
         </div>
@@ -223,6 +190,7 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
   const [acting, setActing] = useState(false);
   const [feePrompt, setFeePrompt] = useState(null);
   const [feeAccount, setFeeAccount] = useState(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -240,6 +208,27 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
       setLoading(false);
     }
   };
+
+  const refreshProgress = React.useCallback(async () => {
+    try {
+      const res = await contractService.getDirectProgress(contract.id);
+      setWorkflow(res?.data?.workflow || null);
+      setPayments(res?.data?.payments || []);
+    } catch {
+      // Polling failures are temporary; keep the current QR visible.
+    }
+  }, [contract.id]);
+
+  const handlePaymentConfirmed = React.useCallback(async (payment) => {
+    setPaymentSuccess(payment);
+    try {
+      const feeRes = await billingService.getAccount();
+      setFeeAccount(feeRes?.data || null);
+    } catch {
+      // Payment is already confirmed; fee summary can be refreshed later.
+    }
+    onContractRefresh?.();
+  }, [onContractRefresh]);
 
   useEffect(() => {
     if (contract?.paymentFlow === 'direct_v2') load();
@@ -333,11 +322,8 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
                 contractId={contract.id}
                 payment={payment}
                 userRole={userRole}
-                onRefresh={async () => {
-                  await load();
-                  onContractRefresh?.();
-                }}
-                onFeePrompt={setFeePrompt}
+                onRefresh={refreshProgress}
+                onPaymentConfirmed={handlePaymentConfirmed}
               />
             ))}
           </div>
@@ -387,6 +373,27 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
 
       {feePrompt && (
         <FeePrompt feeAccount={feePrompt} userRole={userRole} onClose={() => setFeePrompt(null)} />
+      )}
+      {paymentSuccess && (
+        <div className="dp-modal-backdrop" role="presentation">
+          <div className="dp-modal" role="dialog" aria-modal="true" aria-labelledby="goods-payment-success-title">
+            <FiCheckCircle className="dp-modal__success-icon" />
+            <h3 id="goods-payment-success-title">Thanh toán hợp đồng thành công</h3>
+            <p>SePay đã xác nhận giao dịch <strong>{fmtMoney(paymentSuccess.amount)}</strong>. Tiến độ hợp đồng và phí dịch vụ đã được cập nhật.</p>
+            <div className="dp-modal__actions">
+              <button
+                type="button"
+                className="dp-btn dp-btn--primary"
+                onClick={() => {
+                  setPaymentSuccess(null);
+                  if (Number(feeAccount?.outstandingAmount || 0) > 0) setFeePrompt(feeAccount);
+                }}
+              >
+                Hoàn tất
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

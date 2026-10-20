@@ -27,6 +27,8 @@ import {
 import { calculateFeeVnd } from './fee-calculator';
 
 const ACTIVE_CONTRACT_STATUSES = new Set(['active']);
+const isManualGoodsPaymentConfirmationEnabled = () =>
+  process.env.DIRECT_PAYMENT_ALLOW_MANUAL_CONFIRMATION === 'true';
 
 const assertDirectContractReadyForPayment = (contract: Contract): void => {
   if (contract.paymentFlow !== 'direct_v2') {
@@ -389,6 +391,9 @@ export const markDirectGoodsPaymentSent = async (
   paymentId: string,
   enterpriseUserId: string
 ) => {
+  if (!isManualGoodsPaymentConfirmationEnabled()) {
+    throw makeError('Thanh toán được SePay tự động xác nhận; không hỗ trợ báo chuyển tiền thủ công', 409);
+  }
   if (!AppDataSource?.isInitialized) {
     throw makeError('Database is not initialized', 503);
   }
@@ -478,6 +483,9 @@ export const confirmDirectGoodsPaymentReceived = async (
   paymentId: string,
   farmerUserId: string
 ) => {
+  if (!isManualGoodsPaymentConfirmationEnabled()) {
+    throw makeError('Thanh toán được SePay tự động xác nhận; không hỗ trợ xác nhận thủ công', 409);
+  }
   if (!AppDataSource?.isInitialized) {
     throw makeError('Database is not initialized', 503);
   }
@@ -586,7 +594,7 @@ export const cancelOpenDirectPaymentsForContractWithManager = async (
     .createQueryBuilder('payment')
     .where('payment.ContractId = :contractId', { contractId })
     .andWhere("payment.Status IN ('planned','payable','awaiting_payment')")
-    .orderBy('payment.InstallmentSequence', 'ASC')
+    .orderBy('payment.installmentSequence', 'ASC')
     .setLock('pessimistic_write')
     .getMany();
 
@@ -612,7 +620,7 @@ export const disputeReportedDirectPaymentsForContractWithManager = async (
     .createQueryBuilder('payment')
     .where('payment.ContractId = :contractId', { contractId })
     .andWhere("payment.Status = 'awaiting_confirmation'")
-    .orderBy('payment.InstallmentSequence', 'ASC')
+    .orderBy('payment.installmentSequence', 'ASC')
     .setLock('pessimistic_write')
     .getMany();
 

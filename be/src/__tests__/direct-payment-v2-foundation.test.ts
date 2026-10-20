@@ -107,6 +107,8 @@ describe('Direct Payment V2 foundation', () => {
 
     expect(source).toContain('PlatformFeeLedgerEntries');
     expect(source).toContain('DirectGoodsPayments');
+    expect(source).toContain('VerificationStatus');
+    expect(source).toContain('CK_UserSettlementBankAccounts_DefaultVerified');
     expect(source).not.toMatch(/ALTER\s+TABLE\s+dbo\.Escrows/i);
     expect(source).not.toMatch(/DROP\s+TABLE\s+dbo\.Escrows/i);
     expect(source).not.toMatch(/ALTER\s+TABLE\s+dbo\.PaymentTransactions/i);

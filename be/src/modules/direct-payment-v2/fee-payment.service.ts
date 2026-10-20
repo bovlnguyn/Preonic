@@ -19,6 +19,9 @@ import {
   getFeePaymentProvider,
 } from './providers/fee-payment-provider.factory';
 import { hashWebhookPayload } from './security/webhook-security';
+import { createLogger } from '../../utils/logger';
+
+const webhookLog = createLogger('FeePaymentWebhook');
 import { getBankTransferFeeRecipient } from './providers/bank-transfer/bank-transfer-fee-payment.provider';
 import {
   ensureFeeAccountWithManager,
@@ -259,7 +262,7 @@ export const createPlatformFeePayment = async (
       currency: 'VND',
       provider: providerName,
       providerPaymentId: null,
-      transferContent: `PRNFEE${orderCode}`.slice(0, 100),
+      transferContent: `PRNFE${orderCode}`.slice(0, 100),
       paymentUrl: null,
       qrPayload: null,
       status: 'pending',
@@ -413,9 +416,9 @@ const postFeePaymentCreditWithManager = async (
     .andWhere(
       "entry.EntryType IN ('buyer_transaction_fee','seller_transaction_fee','adjustment')"
     )
-    .orderBy('entry.PostedAt', 'ASC')
-    .addOrderBy('entry.CreatedAt', 'ASC')
-    .addOrderBy('entry.FeeLedgerEntryId', 'ASC')
+    .orderBy('entry.postedAt', 'ASC')
+    .addOrderBy('entry.createdAt', 'ASC')
+    .addOrderBy('entry.id', 'ASC')
     .setLock('pessimistic_write');
 
   if (payment.statementId) {
@@ -521,7 +524,10 @@ export const processPlatformFeePaymentWebhook = async (
   let event;
   try {
     event = await provider.verifyAndNormalizeWebhook(rawBody, headers);
-  } catch {
+  } catch (error: any) {
+    // Keep provider validation details in server logs for integration support,
+    // while the public response remains deliberately generic.
+    webhookLog.warn(`Rejected ${provider.name} webhook: ${String(error?.message || 'unknown validation error')}`);
     throw makeError('Webhook thanh toán không hợp lệ', 401);
   }
 

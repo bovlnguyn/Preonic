@@ -21,6 +21,19 @@ export const validateDirectPaymentRuntimeConfiguration = (): void => {
   });
 
   requireHttpsUrl('DIRECT_PAYMENT_QR_BASE_URL', 'https://qr.sepay.vn/img');
+  const goodsWebhookSecret = String(
+    process.env.SEPAY_WEBHOOK_SECRET
+    || process.env.DIRECT_PAYMENT_BANK_WEBHOOK_SECRET
+    || process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET
+    || ''
+  ).trim();
+  if ((process.env.NODE_ENV === 'production' || goodsWebhookSecret) && goodsWebhookSecret.length < 32) {
+    throw new Error('DIRECT_PAYMENT_BANK_WEBHOOK_SECRET must contain at least 32 characters');
+  }
+  const goodsWebhookMaxAge = Number(process.env.DIRECT_PAYMENT_WEBHOOK_MAX_AGE_SECONDS || 300);
+  if (!Number.isFinite(goodsWebhookMaxAge) || goodsWebhookMaxAge < 30 || goodsWebhookMaxAge > 3600) {
+    throw new Error('DIRECT_PAYMENT_WEBHOOK_MAX_AGE_SECONDS must be between 30 and 3600');
+  }
   validateBankAccountVerificationConfiguration();
 
   const providerName = getConfiguredFeePaymentProviderName();

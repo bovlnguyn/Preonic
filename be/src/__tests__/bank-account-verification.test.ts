@@ -1,5 +1,7 @@
 import {
+  getBankAccountVerificationCapability,
   normalizeAccountHolderForMatch,
+  validateBankAccountVerificationConfiguration,
   verifyBankAccount,
 } from '../modules/direct-payment-v2/bank-account-verification.service';
 import {
@@ -60,6 +62,104 @@ describe('bank account verification adapter', () => {
       message: 'Tài khoản ngân hàng tồn tại và đã được xác minh.',
     });
     expect(fetchMock).toHaveBeenCalledWith('https://bank.example.test/verify', expect.objectContaining({ method: 'POST' }));
+  });
+
+  test('verifies only an exact active account already linked to SePay API v2', async () => {
+    delete process.env.BANK_ACCOUNT_VERIFICATION_URL;
+    process.env.BANK_ACCOUNT_VERIFICATION_API_KEY = 'sepay-api-token';
+    process.env.BANK_ACCOUNT_VERIFICATION_PROVIDER = 'sepay_api_v2';
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        status: 'success',
+        data: [{
+          id: 'linked-account-xid',
+          account_holder_name: 'NGUYEN VAN A',
+          account_number: '0123456789',
+          bank_code: 'VCB',
+          active: 1,
+        }],
+      }),
+    } as Response);
+
+    await expect(verifyBankAccount('VCB', '0123456789')).resolves.toEqual({
+      status: 'verified',
+      valid: true,
+      accountHolder: 'NGUYEN VAN A',
+      provider: 'sepay_api_v2',
+      reference: 'linked-account-xid',
+      message: 'Tài khoản đã được liên kết và xác minh qua SePay.',
+    });
+    const requestedUrl = String(fetchMock.mock.calls[0][0]);
+    expect(requestedUrl).toContain('https://userapi.sepay.vn/v2/bank-accounts?');
+    expect(requestedUrl).toContain('q=0123456789');
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({ method: 'GET' }));
+  });
+
+  test('accepts the SePay MB alias for the Preonic MBB bank code', async () => {
+    delete process.env.BANK_ACCOUNT_VERIFICATION_URL;
+    process.env.BANK_ACCOUNT_VERIFICATION_API_KEY = 'sepay-api-token';
+    process.env.BANK_ACCOUNT_VERIFICATION_PROVIDER = 'sepay_api_v2';
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        status: 'success',
+        data: [{
+          id: 'linked-mb-account',
+          account_holder_name: 'THAI THI MAI ANH',
+          account_number: '0815803246',
+          bank_code: 'MB',
+          bank_short_name: 'MBBank',
+          active: '1',
+        }],
+      }),
+    } as Response);
+
+    await expect(verifyBankAccount('MBB', '0815803246')).resolves.toMatchObject({
+      status: 'verified',
+      valid: true,
+      accountHolder: 'THAI THI MAI ANH',
+      reference: 'linked-mb-account',
+    });
+  });
+
+  test('does not treat an unlinked SePay account as verified', async () => {
+    delete process.env.BANK_ACCOUNT_VERIFICATION_URL;
+    process.env.BANK_ACCOUNT_VERIFICATION_API_KEY = 'sepay-api-token';
+    process.env.BANK_ACCOUNT_VERIFICATION_PROVIDER = 'sepay_api_v2';
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ status: 'success', data: [] }),
+    } as Response);
+
+    await expect(verifyBankAccount('BIDV', '5602012164')).resolves.toMatchObject({
+      status: 'failed',
+      valid: false,
+      provider: 'sepay_api_v2',
+    });
+  });
+
+  test('rejects a non-SePay host when SePay verification mode is selected', () => {
+    process.env.BANK_ACCOUNT_VERIFICATION_URL = 'https://attacker.example/collect';
+    process.env.BANK_ACCOUNT_VERIFICATION_API_KEY = 'sepay-api-token';
+    process.env.BANK_ACCOUNT_VERIFICATION_PROVIDER = 'sepay_api_v2';
+    expect(() => validateBankAccountVerificationConfiguration()).toThrow(
+      'official SePay API host'
+    );
+  });
+
+  test('reports that verification evidence is always required for payments', () => {
+    delete process.env.BANK_ACCOUNT_VERIFICATION_URL;
+    delete process.env.BANK_ACCOUNT_VERIFICATION_API_KEY;
+    delete process.env.BANK_ACCOUNT_VERIFICATION_PROVIDER;
+    expect(getBankAccountVerificationCapability()).toMatchObject({
+      configured: false,
+      requiredForPayments: true,
+      mode: 'unavailable',
+    });
   });
 });
 

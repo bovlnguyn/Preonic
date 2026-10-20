@@ -12,9 +12,9 @@ import {
   FiSmartphone,
   FiRefreshCw,
   FiShield,
-  FiLoader,
   FiTrash2,
   FiX,
+  FiExternalLink,
 } from 'react-icons/fi';
 import billingService from '../../services/billing.service';
 import { useAuth } from '../../contexts/AuthContext';
@@ -48,7 +48,6 @@ const INITIAL_BANK_FORM = {
   bankName: '',
   accountHolder: '',
   accountNumber: '',
-  makeDefault: true,
 };
 
 const normalizeSpaces = (value) => String(value || '').replace(/\s+/g, ' ').trim();
@@ -87,9 +86,15 @@ function SettlementAccounts() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [verifyingId, setVerifyingId] = useState(null);
   const [form, setForm] = useState(INITIAL_BANK_FORM);
   const [touched, setTouched] = useState({});
-  const [verification, setVerification] = useState({ status: 'idle', message: '', accountHolder: '', key: '' });
+  const [verificationCapability, setVerificationCapability] = useState({
+    configured: false,
+    requiredForPayments: true,
+    mode: 'unavailable',
+    message: '',
+  });
 
   const errors = useMemo(() => validateSettlementForm(form), [form]);
   const isFormValid = Object.keys(errors).length === 0;
@@ -99,6 +104,7 @@ function SettlementAccounts() {
     try {
       const res = await billingService.listSettlementAccounts();
       setAccounts(res?.data?.accounts || []);
+      setVerificationCapability((prev) => res?.data?.verification || prev);
     } catch (err) {
       toast.error(err?.message || 'Không thể tải tài khoản nhận tiền.');
     } finally {
@@ -112,10 +118,6 @@ function SettlementAccounts() {
     setTouched((prev) => ({ ...prev, [fieldName]: true }));
   };
 
-  const resetVerification = () => {
-    setVerification({ status: 'idle', message: '', accountHolder: '', key: '' });
-  };
-
   const handleBankChange = (event) => {
     const bankCode = event.target.value;
     const bank = getVietnamBankByCode(bankCode);
@@ -125,50 +127,16 @@ function SettlementAccounts() {
       bankCode: bank?.code || '',
       bankName: bank?.name || '',
     }));
-    resetVerification();
     touchField('bankName');
   };
 
   const handleFieldChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    if (['accountHolder', 'accountNumber'].includes(name)) resetVerification();
     touchField(name);
   };
 
   const handleBlur = (event) => touchField(event.target.name);
-
-  const verify = async () => {
-    const allTouched = { bankName: true, accountHolder: true, accountNumber: true };
-    setTouched(allTouched);
-    if (!isFormValid || verification.status === 'checking') return null;
-
-    setVerification({ status: 'checking', message: 'Đang kết nối dịch vụ xác minh...', accountHolder: '', key: '' });
-    try {
-      const response = await billingService.verifySettlementAccount({
-        ...form,
-        accountHolder: normalizeSpaces(form.accountHolder),
-        accountNumber: form.accountNumber.trim(),
-      });
-      const result = response?.data?.verification;
-      const key = `${form.bankCode}:${form.accountNumber.trim()}`;
-      if (result?.status === 'verified') {
-        const verifiedHolder = result.accountHolder || normalizeSpaces(form.accountHolder);
-        if (verifiedHolder && result.nameMatches === false) {
-          setForm((prev) => ({ ...prev, accountHolder: verifiedHolder }));
-        }
-        setVerification({ status: 'verified', message: result.message, accountHolder: verifiedHolder, key });
-      } else if (result?.status === 'failed') {
-        setVerification({ status: 'failed', message: result.message, accountHolder: '', key });
-      } else {
-        setVerification({ status: 'unavailable', message: result?.message || 'Chưa thể xác minh trực tuyến.', accountHolder: '', key });
-      }
-      return result;
-    } catch (err) {
-      setVerification({ status: 'failed', message: err?.message || 'Không thể xác minh tài khoản.', accountHolder: '', key: '' });
-      return null;
-    }
-  };
 
   const save = async (event) => {
     event.preventDefault();
@@ -181,32 +149,39 @@ function SettlementAccounts() {
 
     if (!isFormValid || saving) return;
 
-    let verifiedHolder = normalizeSpaces(form.accountHolder);
-    const currentKey = `${form.bankCode}:${form.accountNumber.trim()}`;
-    if (verification.key !== currentKey || !['verified', 'unavailable'].includes(verification.status)) {
-      const result = await verify();
-      if (!result || result.status === 'failed') return;
-      if (result.status === 'verified' && result.accountHolder) verifiedHolder = result.accountHolder;
-    } else if (verification.status === 'verified' && verification.accountHolder) {
-      verifiedHolder = verification.accountHolder;
-    }
-
     setSaving(true);
     try {
       await billingService.saveSettlementAccount({
         ...form,
-        accountHolder: verifiedHolder,
+        accountHolder: normalizeSpaces(form.accountHolder),
         accountNumber: form.accountNumber.trim(),
       });
-      toast.success('Đã lưu tài khoản nhận tiền.');
+      toast.success('Đã gửi yêu cầu xác minh tài khoản cho quản trị viên.');
       setForm(INITIAL_BANK_FORM);
       setTouched({});
-      resetVerification();
       await load();
     } catch (err) {
       toast.error(err?.message || 'Không thể lưu tài khoản nhận tiền.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const reverify = async (id) => {
+    if (!verificationCapability.configured || verifyingId) return;
+    setVerifyingId(id);
+    try {
+      const response = await billingService.reverifySettlementAccount(id);
+      if (response?.data?.verification?.status === 'verified') {
+        toast.success('Tài khoản ngân hàng đã được xác minh.');
+      } else {
+        toast.error(response?.data?.verification?.message || 'Không thể xác minh tài khoản.');
+      }
+      await load();
+    } catch (err) {
+      toast.error(err?.message || 'Không thể xác minh lại tài khoản.');
+    } finally {
+      setVerifyingId(null);
     }
   };
 
@@ -241,6 +216,14 @@ function SettlementAccounts() {
             Tiền hàng từ doanh nghiệp sẽ được chuyển trực tiếp vào tài khoản mặc định này.
             Hãy khai báo chính xác để tránh ảnh hưởng đến việc thanh toán hợp đồng.
           </p>
+        </div>
+      </div>
+
+      <div className={`billing-verification billing-capability billing-verification--${verificationCapability.configured ? 'verified' : 'unavailable'}`} role="status">
+        {verificationCapability.configured ? <FiShield /> : <FiAlertCircle />}
+        <div>
+          <strong>{verificationCapability.configured ? 'Dịch vụ xác minh đã sẵn sàng' : 'Chưa kết nối dịch vụ xác minh'}</strong>
+          <span>{verificationCapability.message || 'Chỉ tài khoản đã xác minh mới được dùng để ký và thanh toán hợp đồng.'}</span>
         </div>
       </div>
 
@@ -317,44 +300,19 @@ function SettlementAccounts() {
         </div>
 
         <div className="billing-bank-form__footer">
-          <label className="billing-check">
-            <input
-              type="checkbox"
-              checked={form.makeDefault}
-              onChange={(event) => setForm((prev) => ({ ...prev, makeDefault: event.target.checked }))}
-            />
-            Đặt làm mặc định
-          </label>
+          <span className="billing-field-hint">Tài khoản xác minh đầu tiên sẽ tự động trở thành tài khoản mặc định.</span>
 
           <div className="billing-bank-form__actions">
             <button
-              type="button"
-              className="billing-btn billing-btn--verify"
-              disabled={!isFormValid || saving || verification.status === 'checking'}
-              onClick={verify}
-            >
-              {verification.status === 'checking' ? <FiLoader className="billing-spin" /> : <FiShield />}
-              {verification.status === 'checking' ? 'Đang kiểm tra' : 'Kiểm tra tài khoản'}
-            </button>
-            <button
               type="submit"
               className="billing-btn billing-btn--primary billing-btn--save"
-              disabled={!isFormValid || saving || verification.status === 'checking' || verification.status === 'failed'}
+              disabled={!isFormValid || saving}
             >
-              <FiPlus /> {saving ? 'Đang lưu...' : 'Lưu tài khoản'}
+              <FiPlus /> {saving ? 'Đang gửi...' : 'Gửi yêu cầu xác minh'}
             </button>
           </div>
         </div>
 
-        {verification.status !== 'idle' && (
-          <div className={`billing-verification billing-verification--${verification.status}`} role="status">
-            {verification.status === 'checking' ? <FiLoader className="billing-spin" /> : verification.status === 'verified' ? <FiCheckCircle /> : <FiAlertCircle />}
-            <div>
-              <strong>{verification.status === 'verified' ? 'Đã xác minh với ngân hàng' : verification.status === 'unavailable' ? 'Chưa thể xác minh trực tuyến' : verification.status === 'checking' ? 'Đang xác minh' : 'Xác minh không thành công'}</strong>
-              <span>{verification.message}</span>
-            </div>
-          </div>
-        )}
       </form>
 
       {loading ? (
@@ -376,14 +334,39 @@ function SettlementAccounts() {
                 {account.isDefault && (
                   <span className="billing-default"><FiCheckCircle /> Mặc định</span>
                 )}
-                <span className={`billing-verification-badge billing-verification-badge--${account.verificationStatus || 'unverified'}`}>
-                  {account.verificationStatus === 'verified' ? <FiCheckCircle /> : <FiShield />}
-                  {account.verificationStatus === 'verified' ? 'Đã xác minh' : 'Chưa xác minh'}
+                <span className={`billing-verification-badge billing-verification-badge--${account.verificationStatus || 'pending_admin_review'}`}>
+                  {account.verificationStatus === 'verified' ? <FiCheckCircle /> : ['failed', 'rejected'].includes(account.verificationStatus) ? <FiAlertCircle /> : <FiShield />}
+                  {{
+                    pending_admin_review: 'Chờ admin duyệt',
+                    awaiting_sepay_link: 'Chờ liên kết SePay',
+                    verified: 'Đã xác minh',
+                    rejected: 'Đã từ chối',
+                    failed: 'Chưa tìm thấy trên SePay',
+                  }[account.verificationStatus] || 'Chờ xác minh'}
                 </span>
+                {account.adminReviewNote && <small className="billing-bank-item__note">Ghi chú: {account.adminReviewNote}</small>}
               </div>
 
               <div className="billing-bank-actions">
-                {!account.isDefault && account.status === 'active' && (
+                {['awaiting_sepay_link', 'failed'].includes(account.verificationStatus) && account.status === 'active' && (
+                  <>
+                    {verificationCapability.selfServiceUrl && (
+                      <a className="billing-ghost-btn" href={verificationCapability.selfServiceUrl} target="_blank" rel="noreferrer">
+                        Mở SePay <FiExternalLink />
+                      </a>
+                    )}
+                  <button
+                    type="button"
+                    className="billing-ghost-btn"
+                    onClick={() => reverify(account.id)}
+                    disabled={!verificationCapability.configured || verifyingId === account.id}
+                    title={!verificationCapability.configured ? 'Chưa cấu hình dịch vụ xác minh' : undefined}
+                  >
+                    {verifyingId === account.id ? 'Đang đối chiếu...' : 'Tôi đã liên kết — kiểm tra'}
+                  </button>
+                  </>
+                )}
+                {!account.isDefault && account.status === 'active' && account.verificationStatus === 'verified' && (
                   <button type="button" className="billing-ghost-btn" onClick={() => makeDefault(account.id)}>
                     Đặt mặc định
                   </button>

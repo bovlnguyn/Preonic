@@ -15,12 +15,15 @@ import {
 } from '../modules/direct-payment-v2/fee-payment.service';
 import {
   disableFarmerSettlementBankAccount,
+  getFarmerBankAccountVerificationCapability,
   listFarmerSettlementBankAccounts,
+  reverifyFarmerSettlementBankAccount,
   saveFarmerSettlementBankAccount,
   setDefaultFarmerSettlementBankAccount,
   verifyFarmerSettlementBankAccount,
 } from '../modules/direct-payment-v2/settlement-bank-account.service';
 import { getCashflowReport } from '../modules/direct-payment-v2/cashflow-report.service';
+import { processDirectGoodsPaymentWebhook } from '../modules/direct-payment-v2/direct-goods-payment-webhook.service';
 
 const parsePositiveInt = (
   value: unknown,
@@ -151,6 +154,48 @@ export const handleFeePaymentWebhook = async (
   }
 };
 
+export const handleDirectGoodsPaymentWebhook = async (req: Request, res: Response) => {
+  try {
+    const rawBody = (req as any).rawBody;
+    if (!Buffer.isBuffer(rawBody)) {
+      return res.status(400).json({ success: false, message: 'Webhook raw body is required' });
+    }
+    await processDirectGoodsPaymentWebhook(rawBody, req.headers);
+    return res.status(200).json({ success: true });
+  } catch (err: any) {
+    return sendError(res, err, 'Webhook tiền hàng không hợp lệ', 400);
+  }
+};
+
+export const handleUnifiedSePayWebhook = async (req: Request, res: Response) => {
+  try {
+    const rawBody = (req as any).rawBody;
+    if (!Buffer.isBuffer(rawBody)) {
+      return res.status(400).json({ success: false, message: 'Webhook raw body is required' });
+    }
+    let body: any = {};
+    try { body = JSON.parse(rawBody.toString('utf8')); } catch {
+      return res.status(400).json({ success: false, message: 'Webhook body is not valid JSON' });
+    }
+    const searchable = `${String(body?.code || '')} ${String(body?.content || '')}`.toUpperCase();
+    if (/PRNFE(?:PF)?[A-Z0-9]{8,}/.test(searchable)) {
+      await processPlatformFeePaymentWebhook('bank_transfer', rawBody, req.headers);
+    } else {
+      await processDirectGoodsPaymentWebhook(rawBody, req.headers);
+    }
+    return res.status(200).json({ success: true });
+  } catch (err: any) {
+    // A unified webhook can receive valid incoming transfers that do not belong
+    // to Preonic (including SePay's built-in test event). Acknowledge those
+    // after signature/payload validation so SePay does not retry them. Invalid
+    // signatures and malformed events still return an error.
+    if (Number(err?.statusCode) === 404) {
+      return res.status(200).json({ success: true, ignored: true });
+    }
+    return sendError(res, err, 'Webhook SePay không hợp lệ', 400);
+  }
+};
+
 export const listMySettlementAccounts = async (
   req: AuthRequest,
   res: Response
@@ -159,10 +204,34 @@ export const listMySettlementAccounts = async (
     const accounts = await listFarmerSettlementBankAccounts(req.user!.id);
     return res.status(200).json({
       success: true,
-      data: { accounts },
+      data: {
+        accounts,
+        verification: getFarmerBankAccountVerificationCapability(),
+      },
     });
   } catch (err: any) {
     return sendError(res, err, 'Không thể lấy tài khoản nhận tiền');
+  }
+};
+
+export const reverifyMySettlementAccount = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const result = await reverifyFarmerSettlementBankAccount(
+      req.user!.id,
+      req.params.id
+    );
+    return res.status(200).json({
+      success: true,
+      message: result.verification.status === 'verified'
+        ? 'Tài khoản ngân hàng đã được xác minh'
+        : result.verification.message,
+      data: result,
+    });
+  } catch (err: any) {
+    return sendError(res, err, 'Không thể xác minh lại tài khoản ngân hàng');
   }
 };
 

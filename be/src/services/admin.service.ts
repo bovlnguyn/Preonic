@@ -54,7 +54,7 @@ export const getUsers = async (filters: AdminUserFilters = {}) => {
     const isActive = filters.isActive === true || String(filters.isActive).toLowerCase() === 'true';
     qb.andWhere('user.IsActive = :isActive', { isActive });
   }
-  const [users, total] = await qb.orderBy('user.CreatedAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+  const [users, total] = await qb.orderBy('user.createdAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
   return { users, pagination: { page, total, totalPages: Math.max(1, Math.ceil(total / limit)) } };
 };
 
@@ -185,7 +185,7 @@ export const getContracts = async (filters: AdminContractFilters = {}) => {
     qb.andWhere('(contract.ContractCode LIKE :search OR contract.FarmerName LIKE :search OR contract.EnterpriseName LIKE :search)', { search });
   }
   if (filters.status) qb.andWhere('contract.Status = :status', { status: filters.status });
-  const [contracts, total] = await qb.orderBy('contract.CreatedAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+  const [contracts, total] = await qb.orderBy('contract.createdAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
   return { contracts, pagination: { page, total, totalPages: Math.max(1, Math.ceil(total / limit)) } };
 };
 
@@ -209,7 +209,7 @@ export const getDisputes = async (filters: AdminDisputeFilters = {}) => {
     const search = `%${filters.search.trim()}%`;
     qb.andWhere('(contract.ContractCode LIKE :search OR raisedByUser.FullName LIKE :search OR againstUser.FullName LIKE :search OR dispute.Reason LIKE :search)', { search });
   }
-  const [disputes, total] = await qb.orderBy('dispute.CreatedAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+  const [disputes, total] = await qb.orderBy('dispute.createdAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
   const raw = await disputeRepo().createQueryBuilder('dispute').select('dispute.Status', 'status').addSelect('COUNT(*)', 'count').groupBy('dispute.Status').getRawMany();
   const stats: Record<string, number> = Object.fromEntries(DISPUTE_STATUSES.map(status => [status, 0]));
   raw.forEach(row => { stats[row.status] = Number(row.count); });
@@ -275,7 +275,7 @@ export const getFees = async (filters: AdminFeeFilters = {}) => {
   const qb = feeLedgerRepo().createQueryBuilder('entry').leftJoinAndSelect('entry.user', 'user').leftJoinAndSelect('entry.contract', 'contract');
   if (filters.search?.trim()) { const search = `%${filters.search.trim()}%`; qb.andWhere('(user.FullName LIKE :search OR user.Email LIKE :search OR contract.ContractCode LIKE :search OR entry.Description LIKE :search)', { search }); }
   if (filters.status) qb.andWhere('entry.Status = :status', { status: filters.status });
-  const [entries, total] = await qb.orderBy('entry.CreatedAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+  const [entries, total] = await qb.orderBy('entry.createdAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
   const aggregate = await feeLedgerRepo().createQueryBuilder('entry').select("COALESCE(SUM(CASE WHEN entry.Direction = 'debit' AND entry.Status = 'posted' THEN entry.Amount ELSE 0 END), 0)", 'billed').addSelect("COALESCE(SUM(CASE WHEN entry.Direction = 'credit' AND entry.Status = 'posted' THEN entry.Amount ELSE 0 END), 0)", 'credited').addSelect("COALESCE(SUM(CASE WHEN entry.Direction = 'debit' AND entry.Status = 'pending' THEN entry.Amount ELSE 0 END), 0)", 'pending').getRawOne();
   const collected = await feePaymentRepo().createQueryBuilder('payment').select('COALESCE(SUM(payment.Amount), 0)', 'amount').where("payment.Status = 'paid'").getRawOne();
   const billed = Number(aggregate?.billed || 0); const credited = Number(aggregate?.credited || 0);
@@ -287,8 +287,8 @@ export interface AdminTransactionFilters { type?: string; status?: string; page?
 export const getTransactions = async (filters: AdminTransactionFilters = {}) => {
   const { page, limit } = pageArgs(filters.page, filters.limit); const take = page * limit;
   const includeGoods = !filters.type || filters.type === 'goods_payment'; const includeFees = !filters.type || filters.type === 'fee_payment';
-  const goodsQb = goodsPaymentRepo().createQueryBuilder('payment').leftJoinAndSelect('payment.payer', 'payer').leftJoinAndSelect('payment.payee', 'payee').leftJoinAndSelect('payment.contract', 'contract').orderBy('payment.CreatedAt', 'DESC').take(take);
-  const feeQb = feePaymentRepo().createQueryBuilder('payment').leftJoinAndSelect('payment.user', 'user').orderBy('payment.CreatedAt', 'DESC').take(take);
+  const goodsQb = goodsPaymentRepo().createQueryBuilder('payment').leftJoinAndSelect('payment.payer', 'payer').leftJoinAndSelect('payment.payee', 'payee').leftJoinAndSelect('payment.contract', 'contract').orderBy('payment.createdAt', 'DESC').take(take);
+  const feeQb = feePaymentRepo().createQueryBuilder('payment').leftJoinAndSelect('payment.user', 'user').orderBy('payment.createdAt', 'DESC').take(take);
   if (filters.status) { goodsQb.andWhere('payment.Status = :status', { status: filters.status }); feeQb.andWhere('payment.Status = :status', { status: filters.status }); }
   const [[goods, goodsTotal], [feePayments, feeTotal]] = await Promise.all([includeGoods ? goodsQb.getManyAndCount() : Promise.resolve([[], 0] as [DirectGoodsPayment[], number]), includeFees ? feeQb.getManyAndCount() : Promise.resolve([[], 0] as [PlatformFeePayment[], number])]);
   const transactions = [...goods.map(p => ({ id: p.id, type: 'goods_payment', amount: Number(p.amount || 0), status: p.status, paymentMethod: 'bank_transfer', transferContent: p.transferContent, createdAt: p.createdAt, payer: p.payer ? { id: p.payer.id, fullName: p.payer.fullName, email: p.payer.email } : null, payee: p.payee ? { id: p.payee.id, fullName: p.payee.fullName, email: p.payee.email } : null })), ...feePayments.map(p => ({ id: p.id, type: 'fee_payment', amount: Number(p.amount || 0), status: p.status, paymentMethod: p.provider, transferContent: p.transferContent, createdAt: p.createdAt, payer: p.user ? { id: p.user.id, fullName: p.user.fullName, email: p.user.email } : null, payee: null }))].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice((page - 1) * limit, page * limit);

@@ -459,6 +459,26 @@
 }
 .adm-btn-success:hover { background: #bbf7d0; }
 
+.adm-bank-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 260px;
+}
+
+.adm-bank-search > svg {
+  position: absolute;
+  left: 14px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.adm-bank-search .adm-search { width: 100%; padding-left: 40px; }
+.adm-cell-muted { margin-top: 3px; color: #94a3b8; font-size: 11px; }
+.adm-cell-note { margin-top: 6px; max-width: 260px; color: #64748b; font-size: 11px; line-height: 1.45; }
+.adm-row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
 .adm-btn-outline {
   background: transparent;
   border: 1.5px solid #e2e8f0;

@@ -549,6 +549,7 @@
 .billing-verification--verified { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }
 .billing-verification--failed { color: #b91c1c; border-color: #fecaca; background: #fff1f2; }
 .billing-verification--unavailable { color: #92400e; border-color: #fde68a; background: #fffbeb; }
+.billing-capability { margin-bottom: 16px; }
 
 .billing-spin { animation: billing-spin .85s linear infinite; }
 @keyframes billing-spin { to { transform: rotate(360deg); } }
@@ -642,6 +643,12 @@
 }
 
 .billing-verification-badge--verified { color: #047857; background: #ecfdf5; }
+.billing-verification-badge--failed { color: #b91c1c; background: #fff1f2; }
+.billing-verification-badge--rejected { color: #b91c1c; background: #fff1f2; }
+.billing-verification-badge--pending_admin_review { color: #9a6700; background: #fff8db; }
+.billing-verification-badge--awaiting_sepay_link { color: #1d4ed8; background: #eff6ff; }
+.billing-bank-item__note { color: #64748b; line-height: 1.4; }
+.billing-bank-actions a.billing-ghost-btn { text-decoration: none; }
 
 .billing-payment {
   overflow: hidden;

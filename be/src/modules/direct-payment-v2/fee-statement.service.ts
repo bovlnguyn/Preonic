@@ -117,9 +117,9 @@ export const generateFeeStatementForUser = async (
       end: period.queryEndExclusiveUtc,
     })
     .andWhere('entry.FeeStatementId IS NULL')
-    .orderBy('entry.PostedAt', 'ASC')
-    .addOrderBy('entry.CreatedAt', 'ASC')
-    .addOrderBy('entry.FeeLedgerEntryId', 'ASC')
+    .orderBy('entry.postedAt', 'ASC')
+    .addOrderBy('entry.createdAt', 'ASC')
+    .addOrderBy('entry.id', 'ASC')
     .setLock('pessimistic_write')
     .getMany();
 

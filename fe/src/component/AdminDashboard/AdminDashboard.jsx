@@ -11,6 +11,7 @@ import {
   FiPercent,
   FiShield,
   FiUsers,
+  FiBriefcase,
 } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
 import { ROUTES } from "../../constants";
@@ -22,6 +23,7 @@ import QuanLyKhieuNai from "./sections/QuanLyKhieuNai";
 import QuanLyGiaoDich from "./sections/QuanLyGiaoDich";
 import QuanLyHoaHong from "./sections/QuanLyHoaHong";
 import QuanLyNhatKy from "./sections/QuanLyNhatKy";
+import QuanLyTaiKhoanNganHang from "./sections/QuanLyTaiKhoanNganHang";
 import "./AdminDashboard.css";
 
 const NAV_ITEMS = [
@@ -31,6 +33,7 @@ const NAV_ITEMS = [
   { key: "khieunai", label: "Quản lý khiếu nại", icon: FiAlertTriangle },
   { key: "giaodich", label: "Quản lý giao dịch", icon: FiCreditCard },
   { key: "phidichvu", label: "Quản lý phí dịch vụ", icon: FiPercent },
+  { key: "taikhoannganhang", label: "Xác minh ngân hàng", icon: FiBriefcase },
   { key: "nhatky", label: "Nhật ký hệ thống", icon: FiActivity },
 ];
 
@@ -120,6 +123,7 @@ export default function AdminDashboard() {
           {activeNav === "khieunai"  && <QuanLyKhieuNai />}
           {activeNav === "giaodich"  && <QuanLyGiaoDich />}
           {activeNav === "phidichvu" && <QuanLyHoaHong />}
+          {activeNav === "taikhoannganhang" && <QuanLyTaiKhoanNganHang />}
           {activeNav === "nhatky"    && <QuanLyNhatKy />}
         </div>
       </main>

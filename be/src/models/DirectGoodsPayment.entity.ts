@@ -26,6 +26,7 @@ import {
 @Index('IX_DirectGoodsPayments_Payer_Status_ConfirmedAt', ['payerUserId', 'status', 'confirmedAt'])
 @Index('IX_DirectGoodsPayments_Payee_Status_ConfirmedAt', ['payeeUserId', 'status', 'confirmedAt'])
 @Index('IX_DirectGoodsPayments_Contract_Status', ['contractId', 'status'])
+@Index('UX_DirectGoodsPayments_ProviderTransaction', ['providerTransactionId'], { unique: true, where: '[ProviderTransactionId] IS NOT NULL' })
 export class DirectGoodsPayment {
   @PrimaryGeneratedColumn('uuid', { name: 'GoodsPaymentId' })
   id: string;
@@ -86,6 +87,12 @@ export class DirectGoodsPayment {
 
   @Column({ name: 'ConfirmedBy', type: 'uniqueidentifier', nullable: true })
   confirmedBy: string | null;
+
+  @Column({ name: 'ProviderTransactionId', type: 'nvarchar', length: 80, nullable: true })
+  providerTransactionId: string | null;
+
+  @Column({ name: 'ProviderPayloadHash', type: 'char', length: 64, nullable: true, select: false })
+  providerPayloadHash: string | null;
 
   @CreateDateColumn({ name: 'CreatedAt', type: 'datetime2' })
   createdAt: Date;

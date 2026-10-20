@@ -3,6 +3,12 @@ import * as adminService from '../services/admin.service';
 import * as systemLogService from '../services/systemLog.service';
 import { AuthRequest } from '../types';
 import { sendError } from '../utils/controller.util';
+import {
+  listSettlementBankAccountsForAdmin,
+  reviewSettlementBankAccountByAdmin,
+  verifySettlementBankAccountByAdmin,
+} from '../modules/direct-payment-v2/settlement-bank-account.service';
+import { logAction } from '../services/systemLog.service';
 
 const safeParseJson = (raw: string | null) => {
   if (!raw) return null;
@@ -279,5 +285,90 @@ export const getSystemLogDetail = async (req: Request, res: Response) => {
     res.status(200).json({ success: true, data: formatSystemLogForAdmin(item) });
   } catch (err: any) {
     sendError(res, err, 'Lấy chi tiết log thất bại');
+  }
+};
+
+export const getSettlementBankAccountReviews = async (req: Request, res: Response) => {
+  try {
+    const result = await listSettlementBankAccountsForAdmin({
+      page: req.query.page ? Number(req.query.page) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      status: req.query.status as string,
+      search: req.query.search as string,
+    });
+    return res.status(200).json({
+      success: true,
+      data: result.accounts,
+      pagination: result.pagination,
+    });
+  } catch (err: any) {
+    return sendError(res, err, 'Không thể tải yêu cầu xác minh tài khoản');
+  }
+};
+
+export const reviewSettlementBankAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    const decision = String(req.body?.decision || '').trim();
+    if (decision !== 'approve' && decision !== 'reject') {
+      return res.status(400).json({ success: false, message: 'Quyết định duyệt không hợp lệ' });
+    }
+    const note = String(req.body?.note || '').replace(/\s+/g, ' ').trim();
+    if (note.length > 500) {
+      return res.status(400).json({ success: false, message: 'Ghi chú tối đa 500 ký tự' });
+    }
+
+    const account = await reviewSettlementBankAccountByAdmin(
+      req.user!.id,
+      req.params.id,
+      decision,
+      note
+    );
+    logAction({
+      category: 'payment',
+      action: `settlement_account_${decision}`,
+      message: decision === 'approve'
+        ? 'Quản trị viên đã duyệt hồ sơ tài khoản; đang chờ nông dân liên kết SePay.'
+        : 'Quản trị viên đã từ chối hồ sơ tài khoản nhận tiền.',
+      userId: req.user!.id,
+      targetType: 'settlement_bank_account',
+      targetId: account.id,
+      metadata: { decision, farmerUserId: account.userId },
+    });
+    return res.status(200).json({
+      success: true,
+      data: { account },
+      message: decision === 'approve'
+        ? 'Đã duyệt hồ sơ. Nông dân cần liên kết tài khoản trên SePay.'
+        : 'Đã từ chối yêu cầu xác minh.',
+    });
+  } catch (err: any) {
+    return sendError(res, err, 'Không thể xử lý yêu cầu xác minh tài khoản');
+  }
+};
+
+export const verifySettlementBankAccountOnSePay = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await verifySettlementBankAccountByAdmin(req.user!.id, req.params.id);
+    const verified = result.verification.status === 'verified';
+    logAction({
+      category: 'payment',
+      action: verified ? 'settlement_account_sepay_verified' : 'settlement_account_sepay_not_found',
+      message: verified
+        ? 'Tài khoản nhận tiền đã được đối chiếu tự động với SePay.'
+        : 'SePay chưa xác nhận được tài khoản nhận tiền.',
+      userId: req.user!.id,
+      targetType: 'settlement_bank_account',
+      targetId: req.params.id,
+      metadata: { farmerUserId: result.account.userId },
+    });
+    return res.status(200).json({
+      success: true,
+      data: result,
+      message: verified
+        ? 'SePay đã xác nhận tài khoản đang hoạt động.'
+        : result.verification.message,
+    });
+  } catch (err: any) {
+    return sendError(res, err, 'Không thể đối chiếu tài khoản với SePay');
   }
 };

@@ -8,11 +8,19 @@ GO
 /*
   Optional demo data for the canonical direct-settlement schema.
   Accounts use password: password
-  The demo catalog contains 10 products with public image URLs and 10 contracts
-  between the demo farmer and enterprise. Two completed contracts include
+  The demo catalog contains 10 products with public image URLs and 11 contracts
+  between the demo farmer and two enterprises. Two completed contracts include
   historical confirmed payments, posted service fees and two-way partner
   feedback. A third contract is already shipping so the direct-payment flow can
   be tested after the farmer registers a real encrypted settlement bank account.
+  The small enterprise has one completed VND 1,050,000 order and exactly
+  VND 5,250 of unpaid buyer fees, ready for a low-cost real SePay QR test.
+
+  Active farmer settlement accounts are intentionally NOT seeded. Their
+  account numbers use AES-GCM encryption and an HMAC fingerprint derived from
+  PAYMENT_BANK_DATA_ENCRYPTION_KEY / PAYMENT_BANK_DATA_HMAC_KEY on each
+  developer machine. To test admin approval, sign in as farmer.demo@preonic.vn
+  and save a bank account through the application after configuring be/.env.
 */
 
 IF OBJECT_ID('dbo.Users', 'U') IS NULL
@@ -20,6 +28,7 @@ IF OBJECT_ID('dbo.Users', 'U') IS NULL
    OR OBJECT_ID('dbo.DirectGoodsPayments', 'U') IS NULL
    OR COL_LENGTH('dbo.Contracts', 'PaymentFlow') IS NULL
    OR COL_LENGTH('dbo.UserSettlementBankAccounts', 'VerificationStatus') IS NULL
+   OR COL_LENGTH('dbo.UserSettlementBankAccounts', 'AdminReviewedBy') IS NULL
 BEGIN
   THROW 50020, N'PreOnic schema chưa đúng phiên bản. Hãy mở lại và chạy file 01_Preonic_V2_CreateDatabase.sql mới nhất trước.', 1;
 END;
@@ -32,9 +41,12 @@ BEGIN TRY
   -- Kiểm tra lại trong transaction để tuyệt đối không seed vào schema cũ.
   IF COL_LENGTH('dbo.UserSettlementBankAccounts', 'VerificationStatus') IS NULL
     THROW 50021, N'Thiếu cột VerificationStatus. Database đang được tạo từ file schema cũ.', 1;
+  IF COL_LENGTH('dbo.UserSettlementBankAccounts', 'AdminReviewedBy') IS NULL
+    THROW 50022, N'Thiếu cột AdminReviewedBy. Database đang được tạo từ file schema cũ.', 1;
 
   DECLARE @FarmerId UNIQUEIDENTIFIER = '11111111-1111-4111-8111-111111111111';
   DECLARE @EnterpriseId UNIQUEIDENTIFIER = '22222222-2222-4222-8222-222222222222';
+  DECLARE @SmallEnterpriseId UNIQUEIDENTIFIER = '22222222-2222-4222-8222-222222222223';
   DECLARE @AdminId UNIQUEIDENTIFIER = '33333333-3333-4333-8333-333333333333';
   DECLARE @PasswordHash NVARCHAR(255) = N'$2a$12$OZ85zJqH8aqwJbQH/XkiceRN/JZs7CkUu7A.nCptxC5F7AlTRdbT.';
 
@@ -45,6 +57,10 @@ BEGIN TRY
   IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = @EnterpriseId)
     INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified, Province, District, Address, CompanyName, TaxCode)
     VALUES (@EnterpriseId, N'enterprise.demo@preonic.vn', @PasswordHash, N'enterprise', N'local', N'Trần Minh', N'Khang', N'0901000002', 1, 1, N'Ho Chi Minh', N'Quận 1', N'45 Nguyễn Huệ', N'Công ty TNHH PreOnic Thu Mua', N'0312345678');
+
+  IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = @SmallEnterpriseId)
+    INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified, Province, District, Address, CompanyName, TaxCode)
+    VALUES (@SmallEnterpriseId, N'enterprise.small@preonic.vn', @PasswordHash, N'enterprise', N'local', N'Lê Thu', N'Hà', N'0901000004', 1, 1, N'Ho Chi Minh', N'Quận 12', N'18 Hà Huy Giáp', N'Cửa hàng Nông Sản Mini', N'0312345679');
 
   IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = @AdminId)
     INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified)
@@ -253,6 +269,36 @@ BEGIN TRY
     SELECT 1 FROM dbo.Contracts existing WHERE existing.ContractId = src.ContractId
   );
 
+  -- Đơn nhỏ riêng cho tài khoản enterprise.small: đã nhận hàng và xác nhận
+  -- thanh toán tiền hàng, nên phí mua 0,5% đã sẵn sàng để tạo QR SePay.
+  IF NOT EXISTS (
+    SELECT 1 FROM dbo.Contracts
+    WHERE ContractId = '20000000-0000-4000-8000-000000000011'
+  )
+    INSERT dbo.Contracts
+      (ContractId, ContractCode, ProductId, FarmerId, EnterpriseId, FarmerName,
+       EnterpriseName, ProductName, Quantity, Unit, PricePerUnit, TotalValue,
+       FirstPaymentPercentage, PaymentFlow, PaymentTerms, DeliveryDate,
+       DeliveryAddress, Notes, FarmLocation, [Status], SignedByFarmer,
+       SignedByEnterprise, SignedAt, CompletedAt, InsuranceEnabled,
+       InsuranceStatus, PaidAmount, RemainingAmount, DeliveryStatus,
+       DeliveredAt, DeliveryNote, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
+    SELECT
+      '20000000-0000-4000-8000-000000000011', N'PRE-DEMO-SMALL-001', product.ProductId,
+      @FarmerId, @SmallEnterpriseId, N'Nguyễn Văn An', N'Lê Thu Hà', product.Name,
+      100, product.Unit, 10500, 1050000, 0, N'direct_v2', N'100_delivery',
+      DATEADD(DAY, -1, CAST(SYSUTCDATETIME() AS DATE)),
+      N'Cửa hàng Nông Sản Mini, Quận 12, TP. Hồ Chí Minh',
+      N'Đơn nhỏ đã hoàn tất để thử thanh toán phí nền tảng qua SePay.',
+      product.Location, N'completed', 1, 1,
+      DATEADD(DAY, -5, SYSUTCDATETIME()), DATEADD(DAY, -1, SYSUTCDATETIME()),
+      0, N'none', 1050000, 0, N'delivered', DATEADD(DAY, -1, SYSUTCDATETIME()),
+      N'Đã nhận đủ 100 kg bắp ngọt và xác nhận thanh toán tiền hàng.',
+      @SmallEnterpriseId, @SmallEnterpriseId,
+      DATEADD(DAY, -6, SYSUTCDATETIME()), DATEADD(DAY, -1, SYSUTCDATETIME())
+    FROM dbo.Products product
+    WHERE product.ProductId = '10000000-0000-4000-8000-000000000007';
+
   -- Đồng bộ tồn kho với các hợp đồng đã kích hoạt/hoàn tất như luồng thật.
   UPDATE dbo.Products
   SET Remaining = CASE ProductId
@@ -260,13 +306,15 @@ BEGIN TRY
       WHEN '10000000-0000-4000-8000-000000000002' THEN 8500
       WHEN '10000000-0000-4000-8000-000000000003' THEN 2400
       WHEN '10000000-0000-4000-8000-000000000006' THEN 3000
+      WHEN '10000000-0000-4000-8000-000000000007' THEN 8900
       ELSE Remaining
     END
   WHERE ProductId IN (
     '10000000-0000-4000-8000-000000000001',
     '10000000-0000-4000-8000-000000000002',
     '10000000-0000-4000-8000-000000000003',
-    '10000000-0000-4000-8000-000000000006'
+    '10000000-0000-4000-8000-000000000006',
+    '10000000-0000-4000-8000-000000000007'
   );
 
   -- Snapshot chính sách phí cho mọi hợp đồng đã được hai bên ký.
@@ -279,6 +327,7 @@ BEGIN TRY
       WHEN '20000000-0000-4000-8000-000000000002' THEN '30000000-0000-4000-8000-000000000002'
       WHEN '20000000-0000-4000-8000-000000000003' THEN '30000000-0000-4000-8000-000000000003'
       WHEN '20000000-0000-4000-8000-000000000006' THEN '30000000-0000-4000-8000-000000000004'
+      WHEN '20000000-0000-4000-8000-000000000011' THEN '30000000-0000-4000-8000-000000000005'
     END,
     c.ContractId,
     fp.FeePolicyId,
@@ -301,7 +350,8 @@ BEGIN TRY
       '20000000-0000-4000-8000-000000000001',
       '20000000-0000-4000-8000-000000000002',
       '20000000-0000-4000-8000-000000000003',
-      '20000000-0000-4000-8000-000000000006'
+      '20000000-0000-4000-8000-000000000006',
+      '20000000-0000-4000-8000-000000000011'
     )
     AND c.[Status] IN (N'active', N'completed')
     AND NOT EXISTS (
@@ -318,17 +368,32 @@ BEGIN TRY
       (BankAccountId, UserId, BankCode, BankName, AccountHolder,
        AccountNumberCiphertext, AccountNumberIv, AccountNumberAuthTag,
        EncryptionKeyVersion, AccountNumberFingerprint, MaskedAccountNumber,
-       IsDefault, [Status], CreatedAt, UpdatedAt)
+       IsDefault, [Status], VerificationStatus, AdminReviewedBy,
+       AdminReviewedAt, AdminReviewNote, CreatedAt, UpdatedAt)
     VALUES
       (@HistoricalBankAccountId, @FarmerId, N'BIDV', N'BIDV', N'NGUYEN VAN AN',
        N'SEED_HISTORY_ONLY_NOT_DECRYPTABLE', N'SEED_HISTORY_IV', N'SEED_HISTORY_TAG',
        1, N'9f532a789dc04f13c84b7608bce3fe4b1e3df9c780fbd24f7e3f446989f30515',
-       N'******2468', 0, N'disabled',
+       N'******2468', 0, N'disabled', N'rejected', @AdminId,
+       DATEADD(DAY, -40, SYSUTCDATETIME()), N'Tài khoản lịch sử chỉ dùng để đối soát giao dịch demo.',
        DATEADD(DAY, -170, SYSUTCDATETIME()), DATEADD(DAY, -40, SYSUTCDATETIME()));
+
+  -- Giữ dữ liệu đúng trạng thái cả khi seed được chạy lại trên database demo
+  -- đã có bản ghi lịch sử từ phiên bản cũ.
+  UPDATE dbo.UserSettlementBankAccounts
+  SET VerificationStatus = N'rejected',
+      AdminReviewedBy = @AdminId,
+      AdminReviewedAt = COALESCE(AdminReviewedAt, DATEADD(DAY, -40, SYSUTCDATETIME())),
+      AdminReviewNote = COALESCE(AdminReviewNote, N'Tài khoản lịch sử chỉ dùng để đối soát giao dịch demo.'),
+      IsDefault = 0,
+      UpdatedAt = SYSUTCDATETIME()
+  WHERE BankAccountId = @HistoricalBankAccountId
+    AND [Status] = N'disabled';
 
   DECLARE @HistoricalPayments TABLE (
     GoodsPaymentId UNIQUEIDENTIFIER NOT NULL,
     ContractId UNIQUEIDENTIFIER NOT NULL,
+    PayerUserId UNIQUEIDENTIFIER NOT NULL,
     InstallmentSequence SMALLINT NOT NULL,
     [Trigger] NVARCHAR(30) NOT NULL,
     Amount DECIMAL(18,2) NOT NULL,
@@ -336,12 +401,13 @@ BEGIN TRY
   );
 
   INSERT INTO @HistoricalPayments
-    (GoodsPaymentId, ContractId, InstallmentSequence, [Trigger], Amount, ConfirmedDaysAgo)
+    (GoodsPaymentId, ContractId, PayerUserId, InstallmentSequence, [Trigger], Amount, ConfirmedDaysAgo)
   VALUES
-    ('40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 1, N'contract_active', 11160000, 145),
-    ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', 2, N'goods_accepted', 26040000, 118),
-    ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', 1, N'contract_active', 28875000,  75),
-    ('40000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000002', 2, N'goods_accepted', 28875000,  43);
+    ('40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', @EnterpriseId,      1, N'contract_active', 11160000, 145),
+    ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', @EnterpriseId,      2, N'goods_accepted', 26040000, 118),
+    ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', @EnterpriseId,      1, N'contract_active', 28875000,  75),
+    ('40000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000002', @EnterpriseId,      2, N'goods_accepted', 28875000,  43),
+    ('40000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000011', @SmallEnterpriseId, 1, N'goods_accepted',  1050000,   1);
 
   INSERT dbo.DirectGoodsPayments
     (GoodsPaymentId, ContractId, PayerUserId, PayeeUserId, BankAccountId,
@@ -350,7 +416,7 @@ BEGIN TRY
      [Status], ConfirmationMethod, IdempotencyKey, DueAt, ConfirmedAt,
      ConfirmedBy, CreatedAt, UpdatedAt)
   SELECT
-    src.GoodsPaymentId, src.ContractId, @EnterpriseId, @FarmerId,
+    src.GoodsPaymentId, src.ContractId, src.PayerUserId, @FarmerId,
     @HistoricalBankAccountId, src.InstallmentSequence, src.[Trigger], src.Amount,
     'VND',
     CONCAT(N'PRNPREDEMO', RIGHT(CONVERT(NVARCHAR(36), src.ContractId), 3), N'P', src.InstallmentSequence),
@@ -383,14 +449,15 @@ BEGIN TRY
   FROM dbo.DirectGoodsPayments payment
   INNER JOIN dbo.ContractFeeTerms terms ON terms.ContractId = payment.ContractId
   CROSS APPLY (VALUES
-    (@EnterpriseId, N'buyer_transaction_fee', terms.BuyerFeeBps, N'buyer', N'Phí giao dịch doanh nghiệp'),
-    (@FarmerId, N'seller_transaction_fee', terms.SellerFeeBps, N'seller', N'Phí giao dịch nông dân')
+    (payment.PayerUserId, N'buyer_transaction_fee', terms.BuyerFeeBps, N'buyer', N'Phí giao dịch doanh nghiệp'),
+    (payment.PayeeUserId, N'seller_transaction_fee', terms.SellerFeeBps, N'seller', N'Phí giao dịch nông dân')
   ) fee(UserId, EntryType, FeeRateBps, Party, [Description])
   WHERE payment.GoodsPaymentId IN (
       '40000000-0000-4000-8000-000000000001',
       '40000000-0000-4000-8000-000000000002',
       '40000000-0000-4000-8000-000000000003',
-      '40000000-0000-4000-8000-000000000004'
+      '40000000-0000-4000-8000-000000000004',
+      '40000000-0000-4000-8000-000000000005'
     )
     AND fee.FeeRateBps > 0
     AND NOT EXISTS (
@@ -402,20 +469,39 @@ BEGIN TRY
 
   INSERT dbo.PlatformFeeAccounts
     (UserId, OutstandingAmount, OverdueAmount, [Status], LastCalculatedAt)
-  SELECT
-    participant.UserId,
-    COALESCE(SUM(CASE
+  SELECT participant.UserId, 0, 0, N'good_standing', SYSUTCDATETIME()
+  FROM (VALUES (@FarmerId), (@EnterpriseId), (@SmallEnterpriseId)) participant(UserId)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM dbo.PlatformFeeAccounts account WHERE account.UserId = participant.UserId
+  );
+
+  -- Tính lại để seed có thể chạy lặp mà số dư phí vẫn khớp tuyệt đối với ledger.
+  UPDATE account
+  SET OutstandingAmount = totals.OutstandingAmount,
+      OverdueAmount = 0,
+      [Status] = N'good_standing',
+      LastCalculatedAt = SYSUTCDATETIME(),
+      UpdatedAt = SYSUTCDATETIME()
+  FROM dbo.PlatformFeeAccounts account
+  INNER JOIN (VALUES (@FarmerId), (@EnterpriseId), (@SmallEnterpriseId)) participant(UserId)
+    ON participant.UserId = account.UserId
+  CROSS APPLY (
+    SELECT COALESCE(SUM(CASE
       WHEN entry.[Status] = N'posted' AND entry.Direction = N'debit' THEN entry.Amount
       WHEN entry.[Status] = N'posted' AND entry.Direction = N'credit' THEN -entry.Amount
       ELSE 0
-    END), 0),
-    0, N'good_standing', SYSUTCDATETIME()
-  FROM (VALUES (@FarmerId), (@EnterpriseId)) participant(UserId)
-  LEFT JOIN dbo.PlatformFeeLedgerEntries entry ON entry.UserId = participant.UserId
-  WHERE NOT EXISTS (
-    SELECT 1 FROM dbo.PlatformFeeAccounts account WHERE account.UserId = participant.UserId
+    END), 0) AS OutstandingAmount
+    FROM dbo.PlatformFeeLedgerEntries entry
+    WHERE entry.UserId = account.UserId
+  ) totals;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.PlatformFeeAccounts
+    WHERE UserId = @SmallEnterpriseId
+      AND OutstandingAmount = 5250
   )
-  GROUP BY participant.UserId;
+    THROW 50022, N'Seed đơn nhỏ không tạo đúng khoản phí doanh nghiệp 5.250 đồng.', 1;
 
   -- Hai hợp đồng hoàn tất có phản hồi đủ cả hai chiều.
   INSERT dbo.PartnerRatings
@@ -451,7 +537,7 @@ BEGIN TRY
 
   SELECT Email, Role, IsActive, IsVerified
   FROM dbo.Users
-  WHERE Email IN (N'farmer.demo@preonic.vn', N'enterprise.demo@preonic.vn', N'admin.demo@preonic.vn')
+  WHERE Email IN (N'farmer.demo@preonic.vn', N'enterprise.demo@preonic.vn', N'enterprise.small@preonic.vn', N'admin.demo@preonic.vn')
   ORDER BY Role;
 
   SELECT [Status], COUNT(*) AS ContractCount
@@ -460,7 +546,8 @@ BEGIN TRY
   GROUP BY [Status]
   ORDER BY [Status];
 
-  PRINT N'PreOnic demo seed completed: 3 users, 10 products, 10 contracts, 2 completed contracts, 4 confirmed payments and 4 two-way ratings.';
+  PRINT N'PreOnic demo seed completed: 4 users, 10 products, 11 contracts, 3 completed contracts, 5 confirmed payments, 4 two-way ratings and a 5,250 VND enterprise fee ready for SePay.';
+  PRINT N'To test bank verification, create an active farmer bank account through the app so it is encrypted with this environment''s keys.';
 END TRY
 BEGIN CATCH
   IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;

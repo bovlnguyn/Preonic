@@ -91,7 +91,7 @@ describe('Direct Payment V2 Phase 3', () => {
       orderCode: 'PFTEST001',
       amount: 2_000_000,
       currency: 'VND' as const,
-      transferContent: 'PRNFEEPFTEST001',
+      transferContent: 'PRNFEPFTEST001',
       idempotencyKey: 'fee:0123456789abcdef',
     };
 
@@ -112,8 +112,8 @@ describe('Direct Payment V2 Phase 3', () => {
       secret: process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET,
       ttl: process.env.FEE_PAYMENT_QR_TTL_MINUTES,
     };
-    process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = '0123456789';
-    process.env.FEE_PAYMENT_BANK_CODE = 'MBBank';
+    process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = '96247TESTVA';
+    process.env.FEE_PAYMENT_BANK_CODE = 'BIDV';
     process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER = 'PREONIC';
     process.env.FEE_PAYMENT_QR_BASE_URL = 'https://qr.sepay.vn/img';
     process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET = '12345678901234567890123456789012';
@@ -122,13 +122,14 @@ describe('Direct Payment V2 Phase 3', () => {
       expect(() => validateBankTransferFeePaymentConfiguration()).not.toThrow();
       const result = await new BankTransferFeePaymentProvider().createPayment({
         orderCode: 'PFTEST0002', amount: 125_000, currency: 'VND',
-        transferContent: 'PRNFEEPFTEST0002', idempotencyKey: 'fee:fedcba9876543210',
+        transferContent: 'PRNFEPFTEST0002', idempotencyKey: 'fee:fedcba9876543210',
       });
       const url = new URL(result.paymentUrl!);
       expect(result.provider).toBe('bank_transfer');
       expect(url.protocol).toBe('https:');
+      expect(url.searchParams.get('acc')).toBe('96247TESTVA');
       expect(url.searchParams.get('amount')).toBe('125000');
-      expect(url.searchParams.get('des')).toBe('PRNFEEPFTEST0002');
+      expect(url.searchParams.get('des')).toBe('PRNFEPFTEST0002');
       expect(result.expiresAt!.getTime() - Date.now()).toBeGreaterThan(9 * 60 * 1000);
       expect(result.expiresAt!.getTime() - Date.now()).toBeLessThanOrEqual(10 * 60 * 1000);
 
@@ -137,8 +138,9 @@ describe('Direct Payment V2 Phase 3', () => {
         gateway: 'MBBank',
         transactionDate: '2026-10-18 22:30:00',
         accountNumber: '0123456789',
-        code: 'PRNFEEPFTEST0002',
-        content: 'PRNFEEPFTEST0002 chuyen tien',
+        subAccount: '96247TESTVA',
+        code: 'PRNFEPFTEST0002',
+        content: 'PRNFEPFTEST0002 chuyen tien',
         transferType: 'in',
         transferAmount: 125_000,
         referenceCode: 'FT24012345678',
@@ -158,6 +160,10 @@ describe('Direct Payment V2 Phase 3', () => {
         orderCode: 'PFTEST0002',
         status: 'paid',
         amount: 125_000,
+        sanitizedPayload: {
+          accountNumber: '96247TESTVA',
+          receivedViaVirtualAccount: true,
+        },
       });
     } finally {
       if (previous.account === undefined) delete process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER; else process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = previous.account;

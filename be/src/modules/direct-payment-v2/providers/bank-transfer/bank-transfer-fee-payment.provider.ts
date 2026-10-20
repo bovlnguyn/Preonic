@@ -41,10 +41,10 @@ export const getBankTransferFeeRecipient = () => ({
 const extractOrderCode = (body: any): string => {
   const code = String(body?.code || '').trim().toUpperCase().replace(/\s+/g, '');
   const content = String(body?.content || '').trim().toUpperCase();
-  const reference = code.startsWith('PRNFEE')
+  const reference = code.startsWith('PRNFE')
     ? code
-    : content.match(/PRNFEE(PF[A-Z0-9]{8,38})/)?.[0] || '';
-  const orderCode = reference.slice('PRNFEE'.length);
+    : content.match(/PRNFE(PF[A-Z0-9]{8,38})/)?.[0] || '';
+  const orderCode = reference.slice('PRNFE'.length);
   if (!/^PF[A-Z0-9]{8,38}$/.test(orderCode)) {
     throw new Error('SePay payment code is invalid');
   }
@@ -55,7 +55,7 @@ export const validateBankTransferFeePaymentConfiguration = (): void => {
   const accountNumber = requiredEnv('FEE_PAYMENT_BANK_ACCOUNT_NUMBER');
   const bankCode = requiredEnv('FEE_PAYMENT_BANK_CODE');
   const accountHolder = requiredEnv('FEE_PAYMENT_BANK_ACCOUNT_HOLDER');
-  const webhookSecret = requiredEnv('FEE_PAYMENT_BANK_WEBHOOK_SECRET');
+  const webhookSecret = String(process.env.SEPAY_WEBHOOK_SECRET || process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET || '').trim();
   const baseUrl = process.env.FEE_PAYMENT_QR_BASE_URL || 'https://qr.sepay.vn/img';
 
   if (!/^[A-Za-z0-9.-]{4,40}$/.test(accountNumber)) {
@@ -118,7 +118,7 @@ export class BankTransferFeePaymentProvider implements FeePaymentProvider {
     verifyTimestampedHmacWebhook({
       rawBody,
       headers,
-      secret: requiredEnv('FEE_PAYMENT_BANK_WEBHOOK_SECRET'),
+      secret: String(process.env.SEPAY_WEBHOOK_SECRET || process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET || '').trim(),
       signatureHeader: 'x-sepay-signature',
       timestampHeader: 'x-sepay-timestamp',
       maxAgeSeconds: Number(process.env.FEE_PAYMENT_WEBHOOK_MAX_AGE_SECONDS || 300),
@@ -132,7 +132,16 @@ export class BankTransferFeePaymentProvider implements FeePaymentProvider {
       throw new Error('SePay transaction is not incoming');
     }
     const configuredAccount = requiredEnv('FEE_PAYMENT_BANK_ACCOUNT_NUMBER');
-    if (String(body?.accountNumber || '').trim() !== configuredAccount) {
+    const destinationAccount = String(body?.accountNumber || '').trim();
+    const destinationVirtualAccount = String(body?.subAccount || '').trim();
+    // SePay reports an official virtual account (VA) in `subAccount`, while
+    // `accountNumber` remains the linked parent bank account. Accept the
+    // configured recipient only when it matches one of those exact fields so
+    // BIDV/MSB/Kienlong/OCB VA payments are not rejected.
+    if (
+      destinationAccount !== configuredAccount &&
+      destinationVirtualAccount !== configuredAccount
+    ) {
       throw new Error('SePay destination account does not match');
     }
 
@@ -152,6 +161,7 @@ export class BankTransferFeePaymentProvider implements FeePaymentProvider {
         sepayId,
         gateway: String(body?.gateway || '').slice(0, 100),
         accountNumber: configuredAccount,
+        receivedViaVirtualAccount: destinationVirtualAccount === configuredAccount,
         orderCode,
         status,
         amount,

@@ -14,6 +14,9 @@ import {
   getFees,
   getSystemLogs,
   getSystemLogDetail,
+  getSettlementBankAccountReviews,
+  reviewSettlementBankAccount,
+  verifySettlementBankAccountOnSePay,
 } from '../controller/admin.controller';
 import { protect, restrictTo } from '../middlewares/auth.middlewares';
 import {
@@ -22,6 +25,7 @@ import {
   validateContractIdParam,
   validateUserIdParam,
   validateSystemLogIdParam,
+  validateSettlementAccountIdParam,
 } from '../middlewares/validation';
 
 const router = Router();
@@ -40,6 +44,11 @@ router.patch(
   '/users/:id/toggle-status',
   validateUserIdParam as RequestHandler[],
   toggleUserStatus as RequestHandler
+);
+router.post(
+  '/settlement-account-reviews/:id/verify-sepay',
+  validateSettlementAccountIdParam as RequestHandler[],
+  verifySettlementBankAccountOnSePay as RequestHandler
 );
 router.delete(
   '/users/:id',
@@ -68,6 +77,13 @@ router.patch(
 
 router.get('/transactions', getTransactions as RequestHandler);
 router.get('/fees', getFees as RequestHandler);
+
+router.get('/settlement-account-reviews', getSettlementBankAccountReviews as RequestHandler);
+router.patch(
+  '/settlement-account-reviews/:id',
+  validateSettlementAccountIdParam as RequestHandler[],
+  reviewSettlementBankAccount as RequestHandler
+);
 
 router.get('/system-logs', getSystemLogs as RequestHandler);
 router.get('/system-logs/:id', validateSystemLogIdParam as RequestHandler[], getSystemLogDetail as RequestHandler);

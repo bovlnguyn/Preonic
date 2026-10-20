@@ -482,6 +482,7 @@ Sau khi chạy `Preonic Database/02_Preonic_V2_SeedData.sql`:
 | --- | --- | --- |
 | Nông dân | `farmer.demo@preonic.vn` | `password` |
 | Doanh nghiệp | `enterprise.demo@preonic.vn` | `password` |
+| Doanh nghiệp thử phí SePay 5.250đ | `enterprise.small@preonic.vn` | `password` |
 | Quản trị viên | `admin.demo@preonic.vn` | `password` |
 
 Các tài khoản này chỉ dành cho local/demo. Không sử dụng mật khẩu này cho môi trường có dữ liệu thật.
@@ -730,6 +731,7 @@ Sau khi dựng local, nên kiểm tra theo thứ tự sau.
 2. Mở danh sách sản phẩm và nhà cung cấp.
 3. Tạo hợp đồng, ký sau nông dân và mở chỉ dẫn chuyển khoản trực tiếp.
 4. Kiểm tra các đợt thanh toán, phí dịch vụ, đánh giá, thông báo, chat và thời tiết.
+5. Để thử thanh toán SePay với số tiền nhỏ, đăng nhập `enterprise.small@preonic.vn`, mở **Thanh toán & Phí** và tạo QR cho khoản phí 5.250đ đã seed sẵn.
 
 ### 12.4. Kiểm tra chức năng tùy chọn
 

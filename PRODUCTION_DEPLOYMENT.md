@@ -16,17 +16,17 @@
 - Cấu hình Cloudinary, SMTP, khóa mã hóa/HMAC dữ liệu ngân hàng, tài khoản nhận phí và webhook secret theo `be/.env.example`.
 - Cấu hình `OPENAI_API_KEY` để Farmer AI và Enterprise AI hoạt động thật.
 
-## Thu phí qua SePay
+## Thanh toán hợp đồng và thu phí qua SePay
 
 Đặt `FEE_PAYMENT_PROVIDER=bank_transfer`, thông tin tài khoản nhận phí, `FEE_PAYMENT_QR_BASE_URL=https://qr.sepay.vn/img` và `FEE_PAYMENT_QR_TTL_MINUTES=10`. Với cấu hình này trang **Thanh toán & Phí** hiển thị QR trực tiếp, khóa mã sau 10 phút và tự kiểm tra trạng thái mỗi 3 giây.
 
 Trên SePay, tạo webhook nhận giao dịch tiền vào với URL:
 
 ```text
-https://<backend-domain>/api/v1/billing/webhooks/bank_transfer
+https://<backend-domain>/api/v1/billing/webhooks/sepay
 ```
 
-Chọn bảo mật **HMAC-SHA256**, đặt Secret Key trùng `FEE_PAYMENT_BANK_WEBHOOK_SECRET`, nội dung JSON và bật lọc mã thanh toán với tiền tố `PRNFEE`. Backend kiểm tra chữ ký `X-SePay-Signature`, timestamp chống phát lại, đúng tài khoản nhận, đúng mã thanh toán và đúng số tiền trước khi ghi nhận. Không dùng chế độ webhook “Không xác thực” ở production.
+Chọn **Tất cả tài khoản**, chỉ nhận **Tiền vào**, bảo mật **HMAC-SHA256**, đặt Secret Key trùng `SEPAY_WEBHOOK_SECRET` và chọn tiền tố `PRN`. Endpoint này tự phân luồng mã `PRNFE...` sang phí nền tảng và `PRN...P<n>` sang tiền hàng. Backend kiểm tra chữ ký `X-SePay-Signature`, timestamp chống phát lại, ID giao dịch duy nhất, đúng tài khoản nhận, đúng mã và đúng số tiền trước khi ghi nhận. Không dùng webhook “Không xác thực” ở production.
 
 ## Xác minh tài khoản ngân hàng
 
@@ -42,7 +42,7 @@ và trả một trong các dạng tương thích:
 { "valid": true, "accountHolder": "NGUYEN VAN A", "reference": "request-id" }
 ```
 
-Đặt `BANK_ACCOUNT_VERIFICATION_URL`, `BANK_ACCOUNT_VERIFICATION_API_KEY` và `BANK_ACCOUNT_VERIFICATION_PROVIDER`. Chỉ bật `BANK_ACCOUNT_VERIFICATION_REQUIRED=true` sau khi provider production ổn định. Khi chưa cấu hình, hệ thống vẫn lưu được tài khoản nhưng gắn rõ `Chưa xác minh`; tuyệt đối không hiển thị thành đã xác minh.
+Đặt `BANK_ACCOUNT_VERIFICATION_URL`, `BANK_ACCOUNT_VERIFICATION_API_KEY` và `BANK_ACCOUNT_VERIFICATION_PROVIDER`. Với SePay API v2, dùng `BANK_ACCOUNT_VERIFICATION_PROVIDER=sepay_api_v2`, URL `https://userapi.sepay.vn/v2/bank-accounts`, `SEPAY_BANK_LINK_URL=https://my.sepay.vn/bankaccount` và API Token tạo trong mục **API Access**; không dùng khóa webhook. Tài khoản mới đi qua `pending_admin_review` → `awaiting_sepay_link` → `verified`. Admin chỉ duyệt hồ sơ; nút **Tôi đã liên kết — kiểm tra** chỉ được bật khi API key hợp lệ và chỉ thành công khi API tìm thấy đúng số tài khoản, ngân hàng, tên chủ tài khoản và trạng thái hoạt động. Backend đối chiếu cả mã và tên ngân hàng chuẩn hóa vì mã ngắn của SePay có thể khác mã VietQR, ví dụ `MB` và `MBB`. Để nông dân tự liên kết ở quy mô lớn, cần SePay Bank Hub (`client_id`/`client_secret` và Hosted Link). Tài khoản chưa `verified` không thể làm mặc định, ký hợp đồng hoặc nhận chỉ dẫn thanh toán.
 
 ## Trước khi mở người dùng
 

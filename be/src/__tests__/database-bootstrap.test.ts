@@ -31,7 +31,7 @@ describe('Fresh database bootstrap data', () => {
         .map((match) => match[1])
     );
 
-    expect(contractIds.size).toBe(10);
+    expect(contractIds.size).toBe(11);
     expect(seedSql).toContain("N'direct_v2'");
     expect(seedSql).toMatch(/N'100_delivery'\s*,\s*0\s*,\s*-1\s*,\s*N'active'\s*,\s*N'shipping'/);
     expect(seedSql.match(/N'completed'\s*,\s*N'delivered'/g)).toHaveLength(2);
@@ -41,6 +41,8 @@ describe('Fresh database bootstrap data', () => {
     expect(seedSql).toMatch(/INSERT\s+(?:INTO\s+)?dbo\.PartnerRatings/i);
     expect(seedSql).toContain("N'******2468', 0, N'disabled'");
     expect(seedSql).toContain("N'confirmed', N'farmer_manual'");
+    expect(seedSql).toContain("N'PRE-DEMO-SMALL-001'");
+    expect(seedSql).toContain('OutstandingAmount = 5250');
     expect(seedSql).toContain("COL_LENGTH('dbo.UserSettlementBankAccounts', 'VerificationStatus')");
     expect(seedSql.indexOf('COMMIT TRANSACTION')).toBeLessThan(
       seedSql.indexOf('PreOnic demo seed completed')
@@ -69,6 +71,14 @@ describe('Fresh database bootstrap data', () => {
     expect(schemaSql).toContain('VerificationStatus');
     expect(schemaSql).toContain('VerifiedAccountHolder');
     expect(schemaSql).toContain('VerificationReference');
-    expect(schemaSql).toMatch(/CHECK \(VerificationStatus IN \('unverified','verified','failed'\)\)/);
+    expect(schemaSql).toMatch(/CHECK \(VerificationStatus IN \('pending_admin_review','awaiting_sepay_link','verified','rejected','failed'\)\)/);
+    expect(schemaSql).toContain('AdminReviewedBy');
+    expect(schemaSql).toContain('CK_UserSettlementBankAccounts_AdminReview');
+    expect(schemaSql).toContain('CK_UserSettlementBankAccounts_DefaultVerified');
+    expect(schemaSql).toMatch(/IsDefault = 0 OR \(\[Status\] = 'active' AND VerificationStatus = 'verified'\)/);
+    expect(schemaSql).toMatch(/VerificationProvider IS NOT NULL/);
+    expect(schemaSql).toContain('ProviderTransactionId');
+    expect(schemaSql).toContain('UX_DirectGoodsPayments_ProviderTransaction');
+    expect(schemaSql).toMatch(/ConfirmationMethod = 'provider_webhook' OR ConfirmedBy IS NOT NULL/);
   });
 });
