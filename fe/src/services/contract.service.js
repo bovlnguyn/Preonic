@@ -145,33 +145,6 @@ const contractService = {
     }
   },
 
-  markPreparing: async (id, note) => {
-    try {
-      const response = await api.post(`/contracts/${id}/delivery/preparing`, { note });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: 'Không thể cập nhật trạng thái chuẩn bị hàng' };
-    }
-  },
-
-  markShipped: async (id, note) => {
-    try {
-      const response = await api.post(`/contracts/${id}/delivery/shipped`, { note });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: 'Không thể cập nhật trạng thái giao hàng' };
-    }
-  },
-
-  acceptDelivery: async (id, note) => {
-    try {
-      const response = await api.post(`/contracts/${id}/delivery/accepted`, { note });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: 'Không thể xác nhận nhận hàng' };
-    }
-  },
-
   /**
    * Delete a draft contract (enterprise only, before it's sent to the farmer)
    */

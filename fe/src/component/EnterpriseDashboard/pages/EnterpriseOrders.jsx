@@ -40,7 +40,7 @@ function EnterpriseOrders() {
                 <article
                   className="ent-order-card"
                   key={o.id}
-                  onClick={() => navigate(`/enterprise/contracts/${o.contractId}`)}
+                  onClick={() => navigate(`/enterprise/orders/${o.orderId}`)}
                 >
                   <div className="ent-order-card__top">
                     <div className="ent-order-card__identity">

@@ -16,7 +16,7 @@ const FLOW_STEPS = [
   { key: 'proposed',        label: 'Đề xuất' },
   { key: 'farmer_sign',     label: 'Nông dân xác nhận' },
   { key: 'enterprise_sign', label: 'Doanh nghiệp ký' },
-  { key: 'done',            label: 'Hoàn tất' },
+  { key: 'done',            label: 'Có hiệu lực' },
 ];
 
 const TERMINAL_STATUSES = ['cancelled', 'disputed'];

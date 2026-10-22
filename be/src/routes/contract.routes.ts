@@ -13,13 +13,10 @@ import {
   declineCancelContract,
 } from '../controller/contract.controller';
 import {
-  acceptContractDelivery,
   confirmDirectPaymentReceived,
   getDirectContractPayments,
   getDirectContractProgress,
   getDirectPaymentInstruction,
-  markContractPreparing,
-  markContractShipped,
   markDirectPaymentSent,
   reconcileDirectPayment,
 } from '../controller/direct-contract.controller';
@@ -33,7 +30,6 @@ import {
   validateRejectContract,
   validateListContracts,
   validateDirectPaymentIdParam,
-  validateDirectDeliveryNote,
 } from '../middlewares/validation';
 
 const router = Router();
@@ -103,31 +99,6 @@ router.post(
   validateDirectPaymentIdParam as RequestHandler[],
   confirmDirectPaymentReceived as RequestHandler
 );
-router.post(
-  '/:id/delivery/preparing',
-  protect as RequestHandler,
-  restrictTo('farmer') as RequestHandler,
-  validateContractIdParam as RequestHandler[],
-  validateDirectDeliveryNote as RequestHandler[],
-  markContractPreparing as RequestHandler
-);
-router.post(
-  '/:id/delivery/shipped',
-  protect as RequestHandler,
-  restrictTo('farmer') as RequestHandler,
-  validateContractIdParam as RequestHandler[],
-  validateDirectDeliveryNote as RequestHandler[],
-  markContractShipped as RequestHandler
-);
-router.post(
-  '/:id/delivery/accepted',
-  protect as RequestHandler,
-  restrictTo('enterprise') as RequestHandler,
-  validateContractIdParam as RequestHandler[],
-  validateDirectDeliveryNote as RequestHandler[],
-  acceptContractDelivery as RequestHandler
-);
-
 router.get(
   '/:id',
   protect as RequestHandler,

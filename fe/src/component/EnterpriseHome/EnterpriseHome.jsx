@@ -115,7 +115,6 @@ function EnterpriseHome() {
       setFeaturedSupplies(products);
       setTotalSupplies(Number(res?.pagination?.total ?? res?.total ?? products.length));
     } catch (error) {
-      setFeaturedSupplies([]);
       setFeaturedError(
         error?.message || "Không thể tải nguồn cung nổi bật. Vui lòng thử lại."
       );
@@ -135,8 +134,7 @@ function EnterpriseHome() {
         setOnTimeRate(onTimeDeliveryRate(contracts));
       })
       .catch(() => {
-        setContractCount(0);
-        setOnTimeRate(null);
+        // Keep the last successful KPI values instead of flashing false zeros.
       });
 
     supplierService
@@ -145,7 +143,7 @@ function EnterpriseHome() {
         const suppliers = getResponseList(res, "suppliers");
         setSupplierCount(suppliers.length);
       })
-      .catch(() => setSupplierCount(0));
+      .catch(() => {});
   }, [loadFeaturedSupplies]);
 
   const procurementStats = [

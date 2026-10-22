@@ -47,7 +47,7 @@ function FarmerOrders() {
                   className="farmer-order-card fo-order-card"
                   key={item.id}
                   onClick={() =>
-                    navigate(`/farmer/contracts/${item.contractId}`)
+                    navigate(`/farmer/orders/${item.orderId}`)
                   }
                 >
                   <div className="fo-order-card__top">

@@ -70,6 +70,20 @@ export const publicAiLimiter = rateLimit({
   },
 });
 
+// The public contact form sends real email, so protect the support inbox from
+// automated floods while leaving enough room for shared office networks.
+export const contactLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS,
+  max: Number(process.env.CONTACT_LIMIT_PER_HOUR || 8),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: 'CONTACT_RATE_LIMITED',
+    message: 'Bạn đã gửi nhiều yêu cầu trong thời gian ngắn. Vui lòng thử lại sau.',
+  },
+});
+
 
 // Farmer AI: đã đăng nhập nhưng vẫn cần chặn spam đốt quota API.
 export const farmerAiLimiter = rateLimit({

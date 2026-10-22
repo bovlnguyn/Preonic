@@ -9,6 +9,7 @@ import { startContractExpiryCron } from './jobs/contract-cron';
 import { startWeatherCron } from './jobs/weather-cron';
 import { startSystemLogCleanupCron } from './jobs/systemlog-cron';
 import { startFeeBillingCron } from './jobs/fee-billing-cron';
+import { startCropReportCron } from './jobs/crop-report-cron';
 import { validateDirectPaymentRuntimeConfiguration } from './modules/direct-payment-v2/runtime-config';
 import { validateProductionRuntimeConfiguration } from './config/production-runtime';
 
@@ -39,6 +40,7 @@ const startBackgroundJobs = () => {
     ['weather', startWeatherCron],
     ['system-log-cleanup', startSystemLogCleanupCron],
     ['fee-billing', startFeeBillingCron],
+    ['crop-report', startCropReportCron],
   ] as const;
 
   let failed = false;

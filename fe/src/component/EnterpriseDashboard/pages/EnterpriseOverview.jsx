@@ -89,10 +89,7 @@ function EnterpriseOverview() {
       })
       .catch(() => {
         if (!alive) return;
-        setOrders([]);
-        setFeesDue(0);
-        setReputation({ average: 0, count: 0 });
-        setContractSummary({ totalContracts: 0, totalContractValue: 0, activeContracts: 0, pendingContracts: 0 });
+        // Keep the last successful dashboard snapshot during refresh failures.
       });
 
     return () => { alive = false; };
@@ -113,8 +110,7 @@ function EnterpriseOverview() {
       })
       .catch(() => {
         if (!alive) return;
-        setContracts([]);
-        setContractPagination({ total: 0, totalPages: 0 });
+        // Preserve currently rendered contracts; a failed refresh is not deletion.
       });
     return () => { alive = false; };
   }, [contractsPage]);

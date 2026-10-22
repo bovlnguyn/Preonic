@@ -20,6 +20,8 @@ import messagingRoutes from './routes/messaging.routes';
 import partnerRatingRoutes from './routes/partner-rating.routes';
 import aiRoutes from './routes/ai.routes';
 import billingRoutes from './routes/billing.routes';
+import contactRoutes from './routes/contact.routes';
+import orderRoutes from './routes/order.routes';
 // Import Config/Utils
 import { isDatabaseConnected, isDatabaseUnavailableError, markDatabaseUnhealthy } from './config/database';
 import { createLogger } from './utils/logger';
@@ -104,6 +106,7 @@ app.use(`${API_PREFIX}`, (req: Request, res: Response, next: NextFunction) => {
   const bypassDatabaseGuard =
     req.path.startsWith('/weather') ||
     req.path.startsWith('/ai/public') ||
+    req.path.startsWith('/contact') ||
     req.path === '/auth/logout';
 
   if (bypassDatabaseGuard) return next();
@@ -175,6 +178,11 @@ app.use(`${API_PREFIX}/partner-ratings`, partnerRatingRoutes);
 app.use(`${API_PREFIX}/ai`, aiRoutes);
 // Direct-payment V2 billing / fee collection
 app.use(`${API_PREFIX}/billing`, billingRoutes);
+// Contact remains available while SQL is reconnecting so users can still
+// report an operational issue.
+app.use(`${API_PREFIX}/contact`, contactRoutes);
+// Fulfillment lifecycle: cultivation reports, carrier handover and receipt.
+app.use(`${API_PREFIX}/orders`, orderRoutes);
 // ══════════════════════════════════════════════════════
 // 4. ERROR HANDLING (Phải đặt sau cùng)
 // ══════════════════════════════════════════════════════

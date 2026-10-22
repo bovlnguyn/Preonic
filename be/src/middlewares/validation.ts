@@ -176,6 +176,47 @@ export const validateForgotPassword = [
   handleValidationErrors,
 ];
 
+export const validateContactRequest = [
+  body('audience')
+    .isIn(['public', 'farmer', 'enterprise'])
+    .withMessage('Nhóm người dùng không hợp lệ'),
+
+  body('topic')
+    .trim()
+    .isLength({ min: 2, max: 120 })
+    .withMessage('Chủ đề phải từ 2-120 ký tự'),
+
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 120 })
+    .withMessage('Họ tên phải từ 2-120 ký tự'),
+
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Email liên hệ không hợp lệ')
+    .normalizeEmail(),
+
+  body('phone')
+    .optional({ checkFalsy: true })
+    .trim()
+    .matches(/^[+0-9()\s.-]{8,24}$/)
+    .withMessage('Số điện thoại không hợp lệ'),
+
+  body('company')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 160 })
+    .withMessage('Tên doanh nghiệp quá dài'),
+
+  body('message')
+    .trim()
+    .isLength({ min: 10, max: 5000 })
+    .withMessage('Nội dung phải từ 10-5000 ký tự'),
+
+  handleValidationErrors,
+];
+
 /**
  * Validate Reset Password
  */

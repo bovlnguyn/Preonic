@@ -17,6 +17,8 @@ import {
 import Header from "../Common/Header";
 import Footer from "../Common/Footer";
 import { COMPANY } from "../../constants";
+import contactService from "../../services/contact.service";
+import { useToast } from "../../contexts/ToastContext";
 import "./FarmerContact.css";
 
 const fadeUp = {
@@ -53,13 +55,16 @@ function FiPackageHelp(props) {
 
 function FarmerContact() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [form, setForm] = useState({
     topic: "product",
     name: "",
+    email: "",
     phone: "",
     message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const contactInfo = useMemo(() => [
     { label: "Email hỗ trợ", value: COMPANY.SUPPORT_EMAIL || COMPANY.EMAIL, icon: FiMail },
@@ -73,9 +78,20 @@ function FarmerContact() {
     setForm((current) => ({ ...current, [name]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitted(true);
+    setSubmitting(true);
+    setSubmitted(false);
+    try {
+      const result = await contactService.send({ audience: "farmer", ...form });
+      setSubmitted(true);
+      setForm((current) => ({ ...current, message: "" }));
+      toast.success(result.message || "Yêu cầu hỗ trợ đã được gửi.");
+    } catch (error) {
+      toast.error(error?.message || "Không thể gửi yêu cầu lúc này.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -145,8 +161,8 @@ function FarmerContact() {
               <motion.span className="fct-kicker" variants={fadeUp}>Gửi yêu cầu</motion.span>
               <motion.h2 variants={fadeUp}>Mô tả vấn đề của bạn, đội hỗ trợ sẽ phản hồi theo kênh liên hệ.</motion.h2>
               <motion.p variants={fadeUp}>
-                Form này hiện xử lý ở frontend để hoàn thiện giao diện. Khi backend có API support ticket,
-                bạn chỉ cần thay hàm submit bằng lệnh gọi API thật.
+                Yêu cầu sẽ được gửi tới hộp thư hỗ trợ chính thức và bạn sẽ nhận
+                email xác nhận ngay sau khi hệ thống tiếp nhận.
               </motion.p>
 
               <motion.div className="fct-note" variants={fadeUp}>
@@ -168,26 +184,33 @@ function FarmerContact() {
 
               <motion.label variants={fadeUp}>
                 Họ tên
-                <input name="name" value={form.name} onChange={handleChange} placeholder="Nhập tên của bạn" />
+                <input name="name" value={form.name} onChange={handleChange} placeholder="Nhập tên của bạn" required />
+              </motion.label>
+
+              <motion.label variants={fadeUp}>
+                Email nhận phản hồi
+                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="name@example.com" required />
               </motion.label>
 
               <motion.label variants={fadeUp}>
                 Số điện thoại
-                <input name="phone" value={form.phone} onChange={handleChange} placeholder="Nhập số điện thoại" />
+                <input name="phone" value={form.phone} onChange={handleChange} placeholder="Nhập số điện thoại" required />
               </motion.label>
 
               <motion.label variants={fadeUp}>
                 Nội dung
-                <textarea name="message" value={form.message} onChange={handleChange} rows="5" placeholder="Mô tả ngắn vấn đề bạn cần hỗ trợ..." />
+                <textarea name="message" value={form.message} onChange={handleChange} rows="5" minLength="10" maxLength="5000" placeholder="Mô tả ngắn vấn đề bạn cần hỗ trợ..." required />
               </motion.label>
 
               {submitted && (
                 <motion.div className="fct-success" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                  <FiCheckCircle /> Yêu cầu đã được ghi nhận ở giao diện demo.
+                  <FiCheckCircle /> Yêu cầu đã được gửi. Hãy kiểm tra email xác nhận.
                 </motion.div>
               )}
 
-              <motion.button type="submit" variants={fadeUp}>Gửi yêu cầu hỗ trợ <FiSend /></motion.button>
+              <motion.button type="submit" variants={fadeUp} disabled={submitting}>
+                {submitting ? "Đang gửi..." : "Gửi yêu cầu hỗ trợ"} <FiSend />
+              </motion.button>
             </motion.form>
           </div>
         </section>

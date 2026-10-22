@@ -8,10 +8,23 @@ import React, {
 } from 'react';
 import { STORAGE_KEYS } from '../constants';
 import authService from '../services/auth.service.js';
+import { clearStoredAuth, refreshAccessToken } from '../services/api';
 
 const { ACCESS_TOKEN, USER } = STORAGE_KEYS;
 
 const AuthContext = createContext(null);
+
+const readTokenExpiry = (token) => {
+  try {
+    const payload = token.split('.')[1];
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const normalized = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const decoded = JSON.parse(window.atob(normalized));
+    return Number(decoded.exp || 0) * 1000;
+  } catch {
+    return 0;
+  }
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -31,6 +44,64 @@ export const AuthProvider = ({ children }) => {
 
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    let timer;
+    let disposed = false;
+
+    const refreshSession = async () => {
+      try {
+        await refreshAccessToken();
+      } catch (error) {
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) {
+          clearStoredAuth();
+          disposed = true;
+          setUser(null);
+        }
+        throw error;
+      }
+    };
+
+    const scheduleRefresh = () => {
+      if (disposed) return;
+      const token = sessionStorage.getItem(ACCESS_TOKEN);
+      const expiresAt = readTokenExpiry(token || '');
+      const delay = expiresAt
+        ? Math.max(5_000, expiresAt - Date.now() - 60_000)
+        : 60_000;
+
+      timer = window.setTimeout(async () => {
+        try {
+          await refreshSession();
+        } catch {
+          // The shared Axios interceptor will distinguish a real session expiry
+          // from a temporary network/database interruption on the next request.
+        } finally {
+          scheduleRefresh();
+        }
+      }, Math.min(delay, 2_147_000_000));
+    };
+
+    const refreshOnFocus = () => {
+      const token = sessionStorage.getItem(ACCESS_TOKEN);
+      const expiresAt = readTokenExpiry(token || '');
+      if (expiresAt && expiresAt - Date.now() <= 60_000) {
+        void refreshSession().catch(() => {});
+      }
+    };
+
+    scheduleRefresh();
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
+  }, [user]);
 
   const login = useCallback((accessToken, userData) => {
     if (!accessToken || !userData) return;

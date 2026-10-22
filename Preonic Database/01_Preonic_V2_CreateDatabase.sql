@@ -369,6 +369,82 @@ END;
 GO
 
 -- ============================================================
+-- [05] ORDER FULFILLMENT, CROP REPORTS & SHIPPING TRACKING
+-- ============================================================
+CREATE TABLE FulfillmentOrders (
+    OrderId               UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
+    ContractId            UNIQUEIDENTIFIER NOT NULL,
+    Stage                 NVARCHAR(30) NOT NULL DEFAULT 'cultivating',
+    Carrier               NVARCHAR(30) NOT NULL DEFAULT 'ghn',
+    TrackingCode          NVARCHAR(100) NULL,
+    CarrierStatus         NVARCHAR(100) NULL,
+    LoadingPhotoUrl       NVARCHAR(1000) NULL,
+    ReportIntervalDays    SMALLINT NOT NULL DEFAULT 7,
+    NextReportDueAt       DATETIME2 NULL,
+    HandedToCarrierAt     DATETIME2 NULL,
+    EnterpriseReceivedAt DATETIME2 NULL,
+    CompletedAt           DATETIME2 NULL,
+    LastCarrierSyncAt     DATETIME2 NULL,
+    CurrentLocation       NVARCHAR(500) NULL,
+    CurrentLatitude       DECIMAL(10,7) NULL,
+    CurrentLongitude      DECIMAL(10,7) NULL,
+    CreatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_FulfillmentOrders PRIMARY KEY (OrderId),
+    CONSTRAINT UQ_FulfillmentOrders_Contract UNIQUE (ContractId),
+    CONSTRAINT FK_FulfillmentOrders_Contract FOREIGN KEY (ContractId) REFERENCES Contracts(ContractId),
+    CONSTRAINT CK_FulfillmentOrders_Stage CHECK (Stage IN ('cultivating','ready_to_ship','in_transit','delivered','completed')),
+    CONSTRAINT CK_FulfillmentOrders_Carrier CHECK (Carrier IN ('ghn','manual')),
+    CONSTRAINT CK_FulfillmentOrders_ReportInterval CHECK (ReportIntervalDays BETWEEN 1 AND 90)
+);
+CREATE INDEX IX_FulfillmentOrders_Stage_UpdatedAt ON FulfillmentOrders(Stage, UpdatedAt DESC);
+CREATE INDEX IX_FulfillmentOrders_TrackingCode ON FulfillmentOrders(TrackingCode) WHERE TrackingCode IS NOT NULL;
+
+CREATE TABLE CropProgressReports (
+    ReportId       UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
+    OrderId        UNIQUEIDENTIFIER NOT NULL,
+    RequestedBy    UNIQUEIDENTIFIER NULL,
+    RequestType    NVARCHAR(20) NOT NULL DEFAULT 'periodic',
+    Status         NVARCHAR(20) NOT NULL DEFAULT 'requested',
+    Title          NVARCHAR(200) NOT NULL,
+    RequestNote    NVARCHAR(1000) NULL,
+    FarmerNote     NVARCHAR(2000) NULL,
+    ImageUrls      NVARCHAR(MAX) NULL,
+    DueAt          DATETIME2 NULL,
+    SubmittedAt    DATETIME2 NULL,
+    CreatedAt      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedAt      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_CropProgressReports PRIMARY KEY (ReportId),
+    CONSTRAINT FK_CropProgressReports_Order FOREIGN KEY (OrderId) REFERENCES FulfillmentOrders(OrderId) ON DELETE CASCADE,
+    CONSTRAINT FK_CropProgressReports_Requester FOREIGN KEY (RequestedBy) REFERENCES Users(UserId),
+    CONSTRAINT CK_CropProgressReports_Type CHECK (RequestType IN ('periodic','enterprise')),
+    CONSTRAINT CK_CropProgressReports_Status CHECK (Status IN ('requested','submitted'))
+);
+CREATE INDEX IX_CropProgressReports_Order_CreatedAt ON CropProgressReports(OrderId, CreatedAt DESC);
+CREATE INDEX IX_CropProgressReports_Order_Status_DueAt ON CropProgressReports(OrderId, Status, DueAt);
+
+CREATE TABLE ShipmentTrackingEvents (
+    TrackingEventId UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
+    OrderId         UNIQUEIDENTIFIER NOT NULL,
+    ProviderEventId NVARCHAR(180) NULL,
+    Source          NVARCHAR(20) NOT NULL DEFAULT 'manual',
+    Status          NVARCHAR(100) NOT NULL,
+    Description     NVARCHAR(1000) NULL,
+    Location        NVARCHAR(500) NULL,
+    Latitude        DECIMAL(10,7) NULL,
+    Longitude       DECIMAL(10,7) NULL,
+    OccurredAt      DATETIME2 NOT NULL,
+    RawPayload      NVARCHAR(MAX) NULL,
+    CreatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_ShipmentTrackingEvents PRIMARY KEY (TrackingEventId),
+    CONSTRAINT FK_ShipmentTrackingEvents_Order FOREIGN KEY (OrderId) REFERENCES FulfillmentOrders(OrderId) ON DELETE CASCADE,
+    CONSTRAINT CK_ShipmentTrackingEvents_Source CHECK (Source IN ('manual','ghn'))
+);
+CREATE INDEX IX_ShipmentTrackingEvents_Order_OccurredAt ON ShipmentTrackingEvents(OrderId, OccurredAt DESC);
+CREATE UNIQUE INDEX UX_ShipmentTrackingEvents_ProviderEvent ON ShipmentTrackingEvents(ProviderEventId) WHERE ProviderEventId IS NOT NULL;
+GO
+
+-- ============================================================
 -- [06] DISPUTES
 -- ============================================================
 CREATE TABLE Disputes (

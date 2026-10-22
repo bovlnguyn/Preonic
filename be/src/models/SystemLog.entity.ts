@@ -14,7 +14,7 @@ export class SystemLog {
   id: number;
 
   @Column({ name: 'Category', type: 'nvarchar', length: 30 })
-  category: 'auth' | 'contract' | 'dispute' | 'payment' | 'cron' | 'api';
+  category: 'auth' | 'contract' | 'dispute' | 'payment' | 'contact' | 'cron' | 'api';
 
   @Column({ name: 'Action', type: 'nvarchar', length: 60 })
   action: string;

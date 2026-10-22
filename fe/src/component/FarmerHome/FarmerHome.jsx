@@ -60,7 +60,7 @@ function FarmerHome() {
         setCropSummary(result?.summary || { totalProducts: 0, totalQuantity: 0 });
       })
       .catch(() => {
-        if (mounted) { setCrops([]); setCropSummary({ totalProducts: 0, totalQuantity: 0 }); }
+        // Preserve the last successful snapshot during a transient API failure.
       })
       .finally(() => {
         if (mounted) setLoadingCrops(false);

@@ -168,13 +168,14 @@ Không cần giữ hoặc chia sẻ các thư mục `node_modules`, `be/dist`, `
 
 ### 5.1. Các bảng chính
 
-Bộ bootstrap hiện tại tạo trực tiếp **27 bảng ứng dụng** ở trạng thái cuối. Database cài mới không cần bảng lịch sử migration.
+Bộ bootstrap hiện tại tạo trực tiếp **30 bảng ứng dụng** ở trạng thái cuối. Database cài mới không cần bảng lịch sử migration.
 
 | Nhóm | Bảng |
 | --- | --- |
 | Người dùng | `Users` |
 | Sản phẩm | `Products`, `ProductCertifications`, `ProductCommitments`, `Reviews` |
 | Hợp đồng và thanh toán tiền hàng | `Contracts`, `UserSettlementBankAccounts`, `DirectGoodsPayments`, `ContractFeeTerms` |
+| Đơn hàng và giao nhận | `FulfillmentOrders`, `CropProgressReports`, `ShipmentTrackingEvents` |
 | Phí nền tảng | `PlatformFeePolicies`, `PlatformFeeAccounts`, `PlatformFeeStatements`, `PlatformFeeLedgerEntries`, `PlatformFeePayments`, `PlatformFeePaymentEvents`, `PlatformFeePaymentApplications` |
 | Tranh chấp và uy tín | `Disputes`, `DisputeEvidences`, `PartnerRatings` |
 | Giao tiếp | `Notifications`, `Conversations`, `ConversationParticipants`, `Messages`, `MessageAttachments`, `MessageReadBy` |
@@ -189,7 +190,7 @@ stateDiagram-v2
     [*] --> draft
     draft --> pending: Doanh nghiệp gửi đề xuất
     pending --> active: Hai bên ký đủ
-    active --> completed: Đã giao hàng và nhận đủ tiền
+    active --> completed: DN xác nhận nhận hàng, thanh toán đủ và bấm Hoàn tất hợp đồng
     pending --> cancelled: Từ chối hoặc hết hạn
     active --> cancel_pending: Một bên yêu cầu hủy trước khi tiền được chuyển
     cancel_pending --> cancelled: Bên còn lại đồng ý
@@ -328,7 +329,7 @@ FROM dbo.Users
 ORDER BY Role, Email;
 ```
 
-Kết quả mong đợi là 27 bảng ứng dụng, ba tài khoản demo farmer/enterprise/admin, 10 nông sản và 10 hợp đồng mẫu.
+Kết quả mong đợi là 30 bảng ứng dụng, ba tài khoản demo farmer/enterprise/admin, 10 nông sản và 10 hợp đồng mẫu.
 
 ### Bước 4 — Cài đặt backend
 
@@ -537,20 +538,40 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 Backend vẫn khởi động khi thiếu các biến này, nhưng upload ảnh sản phẩm, avatar hoặc bằng chứng tranh chấp sẽ lỗi.
 
-### 9.3. SMTP
+Ảnh báo cáo canh tác và ảnh xác nhận hàng đã lên xe cũng dùng Cloudinary, giới hạn 5 MB/ảnh và chỉ nhận JPG/PNG.
+
+### 9.3. GHN webhook
+
+```env
+GHN_WEBHOOK_SECRET=replace-with-a-long-random-secret
+```
+
+Cấu hình GHN hoặc integration gateway gửi callback trạng thái đến
+`POST /api/v1/orders/webhooks/ghn` kèm header `x-ghn-secret`. PreOnic lưu callback
+theo mã vận đơn và mã sự kiện idempotent, vì vậy callback được GHN gửi lại không
+tạo dòng tracking trùng. GHN mặc định cung cấp trạng thái và bưu cục; tọa độ GPS
+chỉ hiển thị khi tài khoản đối tác được GHN cấp feed tọa độ riêng.
+
+### 9.4. SMTP
 
 ```env
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
+SMTP_SECURE=false
 SMTP_USER=your-user
 SMTP_PASS=your-password-or-app-password
 SMTP_FROM_NAME=PreOnic Platform
-SMTP_FROM_EMAIL=noreply@example.com
+SMTP_FROM_EMAIL=your-user@example.com
+SUPPORT_INBOX_EMAIL=nguyenbao.130304@gmail.com
 ```
+
+`SUPPORT_INBOX_EMAIL` nhận yêu cầu từ các trang Liên hệ. Mỗi yêu cầu thành
+công cũng gửi một email xác nhận cho người liên hệ; nút Reply trong hai chiều
+đều trỏ về đúng địa chỉ cần phản hồi.
 
 SMTP cần cho xác minh email, quên mật khẩu và email thông báo. Nếu chỉ đăng nhập bằng tài khoản demo đã xác minh, có thể cấu hình phần này sau.
 
-### 9.4. Google OAuth
+### 9.5. Google OAuth
 
 ```env
 GOOGLE_CLIENT_ID=your_google_client_id
@@ -695,8 +716,10 @@ http://localhost:8080/api/v1
 | --- | --- | --- |
 | Health | `/health` | Kiểm tra HTTP server, nằm ngoài `/api/v1` |
 | Auth | `/auth` | Đăng ký, đăng nhập, refresh, email, Google, hồ sơ, mật khẩu |
+| Contact | `/contact` | Gửi yêu cầu hỗ trợ qua SMTP và email xác nhận; không phụ thuộc SQL |
 | Products | `/products` | Sản phẩm, sản phẩm của farmer, sản phẩm tương tự, review |
-| Contracts | `/contracts` | Tạo, gửi, ký, hủy, giao nhận và thanh toán tiền hàng trực tiếp |
+| Contracts | `/contracts` | Tạo, gửi, ký, hủy và thanh toán tiền hàng trực tiếp |
+| Orders | `/orders` | Báo cáo gieo trồng, bàn giao vận chuyển, GHN tracking, nhận hàng và hoàn tất hợp đồng |
 | Enterprise | `/enterprise` | Danh sách và chi tiết nhà cung cấp |
 | Billing | `/billing` | Tài khoản nhận tiền, công nợ, bảng kê và thanh toán phí nền tảng |
 | Disputes | `/disputes` | Tạo, liệt kê và xem tranh chấp |
@@ -816,6 +839,8 @@ Sau khi sửa `.env`, dừng và chạy lại `npm start`.
 - Kiểm tra `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`.
 - Nếu nhà cung cấp yêu cầu app password, không dùng mật khẩu đăng nhập thông thường.
 - Kiểm tra `SMTP_FROM_EMAIL` và `FRONTEND_URL`.
+- Với Gmail, bật xác minh 2 bước và dùng App Password 16 ký tự cho `SMTP_PASS`.
+- Kiểm tra `SUPPORT_INBOX_EMAIL` nếu form Liên hệ gửi thành công nhưng không thấy thư hỗ trợ.
 
 ### Port đã được sử dụng
 

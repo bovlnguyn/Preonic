@@ -22,6 +22,8 @@ import {
 import Header from "../Common/Header";
 import Footer from "../Common/Footer";
 import { COMPANY } from "../../constants";
+import contactService from "../../services/contact.service";
+import { useToast } from "../../contexts/ToastContext";
 import "./Contact.css";
 
 const supportAreas = [
@@ -78,8 +80,10 @@ const stagger = {
 
 function Contact() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [openFaq, setOpenFaq] = useState(0);
-  const [showLoginNotice, setShowLoginNotice] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
     topic: "account",
     name: "",
@@ -100,12 +104,27 @@ function Contact() {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
-    setShowLoginNotice(false);
+    setSubmitted(false);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    setShowLoginNotice(true);
+    setSubmitting(true);
+    setSubmitted(false);
+
+    try {
+      const result = await contactService.send({
+        audience: "public",
+        ...form,
+      });
+      setSubmitted(true);
+      setForm((current) => ({ ...current, message: "" }));
+      toast.success(result.message || "Yêu cầu hỗ trợ đã được gửi.");
+    } catch (error) {
+      toast.error(error?.message || "Không thể gửi yêu cầu lúc này.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -124,12 +143,12 @@ function Contact() {
                 Chúng tôi giúp bạn <span>hiểu đúng và bắt đầu dễ dàng.</span>
               </motion.h1>
               <motion.p variants={fadeUp}>
-                Khách có thể xem hướng dẫn chung, thông tin liên hệ và câu hỏi thường gặp. Với yêu cầu liên quan đến tài khoản,
-                hợp đồng hoặc giao dịch cụ thể, hãy đăng nhập để hệ thống chuyển bạn đến đúng kênh hỗ trợ.
+                Khách có thể xem hướng dẫn chung, thông tin liên hệ và câu hỏi thường gặp.
+                Với yêu cầu cụ thể, hãy gửi form bên dưới để đội ngũ PreOnic phản hồi qua email.
               </motion.p>
               <motion.div className="pc-hero__actions" variants={fadeUp}>
-                <button type="button" className="pc-btn pc-btn--primary" onClick={() => navigate("/auth")}>
-                  Đăng nhập để được hỗ trợ <FiArrowRight />
+                <button type="button" className="pc-btn pc-btn--primary" onClick={() => document.getElementById("contact-request")?.scrollIntoView({ behavior: "smooth" })}>
+                  Gửi yêu cầu hỗ trợ <FiArrowRight />
                 </button>
                 <button type="button" className="pc-btn pc-btn--glass" onClick={() => navigate("/register")}>
                   Tạo tài khoản mới
@@ -199,14 +218,14 @@ function Contact() {
           </div>
         </section>
 
-        <section className="pc-section pc-request-section">
+        <section className="pc-section pc-request-section" id="contact-request">
           <div className="pc-container pc-request-layout">
             <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }}>
               <motion.span className="pc-kicker" variants={fadeUp}>Chuẩn bị yêu cầu hỗ trợ</motion.span>
-              <motion.h2 variants={fadeUp}>Mô tả trước vấn đề, đăng nhập để gửi theo đúng tài khoản.</motion.h2>
+              <motion.h2 variants={fadeUp}>Mô tả vấn đề, PreOnic sẽ phản hồi trực tiếp qua email.</motion.h2>
               <motion.p variants={fadeUp}>
-                Bạn có thể điền thử thông tin để xác định nội dung cần chuẩn bị. Form công khai không gửi dữ liệu lên hệ thống;
-                bước gửi chính thức sẽ yêu cầu đăng nhập để bảo vệ thông tin giao dịch.
+                Yêu cầu được gửi an toàn tới hộp thư hỗ trợ chính thức. Không đưa mật khẩu,
+                mã OTP hoặc thông tin thẻ vào nội dung liên hệ.
               </motion.p>
 
               <motion.div className="pc-login-reasons" variants={stagger}>
@@ -230,35 +249,34 @@ function Contact() {
                 </label>
                 <label>
                   Họ tên
-                  <input name="name" value={form.name} onChange={handleChange} placeholder="Nhập họ tên" />
+                  <input name="name" value={form.name} onChange={handleChange} placeholder="Nhập họ tên" required />
                 </label>
               </motion.div>
 
               <motion.label variants={fadeUp}>
                 Email liên hệ
-                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="name@example.com" />
+                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="name@example.com" required />
               </motion.label>
 
               <motion.label variants={fadeUp}>
                 Nội dung cần hỗ trợ
-                <textarea name="message" value={form.message} onChange={handleChange} rows="5" placeholder="Mô tả ngắn vấn đề và thông tin bạn đang có..." />
+                <textarea name="message" value={form.message} onChange={handleChange} rows="5" minLength="10" maxLength="5000" placeholder="Mô tả ngắn vấn đề và thông tin bạn đang có..." required />
               </motion.label>
 
               <AnimatePresence>
-                {showLoginNotice && (
+                {submitted && (
                   <motion.div className="pc-login-notice" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
-                    <FiLock />
+                    <FiCheckCircle />
                     <div>
-                      <strong>Đăng nhập để gửi yêu cầu chính thức</strong>
-                      <span>Thông tin vừa nhập chỉ đang hiển thị trên trình duyệt và chưa được gửi.</span>
+                      <strong>Yêu cầu đã được gửi thành công</strong>
+                      <span>Hãy kiểm tra hộp thư để xem email xác nhận từ PreOnic.</span>
                     </div>
-                    <button type="button" onClick={() => navigate("/auth")}>Đăng nhập</button>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <motion.button type="submit" className="pc-submit" variants={fadeUp}>
-                Tiếp tục gửi yêu cầu <FiSend />
+              <motion.button type="submit" className="pc-submit" variants={fadeUp} disabled={submitting}>
+                {submitting ? "Đang gửi..." : "Gửi yêu cầu"} <FiSend />
               </motion.button>
             </motion.form>
           </div>

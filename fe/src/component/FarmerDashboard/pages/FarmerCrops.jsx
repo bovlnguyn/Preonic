@@ -39,8 +39,7 @@ function FarmerCrops() {
       })
       .catch(() => {
         if (!alive) return;
-        setCropProducts([]);
-        setPagination({ total: 0, totalPages: 0 });
+        // Preserve the last successful page while the API/session recovers.
       })
       .finally(() => {
         if (alive) setLoading(false);

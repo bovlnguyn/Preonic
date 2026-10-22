@@ -331,8 +331,30 @@ const avatarParser = multer({
   limits: { fileSize: MAX_FILE_SIZE, files: 1, fields: 30, parts: 31 },
 }).single('avatar');
 
+const cropReportParser = multer({
+  storage: tempStorage,
+  fileFilter: basicFileFilter(AVATAR_MIME_TYPES),
+  limits: { fileSize: MAX_FILE_SIZE, files: 6, fields: 20, parts: 26 },
+}).array('images', 6);
+
+const loadingPhotoParser = multer({
+  storage: tempStorage,
+  fileFilter: basicFileFilter(AVATAR_MIME_TYPES),
+  limits: { fileSize: MAX_FILE_SIZE, files: 1, fields: 20, parts: 21 },
+}).single('loadingPhoto');
+
 export const uploadProductFiles = createUploadMiddleware(productParser, 'preonic/products');
 export const uploadDisputeFiles = createUploadMiddleware(disputeParser, 'preonic/disputes');
 export const uploadAvatar = createUploadMiddleware(avatarParser, 'preonic/avatars', { avatarOnly: true });
+export const uploadCropReportImages = createUploadMiddleware(
+  cropReportParser,
+  'preonic/orders/crop-reports',
+  { avatarOnly: true }
+);
+export const uploadLoadingPhoto = createUploadMiddleware(
+  loadingPhotoParser,
+  'preonic/orders/loading',
+  { avatarOnly: true }
+);
 
 export default uploadProductFiles;

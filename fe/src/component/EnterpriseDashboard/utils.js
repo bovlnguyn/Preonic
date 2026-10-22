@@ -49,6 +49,8 @@ export function getStatusClass(status = '') {
   if (
     value.includes('đang hiệu lực') ||
     value.includes('đang thực hiện') ||
+    value.includes('đang trồng') ||
+    value.includes('sẵn sàng giao') ||
     value.includes('vận chuyển') ||
     value.includes('kiểm tra') ||
     value.includes('active')

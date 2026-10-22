@@ -85,6 +85,29 @@ const REQUIRED_SCHEMA: SchemaRequirement[] = [
     },
 
     {
+        table: "FulfillmentOrders",
+        columns: [
+            "OrderId",
+            "ContractId",
+            "Stage",
+            "Carrier",
+            "TrackingCode",
+            "LoadingPhotoUrl",
+            "EnterpriseReceivedAt",
+        ],
+    },
+
+    {
+        table: "CropProgressReports",
+        columns: ["ReportId", "OrderId", "Status", "ImageUrls", "DueAt", "SubmittedAt"],
+    },
+
+    {
+        table: "ShipmentTrackingEvents",
+        columns: ["TrackingEventId", "OrderId", "ProviderEventId", "Status", "OccurredAt"],
+    },
+
+    {
         table: "UserSettlementBankAccounts",
         columns: [
             "BankAccountId",

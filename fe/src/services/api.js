@@ -14,6 +14,7 @@ export const SERVICE_STATUS_EVENT = 'preonic:service-status';
 
 const PRODUCT_GET_CACHE_TTL_MS = 60 * 1000;
 const WEATHER_GET_CACHE_TTL_MS = 10 * 60 * 1000;
+const PROTECTED_GET_CACHE_TTL_MS = 5 * 60 * 1000;
 const GET_CACHE_MAX_ENTRIES = 80;
 const responseCache = new Map();
 
@@ -26,8 +27,8 @@ const shouldCacheRequest = (config) => {
 
   const url = config?.url || '';
 
-  // Chỉ cache dữ liệu ít nhạy cảm và ít thay đổi. Không cache billing/contract/
-  // admin vì các trang này cần phản ánh ngay thao tác vừa thực hiện.
+  // Public data uses its own TTL. Protected GET snapshots stay in memory only,
+  // are scoped per user, and are cleared after every successful mutation/logout.
   const isPublicProductRead =
     url.startsWith('/products') &&
     !url.includes('/my-products') &&
@@ -36,7 +37,14 @@ const shouldCacheRequest = (config) => {
 
   const isWeatherRead = url.startsWith('/weather');
 
-  return isPublicProductRead || isWeatherRead;
+  const hasAccessToken = Boolean(sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN));
+  const isProtectedDataRead =
+    hasAccessToken &&
+    !url.startsWith('/auth') &&
+    !url.startsWith('/notifications/unread-count') &&
+    !url.includes('/instruction');
+
+  return isPublicProductRead || isWeatherRead || isProtectedDataRead;
 };
 
 const getCacheTtlMs = (config) => {
@@ -45,7 +53,7 @@ const getCacheTtlMs = (config) => {
   // Giữ cache ngắn để tránh hiển thị tồn kho cũ quá lâu; weather có thể cache dài hơn.
   if (url.startsWith('/products')) return PRODUCT_GET_CACHE_TTL_MS;
   if (url.startsWith('/weather')) return WEATHER_GET_CACHE_TTL_MS;
-  return 0;
+  return PROTECTED_GET_CACHE_TTL_MS;
 };
 
 const getCacheKey = (config) => {
@@ -57,7 +65,13 @@ const getCacheKey = (config) => {
       result[key] = params[key];
       return result;
     }, {});
-  return `${config?.url || ''}::${JSON.stringify(normalizedParams)}`;
+  let userScope = 'public';
+  try {
+    userScope = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.USER) || 'null')?.id || 'public';
+  } catch {
+    userScope = 'public';
+  }
+  return `${userScope}::${config?.url || ''}::${JSON.stringify(normalizedParams)}`;
 };
 
 const writeResponseCache = (response) => {
@@ -144,7 +158,7 @@ const redirectToLogin = () => {
 };
 
 let refreshingPromise = null;
-const refreshAccessToken = () => {
+export const refreshAccessToken = () => {
   if (refreshingPromise) return refreshingPromise;
 
   refreshingPromise = axios
@@ -184,6 +198,7 @@ const isTransientServiceError = (error) => {
 const isLogoutRequest = (config) => config?.url?.includes('/auth/logout');
 const isDatabaseIndependentRequest = (config) =>
   config?.url?.includes('/auth/logout') ||
+  config?.url?.includes('/contact') ||
   config?.url?.includes('/weather') ||
   config?.url?.includes('/ai/public');
 const isAuthEntryRequest = (config) => {

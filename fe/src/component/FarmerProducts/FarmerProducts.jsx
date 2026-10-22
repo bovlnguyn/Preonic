@@ -89,8 +89,8 @@ function FarmerProducts() {
         })
         .catch(() => {
           if (!mounted) return;
-          setCrops([]);
-          setSummary({ totalProducts: 0, totalQuantity: 0 });
+          // Giữ kết quả gần nhất; lỗi tải lại không được biến thành trạng thái
+          // "không có dữ liệu" vì người dùng dễ hiểu nhầm dữ liệu đã bị xóa.
         })
         .finally(() => {
           if (mounted) setLoading(false);

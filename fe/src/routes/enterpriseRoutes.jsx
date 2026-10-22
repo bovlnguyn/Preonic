@@ -24,6 +24,7 @@ const BillingCenter = lazy(() => import('../component/BillingCenter/BillingCente
 const CashflowReport = lazy(() => import('../component/CashflowReport/CashflowReport'));
 
 const ContractDetailView = lazy(() => import('../component/ContractDetailView/ContractDetailView'));
+const OrderDetail = lazy(() => import('../component/OrderDetail/OrderDetail'));
 const ProductDetail = lazy(() => import('../component/ProductDetail/ProductDetail'));
 const EnterpriseSupplierDetail = lazy(() => import('../component/EnterpriseSupplierDetail/EnterpriseSupplierDetail'));
 
@@ -50,6 +51,7 @@ const enterpriseRoutes = [
       { path: 'products', element: <EnterpriseProducts /> },
       { path: 'products/:id', element: <ProductDetail context="enterprise" /> },
       { path: 'orders', element: <EnterpriseOrders /> },
+      { path: 'orders/:id', element: <OrderDetail /> },
       { path: 'billing', element: <BillingCenter /> },
       { path: 'reports/cashflow', element: <CashflowReport /> },
       { path: 'suppliers', element: <EnterpriseSuppliers /> },

@@ -13,6 +13,8 @@ import {
 } from "react-icons/fi";
 import Header from "../Common/Header";
 import Footer from "../Common/Footer";
+import contactService from "../../services/contact.service";
+import { useToast } from "../../contexts/ToastContext";
 import "./EnterpriseContact.css";
 
 const contactCards = [
@@ -29,11 +31,38 @@ const faqs = [
 ];
 
 function EnterpriseContact() {
+  const toast = useToast();
+  const [form, setForm] = useState({
+    company: "",
+    name: "",
+    email: "",
+    phone: "",
+    topic: "",
+    message: "",
+  });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+    setSubmitted(false);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSubmitting(true);
+    setSubmitted(false);
+    try {
+      const result = await contactService.send({ audience: "enterprise", ...form });
+      setSubmitted(true);
+      setForm((current) => ({ ...current, message: "" }));
+      toast.success(result.message || "Yêu cầu tư vấn đã được gửi.");
+    } catch (error) {
+      toast.error(error?.message || "Không thể gửi yêu cầu lúc này.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -78,46 +107,48 @@ function EnterpriseContact() {
             <div className="ec-field-row">
               <label>
                 Tên doanh nghiệp
-                <input placeholder="Ví dụ: Công ty TNHH Green Export" required />
+                <input name="company" value={form.company} onChange={handleChange} placeholder="Ví dụ: Công ty TNHH Green Export" required />
               </label>
               <label>
                 Người phụ trách
-                <input placeholder="Họ và tên" required />
+                <input name="name" value={form.name} onChange={handleChange} placeholder="Họ và tên" required />
               </label>
             </div>
 
             <div className="ec-field-row">
               <label>
                 Email
-                <input type="email" placeholder="name@company.com" required />
+                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="name@company.com" required />
               </label>
               <label>
                 Số điện thoại
-                <input placeholder="09xx xxx xxx" required />
+                <input name="phone" value={form.phone} onChange={handleChange} placeholder="09xx xxx xxx" required />
               </label>
             </div>
 
             <label>
               Nhu cầu chính
-              <select defaultValue="">
+              <select name="topic" value={form.topic} onChange={handleChange} required>
                 <option value="" disabled>Chọn nhu cầu</option>
-                <option>Tìm nguồn cung theo mùa vụ</option>
-                <option>Tạo hợp đồng thu mua</option>
-                <option>Tư vấn thanh toán hợp đồng</option>
-                <option>Kết nối farmer uy tín</option>
+                <option value="Tìm nguồn cung theo mùa vụ">Tìm nguồn cung theo mùa vụ</option>
+                <option value="Tạo hợp đồng thu mua">Tạo hợp đồng thu mua</option>
+                <option value="Tư vấn thanh toán hợp đồng">Tư vấn thanh toán hợp đồng</option>
+                <option value="Kết nối farmer uy tín">Kết nối farmer uy tín</option>
               </select>
             </label>
 
             <label>
               Mô tả thêm
-              <textarea rows="5" placeholder="Nhập sản phẩm, sản lượng, khu vực, thời gian cần thu mua..." />
+              <textarea name="message" value={form.message} onChange={handleChange} rows="5" minLength="10" maxLength="5000" placeholder="Nhập sản phẩm, sản lượng, khu vực, thời gian cần thu mua..." required />
             </label>
 
-            <button type="submit">Gửi yêu cầu <FiArrowRight /></button>
+            <button type="submit" disabled={submitting}>
+              {submitting ? "Đang gửi..." : "Gửi yêu cầu"} <FiArrowRight />
+            </button>
 
             {submitted && (
               <motion.div className="ec-success" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <FiCheckCircle /> Mock submit thành công. Sau này form này có thể gọi API contact/request-consultation.
+                <FiCheckCircle /> Yêu cầu đã được gửi. Hãy kiểm tra email xác nhận.
               </motion.div>
             )}
           </motion.form>

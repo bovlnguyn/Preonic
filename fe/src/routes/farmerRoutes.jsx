@@ -22,6 +22,7 @@ const BillingCenter = lazy(() => import('../component/BillingCenter/BillingCente
 const CashflowReport = lazy(() => import('../component/CashflowReport/CashflowReport'));
 
 const ContractDetailView = lazy(() => import('../component/ContractDetailView/ContractDetailView'));
+const OrderDetail = lazy(() => import('../component/OrderDetail/OrderDetail'));
 const ProductDetail = lazy(() => import('../component/ProductDetail/ProductDetail'));
 
 const forFarmer = (element) => (
@@ -45,6 +46,7 @@ const farmerRoutes = [
       { path: 'contracts', element: <FarmerContracts /> },
       { path: 'contracts/:id', element: <ContractDetailView /> },
       { path: 'orders', element: <FarmerOrders /> },
+      { path: 'orders/:id', element: <OrderDetail /> },
       { path: 'billing', element: <BillingCenter /> },
       { path: 'reports/cashflow', element: <CashflowReport /> },
       { path: 'finance', element: <Navigate to="../billing" replace /> },

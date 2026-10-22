@@ -1,13 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiAlertCircle,
   FiCheckCircle,
   FiClock,
   FiCreditCard,
-  FiPackage,
   FiRefreshCw,
-  FiTruck,
 } from 'react-icons/fi';
 import contractService from '../../services/contract.service';
 import billingService from '../../services/billing.service';
@@ -31,14 +29,6 @@ const PAYMENT_STATUS = {
   disputed: 'Đang tranh chấp',
   expired: 'Hết hạn',
   cancelled: 'Đã hủy',
-};
-
-const DELIVERY_STATUS = {
-  pending: 'Chờ chuẩn bị',
-  preparing: 'Đang chuẩn bị hàng',
-  shipping: 'Đang giao hàng',
-  delivered: 'Đã nhận hàng',
-  failed: 'Giao hàng thất bại',
 };
 
 const buildIdempotencyKey = () => {
@@ -274,10 +264,10 @@ function PaymentCard({
 
 export default function DirectPaymentPanel({ contract, userRole, onContractRefresh }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const [workflow, setWorkflow] = useState(null);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState(false);
   const [feePrompt, setFeePrompt] = useState(null);
   const [feeAccount, setFeeAccount] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(null);
@@ -325,35 +315,6 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contract?.id, contract?.paymentFlow]);
 
-  const confirmedUpfront = useMemo(
-    () => payments
-      .filter((item) => item.trigger === 'contract_active')
-      .every((item) => item.status === 'confirmed'),
-    [payments]
-  );
-
-  const runDeliveryAction = async (action) => {
-    setActing(true);
-    try {
-      if (action === 'preparing') {
-        await contractService.markPreparing(contract.id);
-        toast.success('Đã chuyển sang trạng thái chuẩn bị hàng.');
-      } else if (action === 'shipped') {
-        await contractService.markShipped(contract.id);
-        toast.success('Đã xác nhận hàng đang được giao.');
-      } else if (action === 'accepted') {
-        await contractService.acceptDelivery(contract.id);
-        toast.success('Đã xác nhận nhận hàng.');
-      }
-      await load();
-      onContractRefresh?.();
-    } catch (err) {
-      toast.error(err?.message || 'Không thể cập nhật tiến độ giao hàng.');
-    } finally {
-      setActing(false);
-    }
-  };
-
   if (contract?.paymentFlow !== 'direct_v2') return null;
 
   return (
@@ -361,9 +322,9 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
       <div className="dp-panel__header">
         <div>
           <p className="dp-eyebrow">Thanh toán hợp đồng</p>
-          <h3>Thanh toán trực tiếp & tiến độ giao hàng</h3>
+          <h3>Thanh toán trực tiếp</h3>
           <p>
-            Doanh nghiệp chuyển tiền trực tiếp cho nông dân; PreOnic chỉ theo dõi xác nhận và thu phí dịch vụ riêng.
+            Doanh nghiệp chuyển tiền trực tiếp cho nông dân; theo dõi canh tác và giao nhận được quản lý tại mục Đơn hàng.
           </p>
         </div>
         <button type="button" className="dp-icon-btn" onClick={load} disabled={loading}>
@@ -378,7 +339,6 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
           <div className="dp-overview">
             <div><FiCreditCard /><span>Đã xác nhận</span><strong>{fmtMoney(workflow?.paidAmount)}</strong></div>
             <div><FiClock /><span>Còn lại</span><strong>{fmtMoney(workflow?.remainingAmount)}</strong></div>
-            <div><FiTruck /><span>Giao hàng</span><strong>{DELIVERY_STATUS[workflow?.deliveryStatus] || workflow?.deliveryStatus || '—'}</strong></div>
           </div>
 
           {Number(feeAccount?.outstandingAmount || 0) > 0 && (
@@ -420,42 +380,17 @@ export default function DirectPaymentPanel({ contract, userRole, onContractRefre
 
           {contract.status === 'active' && (
             <div className="dp-delivery">
-              <h4><FiPackage /> Tiến độ giao hàng</h4>
-              <div className="dp-delivery__actions">
-                {userRole === 'farmer' && workflow?.deliveryStatus === 'pending' && (
-                  <button
-                    type="button"
-                    className="dp-btn dp-btn--primary"
-                    onClick={() => runDeliveryAction('preparing')}
-                    disabled={acting || !confirmedUpfront}
-                    title={!confirmedUpfront ? 'Cần xác nhận xong khoản trả trước trước khi chuẩn bị hàng' : undefined}
-                  >
-                    Bắt đầu chuẩn bị hàng
-                  </button>
-                )}
-
-                {userRole === 'farmer' && workflow?.deliveryStatus === 'preparing' && (
-                  <button
-                    type="button"
-                    className="dp-btn dp-btn--primary"
-                    onClick={() => runDeliveryAction('shipped')}
-                    disabled={acting}
-                  >
-                    <FiTruck /> Xác nhận đã giao hàng
-                  </button>
-                )}
-
-                {userRole === 'enterprise' && workflow?.deliveryStatus === 'shipping' && (
-                  <button
-                    type="button"
-                    className="dp-btn dp-btn--primary"
-                    onClick={() => runDeliveryAction('accepted')}
-                    disabled={acting}
-                  >
-                    <FiCheckCircle /> Xác nhận đã nhận hàng
-                  </button>
-                )}
+              <div>
+                <h4>Canh tác & giao nhận đã chuyển sang Đơn hàng</h4>
+                <p>Ảnh báo cáo, mã GHN, bản đồ và xác nhận nhận hàng được quản lý tập trung tại đây.</p>
               </div>
+              <button
+                type="button"
+                className="dp-btn dp-btn--primary"
+                onClick={() => navigate(`/${userRole}/orders`)}
+              >
+                Mở Đơn hàng
+              </button>
             </div>
           )}
         </>

@@ -6,7 +6,7 @@ const requireValue = (name: string): string => {
 
 const requireStrongSecret = (name: string): string => {
   const value = requireValue(name);
-  if (Buffer.byteLength(value, 'utf8') < 32 || /CHANGE_THIS|replace_with/i.test(value)) {
+  if (Buffer.byteLength(value, 'utf8') < 32 || /CHANGE_THIS|replace[_-]with/i.test(value)) {
     throw new Error(`${name} must be a non-placeholder secret of at least 32 bytes`);
   }
   return value;
@@ -28,4 +28,5 @@ export const validateProductionRuntimeConfiguration = (): void => {
   requireValue('CLOUDINARY_CLOUD_NAME');
   requireValue('CLOUDINARY_API_KEY');
   requireValue('CLOUDINARY_API_SECRET');
+  requireStrongSecret('GHN_WEBHOOK_SECRET');
 };

@@ -38,6 +38,7 @@ export function getStatusClass(status = '') {
     value.includes('giao') ||
     value.includes('tạo lệnh') ||
     value.includes('chăm sóc') ||
+    value.includes('đang trồng') ||
     value.includes('vận chuyển') ||
     value.includes('kiểm tra')
   ) return 'info';

@@ -1,38 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import contractService from '../services/contract.service';
+import orderService from '../services/order.service';
 
-const ORDER_CONTRACT_STATUSES = ['active', 'completed'];
-
-const DELIVERY_STATUS_LABEL = {
-  pending: 'Chờ chuẩn bị hàng',
-  preparing: 'Đang chuẩn bị hàng',
-  shipping: 'Đang vận chuyển',
+const STAGE_LABEL = {
+  cultivating: 'Đang trồng',
+  ready_to_ship: 'Sẵn sàng giao',
+  in_transit: 'Đang vận chuyển',
   delivered: 'Đã nhận hàng',
-  failed: 'Giao hàng thất bại',
+  completed: 'Hoàn tất',
 };
 
-const getOrderStatusLabel = (contract) => {
-  if (contract.status === 'completed') return 'Hoàn tất';
-  if (contract.status === 'disputed') return 'Tranh chấp';
-  return DELIVERY_STATUS_LABEL[contract.deliveryStatus] || 'Đang thực hiện';
-};
-
-const getPaymentProgressLabel = (contract) => {
-  const total = Number(contract.totalValue || 0);
-  const paid = Math.max(0, Number(contract.paidAmount || 0));
-  const remaining = Math.max(0, Number(contract.remainingAmount ?? total - paid));
-
-  if (total > 0 && remaining <= 0) return 'Đã xác nhận thanh toán đủ';
-  if (paid > 0) {
-    return `Đã xác nhận ${paid.toLocaleString('vi-VN')}đ · còn ${remaining.toLocaleString('vi-VN')}đ`;
-  }
-  return 'Chờ xử lý khoản thanh toán trực tiếp đầu tiên';
-};
-
-const getPartnerName = (contract, role) => (
+const getPartnerName = (order, role) => (
   role === 'farmer'
-    ? contract.enterprise?.name
-    : contract.farmer?.name
+    ? order.contract?.enterprise?.name
+    : order.contract?.farmer?.name
 );
 
 export default function useOrderList({ role, pageSize = 4 }) {
@@ -40,32 +20,39 @@ export default function useOrderList({ role, pageSize = 4 }) {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    setError('');
 
-    contractService.list(ORDER_CONTRACT_STATUSES.join(','), {
+    orderService.list({
       page,
       limit: pageSize,
     })
       .then((contractsRes) => {
         if (!alive) return;
 
-        const contracts = contractsRes?.data?.contracts || [];
+        const orderRows = contractsRes?.data?.orders || [];
         const nextPagination = contractsRes?.data?.pagination || {};
 
-        setOrders(contracts.map((contract) => {
+        setOrders(orderRows.map((order) => {
+          const contract = order.contract || {};
           return {
             id: contract.contractCode,
+            orderId: order.id,
             contractId: contract.id,
-            partnerName: getPartnerName(contract, role),
+            partnerName: getPartnerName(order, role),
             product: contract.product?.name,
             quantity: `${contract.quantity} ${contract.unit || ''}`.trim(),
             deliveryDate: contract.deliveryDate,
             address: contract.deliveryAddress,
-            status: getOrderStatusLabel(contract),
-            milestone: getPaymentProgressLabel(contract),
+            status: STAGE_LABEL[order.stage] || 'Đang thực hiện',
+            stage: order.stage,
+            milestone: order.stage === 'in_transit'
+              ? `${order.carrier === 'ghn' ? 'GHN' : 'Vận chuyển'} · ${order.trackingCode || 'chưa có mã'}`
+              : STAGE_LABEL[order.stage] || 'Đang thực hiện',
           };
         }));
 
@@ -74,10 +61,9 @@ export default function useOrderList({ role, pageSize = 4 }) {
           totalPages: Math.max(1, Number(nextPagination.totalPages || 1)),
         });
       })
-      .catch(() => {
+      .catch((requestError) => {
         if (!alive) return;
-        setOrders([]);
-        setPagination({ total: 0, totalPages: 1 });
+        setError(requestError?.message || 'Không thể cập nhật danh sách đơn hàng.');
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -104,5 +90,6 @@ export default function useOrderList({ role, pageSize = 4 }) {
     setPage,
     pagination,
     totalPages,
+    error,
   };
 }

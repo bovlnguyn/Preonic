@@ -488,21 +488,14 @@ export const refreshDirectContractPaymentProgressWithManager = async (
   contract.paidAmount = Math.min(totalValue, confirmedAmount);
   contract.remainingAmount = Math.max(0, totalValue - contract.paidAmount);
 
-  if (
-    contract.deliveryStatus === 'delivered' &&
-    contract.remainingAmount <= 0 &&
-    contract.status === 'active'
-  ) {
-    contract.status = 'completed';
-    contract.completedAt = now;
-  }
-
   await manager.getRepository(Contract).save(contract);
 
   return {
     paidAmount: contract.paidAmount,
     remainingAmount: contract.remainingAmount,
-    contractCompleted: contract.status === 'completed',
+    // Hoàn tất hợp đồng là thao tác chủ động tại Đơn hàng sau khi doanh nghiệp
+    // đã nhận hàng và toàn bộ thanh toán đã được xác nhận.
+    contractCompleted: false,
   };
 };
 

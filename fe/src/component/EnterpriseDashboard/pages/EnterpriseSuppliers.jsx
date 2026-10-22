@@ -33,8 +33,7 @@ function EnterpriseSuppliers() {
       })
       .catch(() => {
         if (!alive) return;
-        setEnterpriseSuppliers([]);
-        setPagination({ total: 0, totalPages: 0 });
+        // Preserve the last successful page while the API/session recovers.
       })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
