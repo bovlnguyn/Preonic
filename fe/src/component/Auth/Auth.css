@@ -1,10 +1,8 @@
 /* ============================================================
-   AUTH PAGE — Concept B (Centered Glow Ring + Agricultural Atmosphere)
-   Concept: Centered Glassmorphic Card + Radiant Glow Ring
-            + Symmetrical Wheat Line Art + Topographic Background
-            + Floating Agricultural Produce (Hạt lúa vàng bay đa tầng)
-   Palette: Deep Midnight Indigo (#080616 / #1e1b4b) + Harvest Amber (#f59e0b / #d97706)
-   !! Auth.jsx KHÔNG THAY ĐỔI — Chỉ tối ưu hóa CSS 100% !!
+   AUTH PAGE — Concept B (Nature Landscape & Centered Clean Card)
+   Palette: Harvest Teal (#3cc394 / #2e7681) + Amber Gold (#f59e0b / #d97706)
+   Decor  : Misty Mountain Ridges + Drifting Clouds + Pine Treeline
+   !! Auth.jsx KHÔNG THAY ĐỔI — Chỉ CSS !!
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -18,16 +16,26 @@
   --auth-amber-dark: #d97706;
   --auth-amber-muted: #b45309;
   --auth-amber-light: #fef3c7;
-  --auth-card-bg: rgba(32, 118, 104, 0.78);
-  --auth-card-border: rgba(245, 158, 11, 0.26);
-  --auth-text-main: #f8fafc;
-  --auth-text-muted: #94a3b8;
-  --auth-input-bg: rgba(255, 255, 255, 0.04);
-  --auth-input-border: rgba(99, 102, 241, 0.22);
+  --auth-card-bg: #ffffff;
+  --auth-card-border: rgba(226, 232, 240, 0.8);
+  --auth-text-main: #0f172a;
+  --auth-text-muted: #64748b;
+  --auth-input-bg: #f8fafc;
+  --auth-input-border: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Đảm bảo cuộn dọc mượt mà 1 lần là ăn ngay trên root window, không tràn ngang */
+html:has(.auth-v3-page),
+body:has(.auth-v3-page) {
+  overflow-x: clip;
 }
 
 /* ============================================================
-   1. PAGE WRAPPER — Deep Midnight Indigo & Topographic Contours
+   1. PAGE WRAPPER — Teal Gradient & Nature Mountain Ridges
    ============================================================ */
 .auth-v3-page {
   position: relative;
@@ -35,97 +43,110 @@
   width: 100%;
   background:
     radial-gradient(circle 650px at 50% 50%, rgba(18, 74, 73, 0.356) 0%, transparent 60%),
-    linear-gradient(180deg, #3cc394 0%, #2e7681 100%);
+    linear-gradient(160deg, #ffffff 0%, #d2e65d 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow-x: hidden;
-  overflow-y: auto;
+  /* Dùng clip để cắt tràn ngang mà tuyệt đối KHÔNG sinh ra vùng cuộn phụ lồng nhau */
+  overflow-x: clip;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ── Topographic Contour Lines Overlay (Đường đồng mức địa hình) ── */
 .auth-v3-page::before {
   content: "";
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='560' viewBox='0 0 800 560'%3E%3Cg fill='none' stroke='%236366f1' stroke-width='0.8' opacity='0.085'%3E%3Cpath d='M-100%2C60 C80%2C20 200%2C110 380%2C65 C560%2C20 680%2C95 900%2C50'/%3E%3Cpath d='M-100%2C130 C80%2C90 200%2C180 380%2C135 C560%2C90 680%2C165 900%2C120'/%3E%3Cpath d='M-100%2C200 C80%2C160 200%2C250 380%2C205 C560%2C160 680%2C235 900%2C190'/%3E%3Cpath d='M-100%2C270 C80%2C230 200%2C320 380%2C275 C560%2C230 680%2C305 900%2C260'/%3E%3Cpath d='M-100%2C340 C80%2C300 200%2C390 380%2C345 C560%2C300 680%2C375 900%2C330'/%3E%3Cpath d='M-100%2C410 C80%2C370 200%2C460 380%2C415 C560%2C370 680%2C445 900%2C400'/%3E%3Cpath d='M-100%2C480 C80%2C440 200%2C530 380%2C485 C560%2C440 680%2C515 900%2C470'/%3E%3C!-- Concentric rings around center --%3E%3Cellipse cx='400' cy='280' rx='280' ry='160' stroke='%23f59e0b' stroke-width='0.7' opacity='0.05'/%3E%3Cellipse cx='400' cy='280' rx='360' ry='220' stroke='%236366f1' stroke-width='0.6' opacity='0.06'/%3E%3Cellipse cx='400' cy='280' rx='460' ry='290' stroke='%236366f1' stroke-width='0.6' opacity='0.05'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='560' viewBox='0 0 800 560'%3E%3Cg fill='none' stroke='%236366f1' stroke-width='0.8' opacity='0.085'%3E%3Cpath d='M-100%2C60 C80%2C20 200%2C110 380%2C65 C560%2C20 680%2C95 900%2C50'/%3E%3Cpath d='M-100%2C130 C80%2C90 200%2C180 380%2C135 C560%2C90 680%2C165 900%2C120'/%3E%3Cpath d='M-100%2C200 C80%2C160 200%2C250 380%2C205 C560%2C160 680%2C235 900%2C190'/%3E%3Cpath d='M-100%2C270 C80%2C230 200%2C320 380%2C275 C560%2C230 680%2C305 900%2C260'/%3E%3Cpath d='M-100%2C340 C80%2C300 200%2C390 380%2C345 C560%2C300 680%2C375 900%2C330'/%3E%3Cpath d='M-100%2C410 C80%2C370 200%2C460 380%2C415 C560%2C370 680%2C445 900%2C400'/%3E%3Cpath d='M-100%2C480 C80%2C440 200%2C530 380%2C485 C560%2C440 680%2C515 900%2C470'/%3E%3C!-- Concentric rings around center --%3E%3Cellipse cx='400' cy='280' rx='280' ry='160' stroke='%23f59e0b' stroke-width='0.7' opacity='0.05'/%3E%3Cellipse cx='400' cy='280' rx='360' ry='220' stroke='%236366f1' stroke-width='0.6' opacity='0.06'/%3E%3Cellipse cx='400' cy='280' rx='460' ry='290' stroke='%236366f1' stroke-width='0.05'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 800px 560px;
-  pointer-events: none;
+  pointer-events: none !important;
+  touch-action: none !important;
   z-index: 0;
 }
 
-/* ── Decor Nông Sản Bay (Tầng 1: Hạt thóc vàng & Hạt giống trôi bồng bềnh) ── */
+/* ── Nature Decor Layer 1: Dãy núi xa đa tầng mờ sương (Misty Mountain Ridges) ── */
 .auth-v3-page::after {
   content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='900' viewBox='0 0 1200 900'%3E%3Cdefs%3E%3ClinearGradient id='grain' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fbbf24' stop-opacity='0.9'/%3E%3Cstop offset='60%25' stop-color='%23f59e0b' stop-opacity='0.8'/%3E%3Cstop offset='100%25' stop-color='%23b45309' stop-opacity='0.85'/%3E%3C/linearGradient%3E%3Cfilter id='glow'%3E%3CfeGaussianBlur stdDeviation='1.5' result='coloredBlur'/%3E%3CfeMerge%3E%3CfeMergeNode in='coloredBlur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3C!-- Grain 1 Top Left --%3E%3Cg transform='translate(150, 140) rotate(-28)' filter='url(%23glow)'%3E%3Cpath d='M0 -15 C6 -7 6 7 0 15 C-6 7 -6 -7 0 -15 Z' fill='url(%23grain)'/%3E%3Cpath d='M0 -13 L0 13' stroke='%2378350f' stroke-width='0.7' opacity='0.6'/%3E%3C/g%3E%3C!-- Grain 2 Mid Left --%3E%3Cg transform='translate(110, 480) rotate(42)' filter='url(%23glow)'%3E%3Cpath d='M0 -18 C7 -8 7 8 0 18 C-7 8 -7 -8 0 -18 Z' fill='url(%23grain)'/%3E%3Cpath d='M0 -15 L0 15' stroke='%2378350f' stroke-width='0.8' opacity='0.6'/%3E%3C/g%3E%3C!-- Grain 3 Bottom Left --%3E%3Cg transform='translate(230, 780) rotate(-15)' filter='url(%23glow)'%3E%3Cpath d='M0 -13 C5 -6 5 6 0 13 C-5 6 -5 -6 0 -13 Z' fill='url(%23grain)'/%3E%3Cpath d='M0 -11 L0 11' stroke='%2378350f' stroke-width='0.6' opacity='0.6'/%3E%3C/g%3E%3C!-- Grain 4 Top Right --%3E%3Cg transform='translate(980, 160) rotate(35)' filter='url(%23glow)'%3E%3Cpath d='M0 -16 C6 -8 6 8 0 16 C-6 8 -6 -8 0 -16 Z' fill='url(%23grain)'/%3E%3Cpath d='M0 -13 L0 13' stroke='%2378350f' stroke-width='0.7' opacity='0.6'/%3E%3C/g%3E%3C!-- Grain 5 Mid Right --%3E%3Cg transform='translate(1080, 520) rotate(-45)' filter='url(%23glow)'%3E%3Cpath d='M0 -19 C7 -9 7 9 0 19 C-7 9 -7 -9 0 -19 Z' fill='url(%23grain)'/%3E%3Cpath d='M0 -16 L0 16' stroke='%2378350f' stroke-width='0.8' opacity='0.6'/%3E%3C/g%3E%3C!-- Grain 6 Bottom Right --%3E%3Cg transform='translate(920, 800) rotate(18)' filter='url(%23glow)'%3E%3Cpath d='M0 -14 C5 -7 5 7 0 14 C-5 7 -5 -7 0 -14 Z' fill='url(%23grain)'/%3E%3Cpath d='M0 -12 L0 12' stroke='%2378350f' stroke-width='0.6' opacity='0.6'/%3E%3C/g%3E%3C!-- Soft Glowing Pollen Dust --%3E%3Ccircle cx='320' cy='220' r='2' fill='%23fbbf24' opacity='0.7'/%3E%3Ccircle cx='860' cy='290' r='2.5' fill='%23fbbf24' opacity='0.8'/%3E%3Ccircle cx='280' cy='620' r='1.8' fill='%23f59e0b' opacity='0.6'/%3E%3Ccircle cx='940' cy='680' r='2.2' fill='%23fbbf24' opacity='0.7'/%3E%3C/svg%3E");
-  background-size: 1200px 900px;
-  background-repeat: repeat;
-  pointer-events: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 380px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 380' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='m1' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%233b7a70' stop-opacity='0.45'/%3E%3Cstop offset='100%25' stop-color='%23245850' stop-opacity='0.78'/%3E%3C/linearGradient%3E%3ClinearGradient id='m2' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%231e594d' stop-opacity='0.68'/%3E%3Cstop offset='100%25' stop-color='%23103d33' stop-opacity='0.92'/%3E%3C/linearGradient%3E%3ClinearGradient id='m3' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230f3d32' stop-opacity='0.92'/%3E%3Cstop offset='100%25' stop-color='%2306241c' stop-opacity='0.99'/%3E%3C/linearGradient%3E%3CradialGradient id='msun' cx='50%25' cy='90%25' r='60%25'%3E%3Cstop offset='0%25' stop-color='%23f59e0b' stop-opacity='0.25'/%3E%3Cstop offset='45%25' stop-color='%233cc394' stop-opacity='0.12'/%3E%3Cstop offset='100%25' stop-color='transparent' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect x='0' y='0' width='1440' height='380' fill='url(%23msun)'/%3E%3Cpath d='M0,175 Q180,65 380,145 T760,75 T1120,135 T1440,65 L1440,380 L0,380 Z' fill='url(%23m1)'/%3E%3Cpath d='M0,215 C180,125 340,195 520,145 C700,95 880,185 1060,135 C1220,95 1340,165 1440,135 L1440,380 L0,380 Z' fill='url(%23m2)'/%3E%3Cpath d='M0,255 Q240,185 500,230 T1000,200 T1440,220 L1440,380 L0,380 Z' fill='url(%23m3)'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-position: bottom center;
+  background-repeat: no-repeat;
+  pointer-events: none !important;
+  touch-action: none !important;
   z-index: 1;
-  animation: grain-float-layer1 22s ease-in-out infinite alternate;
 }
 
-@keyframes grain-float-layer1 {
-  0% {
-    transform: translateY(0px) rotate(0deg);
-    opacity: 0.85;
-  }
-
-  50% {
-    transform: translateY(-24px) rotate(1.5deg);
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(12px) rotate(-1.5deg);
-    opacity: 0.88;
-  }
-}
 
 /* ============================================================
-   2. GRID CONTAINER — Centered Flexbox Layout (Không dùng 2 cột)
+   2. GRID CONTAINER — Centered Flexbox Layout
    ============================================================ */
 .auth-v3-grid {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   width: 100%;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 24px 20px;
   box-sizing: border-box;
 }
 
-/* ── Decor Nông Sản Bay (Tầng 2: Hạt nhỏ và hạt bay chậm parallax) ── */
+/* ── Nature Decor Layer 2: Mây trôi ngang núi (Horizontal Drifting Clouds) ── */
 .auth-v3-grid::before {
   content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='800' viewBox='0 0 1000 800'%3E%3Cdefs%3E%3ClinearGradient id='grain2' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23fef3c7' stop-opacity='0.9'/%3E%3Cstop offset='70%25' stop-color='%23f59e0b' stop-opacity='0.75'/%3E%3Cstop offset='100%25' stop-color='%2392400e' stop-opacity='0.8'/%3E%3C/linearGradient%3E%3C/defs%3E%3C!-- Foreground Grains --%3E%3Cg transform='translate(260, 320) rotate(-55)'%3E%3Cpath d='M0 -11 C4 -5 4 5 0 11 C-4 5 -4 -5 0 -11 Z' fill='url(%23grain2)'/%3E%3C/g%3E%3Cg transform='translate(760, 240) rotate(60)'%3E%3Cpath d='M0 -12 C5 -6 5 6 0 12 C-5 6 -5 -6 0 -12 Z' fill='url(%23grain2)'/%3E%3C/g%3E%3Cg transform='translate(200, 680) rotate(22)'%3E%3Cpath d='M0 -10 C4 -5 4 5 0 10 C-4 5 -4 -5 0 -10 Z' fill='url(%23grain2)'/%3E%3C/g%3E%3Cg transform='translate(810, 640) rotate(-32)'%3E%3Cpath d='M0 -13 C5 -6 5 6 0 13 C-5 6 -5 -6 0 -13 Z' fill='url(%23grain2)'/%3E%3C/g%3E%3C!-- Luminous golden dust --%3E%3Ccircle cx='180' cy='420' r='1.5' fill='%23fbbf24' opacity='0.7'/%3E%3Ccircle cx='840' cy='450' r='2' fill='%23fef3c7' opacity='0.8'/%3E%3Ccircle cx='500' cy='120' r='1.5' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='520' cy='750' r='1.8' fill='%23f59e0b' opacity='0.65'/%3E%3C/svg%3E");
-  background-size: 1000px 800px;
-  background-repeat: repeat;
-  pointer-events: none;
-  z-index: 1;
-  animation: grain-float-layer2 32s ease-in-out infinite alternate-reverse;
+  position: fixed;
+  left: 0;
+  bottom: 125px;
+  width: 200%;
+  height: 180px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 2880 180' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='cf'%3E%3CfeGaussianBlur stdDeviation='4'/%3E%3C/filter%3E%3ClinearGradient id='cg1' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffffff' stop-opacity='0.85'/%3E%3Cstop offset='60%25' stop-color='%23ffffff' stop-opacity='0.6'/%3E%3Cstop offset='100%25' stop-color='%23ffffff' stop-opacity='0.15'/%3E%3C/linearGradient%3E%3ClinearGradient id='cg2' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffffff' stop-opacity='0.55'/%3E%3Cstop offset='100%25' stop-color='%23dcfce7' stop-opacity='0.1'/%3E%3C/linearGradient%3E%3Cg id='c1'%3E%3Cpath d='M60,95 C60,78 74,65 92,65 C96,65 101,66 105,68 C113,52 130,40 150,40 C175,40 196,58 200,82 C206,80 212,79 218,79 C238,79 255,95 255,115 C255,135 238,151 218,151 L85,151 C68,151 55,138 55,121 C55,108 63,98 75,95 Z' fill='url(%23cg1)' filter='url(%23cf)'/%3E%3Cellipse cx='120' cy='125' rx='60' ry='16' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3C/g%3E%3Cg id='c2'%3E%3Cpath d='M420,105 C420,90 432,80 447,80 C452,80 457,82 461,84 C469,68 485,58 505,58 C528,58 548,76 551,98 C559,95 567,94 575,94 C596,94 614,110 614,130 C614,148 600,162 582,164 L440,164 C425,164 412,152 412,137 C412,123 422,110 435,107 Z' fill='url(%23cg1)' filter='url(%23cf)'/%3E%3Cellipse cx='360' cy='128' rx='65' ry='16' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3Cellipse cx='670' cy='122' rx='70' ry='18' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3C/g%3E%3Cg id='c3'%3E%3Cpath d='M880,85 C880,72 890,62 904,62 C908,62 913,63 916,65 C923,50 939,40 958,40 C980,40 998,56 1002,77 C1008,74 1015,73 1022,73 C1041,73 1057,88 1057,107 C1057,125 1042,139 1024,141 L895,141 C882,141 870,130 870,116 C870,103 879,91 891,87 Z' fill='url(%23cg1)' filter='url(%23cf)'/%3E%3Cellipse cx='820' cy='105' rx='60' ry='16' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3Cellipse cx='1100' cy='98' rx='55' ry='15' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3C/g%3E%3C/defs%3E%3Cg id='cgrp'%3E%3Cuse href='%23c1' xlink:href='%23c1'/%3E%3Cuse href='%23c2' xlink:href='%23c2'/%3E%3Cuse href='%23c3' xlink:href='%23c3'/%3E%3Cellipse cx='740' cy='115' rx='95' ry='22' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3Cellipse cx='1300' cy='118' rx='105' ry='24' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3C/g%3E%3Cuse href='%23cgrp' xlink:href='%23cgrp' x='1440' y='0'/%3E%3C/svg%3E");
+  background-size: 50% 100%;
+  background-position: left bottom;
+  background-repeat: repeat-x;
+  pointer-events: none !important;
+  touch-action: none !important;
+  contain: paint;
+  z-index: 2;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  animation: clouds-drift-horizontal 75s linear infinite;
 }
 
-@keyframes grain-float-layer2 {
+@keyframes clouds-drift-horizontal {
   0% {
-    transform: translate(0px, 0px);
-  }
-
-  50% {
-    transform: translate(16px, -30px);
+    transform: translate3d(0, 0, 0);
   }
 
   100% {
-    transform: translate(-14px, 18px);
+    transform: translate3d(-50%, 0, 0);
   }
 }
+
+/* ── Nature Decor Layer 3: Rừng cây thông chân thật & thảm thực vật tự nhiên ── */
+.auth-v3-grid::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 230px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 1440 220' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cg id='p'%3E%3Cpath d='M0,-70 L4,-58 L10,-50 L6,-49 L14,-38 L9,-37 L18,-24 L12,-23 L23,-8 L15,-7 L28,10 L18,11 L34,28 L4,28 L4,42 L-4,42 L-4,28 L-34,28 L-18,11 L-28,10 L-15,-7 L-23,-8 L-12,-23 L-18,-24 L-9,-37 L-14,-38 L-6,-49 L-10,-50 L-4,-58 Z'/%3E%3C/g%3E%3Cg id='p2'%3E%3Cpath d='M0,-58 L5,-48 L11,-42 L7,-41 L16,-31 L10,-30 L20,-17 L13,-16 L25,-3 L16,-2 L30,14 L18,15 L36,32 L5,32 L4,46 L-4,46 L-5,32 L-36,32 L-18,15 L-30,14 L-16,-2 L-25,-3 L-13,-16 L-20,-17 L-10,-30 L-16,-31 L-7,-41 L-11,-42 L-5,-48 Z'/%3E%3C/g%3E%3ClinearGradient id='fg1' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23082d24' stop-opacity='0.95'/%3E%3Cstop offset='100%25' stop-color='%2302130f' stop-opacity='1'/%3E%3C/linearGradient%3E%3ClinearGradient id='fg2' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23104236' stop-opacity='0.9'/%3E%3Cstop offset='100%25' stop-color='%23051e18' stop-opacity='0.98'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0,155 Q180,145 360,150 T720,142 T1080,152 T1440,146 L1440,220 L0,220 Z' fill='url(%23fg1)'/%3E%3Cg fill='url(%23fg2)' opacity='0.75'%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(60, 138) scale(0.65)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(100, 142) scale(0.55)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(140, 136) scale(0.7)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(230, 140) scale(0.6)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(270, 135) scale(0.72)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(380, 142) scale(0.58)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(420, 134) scale(0.68)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(510, 138) scale(0.62)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(560, 132) scale(0.75)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(660, 139) scale(0.6)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(700, 133) scale(0.7)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(810, 138) scale(0.64)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(860, 134) scale(0.72)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(970, 140) scale(0.58)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1010, 133) scale(0.76)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1120, 139) scale(0.62)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1170, 135) scale(0.7)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1270, 142) scale(0.65)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1310, 134) scale(0.74)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1400, 138) scale(0.6)'/%3E%3C/g%3E%3Cg fill='url(%23fg1)'%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(25, 146) scale(0.95)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(50, 150) scale(1.15)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(80, 148) scale(0.85)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(115, 152) scale(1.05)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(160, 147) scale(0.9)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(200, 153) scale(1.2)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(310, 148) scale(0.95)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(345, 151) scale(1.1)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(460, 146) scale(1.0)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(490, 152) scale(1.25)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(610, 149) scale(0.9)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(640, 153) scale(1.15)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(750, 147) scale(1.05)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(785, 152) scale(1.2)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(900, 148) scale(0.95)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(935, 151) scale(1.1)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1050, 147) scale(1.0)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1085, 153) scale(1.22)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1210, 148) scale(0.92)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1245, 152) scale(1.1)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1290, 146) scale(1.0)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1330, 151) scale(1.25)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1370, 147) scale(0.95)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1410, 152) scale(1.18)'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-position: bottom center;
+  background-repeat: no-repeat;
+  pointer-events: none !important;
+  touch-action: none !important;
+  z-index: 3;
+}
+
 
 /* ============================================================
    3. HERO PANEL — Re-architected as Ambient Wrapper
@@ -210,81 +231,96 @@
     transform: translateX(-50%) !important;
     pointer-events: none !important;
     display: block !important;
+    z-index: 20 !important;
   }
 
   .auth-v3-highlight {
     pointer-events: all !important;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-    background: rgba(32, 118, 104, 0.78);
+    gap: 13px;
+    padding: 16px 18px;
+    background: rgba(8, 28, 26, 0.84);
     border: 1px solid rgba(245, 158, 11, 0.32);
     border-radius: 18px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     box-shadow:
-      0 12px 30px rgba(0, 0, 0, 0.45),
-      0 0 25px rgba(245, 158, 11, 0.12);
+      0 16px 36px rgba(0, 0, 0, 0.55),
+      0 0 28px rgba(245, 158, 11, 0.1);
     cursor: default;
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-      border-color 0.3s, box-shadow 0.3s;
-  }
-
-  /* Badge 1: Bảo mật tuyệt đối (Flanking Trái) */
-  .auth-v3-highlight:nth-child(1) {
-    position: absolute;
-    left: 36px;
-    top: 48%;
-    transform: translateY(-50%);
-    width: 250px;
-    animation: float-left-badge 6s ease-in-out infinite alternate;
-  }
-
-  /* Badge 2: Cộng đồng 5000+ nông dân (Flanking Phải) */
-  .auth-v3-highlight:nth-child(2) {
-    position: absolute;
-    right: 36px;
-    top: 48%;
-    transform: translateY(-50%);
-    width: 250px;
-    animation: float-right-badge 6.5s ease-in-out infinite alternate;
-  }
-
-  /* Badge 3: Giao dịch minh bạch (Dưới Trái) */
-  .auth-v3-highlight:nth-child(3) {
-    position: absolute;
-    left: 70px;
-    bottom: 55px;
-    width: 260px;
-    animation: float-left-badge 7.5s ease-in-out infinite alternate-reverse;
+    will-change: transform, border-color, box-shadow;
+    transition:
+      border-color 0.28s ease,
+      box-shadow 0.28s ease,
+      filter 0.28s ease;
   }
 
   .auth-v3-highlight:hover {
-    transform: translateY(-5px) scale(1.03);
-    border-color: rgba(245, 158, 11, 0.6);
+    border-color: rgba(245, 158, 11, 0.65);
     box-shadow:
-      0 16px 36px rgba(0, 0, 0, 0.5),
-      0 0 35px rgba(245, 158, 11, 0.28);
+      0 22px 48px rgba(0, 0, 0, 0.62),
+      0 0 38px rgba(245, 158, 11, 0.28);
+    filter: brightness(1.05);
+  }
+
+  /* Badge 1: Bảo mật tuyệt đối (Flanking Trái, căn giữa) */
+  .auth-v3-highlight:nth-child(1) {
+    position: absolute;
+    left: 36px;
+    top: 50%;
+    transform: translate3d(0, -50%, 0);
+    width: 260px;
+    animation: float-left-badge 7s ease-in-out infinite alternate;
+  }
+
+  /* Badge 2: Cộng đồng 5000+ nông dân (Flanking Phải, 1/3 từ trên) */
+  .auth-v3-highlight:nth-child(2) {
+    position: absolute;
+    right: 36px;
+    top: 36%;
+    transform: translate3d(0, -50%, 0);
+    width: 260px;
+    animation: float-right-badge 6s ease-in-out infinite alternate;
+  }
+
+  /* Badge 3: Giao dịch minh bạch (Flanking Phải, 2/3 từ trên) */
+  .auth-v3-highlight:nth-child(3) {
+    position: absolute;
+    right: 36px;
+    top: 66%;
+    transform: translate3d(0, -50%, 0);
+    width: 260px;
+    animation: float-right-bot-badge 8s ease-in-out infinite alternate-reverse;
   }
 
   @keyframes float-left-badge {
     0% {
-      transform: translateY(-50%) translateX(0px);
+      transform: translate3d(0, -50%, 0);
     }
 
     100% {
-      transform: translateY(calc(-50% - 14px)) translateX(6px);
+      transform: translate3d(6px, calc(-50% - 14px), 0);
     }
   }
 
   @keyframes float-right-badge {
     0% {
-      transform: translateY(-50%) translateX(0px);
+      transform: translate3d(0, -50%, 0);
     }
 
     100% {
-      transform: translateY(calc(-50% + 14px)) translateX(-6px);
+      transform: translate3d(-6px, calc(-50% - 12px), 0);
+    }
+  }
+
+  @keyframes float-right-bot-badge {
+    0% {
+      transform: translate3d(0, -50%, 0);
+    }
+
+    100% {
+      transform: translate3d(-5px, calc(-50% + 14px), 0);
     }
   }
 }
@@ -373,38 +409,26 @@
   }
 }
 
-/* ── Wheat Line Art: Hai nhánh lúa vàng vẽ nét đối xứng vươn lên ── */
+/* ── Wheat Line Art — Đã thay thế bằng Phong cảnh thiên nhiên ── */
 .auth-v3-form-wrap::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 720px;
-  height: 600px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 650'%3E%3Cdefs%3E%3ClinearGradient id='wheatGold' x1='0%25' y1='100%25' x2='0%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23b45309' stop-opacity='0.4'/%3E%3Cstop offset='50%25' stop-color='%23f59e0b' stop-opacity='0.7'/%3E%3Cstop offset='100%25' stop-color='%23fbbf24' stop-opacity='0.9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='none' stroke='url(%23wheatGold)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3C!-- LEFT WHEAT STALK --%3E%3Cpath d='M340%2C620 C270%2C480 220%2C320 230%2C140' stroke-width='2'/%3E%3C!-- Left stalk grains --%3E%3Cg transform='translate(230%2C 140) rotate(-18)'%3E%3Cellipse cx='0' cy='-22' rx='7' ry='20' stroke-width='1.4'/%3E%3Cpath d='M0%2C-42 L-6%2C-65' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(232%2C 185) rotate(-28)'%3E%3Cellipse cx='0' cy='-20' rx='7' ry='18' stroke-width='1.4'/%3E%3Cpath d='M0%2C-38 L-8%2C-58' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(238%2C 230) rotate(-35)'%3E%3Cellipse cx='0' cy='-20' rx='7' ry='18' stroke-width='1.4'/%3E%3Cpath d='M0%2C-38 L-10%2C-58' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(248%2C 280) rotate(-42)'%3E%3Cellipse cx='0' cy='-19' rx='7' ry='18' stroke-width='1.4'/%3E%3Cpath d='M0%2C-37 L-12%2C-56' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(262%2C 330) rotate(-48)'%3E%3Cellipse cx='0' cy='-18' rx='7' ry='17' stroke-width='1.4'/%3E%3Cpath d='M0%2C-35 L-14%2C-54' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(280%2C 380) rotate(-52)'%3E%3Cellipse cx='0' cy='-18' rx='6.5' ry='16' stroke-width='1.4'/%3E%3Cpath d='M0%2C-34 L-15%2C-50' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(300%2C 435) rotate(-56)'%3E%3Cellipse cx='0' cy='-17' rx='6' ry='15' stroke-width='1.4'/%3E%3Cpath d='M0%2C-32 L-16%2C-46' stroke-width='1'/%3E%3C/g%3E%3C!-- Inner left grains --%3E%3Cg transform='translate(242%2C 165) rotate(14)'%3E%3Cellipse cx='0' cy='-18' rx='6.5' ry='16' stroke-width='1.3'/%3E%3C/g%3E%3Cg transform='translate(252%2C 210) rotate(18)'%3E%3Cellipse cx='0' cy='-18' rx='6.5' ry='16' stroke-width='1.3'/%3E%3C/g%3E%3Cg transform='translate(265%2C 260) rotate(22)'%3E%3Cellipse cx='0' cy='-17' rx='6' ry='15' stroke-width='1.3'/%3E%3C/g%3E%3C!-- RIGHT WHEAT STALK --%3E%3Cpath d='M460%2C620 C530%2C480 580%2C320 570%2C140' stroke-width='2'/%3E%3C!-- Right stalk grains --%3E%3Cg transform='translate(570%2C 140) rotate(18)'%3E%3Cellipse cx='0' cy='-22' rx='7' ry='20' stroke-width='1.4'/%3E%3Cpath d='M0%2C-42 L6%2C-65' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(568%2C 185) rotate(28)'%3E%3Cellipse cx='0' cy='-20' rx='7' ry='18' stroke-width='1.4'/%3E%3Cpath d='M0%2C-38 L8%2C-58' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(562%2C 230) rotate(35)'%3E%3Cellipse cx='0' cy='-20' rx='7' ry='18' stroke-width='1.4'/%3E%3Cpath d='M0%2C-38 L10%2C-58' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(552%2C 280) rotate(42)'%3E%3Cellipse cx='0' cy='-19' rx='7' ry='18' stroke-width='1.4'/%3E%3Cpath d='M0%2C-37 L12%2C-56' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(538%2C 330) rotate(48)'%3E%3Cellipse cx='0' cy='-18' rx='7' ry='17' stroke-width='1.4'/%3E%3Cpath d='M0%2C-35 L14%2C-54' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(520%2C 380) rotate(52)'%3E%3Cellipse cx='0' cy='-18' rx='6.5' ry='16' stroke-width='1.4'/%3E%3Cpath d='M0%2C-34 L15%2C-50' stroke-width='1'/%3E%3C/g%3E%3Cg transform='translate(500%2C 435) rotate(56)'%3E%3Cellipse cx='0' cy='-17' rx='6' ry='15' stroke-width='1.4'/%3E%3Cpath d='M0%2C-32 L16%2C-46' stroke-width='1'/%3E%3C/g%3E%3C!-- Inner right grains --%3E%3Cg transform='translate(558%2C 165) rotate(-14)'%3E%3Cellipse cx='0' cy='-18' rx='6.5' ry='16' stroke-width='1.3'/%3E%3C/g%3E%3Cg transform='translate(548%2C 210) rotate(-18)'%3E%3Cellipse cx='0' cy='-18' rx='6.5' ry='16' stroke-width='1.3'/%3E%3C/g%3E%3Cg transform='translate(535%2C 260) rotate(-22)'%3E%3Cellipse cx='0' cy='-17' rx='6' ry='15' stroke-width='1.3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  pointer-events: none;
-  z-index: -2;
-  opacity: 0.72;
+  display: none !important;
 }
 
 /* ============================================================
-   6. GLASSMORPHISM FORM CARD — Modern Dark Glass Card
+   6. AUTH FORM CARD — Clean White Theme
    ============================================================ */
 .auth-v3-card {
   width: 100% !important;
-  background: var(--auth-card-bg) !important;
-  backdrop-filter: blur(28px) !important;
-  -webkit-backdrop-filter: blur(28px) !important;
-  border: 1px solid var(--auth-card-border) !important;
+  background: #ffffff !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
   border-radius: 28px !important;
   padding: 36px 32px !important;
   box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.6),
-    0 0 35px rgba(245, 158, 11, 0.08) !important;
+    0 20px 45px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.06),
+    0 0 30px rgba(245, 158, 11, 0.08) !important;
   box-sizing: border-box !important;
   display: flex !important;
   flex-direction: column !important;
@@ -416,7 +440,7 @@
   justify-content: center !important;
   align-items: center !important;
   gap: 10px;
-  color: #fff !important;
+  color: #0f172a !important;
   font-size: 26px !important;
   font-weight: 800 !important;
   margin-bottom: 8px !important;
@@ -432,8 +456,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
+  background: #fef3c7;
+  color: #b45309;
   font-size: 11px;
   font-weight: 700;
   padding: 4px 14px;
@@ -441,20 +465,20 @@
   margin-bottom: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .auth-v3-header h2 {
   font-size: 22px;
   font-weight: 800;
-  color: #f8fafc;
+  color: #0f172a;
   margin: 0 0 6px;
   letter-spacing: -0.02em;
 }
 
 .auth-v3-header p {
   font-size: 13px;
-  color: var(--auth-text-muted);
+  color: #64748b;
   margin: 0;
   line-height: 1.5;
 }
@@ -464,12 +488,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #fca5a5;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
   padding: 10px 14px;
   border-radius: 12px;
   font-size: 13px;
+  font-weight: 500;
   margin-bottom: 16px;
 }
 
@@ -489,7 +514,7 @@
 .auth-v3-field label {
   font-size: 12.5px;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #334155;
 }
 
 .auth-v3-input-wrap {
@@ -501,7 +526,7 @@
 .auth-v3-input-icon {
   position: absolute;
   left: 14px;
-  color: #b0b9c6;
+  color: #94a3b8;
   font-size: 16px;
   pointer-events: none;
   transition: color 0.2s;
@@ -510,10 +535,10 @@
 .auth-v3-input-wrap input {
   width: 100%;
   padding: 11px 40px 11px 40px;
-  background: var(--auth-input-bg);
-  border: 1.5px solid var(--auth-input-border);
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
   border-radius: 13px;
-  color: #f1f5f9;
+  color: #0f172a;
   font-size: 13.5px;
   outline: none;
   transition: all 0.22s ease;
@@ -521,17 +546,17 @@
 }
 
 .auth-v3-input-wrap input::placeholder {
-  color: #b0b9c6;
+  color: #94a3b8;
 }
 
 .auth-v3-input-wrap input:focus {
   border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.04);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
 }
 
 .auth-v3-input-wrap input:focus~.auth-v3-input-icon {
-  color: #f59e0b;
+  color: #d97706;
 }
 
 .auth-v3-eye {
@@ -539,7 +564,7 @@
   right: 12px;
   background: transparent;
   border: none;
-  color: #b0b9c6;
+  color: #94a3b8;
   font-size: 16px;
   cursor: pointer;
   padding: 4px;
@@ -550,7 +575,7 @@
 }
 
 .auth-v3-eye:hover {
-  color: #e2e8f0;
+  color: #334155;
 }
 
 /* ── Remember Me & Forgot Password ── */
@@ -566,9 +591,10 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #94a3b8;
+  color: #475569;
   cursor: pointer;
   user-select: none;
+  font-weight: 500;
 }
 
 .auth-v3-remember input[type="checkbox"] {
@@ -576,9 +602,9 @@
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid rgba(99, 102, 241, 0.35);
+  border: 1.5px solid #cbd5e1;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.04);
+  background: #f8fafc;
   cursor: pointer;
   display: grid;
   place-content: center;
@@ -595,24 +621,24 @@
   content: "";
   width: 8px;
   height: 5px;
-  border-left: 2px solid #080616;
-  border-bottom: 2px solid #080616;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
   transform: rotate(-45deg) translate(1px, -1px);
 }
 
 .auth-v3-forgot {
   background: transparent;
   border: none;
-  color: #f59e0b;
+  color: #d97706;
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   padding: 0;
   transition: color 0.2s;
 }
 
 .auth-v3-forgot:hover {
-  color: #fbbf24;
+  color: #b45309;
   text-decoration: underline;
 }
 
@@ -625,20 +651,20 @@
   justify-content: center;
   gap: 8px;
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: #080616;
+  color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   border: none;
   border-radius: 13px;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.38);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.32);
   transition: all 0.25s ease;
   letter-spacing: 0.01em;
 }
 
 .auth-v3-btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.5);
+  box-shadow: 0 10px 26px rgba(245, 158, 11, 0.45);
   transform: translateY(-2px);
 }
 
@@ -652,7 +678,7 @@
   display: flex;
   align-items: center;
   margin: 18px 0;
-  color: #64748b;
+  color: #94a3b8;
   font-size: 12px;
 }
 
@@ -661,11 +687,13 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #e2e8f0;
 }
 
 .auth-v3-divider span {
   padding: 0 12px;
+  color: #94a3b8;
+  font-weight: 500;
 }
 
 /* ── Google Sign-in Button ── */
@@ -676,20 +704,23 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
   border-radius: 13px;
-  color: #f1f5f9;
+  color: #334155;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.22s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .auth-v3-btn-google:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(245, 158, 11, 0.35);
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 /* ── Register Link ── */
@@ -697,13 +728,13 @@
   text-align: center;
   margin-top: 18px;
   font-size: 13px;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .auth-v3-register-link button {
   background: transparent;
   border: none;
-  color: #f59e0b;
+  color: #d97706;
   font-weight: 600;
   cursor: pointer;
   padding: 0;
@@ -712,7 +743,7 @@
 }
 
 .auth-v3-register-link button:hover {
-  color: #fbbf24;
+  color: #b45309;
   text-decoration: underline;
 }
 
@@ -843,20 +874,23 @@
 
   .auth-v3-highlight:nth-child(1) {
     left: 20px;
-    width: 220px;
+    top: 50%;
+    width: 230px;
     padding: 13px 16px;
   }
 
   .auth-v3-highlight:nth-child(2) {
     right: 20px;
-    width: 220px;
+    top: 36%;
+    width: 230px;
     padding: 13px 16px;
   }
 
   .auth-v3-highlight:nth-child(3) {
-    left: 40px;
-    bottom: 35px;
+    right: 20px;
+    top: 66%;
     width: 230px;
+    padding: 13px 16px;
   }
 }
 

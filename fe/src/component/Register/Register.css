@@ -1,380 +1,861 @@
+/* ============================================================
+   REGISTER PAGE — Glassmorphism Concept
+   Palette: Harvest Teal (#3cc394 / #2e7681) + Amber Gold (#f59e0b / #d97706)
+   Layout : Horizontal Rectangle Card + Floating Badges hai bên KHÔNG đè form
+   Decor  : 3-layer floating agricultural produce (kích thước lớn hơn)
+   !! Register.jsx KHÔNG THAY ĐỔI — Chỉ CSS !!
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* ── CSS Custom Properties ── */
 :root {
-  --green: #16a34a;
-  --green-dark: #0f5132;
-  --green-light: #e8f8ef;
-  --blue: #0d6efd;
-  --blue-light: #e7f1ff;
-  --ink: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --radius: 12px;
+  --reg-teal: #3cc394;
+  --reg-teal-dark: #2e7681;
+  --reg-amber: #f59e0b;
+  --reg-amber-dark: #d97706;
+  --reg-glass-bg: rgba(12, 38, 35, 0.60);
+  --reg-glass-border: rgba(245, 158, 11, 0.26);
+  --reg-input-bg: rgba(255, 255, 255, 0.07);
+  --reg-input-border: rgba(255, 255, 255, 0.16);
+  --reg-text-main: #f8fafc;
+  --reg-text-muted: rgba(226, 232, 240, 0.7);
+  --reg-radius: 13px;
+
+  /* Badge sidebar width — dùng để tính padding cho layout */
+  --badge-col: 290px;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
+/* Đảm bảo cuộn dọc mượt mà 1 lần là ăn ngay trên root window, không tràn ngang */
+html:has(.register-page),
+body:has(.register-page) {
+  overflow-x: clip;
+}
+
+/* ============================================================
+   1. PAGE WRAPPER
+   ============================================================ */
 .register-page {
+  position: relative;
   min-height: 100vh;
+  width: 100%;
+  background:
+    radial-gradient(circle 850px at 50% 38%, rgba(18, 74, 73, 0.44) 0%, transparent 65%),
+    linear-gradient(160deg, #ffffff 0%, #d2e65d 100%);
   display: flex;
   flex-direction: column;
-  background: #f0f7ee;
-  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  color: var(--ink);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--reg-text-main);
+  /* Dùng clip để cắt tràn ngang mà tuyệt đối KHÔNG sinh ra vùng cuộn phụ lồng nhau */
+  overflow-x: clip;
 }
 
-/* ── Layout ── */
-.register-layout {
-  flex: 1;
+/* ── Topographic Contour Lines ── */
+.register-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='620' viewBox='0 0 900 620'%3E%3Cg fill='none' stroke='%236366f1' stroke-width='0.8' opacity='0.07'%3E%3Cpath d='M-100,70 C90,28 210,120 400,72 C590,24 710,108 1000,60'/%3E%3Cpath d='M-100,150 C90,108 210,200 400,152 C590,104 710,188 1000,140'/%3E%3Cpath d='M-100,230 C90,188 210,280 400,232 C590,184 710,268 1000,220'/%3E%3Cpath d='M-100,310 C90,268 210,360 400,312 C590,264 710,348 1000,300'/%3E%3Cpath d='M-100,390 C90,348 210,440 400,392 C590,344 710,428 1000,380'/%3E%3Cpath d='M-100,470 C90,428 210,520 400,472 C590,424 710,508 1000,460'/%3E%3Cpath d='M-100,550 C90,508 210,600 400,552 C590,504 710,588 1000,540'/%3E%3Cellipse cx='450' cy='310' rx='300' ry='180' stroke='%23f59e0b' stroke-width='0.7' opacity='0.045'/%3E%3Cellipse cx='450' cy='310' rx='420' ry='260' stroke='%236366f1' stroke-width='0.6' opacity='0.05'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 900px 620px;
+  pointer-events: none !important;
+  touch-action: none !important;
+  z-index: 0;
+}
 
-  display: flex;
-  gap: 28px;
-  padding: 36px 24px;
-  align-items: stretch;
-  max-width: 1350px;
+/* ── Nature Decor Layer 1: Dãy núi xa đa tầng mờ sương (Misty Mountain Ridges) ── */
+.register-page::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
-  margin: 0 auto;
+  height: 380px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 380' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='m1' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%233b7a70' stop-opacity='0.45'/%3E%3Cstop offset='100%25' stop-color='%23245850' stop-opacity='0.78'/%3E%3C/linearGradient%3E%3ClinearGradient id='m2' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%231e594d' stop-opacity='0.68'/%3E%3Cstop offset='100%25' stop-color='%23103d33' stop-opacity='0.92'/%3E%3C/linearGradient%3E%3ClinearGradient id='m3' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230f3d32' stop-opacity='0.92'/%3E%3Cstop offset='100%25' stop-color='%2306241c' stop-opacity='0.99'/%3E%3C/linearGradient%3E%3CradialGradient id='msun' cx='50%25' cy='90%25' r='60%25'%3E%3Cstop offset='0%25' stop-color='%23f59e0b' stop-opacity='0.25'/%3E%3Cstop offset='45%25' stop-color='%233cc394' stop-opacity='0.12'/%3E%3Cstop offset='100%25' stop-color='transparent' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect x='0' y='0' width='1440' height='380' fill='url(%23msun)'/%3E%3Cpath d='M0,175 Q180,65 380,145 T760,75 T1120,135 T1440,65 L1440,380 L0,380 Z' fill='url(%23m1)'/%3E%3Cpath d='M0,215 C180,125 340,195 520,145 C700,95 880,185 1060,135 C1220,95 1340,165 1440,135 L1440,380 L0,380 Z' fill='url(%23m2)'/%3E%3Cpath d='M0,255 Q240,185 500,230 T1000,200 T1440,220 L1440,380 L0,380 Z' fill='url(%23m3)'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-position: bottom center;
+  background-repeat: no-repeat;
+  pointer-events: none !important;
+  touch-action: none !important;
+  z-index: 1;
 }
 
-@media (max-width: 992px) {
-  .register-layout { flex-direction: column; padding: 24px 20px; }
-  .register-aside { display: none; }
-}
-
-/* ── Form panel ── */
-.register-form-panel {
-  flex: 1.15;
+/* ============================================================
+   2. OUTER STAGE — full viewport, relative, chứa layout + badges
+   ============================================================ */
+.register-layout {
+  position: relative;
+  /* badges absolute trong đây */
+  z-index: 4;
+  flex: 1;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  background: #fff;
-  border-radius: 20px;
-  padding: 40px 44px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  /* Padding chuẩn khớp với Header 82px và chân rặng núi */
+  padding: 16px var(--badge-col) 24px;
+  width: 100%;
+  min-height: calc(100vh - 82px);
 }
+
+/* ── Nature Decor Layer 2: Mây trôi ngang núi (Horizontal Drifting Clouds) ── */
+.register-layout::before {
+  content: "";
+  position: fixed;
+  left: 0;
+  bottom: 125px;
+  width: 200%;
+  height: 180px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 2880 180' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='cf'%3E%3CfeGaussianBlur stdDeviation='4'/%3E%3C/filter%3E%3ClinearGradient id='cg1' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffffff' stop-opacity='0.85'/%3E%3Cstop offset='60%25' stop-color='%23ffffff' stop-opacity='0.6'/%3E%3Cstop offset='100%25' stop-color='%23ffffff' stop-opacity='0.15'/%3E%3C/linearGradient%3E%3ClinearGradient id='cg2' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffffff' stop-opacity='0.55'/%3E%3Cstop offset='100%25' stop-color='%23dcfce7' stop-opacity='0.1'/%3E%3C/linearGradient%3E%3Cg id='c1'%3E%3Cpath d='M60,95 C60,78 74,65 92,65 C96,65 101,66 105,68 C113,52 130,40 150,40 C175,40 196,58 200,82 C206,80 212,79 218,79 C238,79 255,95 255,115 C255,135 238,151 218,151 L85,151 C68,151 55,138 55,121 C55,108 63,98 75,95 Z' fill='url(%23cg1)' filter='url(%23cf)'/%3E%3Cellipse cx='120' cy='125' rx='60' ry='16' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3C/g%3E%3Cg id='c2'%3E%3Cpath d='M420,105 C420,90 432,80 447,80 C452,80 457,82 461,84 C469,68 485,58 505,58 C528,58 548,76 551,98 C559,95 567,94 575,94 C596,94 614,110 614,130 C614,148 600,162 582,164 L440,164 C425,164 412,152 412,137 C412,123 422,110 435,107 Z' fill='url(%23cg1)' filter='url(%23cf)'/%3E%3Cellipse cx='360' cy='128' rx='65' ry='16' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3Cellipse cx='670' cy='122' rx='70' ry='18' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3C/g%3E%3Cg id='c3'%3E%3Cpath d='M880,85 C880,72 890,62 904,62 C908,62 913,63 916,65 C923,50 939,40 958,40 C980,40 998,56 1002,77 C1008,74 1015,73 1022,73 C1041,73 1057,88 1057,107 C1057,125 1042,139 1024,141 L895,141 C882,141 870,130 870,116 C870,103 879,91 891,87 Z' fill='url(%23cg1)' filter='url(%23cf)'/%3E%3Cellipse cx='820' cy='105' rx='60' ry='16' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3Cellipse cx='1100' cy='98' rx='55' ry='15' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3C/g%3E%3C/defs%3E%3Cg id='cgrp'%3E%3Cuse href='%23c1' xlink:href='%23c1'/%3E%3Cuse href='%23c2' xlink:href='%23c2'/%3E%3Cuse href='%23c3' xlink:href='%23c3'/%3E%3Cellipse cx='740' cy='115' rx='95' ry='22' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3Cellipse cx='1300' cy='118' rx='105' ry='24' fill='url(%23cg2)' filter='url(%23cf)'/%3E%3C/g%3E%3Cuse href='%23cgrp' xlink:href='%23cgrp' x='1440' y='0'/%3E%3C/svg%3E");
+  background-size: 50% 100%;
+  background-position: left bottom;
+  background-repeat: repeat-x;
+  pointer-events: none !important;
+  touch-action: none !important;
+  contain: paint;
+  z-index: 2;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  animation: clouds-drift-horizontal 75s linear infinite;
+}
+
+@keyframes clouds-drift-horizontal {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* ── Nature Decor Layer 3: Rừng cây thông chân thật & thảm thực vật tự nhiên ── */
+.register-layout::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 230px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 1440 220' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cg id='p'%3E%3Cpath d='M0,-70 L4,-58 L10,-50 L6,-49 L14,-38 L9,-37 L18,-24 L12,-23 L23,-8 L15,-7 L28,10 L18,11 L34,28 L4,28 L4,42 L-4,42 L-4,28 L-34,28 L-18,11 L-28,10 L-15,-7 L-23,-8 L-12,-23 L-18,-24 L-9,-37 L-14,-38 L-6,-49 L-10,-50 L-4,-58 Z'/%3E%3C/g%3E%3Cg id='p2'%3E%3Cpath d='M0,-58 L5,-48 L11,-42 L7,-41 L16,-31 L10,-30 L20,-17 L13,-16 L25,-3 L16,-2 L30,14 L18,15 L36,32 L5,32 L4,46 L-4,46 L-5,32 L-36,32 L-18,15 L-30,14 L-16,-2 L-25,-3 L-13,-16 L-20,-17 L-10,-30 L-16,-31 L-7,-41 L-11,-42 L-5,-48 Z'/%3E%3C/g%3E%3ClinearGradient id='fg1' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23082d24' stop-opacity='0.95'/%3E%3Cstop offset='100%25' stop-color='%2302130f' stop-opacity='1'/%3E%3C/linearGradient%3E%3ClinearGradient id='fg2' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23104236' stop-opacity='0.9'/%3E%3Cstop offset='100%25' stop-color='%23051e18' stop-opacity='0.98'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0,155 Q180,145 360,150 T720,142 T1080,152 T1440,146 L1440,220 L0,220 Z' fill='url(%23fg1)'/%3E%3Cg fill='url(%23fg2)' opacity='0.75'%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(60, 138) scale(0.65)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(100, 142) scale(0.55)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(140, 136) scale(0.7)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(230, 140) scale(0.6)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(270, 135) scale(0.72)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(380, 142) scale(0.58)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(420, 134) scale(0.68)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(510, 138) scale(0.62)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(560, 132) scale(0.75)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(660, 139) scale(0.6)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(700, 133) scale(0.7)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(810, 138) scale(0.64)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(860, 134) scale(0.72)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(970, 140) scale(0.58)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1010, 133) scale(0.76)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1120, 139) scale(0.62)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1170, 135) scale(0.7)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1270, 142) scale(0.65)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1310, 134) scale(0.74)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1400, 138) scale(0.6)'/%3E%3C/g%3E%3Cg fill='url(%23fg1)'%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(25, 146) scale(0.95)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(50, 150) scale(1.15)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(80, 148) scale(0.85)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(115, 152) scale(1.05)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(160, 147) scale(0.9)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(200, 153) scale(1.2)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(310, 148) scale(0.95)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(345, 151) scale(1.1)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(460, 146) scale(1.0)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(490, 152) scale(1.25)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(610, 149) scale(0.9)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(640, 153) scale(1.15)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(750, 147) scale(1.05)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(785, 152) scale(1.2)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(900, 148) scale(0.95)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(935, 151) scale(1.1)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1050, 147) scale(1.0)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1085, 153) scale(1.22)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1210, 148) scale(0.92)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1245, 152) scale(1.1)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1290, 146) scale(1.0)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1330, 151) scale(1.25)'/%3E%3Cuse href='%23p' xlink:href='%23p' transform='translate(1370, 147) scale(0.95)'/%3E%3Cuse href='%23p2' xlink:href='%23p2' transform='translate(1410, 152) scale(1.18)'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-position: bottom center;
+  background-repeat: no-repeat;
+  pointer-events: none !important;
+  touch-action: none !important;
+  z-index: 3;
+}
+
+/* ============================================================
+   3. FLOATING BADGES — Absolute trong register-layout, KHÔNG đè form
+      Layout: 1 badge trái (giữa) + 2 badge phải (so le trên/dưới)
+      → Phân bổ cân bằng, tạo chiều sâu thị giác
+   ============================================================ */
+@media (min-width: 1200px) {
+  .register-aside {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+    display: block !important;
+    z-index: 10 !important;
+  }
+
+  .register-aside__overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none !important;
+  }
+
+  /* ── Ẩn nội dung text/title của aside ── */
+  .register-aside__badge,
+  .register-aside__title,
+  .register-aside__desc,
+  .register-aside__footer {
+    display: none !important;
+  }
+
+  .register-aside__features {
+    display: contents !important;
+  }
+
+  /* ── Base style chung cho mỗi badge ── */
+  .register-aside__overlay .feature {
+    pointer-events: all !important;
+    position: absolute;
+    width: calc(var(--badge-col) - 40px);
+    /* ~250px */
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 16px 18px;
+    background: rgba(8, 28, 26, 0.84);
+    border: 1px solid rgba(245, 158, 11, 0.32);
+    border-radius: 18px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow:
+      0 16px 36px rgba(0, 0, 0, 0.55),
+      0 0 28px rgba(245, 158, 11, 0.1);
+    cursor: default;
+    will-change: transform, border-color, box-shadow;
+    transition:
+      border-color 0.28s ease,
+      box-shadow 0.28s ease,
+      filter 0.28s ease;
+  }
+
+  .register-aside__overlay .feature:hover {
+    border-color: rgba(245, 158, 11, 0.65);
+    box-shadow:
+      0 22px 48px rgba(0, 0, 0, 0.62),
+      0 0 38px rgba(245, 158, 11, 0.28);
+    filter: brightness(1.05);
+  }
+
+  /*
+   * PHÂN BỐ 3 BADGES:
+   *
+   *   [TRÁI]               [FORM]              [PHẢI]
+   *                                         ┌─ Badge 2 (trên) ─┐  ← top 30%
+   *   ┌─ Badge 1 (giữa) ─┐                 └──────────────────┘
+   *   └──────────────────┘  ← top 50%
+   *                                         ┌─ Badge 3 (dưới) ─┐  ← top 65%
+   *                                         └──────────────────┘
+   */
+
+  /* Badge 1 — 🛡️ Giao dịch an toàn: TRÁI, căn giữa dọc */
+  .register-aside__overlay .feature:nth-child(1) {
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: badge-float-left-center 7s ease-in-out infinite alternate;
+  }
+
+  /* Badge 2 — 📈 Tăng trưởng bền vững: PHẢI, 1/3 từ trên */
+  .register-aside__overlay .feature:nth-child(2) {
+    right: 20px;
+    top: 30%;
+    transform: translateY(-50%);
+    animation: badge-float-right-top 6s ease-in-out infinite alternate;
+  }
+
+  /* Badge 3 — ✅ Đối tác uy tín: PHẢI, 2/3 từ trên */
+  .register-aside__overlay .feature:nth-child(3) {
+    right: 20px;
+    top: 67%;
+    transform: translateY(-50%);
+    animation: badge-float-right-bot 8s ease-in-out infinite alternate-reverse;
+  }
+
+  /* Badge text */
+  .register-aside__overlay .feature h4 {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0 0 3px;
+    line-height: 1.3;
+  }
+
+  .register-aside__overlay .feature p {
+    font-size: 11.5px;
+    color: rgba(148, 163, 184, 0.9);
+    margin: 0;
+    line-height: 1.45;
+  }
+
+  /* Badge icon */
+  .register-aside__overlay .feature .feature__icon,
+  .register-aside__overlay .feature span.feature__icon {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    box-shadow: inset 0 0 12px rgba(245, 158, 11, 0.12);
+  }
+
+  /* Animations — mỗi badge float theo hướng riêng, mượt mà GPU-accelerated */
+  @keyframes badge-float-left-center {
+    0% {
+      transform: translate3d(0, -50%, 0);
+    }
+
+    100% {
+      transform: translate3d(6px, calc(-50% - 15px), 0);
+    }
+  }
+
+  @keyframes badge-float-right-top {
+    0% {
+      transform: translate3d(0, -50%, 0);
+    }
+
+    100% {
+      transform: translate3d(-6px, calc(-50% - 12px), 0);
+    }
+  }
+
+  @keyframes badge-float-right-bot {
+    0% {
+      transform: translate3d(0, -50%, 0);
+    }
+
+    100% {
+      transform: translate3d(-5px, calc(-50% + 14px), 0);
+    }
+  }
+}
+
+/* Ẩn aside trên màn nhỏ */
+@media (max-width: 1199px) {
+  .register-aside {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   4. FORM PANEL — Clean White Theme (tương tự Card Login)
+   ============================================================ */
+.register-form-panel {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  max-width: 880px;
+  background: #ffffff !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  border-radius: 24px !important;
+  padding: 24px 36px 20px;
+  box-shadow:
+    0 20px 45px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.06),
+    0 0 35px rgba(245, 158, 11, 0.1) !important;
+  box-sizing: border-box;
+  animation: card-glow-breathe 8s ease-in-out infinite;
+}
+
+@keyframes card-glow-breathe {
+
+  0%,
+  100% {
+    box-shadow:
+      0 20px 45px rgba(0, 0, 0, 0.12),
+      0 4px 16px rgba(0, 0, 0, 0.06),
+      0 0 30px rgba(245, 158, 11, 0.08) !important;
+  }
+
+  50% {
+    box-shadow:
+      0 24px 50px rgba(0, 0, 0, 0.15),
+      0 6px 20px rgba(0, 0, 0, 0.08),
+      0 0 50px rgba(245, 158, 11, 0.16) !important;
+  }
+}
+
+/* Soft morning sunbeam glow phía sau card */
+.register-form-panel::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 106%;
+  height: 108%;
+  background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.16) 0%, rgba(60, 195, 148, 0.1) 45%, transparent 72%);
+  filter: blur(24px);
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.75;
+}
+
+.register-form-panel::after {
+  display: none;
+}
+
 .register-form-wrap {
   width: 100%;
-  max-width: 560px;
 }
 
+/* ============================================================
+   5. HEADER — Theme Trắng tương tự Login (Tối ưu độ dài)
+   ============================================================ */
 .register-badge {
-  display: inline-block;
-  background: var(--green-light);
-  color: var(--green);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 10.5px;
   font-weight: 700;
-  font-size: 0.82rem;
-  letter-spacing: .04em;
-  padding: 6px 14px;
+  padding: 3px 12px;
   border-radius: 999px;
-  margin-bottom: 14px;
-}
-.register-title {
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0 0 8px;
-  color: var(--ink);
-}
-.register-subtitle {
-  color: var(--muted);
-  margin-bottom: 24px;
-  font-size: 0.96rem;
+  margin-bottom: 6px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
-/* Role toggle */
+.register-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 3px;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.register-subtitle {
+  color: #64748b;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* ============================================================
+   6. ROLE TOGGLE — Gọn gàng, thanh thoát
+   ============================================================ */
 .role-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 24px;
-  background: #f3f4f6;
-  border-radius: var(--radius);
-  padding: 4px;
+  gap: 6px;
+  margin-bottom: 12px;
+  background: #f1f5f9;
+  border-radius: 11px;
+  padding: 3px;
+  border: 1.5px solid #e2e8f0;
+  max-width: 290px;
 }
+
 .role-toggle__btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 11px 16px;
-  border-radius: 9px;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
   border: none;
   background: transparent;
-  color: var(--muted);
+  color: #64748b;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 12.5px;
   cursor: pointer;
-  transition: all .15s ease;
-}
-.role-toggle__btn:hover { color: var(--ink); }
-.role-toggle__btn--success {
-  background: var(--green);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(22,163,74,0.3);
-}
-.role-toggle__btn--primary {
-  background: var(--blue);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(13,110,253,0.3);
+  transition: all 0.2s ease;
 }
 
-/* Form rows / groups */
+.role-toggle__btn:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.role-toggle__btn--success {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+}
+
+.role-toggle__btn--primary {
+  background: linear-gradient(135deg, #3cc394 0%, #2e7681 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(60, 195, 148, 0.3);
+}
+
+/* ============================================================
+   7. FORM ROWS — 3-cột nằm ngang tối ưu chiều cao
+   ============================================================ */
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
-@media (max-width: 520px) {
-  .form-row { grid-template-columns: 1fr; gap: 0; }
-  .form-row .form-group { margin-bottom: 16px; }
+
+.form-row--3col {
+  grid-template-columns: 1fr 1fr 1fr;
 }
-.form-group { margin-bottom: 16px; }
+
+.form-group {
+  margin-bottom: 10px;
+}
+
 .form-group label {
   display: block;
   font-weight: 600;
-  font-size: 0.87rem;
-  margin-bottom: 6px;
-  color: var(--ink);
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: #334155;
+  letter-spacing: 0.01em;
 }
 
-/* Input with icon */
+/* ============================================================
+   8. INPUT — Clean White Input
+   ============================================================ */
 .input-icon {
   display: flex;
   align-items: center;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius);
-  background: #f9fafb;
-  padding: 0 12px;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 11px;
+  background: #f8fafc;
+  padding: 0 10px;
+  transition: all 0.22s ease;
 }
+
 .input-icon:focus-within {
-  border-color: var(--green);
-  box-shadow: 0 0 0 3px var(--green-light);
-  background: #fff;
+  border-color: #f59e0b;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
 }
-.input-icon--invalid { border-color: #dc3545; }
+
+.input-icon--invalid {
+  border-color: #fecaca !important;
+  background: #fff5f5 !important;
+}
+
 .input-icon--invalid:focus-within {
-  box-shadow: 0 0 0 3px rgba(220,53,69,.12);
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
 }
+
 .input-icon__icon {
   flex-shrink: 0;
-  color: var(--muted);
-  margin-right: 8px;
+  color: #94a3b8;
+  margin-right: 7px;
+  transition: color 0.2s;
 }
+
+.input-icon:focus-within .input-icon__icon {
+  color: #d97706;
+}
+
 .input-icon input,
 .input-icon select {
   flex: 1;
   width: 100%;
   border: none;
   background: transparent;
-  padding: 11px 0;
-  font-size: 0.95rem;
-  color: var(--ink);
+  padding: 8px 0;
+  font-size: 13px;
+  color: #0f172a;
   outline: none;
   appearance: none;
+  -webkit-appearance: none;
 }
-.input-icon select { cursor: pointer; }
-.input-icon select:disabled { color: var(--muted); cursor: not-allowed; }
+
+.input-icon input::placeholder {
+  color: #94a3b8;
+}
+
+.input-icon select {
+  cursor: pointer;
+  color: #0f172a;
+}
+
+.input-icon select:disabled {
+  color: #94a3b8;
+  background: #f1f5f9;
+  cursor: not-allowed;
+}
+
+.input-icon select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
 .input-icon__toggle {
   flex-shrink: 0;
   border: none;
   background: transparent;
-  color: var(--muted);
+  color: #94a3b8;
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 4px;
+  padding: 3px;
+  transition: color 0.2s;
 }
-.input-icon__toggle:hover { color: var(--ink); }
+
+.input-icon__toggle:hover {
+  color: #334155;
+}
 
 .field-error {
-  color: #dc3545;
-  font-size: 0.8rem;
-  margin-top: 4px;
+  color: #b91c1c;
+  font-size: 11.5px;
+  margin-top: 3px;
 }
-.text-muted { color: var(--muted); font-weight: 400; }
 
-/* Agreement checkbox */
+.text-muted {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.required-mark {
+  color: #ef4444;
+  margin-left: 2px;
+}
+
+/* ============================================================
+   9. AGREEMENT CHECKBOX
+   ============================================================ */
 .form-check-agree {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 20px;
-  margin-top: 4px;
+  gap: 8px;
+  margin-bottom: 12px;
+  margin-top: 2px;
 }
-.form-check-agree input[type="checkbox"] {
-  margin-top: 3px;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--green);
-  flex-shrink: 0;
-}
-.form-check-agree label {
-  font-size: 0.88rem;
-  color: var(--muted);
-  line-height: 1.5;
-}
-.form-check-agree a {
-  color: var(--green);
-  font-weight: 600;
-  text-decoration: none;
-}
-.form-check-agree a:hover { text-decoration: underline; }
 
-/* Submit button */
+.form-check-agree input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  margin-top: 2px;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: grid;
+  place-content: center;
+  transition: all 0.2s;
+}
+
+.form-check-agree input[type="checkbox"]:checked {
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+
+.form-check-agree input[type="checkbox"]:checked::before {
+  content: "";
+  width: 7px;
+  height: 4px;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.form-check-agree label {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.form-check-agree button {
+  color: #d97706 !important;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.form-check-agree button:hover {
+  color: #b45309 !important;
+  text-decoration: underline;
+}
+
+/* ============================================================
+   10. SUBMIT BUTTON
+   ============================================================ */
 .submit-btn {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px;
+  padding: 10px;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 11px;
   font-weight: 700;
-  font-size: 1rem;
-  color: #fff;
+  font-size: 13.5px;
+  color: #ffffff;
   cursor: pointer;
-  transition: background .15s ease, transform .05s ease;
+  transition: all 0.25s ease;
+  letter-spacing: 0.01em;
 }
-.submit-btn:active { transform: scale(.99); }
-.submit-btn:disabled { opacity: .7; cursor: not-allowed; }
-.submit-btn--success { background: var(--green); }
-.submit-btn--success:hover:not(:disabled) { background: var(--green-dark); }
-.submit-btn--primary { background: var(--blue); }
-.submit-btn--primary:hover:not(:disabled) { background: #0b5ed7; }
-.submit-btn__arrow { font-size: 1.1rem; }
+
+.submit-btn:active {
+  transform: scale(0.99);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submit-btn--success {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.32);
+}
+
+.submit-btn--success:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow: 0 8px 22px rgba(245, 158, 11, 0.42);
+  transform: translateY(-1px);
+}
+
+.submit-btn--primary {
+  background: linear-gradient(135deg, #3cc394 0%, #2e7681 100%);
+  box-shadow: 0 6px 18px rgba(60, 195, 148, 0.32);
+}
+
+.submit-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4cd9a8 0%, #3cc394 100%);
+  box-shadow: 0 8px 22px rgba(60, 195, 148, 0.42);
+  transform: translateY(-1px);
+}
+
+.submit-btn__arrow {
+  font-size: 1rem;
+}
 
 .register-login-hint {
   text-align: center;
-  margin: 16px 0 0;
-  font-size: 0.9rem;
-  color: var(--muted);
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: #64748b;
 }
+
 .register-login-hint a {
-  color: var(--green);
+  color: #d97706;
   font-weight: 600;
   text-decoration: none;
+  margin-left: 4px;
+  transition: color 0.2s;
 }
-.register-login-hint a:hover { text-decoration: underline; }
 
-/* ── Aside ── */
-.register-aside {
-  flex: 1.15;
-  align-self: stretch;
-  position: relative;
-  background: #14361f;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  padding: 48px 40px;
-  border-radius: 20px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
-  min-height: 560px;
+.register-login-hint a:hover {
+  color: #b45309;
+  text-decoration: underline;
 }
-.register-aside__overlay {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.register-aside__badge {
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid rgba(255,255,255,.35);
-  border-radius: 999px;
-  padding: 6px 16px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  margin-bottom: 24px;
-  background: rgba(255,255,255,.06);
-}
-.register-aside__title {
-  font-size: 2.1rem;
-  font-weight: 800;
-  line-height: 1.3;
-  margin: 0 0 16px;
-}
-.register-aside__title .highlight { color: #6ee7a0; }
-.register-aside__desc {
-  font-size: 1rem;
-  color: rgba(255,255,255,.85);
-  line-height: 1.6;
-  margin-bottom: 36px;
-}
-.register-aside__features {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  margin: auto 0;
-}
-.feature {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-.feature__icon {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,.12);
-  color: #6ee7a0;
-}
-.feature h4 {
-  margin: 0 0 4px;
-  font-size: 1rem;
-  font-weight: 700;
-}
-.feature p {
-  margin: 0;
-  font-size: 0.88rem;
-  color: rgba(255,255,255,.75);
-  line-height: 1.5;
-}
-.register-aside__footer {
-  width: fit-content;
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #d4f7e1;
-  border: 1px solid rgba(255,255,255,.18);
-  border-radius: 12px;
-  padding: 12px 16px;
-  background: rgba(0,0,0,.15);
-}
-.register-aside__footer svg { color: #6ee7a0; flex-shrink: 0; }
 
-/* Alert lỗi API */
+/* ============================================================
+   11. ALERTS (giống .auth-v3-error)
+   ============================================================ */
 .alert {
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  margin-bottom: 16px;
-  font-size: 0.9rem;
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
-.alert-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+.alert-danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
 .btn-close {
   background: none;
   border: none;
   cursor: pointer;
   font-size: 1rem;
-  color: inherit;
+  color: #b91c1c;
   opacity: 0.7;
+  padding: 0;
 }
-.btn-close:hover { opacity: 1; }
 
-/* Dấu (*) cho các trường bắt buộc */
-.required-mark {
-  color: #dc2626;
-  margin-left: 2px;
+.btn-close:hover {
+  opacity: 1;
+}
+
+/* ============================================================
+   12. RESPONSIVE
+   ============================================================ */
+
+/* Large desktop — badges hiển thị, layout gọn gàng vừa vặn màn hình */
+@media (min-width: 1200px) {
+  .register-layout {
+    padding: 16px var(--badge-col) 20px;
+  }
+}
+
+/* Medium (1000–1199px): không đủ chỗ badge → thu nhỏ padding */
+@media (max-width: 1199px) {
+  .register-layout {
+    padding: 20px 24px 24px;
+  }
+
+  .register-form-panel {
+    max-width: 820px;
+    padding: 24px 32px 20px;
+  }
+}
+
+/* Tablet (≤ 900px): 2 cột */
+@media (max-width: 900px) {
+  .register-form-panel {
+    padding: 22px 20px 18px;
+    border-radius: 20px;
+  }
+
+  .role-toggle {
+    max-width: 100%;
+  }
+}
+
+/* Small tablet / large mobile (≤ 680px): 1 cột */
+@media (max-width: 680px) {
+  .register-layout {
+    padding: 22px 12px 36px;
+  }
+
+  .register-form-panel {
+    padding: 24px 18px;
+    border-radius: 18px;
+  }
+
+  .form-row,
+  .form-row--3col {
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  .form-row .form-group,
+  .form-row--3col .form-group {
+    margin-bottom: 14px;
+  }
+
+  .register-title {
+    font-size: 1.45rem;
+  }
+}
+
+/* Mobile (≤ 420px) */
+@media (max-width: 420px) {
+  .register-form-panel {
+    padding: 20px 14px;
+    border-radius: 16px;
+  }
+
+  .register-title {
+    font-size: 1.3rem;
+  }
+
+  .submit-btn {
+    padding: 11px;
+    font-size: 0.94rem;
+  }
 }
