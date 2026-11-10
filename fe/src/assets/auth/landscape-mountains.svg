@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 520" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#91b99a" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#4d846d" stop-opacity=".78"/>
+    </linearGradient>
+    <linearGradient id="mid" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#4d8a6e" stop-opacity=".74"/>
+      <stop offset="1" stop-color="#1f624e" stop-opacity=".94"/>
+    </linearGradient>
+    <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#245f4c"/>
+      <stop offset="1" stop-color="#0b3b30"/>
+    </linearGradient>
+  </defs>
+  <path d="M0 230c140-94 253-94 380-18 142-128 293-130 436-18 139-108 301-119 472-8 55-51 105-83 152-96v430H0Z" fill="url(#far)"/>
+  <path d="M0 298c161-96 302-81 450-5 171-136 352-120 515-9 143-99 307-98 475 0v236H0Z" fill="url(#mid)"/>
+  <path d="M0 370c198-82 359-52 527 18 184-112 383-98 561-6 119-57 236-72 352-30v168H0Z" fill="url(#near)"/>
+</svg>

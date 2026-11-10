@@ -219,7 +219,7 @@ function FarmerHome() {
               transition={{ duration: 0.68, ease: "easeOut", delay: 0.15 }}
             >
               <div className="frh-panel-top">
-                <span>PreOnic Farmer Workspace</span>
+                <span>Farmora Farmer Workspace</span>
                 <strong>Mùa vụ hôm nay</strong>
               </div>
 

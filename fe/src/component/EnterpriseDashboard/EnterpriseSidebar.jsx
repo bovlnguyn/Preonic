@@ -33,7 +33,7 @@ function EnterpriseSidebar() {
       homePath="/enterprise-home"
       workspaceLabel="Enterprise workspace"
       navAriaLabel="Enterprise dashboard navigation"
-      defaultName="Doanh nghiệp PreOnic"
+      defaultName="Doanh nghiệp Farmora"
       navItems={NAV_ITEMS}
     />
   );

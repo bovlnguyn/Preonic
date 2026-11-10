@@ -425,7 +425,7 @@ export const recordGhnTrackingEvent = async (event: NormalizedGhnEvent) => {
       recipientRole: 'enterprise',
       type: 'ghn_delivery_arrived',
       title: 'GHN báo giao hàng thành công',
-      message: `GHN đã cập nhật mã ${event.trackingCode} là đã giao. Vui lòng kiểm tra hàng và xác nhận đã nhận trên PreOnic.`,
+      message: `GHN đã cập nhật mã ${event.trackingCode} là đã giao. Vui lòng kiểm tra hàng và xác nhận đã nhận trên Farmora.`,
       severity: 'info',
     });
   }

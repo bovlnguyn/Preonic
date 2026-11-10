@@ -51,7 +51,7 @@ function FeePrompt({ feeAccount, userRole, onClose }) {
         idempotencyKey: buildIdempotencyKey(),
       });
       const payment = res?.data?.payment;
-      toast.success('Đã tạo yêu cầu thanh toán phí PreOnic.');
+      toast.success('Đã tạo yêu cầu thanh toán phí Farmora.');
       onClose();
       navigate(userRole === 'enterprise' ? '/enterprise/billing' : '/farmer/billing', {
         state: { feePayment: payment },
@@ -68,7 +68,7 @@ function FeePrompt({ feeAccount, userRole, onClose }) {
       <div className="dp-modal">
         <h3>Phí dịch vụ đã được ghi nhận</h3>
         <p>
-          Công nợ phí PreOnic hiện tại của bạn là <strong>{fmtMoney(outstanding)}</strong>.
+          Công nợ phí Farmora hiện tại của bạn là <strong>{fmtMoney(outstanding)}</strong>.
           Bạn có thể thanh toán ngay hoặc để hệ thống cộng dồn vào bảng kê.
         </p>
         <div className="dp-modal__actions">

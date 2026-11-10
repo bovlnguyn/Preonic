@@ -22,6 +22,7 @@ export type GoodsPaymentConfirmationMethod =
 export type FeeLedgerEntryType =
   | 'buyer_transaction_fee'
   | 'seller_transaction_fee'
+  | 'advertising_fee'
   | 'payment'
   | 'discount'
   | 'waiver'

@@ -34,7 +34,7 @@ export const NAV_ITEMS = [
 ];
 
 // ===== BRAND =====
-export const BRAND_NAME = 'PreOnic';
+export const BRAND_NAME = 'Farmora';
 
 // ===== TOAST DURATIONS (ms) =====
 export const TOAST_DURATION = {
@@ -66,12 +66,12 @@ export const DATE_FORMATS = {
 
 // ===== COMPANY INFO =====
 export const COMPANY = {
-  NAME: 'PreOnic',
-  FULL_NAME: 'Công ty TNHH PreOnic Việt Nam',
+  NAME: 'Farmora',
+  FULL_NAME: 'Công ty TNHH Farmora Việt Nam',
   DESCRIPTION: 'Nền tảng kết nối nông nghiệp bền vững hàng đầu Việt Nam',
   EMAIL: 'nguyenbao.130304@gmail.com',
   SUPPORT_EMAIL: 'nguyenbao.130304@gmail.com',
-  HOTLINE: '0349 940 617',
+  HOTLINE: '0935856127',
   ADDRESS: 'Đà Nẵng, Việt Nam',
   COPYRIGHT_YEAR: 2026,
   BUYER_SERVICE_FEE_RATE: 0.5,

@@ -30,7 +30,7 @@ const roleContent = {
     eyebrow: "Quản lý mùa vụ và đầu ra",
     title: "Biến thông tin mùa vụ thành cơ hội hợp tác rõ ràng.",
     description:
-      "PreOnic hỗ trợ nông dân chuẩn hóa sản phẩm, tiếp cận doanh nghiệp, theo dõi hợp đồng và nhận thanh toán trong một quy trình thống nhất.",
+      "Farmora hỗ trợ nông dân chuẩn hóa sản phẩm, tiếp cận doanh nghiệp, theo dõi hợp đồng và nhận thanh toán trong một quy trình thống nhất.",
     image: fieldImage,
     imageAlt: "Nông sản và mùa vụ của farmer",
     features: [
@@ -161,7 +161,7 @@ function Solutions() {
   const activeContent = roleContent[activeRole];
 
   return (
-    <div className="public-solutions-page">
+    <div className="public-solutions-page public-solutions-page--v2">
       <Header />
 
       <main>
@@ -170,18 +170,18 @@ function Solutions() {
           <div className="ps-container ps-hero__grid">
             <motion.div variants={stagger} initial="hidden" animate="show">
               <motion.span className="ps-eyebrow" variants={fadeUp}>
-                <FiCheckCircle /> Hệ sinh thái giao dịch nông nghiệp số
+                <FiCheckCircle /> Farmora · Từ mùa vụ đến giao dịch
               </motion.span>
               <motion.h1 variants={fadeUp}>
-                Một nền tảng chung cho <span>mùa vụ, nguồn cung và hợp đồng.</span>
+                Nối mùa vụ ngoài đồng với <span>một giao dịch có thể theo dõi.</span>
               </motion.h1>
               <motion.p variants={fadeUp}>
-                PreOnic giúp khách truy cập hiểu toàn bộ quy trình trước khi tham gia. Khi cần đăng sản phẩm,
-                tạo hợp đồng hoặc quản lý giao dịch thật, người dùng chỉ cần đăng ký và đăng nhập theo đúng vai trò.
+                Farmora đưa thông tin nguồn hàng, quá trình hợp tác, hợp đồng, thanh toán và giao nhận vào một luồng
+                thống nhất — đủ đơn giản để bắt đầu, đủ rõ ràng để hai bên cùng kiểm tra.
               </motion.p>
               <motion.div className="ps-hero__actions" variants={fadeUp}>
                 <button className="ps-btn ps-btn--primary" type="button" onClick={() => navigate("/register")}>
-                  Bắt đầu với PreOnic <FiArrowRight />
+                  Bắt đầu với Farmora <FiArrowRight />
                 </button>
                 <button className="ps-btn ps-btn--glass" type="button" onClick={() => navigate("/products")}>
                   Xem nguồn nông sản
@@ -202,13 +202,13 @@ function Solutions() {
             >
               <div className="ps-network-card">
                 <div className="ps-network-card__top">
-                  <span>Nền tảng PreOnic</span>
-                  <strong>Chuỗi giao dịch kết nối</strong>
+                  <span>Một luồng · Hai vai trò</span>
+                  <strong>Hành trình giao dịch Farmora</strong>
                 </div>
                 <div className="ps-network-flow">
                   <div><FiUsers /><span>Farmer</span></div>
                   <i />
-                  <div className="active"><FiLayers /><span>PreOnic</span></div>
+                  <div className="active"><FiLayers /><span>Farmora</span></div>
                   <i />
                   <div><FiTruck /><span>Enterprise</span></div>
                 </div>
@@ -236,7 +236,15 @@ function Solutions() {
           </div>
         </section>
 
-        <section className="ps-section ps-platform">
+        <nav className="ps-chapter-nav" aria-label="Nội dung trang giới thiệu">
+          <div className="ps-container ps-chapter-nav__inner">
+            <a href="#nen-tang"><span>01</span><strong>Nền tảng</strong><small>Các module cốt lõi</small></a>
+            <a href="#vai-tro"><span>02</span><strong>Theo vai trò</strong><small>Farmer và Enterprise</small></a>
+            <a href="#hanh-trinh"><span>03</span><strong>Hành trình</strong><small>Từ hồ sơ đến hoàn tất</small></a>
+          </div>
+        </nav>
+
+        <section className="ps-section ps-platform" id="nen-tang">
           <div className="ps-container">
             <div className="ps-section__head">
               <span>Giải pháp trên nền tảng</span>
@@ -253,10 +261,11 @@ function Solutions() {
               whileInView="show"
               viewport={{ once: true, amount: 0.14 }}
             >
-              {platformSolutions.map((item) => {
+              {platformSolutions.map((item, index) => {
                 const Icon = item.icon;
                 return (
                   <motion.article className="ps-solution-card" key={item.title} variants={fadeUp}>
+                    <small className="ps-solution-card__number">0{index + 1}</small>
                     <span className="ps-solution-card__icon"><Icon /></span>
                     <h3>{item.title}</h3>
                     <p>{item.description}</p>
@@ -267,12 +276,12 @@ function Solutions() {
           </div>
         </section>
 
-        <section className="ps-section ps-role-section">
+        <section className="ps-section ps-role-section" id="vai-tro">
           <div className="ps-container">
             <div className="ps-role-head">
               <div>
                 <span>Khám phá theo vai trò</span>
-                <h2>PreOnic thay đổi cách làm việc của từng nhóm người dùng.</h2>
+                <h2>Farmora thay đổi cách làm việc của từng nhóm người dùng.</h2>
               </div>
               <div className="ps-role-switch" role="tablist" aria-label="Chọn vai trò">
                 {Object.entries(roleContent).map(([key, item]) => (
@@ -334,7 +343,7 @@ function Solutions() {
           </div>
         </section>
 
-        <section className="ps-section ps-journey-section">
+        <section className="ps-section ps-journey-section" id="hanh-trinh">
           <div className="ps-container ps-journey-layout">
             <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }}>
               <motion.span className="ps-kicker" variants={fadeUp}>Bắt đầu như thế nào?</motion.span>
@@ -365,7 +374,7 @@ function Solutions() {
           <div className="ps-container ps-final-cta__card">
             <div>
               <span><FiShield /> Xem trước, trải nghiệm sau khi đăng nhập</span>
-              <h2>Sẵn sàng kết nối với hệ sinh thái nông nghiệp số PreOnic?</h2>
+              <h2>Sẵn sàng kết nối với hệ sinh thái nông nghiệp số Farmora?</h2>
             </div>
             <div className="ps-final-cta__actions">
               <button type="button" className="ps-btn ps-btn--light" onClick={() => navigate("/register")}>Đăng ký miễn phí</button>

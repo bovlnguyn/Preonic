@@ -77,7 +77,7 @@ function buildOptions(): DataSourceOptions {
       connectTimeout: CONNECT_TIMEOUT_MS,
       cancelTimeout: 5_000,
       useUTC: true,
-      appName: 'PreOnic API',
+      appName: 'Farmora API',
     },
   };
 }

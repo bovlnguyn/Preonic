@@ -16,13 +16,13 @@ describe('User.isProfileComplete', () => {
   it('requires farmName for farmer business actions', () => {
     const user = baseUser('farmer');
     expect(user.isProfileComplete()).toBe(false);
-    user.farmName = 'Trang trai PreOnic';
+    user.farmName = 'Trang trai Farmora';
     expect(user.isProfileComplete()).toBe(true);
   });
 
   it('requires companyName and taxCode for enterprise business actions', () => {
     const user = baseUser('enterprise');
-    user.companyName = 'PreOnic Co.';
+    user.companyName = 'Farmora Co.';
     expect(user.isProfileComplete()).toBe(false);
     user.taxCode = '0312345678';
     expect(user.isProfileComplete()).toBe(true);
@@ -30,7 +30,7 @@ describe('User.isProfileComplete', () => {
 
   it('does not consider an address-less account complete', () => {
     const user = baseUser('farmer');
-    user.farmName = 'Trang trai PreOnic';
+    user.farmName = 'Trang trai Farmora';
     user.address = '';
     expect(user.isProfileComplete()).toBe(false);
   });

@@ -5,8 +5,8 @@ import {
 
 describe('password policy', () => {
   it('accepts password matching the shared FE/BE policy', () => {
-    expect(getPasswordPolicyError('PreOnic@2026')).toBeNull();
-    expect(getPasswordPolicyChecks('PreOnic@2026')).toEqual({
+    expect(getPasswordPolicyError('Farmora@2026')).toBeNull();
+    expect(getPasswordPolicyChecks('Farmora@2026')).toEqual({
       minLength: true,
       maxLength: true,
       hasLetter: true,

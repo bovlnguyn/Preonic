@@ -99,7 +99,7 @@ function AIAgriculture() {
   const RoleIcon = currentRole.icon;
 
   return (
-    <div className="public-ai-page">
+    <div className="public-ai-page public-ai-page--v2">
       <Header />
 
       <main>
@@ -108,14 +108,14 @@ function AIAgriculture() {
           <div className="pai-container pai-hero__grid">
             <motion.div variants={stagger} initial="hidden" animate="show">
               <motion.span className="pai-eyebrow" variants={fadeUp}>
-                <FiCpu /> PreOnic Agricultural Intelligence
+                <FiCpu /> Farmora Intelligence · Trợ lý theo ngữ cảnh
               </motion.span>
               <motion.h1 variants={fadeUp}>
-                AI giúp thông tin nông nghiệp trở nên <span>dễ hiểu và hữu ích hơn.</span>
+                Hiểu dữ liệu mùa vụ nhanh hơn. <span>Quyết định vẫn là của bạn.</span>
               </motion.h1>
               <motion.p variants={fadeUp}>
-                Khách có thể trò chuyện trực tiếp với PreOnic AI để hỏi nhanh về hệ thống, vai trò và quy trình sử dụng.
-                Khi cần phân tích chuyên sâu hoặc phiên dùng thử kết thúc, trợ lý sẽ mời bạn đăng nhập để mở AI đầy đủ.
+                Farmora AI giúp tìm, tóm tắt và giải thích thông tin đang có trong hệ thống. Trợ lý hỗ trợ người dùng
+                nhìn nhanh bối cảnh trước khi tự mình xác nhận hợp đồng, thanh toán hoặc quyết định mùa vụ.
               </motion.p>
               <motion.div className="pai-hero__actions" variants={fadeUp}>
                 <button type="button" className="pai-btn pai-btn--primary" onClick={() => navigate("/register")}>
@@ -147,8 +147,8 @@ function AIAgriculture() {
                   <i className="pai-orbit pai-orbit--two" />
                 </div>
                 <div className="pai-image-card__caption">
-                  <span>AI insight</span>
-                  <strong>Kết nối dữ liệu – giải thích – hỗ trợ hành động</strong>
+                  <span>Tín hiệu mùa vụ</span>
+                  <strong>Từ dữ liệu rời rạc đến một góc nhìn dễ hành động</strong>
                 </div>
               </div>
               <motion.div
@@ -169,21 +169,32 @@ function AIAgriculture() {
           </div>
         </section>
 
-        <section className="pai-section pai-capabilities">
+        <section className="pai-signal-strip" aria-label="Phạm vi dữ liệu AI hỗ trợ">
+          <div className="pai-container pai-signal-strip__inner">
+            <div><FiCloudRain /><span><small>Quan sát</small><strong>Thời tiết và mùa vụ</strong></span></div>
+            <i />
+            <div><FiDatabase /><span><small>Kết nối</small><strong>Nguồn cung và giao dịch</strong></span></div>
+            <i />
+            <div><FiMessageCircle /><span><small>Diễn giải</small><strong>Câu trả lời theo vai trò</strong></span></div>
+          </div>
+        </section>
+
+        <section className="pai-section pai-capabilities" id="ai-capabilities">
           <div className="pai-container">
             <div className="pai-section__head">
               <span>AI hỗ trợ điều gì?</span>
               <h2>Biến dữ liệu phức tạp thành nội dung người dùng có thể hiểu nhanh.</h2>
               <p>
-                PreOnic định hướng AI như một lớp hỗ trợ thông tin, không phải công cụ tự động thay người dùng thực hiện giao dịch.
+                Farmora định hướng AI như một lớp hỗ trợ thông tin, không phải công cụ tự động thay người dùng thực hiện giao dịch.
               </p>
             </div>
 
             <motion.div className="pai-usecase-grid" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.16 }}>
-              {aiUseCases.map((item) => {
+              {aiUseCases.map((item, index) => {
                 const Icon = item.icon;
                 return (
                   <motion.article key={item.title} variants={fadeUp}>
+                    <small className="pai-usecase-number">0{index + 1}</small>
                     <span><Icon /></span>
                     <h3>{item.title}</h3>
                     <p>{item.description}</p>

@@ -415,7 +415,7 @@ function FeePaymentSuccessModal({ payment, role, onClose }) {
         </button>
         <span className="billing-success-modal__icon"><FiCheckCircle /></span>
         <h3 id="billing-success-title">Thanh toán thành công</h3>
-        <p>PreOnic đã xác nhận khoản phí của bạn qua SePay.</p>
+        <p>Farmora đã xác nhận khoản phí của bạn qua SePay.</p>
         <strong>{fmtMoney(payment.amount)}</strong>
         <small>Mã thanh toán: {payment.transferContent}</small>
         <button type="button" className="billing-btn billing-btn--primary" onClick={onClose} autoFocus>
@@ -500,7 +500,7 @@ function FeePaymentBox({
             </div>
             <dl>
               <div><dt>Ngân hàng</dt><dd>{payment.recipient?.bankCode || 'Theo mã QR'}</dd></div>
-              <div><dt>Chủ tài khoản</dt><dd>{payment.recipient?.accountHolder || 'PREONIC'}</dd></div>
+              <div><dt>Chủ tài khoản</dt><dd>{payment.recipient?.accountHolder || 'FARMORA'}</dd></div>
               <div><dt>Số tài khoản</dt><dd>{payment.recipient?.accountNumber || 'Đã mã hóa trong QR'}</dd></div>
               <div>
                 <dt>Nội dung chuyển khoản</dt>

@@ -97,7 +97,7 @@ function ProductCardImage({ item }) {
         <div className="ep-product-card__image-fallback">
           <FiPackage />
           <strong>{item?.name || "Nông sản"}</strong>
-          <span>{CATEGORY_LABEL[item?.category] || item?.category || "Nguồn cung PreOnic"}</span>
+          <span>{CATEGORY_LABEL[item?.category] || item?.category || "Nguồn cung Farmora"}</span>
         </div>
       )}
     </div>
@@ -154,7 +154,7 @@ function EnterpriseProducts() {
               <span className="ep-eyebrow"><FiPackage /> Enterprise supply marketplace</span>
               <h1>Tìm nguồn cung nông sản phù hợp để thu mua và ký hợp đồng.</h1>
               <p>
-                Danh sách nguồn cung thực tế từ nông dân trên PreOnic. Lọc theo danh mục, vùng miền và từ khóa để tìm nhà cung cấp phù hợp nhu cầu thu mua của doanh nghiệp bạn.
+                Danh sách nguồn cung thực tế từ nông dân trên Farmora. Lọc theo danh mục, vùng miền và từ khóa để tìm nhà cung cấp phù hợp nhu cầu thu mua của doanh nghiệp bạn.
               </p>
             </motion.div>
 

@@ -14,7 +14,7 @@ class AppErrorBoundary extends React.Component {
   componentDidCatch(error, info) {
     // Giữ log ở console để dev có thể chẩn đoán, nhưng không lộ stack trace trên UI.
     // eslint-disable-next-line no-console
-    console.error('PreOnic UI error:', error, info);
+    console.error('Farmora UI error:', error, info);
   }
 
   handleRetry = () => {
@@ -28,7 +28,7 @@ class AppErrorBoundary extends React.Component {
     return (
       <main className="app-error-boundary" role="alert">
         <div className="app-error-boundary__card">
-          <span className="app-error-boundary__badge">PREONIC</span>
+          <span className="app-error-boundary__badge">FARMORA</span>
           <h1>Giao diện đang gặp sự cố tạm thời</h1>
           <p>
             Dữ liệu của bạn không bị xóa. Hãy tải lại trang hoặc quay về trang chủ để tiếp tục.

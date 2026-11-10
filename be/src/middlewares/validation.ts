@@ -41,7 +41,7 @@ const handleValidationErrors = (
 
 /**
  * Validate Register
- * Matches FE Register.jsx: { fullName, email, phone, password, confirmPassword, role, agreeTerms }
+ * Matches FE Register.jsx, including optional farm/company identity and tax details.
  */
 export const validateRegister = [
 
@@ -97,6 +97,28 @@ body('lastName')
     .trim()
     .isLength({ max: 100 })
     .withMessage('Xã / phường / thị trấn không hợp lệ'),
+
+  body('farmName')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 255 })
+    .withMessage('Tên nông trại phải từ 2 đến 255 ký tự')
+    .matches(/^(?=.*\p{L})[\p{L}\p{N}\s.,'’/&()#-]+$/u)
+    .withMessage('Tên nông trại chứa ký tự không hợp lệ'),
+
+  body('companyName')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 255 })
+    .withMessage('Tên công ty phải từ 2 đến 255 ký tự')
+    .matches(/^(?=.*\p{L})[\p{L}\p{N}\s.,'’/&()#-]+$/u)
+    .withMessage('Tên công ty chứa ký tự không hợp lệ'),
+
+  body('taxCode')
+    .optional({ checkFalsy: true })
+    .trim()
+    .matches(/^[0-9]{10}(?:-[0-9]{3})?$/)
+    .withMessage('Mã số thuế phải gồm 10 số hoặc dạng 10 số-3 số'),
 
   body('password')
     .notEmpty()

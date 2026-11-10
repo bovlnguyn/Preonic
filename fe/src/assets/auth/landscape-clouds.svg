@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 220" preserveAspectRatio="none">
+  <defs>
+    <filter id="blur"><feGaussianBlur stdDeviation="7"/></filter>
+    <linearGradient id="cloud" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#fff" stop-opacity=".86"/>
+      <stop offset=".65" stop-color="#f6fff8" stop-opacity=".58"/>
+      <stop offset="1" stop-color="#dff5e8" stop-opacity=".12"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#cloud)" filter="url(#blur)">
+    <path d="M15 156c0-26 22-47 49-47 8 0 15 2 22 5 13-35 46-59 85-59 47 0 85 35 90 80 11-8 24-12 39-12 36 0 65 26 65 58H61c-26 0-46-9-46-25Z"/>
+    <path d="M350 178c2-28 25-49 54-49 8 0 17 2 24 5 16-42 54-70 99-70 53 0 96 39 104 90 16-11 35-18 55-18 32 0 59 16 72 42Z"/>
+    <path d="M760 179c0-25 20-45 46-45 7 0 14 2 20 5 13-35 47-59 87-59 47 0 85 35 91 80 12-9 27-14 43-14 29 0 54 13 68 33Z"/>
+    <path d="M1093 182c3-32 30-57 63-57 10 0 20 2 29 7 17-47 60-79 111-79 61 0 111 46 118 105 15-10 32-15 51-15 30 0 56 15 72 39Z"/>
+    <path d="M1447 182c0-25 20-45 46-45 7 0 14 2 20 5 13-35 47-59 87-59 47 0 85 35 91 80 12-9 27-14 43-14 29 0 54 13 68 33Z"/>
+  </g>
+</svg>

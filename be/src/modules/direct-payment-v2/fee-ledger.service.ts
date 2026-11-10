@@ -37,6 +37,41 @@ export const ensureFeeAccountWithManager = async (
   return account;
 };
 
+/** Ghi phí quảng cáo vào cùng sổ công nợ tháng đang dùng cho phí nền tảng. */
+export const postAdvertisingFeeWithManager = async (
+  manager: EntityManager,
+  params: { userId: string; campaignId: string; amount: number; description: string }
+): Promise<PlatformFeeLedgerEntry> => {
+  const amount = asMoney(params.amount);
+  if (amount <= 0) throw makeError('Chi phí quảng cáo phải lớn hơn 0', 400);
+
+  const repo = manager.getRepository(PlatformFeeLedgerEntry);
+  const idempotencyKey = `advertising:${params.campaignId}`;
+  const existing = await repo.findOne({ where: { idempotencyKey } });
+  if (existing) return existing;
+
+  const postedAt = new Date();
+  const entry = await repo.save(repo.create({
+    userId: params.userId,
+    contractId: null,
+    goodsPaymentId: null,
+    feePolicyId: null,
+    statementId: null,
+    entryType: 'advertising_fee',
+    direction: 'debit',
+    amount,
+    feeRateBps: null,
+    status: 'posted',
+    idempotencyKey,
+    description: params.description,
+    postedAt,
+    voidedAt: null,
+  }));
+
+  await recalculateFeeAccountWithManager(manager, params.userId);
+  return entry;
+};
+
 const getPostedLedgerBalanceWithManager = async (
   manager: EntityManager,
   userId: string

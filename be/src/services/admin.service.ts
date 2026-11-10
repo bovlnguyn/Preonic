@@ -251,14 +251,14 @@ export const resolveDispute = async (disputeId: string, resolution: string, admi
         await adjustContractProductInventoryWithManager(manager, contract, 'restore');
       }
       contract.status = 'cancelled'; contract.cancelledAt = contract.cancelledAt || now;
-      contract.cancelReason = notes || 'Tranh chấp được xử lý nghiêng về doanh nghiệp; khoản đã chuyển trực tiếp phải hoàn trả ngoài PreOnic.';
+      contract.cancelReason = notes || 'Tranh chấp được xử lý nghiêng về doanh nghiệp; khoản đã chuyển trực tiếp phải hoàn trả ngoài Farmora.';
     }
     if (adminId) contract.updatedBy = adminId;
     await contracts.save(contract);
-    dispute.status = 'resolved'; dispute.resolution = resolution; dispute.adminNotes = notes || dispute.adminNotes || 'PreOnic không tự động di chuyển hoặc thu hồi tiền đã chuyển trực tiếp.'; dispute.resolvedAt = now;
+    dispute.status = 'resolved'; dispute.resolution = resolution; dispute.adminNotes = notes || dispute.adminNotes || 'Farmora không tự động di chuyển hoặc thu hồi tiền đã chuyển trực tiếp.'; dispute.resolvedAt = now;
     await disputes.save(dispute);
     const siblings = await disputes.createQueryBuilder().update(Dispute).set({ status: 'closed', resolvedAt: now, adminNotes: `Tự động đóng vì tranh chấp ${dispute.id} đã được giải quyết.` }).where('ContractId = :contractId', { contractId: contract.id }).andWhere('DisputeId <> :disputeId', { disputeId }).andWhere("Status IN ('open', 'under_review')").execute();
-    const message = resolution === 'farmer' ? `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết nghiêng về nông dân.` : `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết nghiêng về doanh nghiệp. PreOnic không thể tự động thu hồi tiền đã chuyển trực tiếp.`;
+    const message = resolution === 'farmer' ? `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết nghiêng về nông dân.` : `Tranh chấp hợp đồng ${contract.contractCode} đã được giải quyết nghiêng về doanh nghiệp. Farmora không thể tự động thu hồi tiền đã chuyển trực tiếp.`;
     await notifications.save([dispute.raisedBy, dispute.againstUserId].map(userId => notifications.create({ userId, type: 'dispute_resolved', title: 'Khiếu nại đã được giải quyết', message, relatedId: dispute.id, relatedModel: 'Dispute', severity: 'info', isRead: false, emailSent: false })));
     return { contractId: contract.id, contractCode: contract.contractCode, raisedBy: dispute.raisedBy, raisedByRole: dispute.raisedByRole, againstUserId: dispute.againstUserId, message, manualSettlementRequired, closedSiblingCount: Number(siblings.affected || 0) };
   }, { label: 'admin.resolveDirectDispute' });

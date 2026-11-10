@@ -22,7 +22,7 @@ describe('public AI guest service', () => {
   });
 
   it('sanitizes a public message and history', () => {
-    expect(sanitizePublicMessage('  PreOnic   là gì?  ')).toBe('PreOnic là gì?');
+    expect(sanitizePublicMessage('  Farmora   là gì?  ')).toBe('Farmora là gì?');
     expect(
       sanitizePublicHistory([
         { role: 'user', content: ' Xin chào ' },
@@ -36,7 +36,7 @@ describe('public AI guest service', () => {
   });
 
   it('detects clearly advanced or account-specific questions', () => {
-    expect(isClearlyAdvancedQuestion('PreOnic là gì?')).toBe(false);
+    expect(isClearlyAdvancedQuestion('Farmora là gì?')).toBe(false);
     expect(
       isClearlyAdvancedQuestion('Hãy phân tích chi tiết hợp đồng của tôi và số dư ví của tôi')
     ).toBe(true);
@@ -72,7 +72,7 @@ describe('public AI guest service', () => {
                 {
                   type: 'output_text',
                   text: JSON.stringify({
-                    answer: 'PreOnic kết nối Farmer và Enterprise.',
+                    answer: 'Farmora kết nối Farmer và Enterprise.',
                     requires_login: false,
                     category: 'preonic_basic',
                   }),
@@ -84,12 +84,12 @@ describe('public AI guest service', () => {
     } as Response);
 
     await expect(
-      createPublicAiReply('PreOnic là gì?', [
+      createPublicAiReply('Farmora là gì?', [
         { role: 'user', content: 'Xin chào' },
         { role: 'assistant', content: 'Chào bạn!' },
       ])
     ).resolves.toEqual({
-      answer: 'PreOnic kết nối Farmer và Enterprise.',
+      answer: 'Farmora kết nối Farmer và Enterprise.',
       requiresLogin: false,
       category: 'preonic_basic',
     });

@@ -77,7 +77,7 @@ function EnterpriseSolutions() {
             </motion.div>
 
             <motion.div className="es-orbit-card" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.65 }}>
-              <div className="es-orbit-card__center"><FiLayers /><strong>PreOnic</strong></div>
+              <div className="es-orbit-card__center"><FiLayers /><strong>Farmora</strong></div>
               <span className="point point-1">Nguồn cung</span>
               <span className="point point-2">Hợp đồng</span>
               <span className="point point-3">Thanh toán</span>

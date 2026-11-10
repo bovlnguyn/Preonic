@@ -61,7 +61,7 @@ function HomeHero() {
           </motion.h1>
 
           <motion.p variants={fadeUp}>
-            PreOnic giúp nông dân quản lý nông sản, doanh nghiệp tìm nguồn cung
+            Farmora giúp nông dân quản lý nông sản, doanh nghiệp tìm nguồn cung
             đáng tin cậy và toàn bộ quá trình giao dịch được theo dõi rõ ràng từ
             đồng ruộng đến thị trường.
           </motion.p>

@@ -9,7 +9,7 @@ function FarmerTopbar() {
       sectionLabel="Farmer dashboard"
       title="Quản lý nông sản và hợp đồng"
       searchPlaceholder="Tìm mùa vụ, hợp đồng, đơn hàng..."
-      defaultName="Nông dân PreOnic"
+      defaultName="Nông dân Farmora"
     />
   );
 }

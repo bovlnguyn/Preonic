@@ -40,10 +40,10 @@ function DashboardSidebar({
       <aside className={`${classPrefix}-sidebar`}>
         <button className={`${classPrefix}-brand`} type="button" onClick={() => navigate(rootPath)}>
           <span className={`${classPrefix}-brand__logo`}>
-            <img src={logo} alt="PreOnic" />
+            <img src={logo} alt="Farmora" />
           </span>
           <span>
-            <strong>PreOnic</strong>
+            <strong>Farmora</strong>
             <small>{workspaceLabel}</small>
           </span>
         </button>

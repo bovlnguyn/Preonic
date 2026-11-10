@@ -35,7 +35,7 @@ const getTransporter = () => {
 };
 
 const getFrom = () => {
-  const name = process.env.SMTP_FROM_NAME?.trim() || 'PreOnic Platform';
+  const name = process.env.SMTP_FROM_NAME?.trim() || 'Farmora Platform';
   const email = process.env.SMTP_FROM_EMAIL?.trim() || required('SMTP_USER');
   return `"${name.replace(/["\r\n]/g, '')}" <${email}>`;
 };
@@ -61,17 +61,17 @@ export const sendResetPasswordEmail = async (
     from: getFrom(),
     replyTo: getSupportInbox(),
     to:      toEmail,
-    subject: 'Đặt lại mật khẩu PreOnic',
+    subject: 'Đặt lại mật khẩu Farmora',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #16a34a; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
-          <h1 style="color: #fff; margin: 0; font-size: 24px;">🌾 PreOnic</h1>
+          <h1 style="color: #fff; margin: 0; font-size: 24px;">🌾 Farmora</h1>
         </div>
 
         <div style="padding: 32px; background: #fff; border: 1px solid #e5e7eb;">
           <h2 style="color: #0f1d12; margin-bottom: 16px;">Xin chào ${escapeHtml(userName)}!</h2>
           <p style="color: #6b7c70; line-height: 1.6;">
-            Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản PreOnic của bạn.
+            Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Farmora của bạn.
           </p>
           <p style="color: #6b7c70; line-height: 1.6;">
             Nhấn vào nút bên dưới để đặt lại mật khẩu. Link này có hiệu lực trong <strong>10 phút</strong>.
@@ -100,7 +100,7 @@ export const sendResetPasswordEmail = async (
         <div style="background: #f9fafb; padding: 16px; text-align: center;
                     border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            © 2026 PreOnic. Nền tảng kết nối nông nghiệp bền vững.
+            © 2026 Farmora. Nền tảng kết nối nông nghiệp bền vững.
           </p>
         </div>
       </div>
@@ -132,7 +132,7 @@ export const sendNotificationEmail = async (
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #16a34a; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
-          <h1 style="color: #fff; margin: 0; font-size: 24px;">🌾 PreOnic</h1>
+          <h1 style="color: #fff; margin: 0; font-size: 24px;">🌾 Farmora</h1>
         </div>
 
         <div style="padding: 32px; background: #fff; border: 1px solid #e5e7eb;">
@@ -153,7 +153,7 @@ export const sendNotificationEmail = async (
         <div style="background: #f9fafb; padding: 16px; text-align: center;
                     border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            © 2026 PreOnic. Nền tảng kết nối nông nghiệp bền vững.
+            © 2026 Farmora. Nền tảng kết nối nông nghiệp bền vững.
           </p>
         </div>
       </div>
@@ -172,17 +172,17 @@ export const sendVerifyEmail = async (
     from: getFrom(),
     replyTo: getSupportInbox(),
     to:      toEmail,
-    subject: 'Xác minh email PreOnic',
+    subject: 'Xác minh email Farmora',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #16a34a; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
-          <h1 style="color: #fff; margin: 0; font-size: 24px;">🌾 PreOnic</h1>
+          <h1 style="color: #fff; margin: 0; font-size: 24px;">🌾 Farmora</h1>
         </div>
 
         <div style="padding: 32px; background: #fff; border: 1px solid #e5e7eb;">
           <h2 style="color: #0f1d12; margin-bottom: 16px;">Xin chào ${escapeHtml(userName)}!</h2>
           <p style="color: #6b7c70; line-height: 1.6;">
-            Cảm ơn bạn đã đăng ký tài khoản PreOnic. 
+            Cảm ơn bạn đã đăng ký tài khoản Farmora.
             Vui lòng xác minh email để hoàn tất đăng ký.
           </p>
           <p style="color: #6b7c70; line-height: 1.6;">
@@ -199,7 +199,7 @@ export const sendVerifyEmail = async (
           </div>
 
           <p style="color: #9ca3af; font-size: 13px;">
-            Nếu bạn không đăng ký tài khoản PreOnic, hãy bỏ qua email này.
+            Nếu bạn không đăng ký tài khoản Farmora, hãy bỏ qua email này.
           </p>
 
           <p style="color: #9ca3af; font-size: 13px;">
@@ -211,7 +211,7 @@ export const sendVerifyEmail = async (
         <div style="background: #f9fafb; padding: 16px; text-align: center;
                     border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            © 2026 PreOnic. Nền tảng kết nối nông nghiệp bền vững.
+            © 2026 Farmora. Nền tảng kết nối nông nghiệp bền vững.
           </p>
         </div>
       </div>
@@ -241,7 +241,7 @@ export const sendContactRequestEmail = async (input: ContactEmailInput) => {
     from: getFrom(),
     to: inbox,
     replyTo: { name: input.name, address: input.email },
-    subject: `[PreOnic · ${audienceLabel[input.audience]}] ${input.topic}`,
+    subject: `[Farmora · ${audienceLabel[input.audience]}] ${input.topic}`,
     text: [
       `Nhóm người dùng: ${audienceLabel[input.audience]}`,
       `Họ tên: ${input.name}`,
@@ -255,7 +255,7 @@ export const sendContactRequestEmail = async (input: ContactEmailInput) => {
     html: `
       <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#173523">
         <div style="padding:22px 26px;color:#fff;background:#166534;border-radius:14px 14px 0 0">
-          <h1 style="margin:0;font-size:22px">Yêu cầu hỗ trợ PreOnic</h1>
+          <h1 style="margin:0;font-size:22px">Yêu cầu hỗ trợ Farmora</h1>
         </div>
         <div style="padding:26px;border:1px solid #dcfce7;border-top:0">
           <p><strong>Nhóm người dùng:</strong> ${escapeHtml(audienceLabel[input.audience])}</p>
@@ -278,12 +278,12 @@ export const sendContactAcknowledgement = async (input: ContactEmailInput) => {
     from: getFrom(),
     to: input.email,
     replyTo: getSupportInbox(),
-    subject: 'PreOnic đã nhận được yêu cầu hỗ trợ của bạn',
-    text: `Xin chào ${input.name},\n\nPreOnic đã nhận được yêu cầu "${input.topic}". Đội hỗ trợ sẽ phản hồi qua email này trong thời gian sớm nhất.\n\nTrân trọng,\nPreOnic`,
+    subject: 'Farmora đã nhận được yêu cầu hỗ trợ của bạn',
+    text: `Xin chào ${input.name},\n\nFarmora đã nhận được yêu cầu "${input.topic}". Đội hỗ trợ sẽ phản hồi qua email này trong thời gian sớm nhất.\n\nTrân trọng,\nFarmora`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#173523">
         <div style="padding:24px;color:#fff;background:#166534;border-radius:14px 14px 0 0">
-          <h1 style="margin:0;font-size:22px">PreOnic đã nhận yêu cầu</h1>
+          <h1 style="margin:0;font-size:22px">Farmora đã nhận yêu cầu</h1>
         </div>
         <div style="padding:28px;border:1px solid #dcfce7;border-top:0;line-height:1.65">
           <p>Xin chào <strong>${escapeHtml(input.name)}</strong>,</p>

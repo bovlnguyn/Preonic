@@ -6,6 +6,7 @@ import {
   FiLock,
   FiMail,
   FiMapPin,
+  FiPhone,
   FiShield,
   FiUsers,
 } from "react-icons/fi";
@@ -71,7 +72,7 @@ function Footer() {
             : "Danh sách sản phẩm",
       path: config.products,
     },
-    { label: "Tìm hiểu về Preonic", path: config.solutions },
+    { label: "Tìm hiểu về Farmora", path: config.solutions },
     ...(config.dashboard
       ? [{ label: "Dashboard", path: config.dashboard }]
       : []),
@@ -105,10 +106,10 @@ function Footer() {
           <div className="preonic-footer__brand-column">
             <Link className="preonic-footer__brand" to={config.home}>
               <span className="preonic-footer__logo-shell">
-                <img src={logo} alt="PreOnic" />
+                <img src={logo} alt="Farmora" />
               </span>
               <span>
-                <strong>PreOnic</strong>
+                <strong>Farmora</strong>
                 <small>Nông nghiệp số minh bạch</small>
               </span>
             </Link>
@@ -122,6 +123,9 @@ function Footer() {
             <div className="preonic-footer__contact-list">
               <a href={`mailto:${COMPANY.SUPPORT_EMAIL}`}>
                 <FiMail /> {COMPANY.SUPPORT_EMAIL}
+              </a>
+              <a href={`tel:${COMPANY.HOTLINE}`}>
+                <FiPhone /> {COMPANY.HOTLINE}
               </a>
               <span>
                 <FiMapPin /> Việt Nam
@@ -199,7 +203,7 @@ function Footer() {
         </div>
 
         <div className="preonic-footer__bottom">
-          <p>© {year} PreOnic. All rights reserved.</p>
+          <p>© {year} Farmora. All rights reserved.</p>
           <p>Sản phẩm phát triển cho hệ sinh thái kết nối nông nghiệp số.</p>
         </div>
       </div>

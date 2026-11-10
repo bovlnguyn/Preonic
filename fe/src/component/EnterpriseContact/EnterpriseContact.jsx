@@ -15,11 +15,12 @@ import Header from "../Common/Header";
 import Footer from "../Common/Footer";
 import contactService from "../../services/contact.service";
 import { useToast } from "../../contexts/ToastContext";
+import { COMPANY } from "../../constants";
 import "./EnterpriseContact.css";
 
 const contactCards = [
-  { icon: FiPhone, title: "Hotline thu mua", value: "1900 8899", desc: "Tư vấn quy trình hợp đồng và thanh toán trực tiếp." },
-  { icon: FiMail, title: "Email hỗ trợ", value: "enterprise@preonic.vn", desc: "Phản hồi trong vòng 24 giờ làm việc." },
+  { icon: FiPhone, title: "Hotline thu mua", value: COMPANY.HOTLINE, desc: "Tư vấn quy trình hợp đồng và thanh toán trực tiếp." },
+  { icon: FiMail, title: "Email hỗ trợ", value: COMPANY.SUPPORT_EMAIL, desc: "Phản hồi trong vòng 24 giờ làm việc." },
   { icon: FiMapPin, title: "Văn phòng điều phối", value: "Đà Nẵng, Việt Nam", desc: "Kết nối vùng cung ứng miền Trung - Tây Nguyên." },
 ];
 
@@ -74,7 +75,7 @@ function EnterpriseContact() {
           <div className="ec-container ec-hero__grid">
             <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
               <span className="ec-eyebrow"><FiMessageCircle /> Enterprise support center</span>
-              <h1>Kết nối với PreOnic để triển khai quy trình thu mua hiệu quả hơn.</h1>
+              <h1>Kết nối với Farmora để triển khai quy trình thu mua hiệu quả hơn.</h1>
               <p>
                 Trang liên hệ dành riêng cho doanh nghiệp, tập trung vào nhu cầu tìm nguồn cung, hợp đồng, thanh toán và quản lý đối tác farmer.
               </p>
@@ -83,7 +84,7 @@ function EnterpriseContact() {
             <motion.div className="ec-response-card" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.55, delay: 0.1 }}>
               <FiClock />
               <strong>Phản hồi ưu tiên</strong>
-              <span>Đội ngũ PreOnic sẽ hỗ trợ doanh nghiệp trong ngày làm việc.</span>
+              <span>Đội ngũ Farmora sẽ hỗ trợ doanh nghiệp trong ngày làm việc.</span>
             </motion.div>
           </div>
         </section>
@@ -102,7 +103,7 @@ function EnterpriseContact() {
         <section className="ec-container ec-contact-grid">
           <motion.form className="ec-form" onSubmit={handleSubmit} initial={{ opacity: 0, x: -24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
             <span className="ec-eyebrow ec-eyebrow--blue"><FiSend /> Gửi yêu cầu tư vấn</span>
-            <h2>Cho PreOnic biết nhu cầu thu mua của bạn.</h2>
+            <h2>Cho Farmora biết nhu cầu thu mua của bạn.</h2>
 
             <div className="ec-field-row">
               <label>

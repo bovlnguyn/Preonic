@@ -22,6 +22,7 @@ import aiRoutes from './routes/ai.routes';
 import billingRoutes from './routes/billing.routes';
 import contactRoutes from './routes/contact.routes';
 import orderRoutes from './routes/order.routes';
+import advertisementRoutes from './routes/advertisement.routes';
 // Import Config/Utils
 import { isDatabaseConnected, isDatabaseUnavailableError, markDatabaseUnhealthy } from './config/database';
 import { createLogger } from './utils/logger';
@@ -154,7 +155,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'success',
-    message: 'PreOnic API is running',
+    message: 'Farmora API is running',
     timestamp: new Date().toISOString(),
   });
 });
@@ -183,6 +184,8 @@ app.use(`${API_PREFIX}/billing`, billingRoutes);
 app.use(`${API_PREFIX}/contact`, contactRoutes);
 // Fulfillment lifecycle: cultivation reports, carrier handover and receipt.
 app.use(`${API_PREFIX}/orders`, orderRoutes);
+// Farmer sponsored banners and region-prioritized public home feed.
+app.use(`${API_PREFIX}/advertisements`, advertisementRoutes);
 // ══════════════════════════════════════════════════════
 // 4. ERROR HANDLING (Phải đặt sau cùng)
 // ══════════════════════════════════════════════════════

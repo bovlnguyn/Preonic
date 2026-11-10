@@ -9,11 +9,13 @@ import {
   FiStar,
   FiTrendingUp,
   FiPieChart,
+  FiMonitor,
 } from 'react-icons/fi';
 import DashboardSidebar from '../Common/Dashboard/DashboardSidebar';
 
 const NAV_ITEMS = [
   { to: '/farmer/create-product', label: 'Đăng bán nông sản', icon: FiPlusCircle },
+  { to: '/farmer/advertisements', label: 'Quảng cáo banner', icon: FiMonitor },
   { to: '/farmer', label: 'Tổng quan', icon: FiBarChart2, end: true },
   { to: '/farmer/crops', label: 'Mùa vụ của tôi', icon: FiPackage },
   { to: '/farmer/contracts', label: 'Hợp đồng', icon: FiFileText },
@@ -33,7 +35,7 @@ function FarmerSidebar() {
       homePath="/farmer-home"
       workspaceLabel="Farmer workspace"
       navAriaLabel="Farmer dashboard navigation"
-      defaultName="Nông dân PreOnic"
+      defaultName="Nông dân Farmora"
       navItems={NAV_ITEMS}
     />
   );

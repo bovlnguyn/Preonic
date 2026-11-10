@@ -41,7 +41,7 @@ const extractErrorMessage = (error, fallback) => {
 const authService = {
   /**
    * Register a new user
-   * @param {Object} data - { fullName, email, phone, password, confirmPassword, role }
+   * @param {Object} data - Registration profile, including optional farm/company and tax details.
    * @returns {Promise}
    */
   register: async (data) => {

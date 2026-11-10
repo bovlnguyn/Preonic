@@ -222,7 +222,7 @@ export const cleanupUploadedFiles = async (req: Request): Promise<void> => {
 };
 
 /**
- * Xóa asset cũ khi một URL Cloudinary của chính PreOnic không còn được tham chiếu.
+ * Xóa asset cũ khi một URL Cloudinary của chính Farmora không còn được tham chiếu.
  * URL ngoài Cloudinary (vd Google avatar) được bỏ qua.
  */
 export const cleanupCloudinaryUrls = async (urls: Array<string | null | undefined>): Promise<void> => {
@@ -343,6 +343,12 @@ const loadingPhotoParser = multer({
   limits: { fileSize: MAX_FILE_SIZE, files: 1, fields: 20, parts: 21 },
 }).single('loadingPhoto');
 
+const advertisementBannerParser = multer({
+  storage: tempStorage,
+  fileFilter: basicFileFilter(AVATAR_MIME_TYPES),
+  limits: { fileSize: MAX_FILE_SIZE, files: 1, fields: 20, parts: 21 },
+}).single('banner');
+
 export const uploadProductFiles = createUploadMiddleware(productParser, 'preonic/products');
 export const uploadDisputeFiles = createUploadMiddleware(disputeParser, 'preonic/disputes');
 export const uploadAvatar = createUploadMiddleware(avatarParser, 'preonic/avatars', { avatarOnly: true });
@@ -354,6 +360,11 @@ export const uploadCropReportImages = createUploadMiddleware(
 export const uploadLoadingPhoto = createUploadMiddleware(
   loadingPhotoParser,
   'preonic/orders/loading',
+  { avatarOnly: true }
+);
+export const uploadAdvertisementBanner = createUploadMiddleware(
+  advertisementBannerParser,
+  'preonic/advertisements',
   { avatarOnly: true }
 );
 

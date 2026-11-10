@@ -10,7 +10,7 @@ interface SchemaRequirement {
 
 
 /**
- * Những table/column bắt buộc để hệ thống PreOnic chạy ổn định.
+ * Những table/column bắt buộc để hệ thống Farmora chạy ổn định.
  *
  * Lưu ý:
  * - Đây không thay thế migration.

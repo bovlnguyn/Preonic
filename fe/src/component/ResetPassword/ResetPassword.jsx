@@ -83,7 +83,7 @@ export default function ResetPassword() {
         <div className="rp-header">
           <div className="rp-logo">🌾</div>
           <h2 className="rp-title">Đặt lại mật khẩu</h2>
-          <p className="rp-sub">Nhập mật khẩu mới cho tài khoản PreOnic của bạn.</p>
+          <p className="rp-sub">Nhập mật khẩu mới cho tài khoản Farmora của bạn.</p>
         </div>
 
         {/* Error */}

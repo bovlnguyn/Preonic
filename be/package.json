@@ -1,7 +1,7 @@
 {
-  "name": "preoonic-backend",
+  "name": "farmora-backend",
   "version": "1.0.0",
-  "description": "PreOnic Backend API — Express + TypeScript + SQL Server",
+  "description": "Farmora Backend API — Express + TypeScript + SQL Server",
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",

@@ -170,7 +170,7 @@ export async function lockOne<Entity extends ObjectLiteral>(
 }
 
 /**
- * Convenience helper cho các entity của PreOnic có primary property là `id`.
+ * Convenience helper cho các entity của Farmora có primary property là `id`.
  */
 export async function lockById<
   Entity extends ObjectLiteral & { id: string | number }

@@ -52,7 +52,7 @@ function HomeSolutions() {
           </motion.span>
 
           <motion.h2 variants={fadeUp}>
-            PreOnic giải quyết điểm nghẽn của giao dịch nông sản.
+            Farmora giải quyết điểm nghẽn của giao dịch nông sản.
           </motion.h2>
 
           <motion.p variants={fadeUp}>

@@ -57,7 +57,7 @@ const capabilityCards = [
     icon: FiCloudRain,
     title: 'Thời tiết & lựa chọn cây trồng',
     description:
-      'AI có thể dùng dữ liệu thời tiết của PreOnic để giải thích rủi ro và gợi ý nhóm cây phù hợp theo khu vực.',
+      'AI có thể dùng dữ liệu thời tiết của Farmora để giải thích rủi ro và gợi ý nhóm cây phù hợp theo khu vực.',
   },
   {
     icon: FiPackage,
@@ -69,7 +69,7 @@ const capabilityCards = [
     icon: FiLayers,
     title: 'Hợp đồng & thanh toán',
     description:
-      'Giải thích luồng hợp đồng, chuyển khoản trực tiếp, xác nhận nhận tiền và phí dịch vụ trên PreOnic.',
+      'Giải thích luồng hợp đồng, chuyển khoản trực tiếp, xác nhận nhận tiền và phí dịch vụ trên Farmora.',
   },
 ];
 
@@ -108,7 +108,7 @@ const starterPrompts = [
   'Đất dễ úng thì nên cải thiện thế nào trước khi xuống giống?',
   'Tôi cần chuẩn bị những gì trước khi đăng một mùa vụ mới?',
   'Giúp tôi viết mô tả bán 5 tấn xoài cát Hòa Lộc tại Miền Trung.',
-  'Farmer cần kiểm tra gì trước khi ký hợp đồng trên PreOnic?',
+  'Farmer cần kiểm tra gì trước khi ký hợp đồng trên Farmora?',
   'Tôi nên tải những loại ảnh nào để hồ sơ nông sản chuyên nghiệp hơn?',
 ];
 
@@ -187,7 +187,7 @@ const buildMessage = (role, content, extra = {}) => ({
 const createWelcomeMessage = (userName = 'Farmer') =>
   buildMessage(
     'assistant',
-    `Xin chào ${userName}! Tôi là PreOnic Farmer AI. Bạn có thể hỏi tôi về nông nghiệp, cây trồng, mùa vụ, đất, thời tiết, thu hoạch hoặc các chức năng Farmer như đăng bán nông sản, hợp đồng, thanh toán trực tiếp và phí dịch vụ trên PreOnic.`
+    `Xin chào ${userName}! Tôi là Farmora Farmer AI. Bạn có thể hỏi tôi về nông nghiệp, cây trồng, mùa vụ, đất, thời tiết, thu hoạch hoặc các chức năng Farmer như đăng bán nông sản, hợp đồng, thanh toán trực tiếp và phí dịch vụ trên Farmora.`
   );
 
 const loadStoredMessages = (userName) => {
@@ -229,7 +229,7 @@ const getErrorMessage = (error) => {
 
   return (
     error?.response?.data?.message ||
-    'PreOnic Farmer AI đang tạm thời chưa phản hồi. Vui lòng kiểm tra kết nối và thử lại.'
+    'Farmora Farmer AI đang tạm thời chưa phản hồi. Vui lòng kiểm tra kết nối và thử lại.'
   );
 };
 
@@ -256,7 +256,7 @@ function FarmerAI() {
   const [statusLoading, setStatusLoading] = useState(true);
   const [assistantStatus, setAssistantStatus] = useState({
     available: true,
-    assistantName: 'PreOnic Farmer AI',
+    assistantName: 'Farmora Farmer AI',
     specialties: [],
     suggestedQuestions: starterPrompts.slice(0, 4),
   });
@@ -269,7 +269,7 @@ function FarmerAI() {
         if (!active || !data) return;
         setAssistantStatus({
           available: Boolean(data.available),
-          assistantName: data.assistantName || 'PreOnic Farmer AI',
+          assistantName: data.assistantName || 'Farmora Farmer AI',
           specialties: Array.isArray(data.specialties) ? data.specialties : [],
           suggestedQuestions:
             Array.isArray(data.suggestedQuestions) && data.suggestedQuestions.length
@@ -421,19 +421,19 @@ function FarmerAI() {
 
               <motion.h1 variants={fadeUp}>
                 Trợ lý AI đồng hành cùng Farmer từ{' '}
-                <span>canh tác nông nghiệp đến làm việc trên PreOnic.</span>
+                <span>canh tác nông nghiệp đến làm việc trên Farmora.</span>
               </motion.h1>
 
               <motion.p variants={fadeUp}>
                 Bạn có thể hỏi kiến thức nông nghiệp, lựa chọn cây trồng, đất, nước,
                 mùa vụ, ảnh hưởng thời tiết và đồng thời được hướng dẫn các nghiệp vụ Farmer
-                trên PreOnic như đăng bán, hợp đồng, thanh toán trực tiếp và phí dịch vụ.
+                trên Farmora như đăng bán, hợp đồng, thanh toán trực tiếp và phí dịch vụ.
               </motion.p>
 
               <motion.div className="fai-hero-badges" variants={fadeUp}>
                 <span><FiCheckCircle /> Kiến thức nông nghiệp thực tế</span>
                 <span><FiCheckCircle /> Thời tiết & mùa vụ</span>
-                <span><FiCheckCircle /> Hướng dẫn đúng luồng PreOnic</span>
+                <span><FiCheckCircle /> Hướng dẫn đúng luồng Farmora</span>
               </motion.div>
 
               <motion.div className="fai-actions" variants={fadeUp}>
@@ -457,7 +457,7 @@ function FarmerAI() {
               transition={{ duration: 0.62, ease: 'easeOut', delay: 0.08 }}
             >
               <div className="fai-hero-visual__eyebrow">FARMER AI WORKSPACE</div>
-              <h2>Một trợ lý hiểu cả nông nghiệp và luồng làm việc trên PreOnic.</h2>
+              <h2>Một trợ lý hiểu cả nông nghiệp và luồng làm việc trên Farmora.</h2>
               <p>
                 Hỏi về canh tác hoặc nghiệp vụ Farmer và nhận hướng dẫn ngắn gọn,
                 có điều kiện rõ ràng khi dữ liệu thực địa chưa đủ.
@@ -480,7 +480,7 @@ function FarmerAI() {
               </div>
 
               <div className="fai-hero-visual__footer">
-                <span><FiShield /> Phạm vi: Nông nghiệp & PreOnic</span>
+                <span><FiShield /> Phạm vi: Nông nghiệp & Farmora</span>
                 <strong>Farmer focused</strong>
               </div>
             </motion.aside>
@@ -491,10 +491,10 @@ function FarmerAI() {
           <div className="fai-container">
             <div className="fai-chat-section__head">
               <div>
-                <span><FiMessageCircle /> Làm việc với PreOnic AI</span>
+                <span><FiMessageCircle /> Làm việc với Farmora AI</span>
                 <h2>Hỏi đáp tập trung trong một không gian riêng.</h2>
                 <p>
-                  Hỏi về nông nghiệp hoặc các chức năng PreOnic trong cùng một hội thoại.
+                  Hỏi về nông nghiệp hoặc các chức năng Farmora trong cùng một hội thoại.
                   Nhấn Enter để gửi, Shift + Enter để xuống dòng.
                 </p>
               </div>
@@ -538,7 +538,7 @@ function FarmerAI() {
                     {statusLoading ? <FiLoader className="fai-spin" /> : <FiCpu />}
                     {statusLoading
                       ? 'Đang kết nối trợ lý...'
-                      : 'PreOnic Farmer AI đang hoạt động'}
+                      : 'Farmora Farmer AI đang hoạt động'}
                   </span>
                   <small><FiClock /> AI không thực hiện giao dịch thay người dùng</small>
                 </div>
@@ -553,10 +553,10 @@ function FarmerAI() {
                         {item.role === 'assistant' ? <FiCpu /> : <FiUser />}
                       </span>
                       <div className="fai-bubble__content">
-                        <strong>{item.role === 'assistant' ? 'PreOnic AI' : 'Bạn'}</strong>
+                        <strong>{item.role === 'assistant' ? 'Farmora AI' : 'Bạn'}</strong>
                         <p>{item.content}</p>
                         {item.role === 'assistant' && item.actions?.length > 0 && (
-                          <div className="fai-bubble__actions" aria-label="Hành động được PreOnic AI đề xuất">
+                          <div className="fai-bubble__actions" aria-label="Hành động được Farmora AI đề xuất">
                             {item.actions.map((action, actionIndex) => {
                               const ActionIcon = ACTION_ICONS[action.target] || FiArrowRight;
                               return (
@@ -581,7 +581,7 @@ function FarmerAI() {
                     <div className="fai-bubble assistant is-loading">
                       <span className="fai-bubble__avatar"><FiCpu /></span>
                       <div className="fai-bubble__content">
-                        <strong>PreOnic AI</strong>
+                        <strong>Farmora AI</strong>
                         <p>Đang suy nghĩ và soạn câu trả lời phù hợp cho Farmer...</p>
                       </div>
                     </div>
@@ -646,7 +646,7 @@ function FarmerAI() {
                   <div>
                     <strong>Phạm vi AI</strong>
                     <p>
-                      Nếu câu hỏi không liên quan đến PreOnic, trợ lý sẽ thông báo
+                      Nếu câu hỏi không liên quan đến Farmora, trợ lý sẽ thông báo
                       đây không phải chuyên môn và hướng bạn quay lại đúng nghiệp vụ Farmer.
                     </p>
                   </div>
@@ -660,7 +660,7 @@ function FarmerAI() {
           <div className="fai-container">
             <div className="fai-section-head">
               <span>AI có thể làm gì cho Farmer?</span>
-              <h2>Đúng trọng tâm nghiệp vụ, không trả lời lan man ngoài phạm vi PreOnic.</h2>
+              <h2>Đúng trọng tâm nghiệp vụ, không trả lời lan man ngoài phạm vi Farmora.</h2>
             </div>
 
             <motion.div
