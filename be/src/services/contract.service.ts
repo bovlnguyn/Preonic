@@ -368,7 +368,7 @@ export const createContractProposal = async (
     insuranceProvider: dto.insuranceProvider,
     insurancePackage: dto.insurancePackage,
     insuranceFee: dto.insuranceEnabled ? insuranceFee : undefined,
-    // Bao hiem duoc nhap la bao hiem da mua san tu ben ngoai (khong qua PreOnic)
+    // Bao hiem duoc nhap la bao hiem da mua san tu ben ngoai (khong qua Farmora)
     // nen coi nhu da co hieu luc ngay, khong can trang thai 'pending' cho xu ly.
     insuranceStatus: dto.insuranceEnabled ? 'active' : 'none',
     insurancePolicyNumber: dto.insuranceEnabled ? dto.insurancePolicyNumber : undefined,

@@ -1,6 +1,6 @@
 .home-process-flow {
 background:
-  linear-gradient(135deg, rgba(5, 46, 22, 0.96), rgba(6, 78, 59, 0.92)),
+  linear-gradient(135deg, rgba(4, 42, 28, 0.97), rgba(7, 91, 61, 0.93)),
   url("../../../assets/home/BD.png");
   background-size: cover;
   background-position: center;
@@ -10,7 +10,7 @@ background:
 .home-process-flow__grid {
   display: grid;
   grid-template-columns: 0.96fr 1.04fr;
-  gap: 58px;
+  gap: 70px;
   align-items: center;
 }
 
@@ -29,21 +29,26 @@ background:
 }
 
 .home-process-flow__steps {
+  position: relative;
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
 .home-process-step {
   display: grid;
-  grid-template-columns: 68px 1fr;
-  gap: 18px;
-  align-items: center;
-  padding: 18px;
-  border-radius: 22px;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+  min-height: 215px;
+  padding: 24px;
+  border-radius: 25px;
   background: rgba(255, 255, 255, 0.09);
   border: 1px solid rgba(217, 249, 157, 0.16);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(14px);
+  transition: transform .25s ease, background-color .25s ease;
 }
+.home-process-step:hover { transform: translateY(-5px); background: rgba(255,255,255,.14); }
 
 .home-process-step span {
   width: 52px;
@@ -77,7 +82,9 @@ background:
 }
 
 @media (max-width: 720px) {
+  .home-process-flow__steps { grid-template-columns: 1fr; }
   .home-process-step {
     grid-template-columns: 1fr;
+    min-height: 0;
   }
 }

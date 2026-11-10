@@ -102,6 +102,9 @@ export interface RegisterDto {
   province?: string;
   district?: string;
   ward?: string;
+  farmName?: string;
+  companyName?: string;
+  taxCode?: string;
 }
 
 export const register = async (dto: RegisterDto) => {
@@ -126,6 +129,9 @@ export const register = async (dto: RegisterDto) => {
     province: dto.province,
     district: dto.district,
     ward: dto.ward,
+    farmName: dto.role === 'farmer' ? dto.farmName?.trim() || undefined : undefined,
+    companyName: dto.role === 'enterprise' ? dto.companyName?.trim() || undefined : undefined,
+    taxCode: dto.taxCode?.trim() || undefined,
     isVerified: false,
     authProvider: 'local',
   });

@@ -41,8 +41,8 @@ export function getDashboardUserName(user, role, fallback) {
   const splitName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
 
   if (role === 'enterprise') {
-    return fullName || splitName || user?.companyName || fallback || 'Doanh nghiệp PreOnic';
+    return fullName || splitName || user?.companyName || fallback || 'Doanh nghiệp Farmora';
   }
 
-  return fullName || splitName || fallback || 'Nông dân PreOnic';
+  return fullName || splitName || fallback || 'Nông dân Farmora';
 }

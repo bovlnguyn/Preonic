@@ -57,7 +57,7 @@ export default function VerifyEmail() {
           <div className="ve-state">
             <span className="ve-state-icon">✅</span>
             <h2>Email đã được xác minh!</h2>
-            <p>Tài khoản PreOnic của bạn đã được kích hoạt thành công.</p>
+            <p>Tài khoản Farmora của bạn đã được kích hoạt thành công.</p>
             <button className="ve-btn-primary" onClick={() => navigate('/auth')}>
               Đăng nhập ngay
             </button>

@@ -27,7 +27,7 @@ function HomeCTA() {
             ease: "easeOut",
           }}
         >
-          <span className="home-section__eyebrow">Bắt đầu cùng PreOnic</span>
+          <span className="home-section__eyebrow">Bắt đầu cùng Farmora</span>
 
           <h2 className="home-title">
             Sẵn sàng đưa nông sản Việt đến thị trường minh bạch hơn?
@@ -73,7 +73,7 @@ function HomeCTA() {
           <FaQuoteLeft />
 
           <p>
-            “Mục tiêu của PreOnic là giúp giao dịch nông sản bớt phụ thuộc vào may
+            “Mục tiêu của Farmora là giúp giao dịch nông sản bớt phụ thuộc vào may
             rủi, tăng tính minh bạch và tạo niềm tin giữa các bên.”
           </p>
         </motion.div>

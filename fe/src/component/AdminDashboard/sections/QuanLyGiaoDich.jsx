@@ -35,7 +35,7 @@ export default function QuanLyGiaoDich() {
   const person = value => value ? <div><strong>{value.fullName}</strong><div style={{ fontSize: 11, color: "#94a3b8" }}>{value.email}</div></div> : "—";
 
   return <>
-    <div className="adm-page-header"><div><h1 className="adm-page-title">Quản lý giao dịch</h1><p className="adm-page-subtitle">Theo dõi chuyển khoản hàng hóa giữa hai bên và khoản phí trả riêng cho PreOnic</p></div></div>
+    <div className="adm-page-header"><div><h1 className="adm-page-title">Quản lý giao dịch</h1><p className="adm-page-subtitle">Theo dõi chuyển khoản hàng hóa giữa hai bên và khoản phí trả riêng cho Farmora</p></div></div>
     <div className="adm-kpis">{[
       ["goods_payment", "Hàng hóa đã xác nhận", "#1d4ed8"], ["fee_payment", "Phí dịch vụ đã thu", "#0891b2"],
     ].map(([key, label, color]) => <div className="adm-kpi" key={key} style={{ "--kpi-color": color }}><div className="adm-kpi-icon" style={{ background: `${color}22`, color }}>TT</div><div className="adm-kpi-body"><span className="adm-kpi-val money">{formatMoney(stats[key]?.totalAmount || 0)}</span><span className="adm-kpi-label">{label}</span><small>{stats[key]?.count || 0} giao dịch</small></div></div>)}</div>

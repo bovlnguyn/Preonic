@@ -1,5 +1,7 @@
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaCheckCircle } from "react-icons/fa";
+import { FaArrowRight, FaCheckCircle } from "react-icons/fa";
+import { ROUTES } from "../../../constants";
 import bgImage from "../../../assets/home/BG2.jpg";
 import "./HomeIntro.css";
 
@@ -70,7 +72,7 @@ function HomeIntro() {
           }}
         >
           <motion.span className="home-section__eyebrow" variants={fadeUp}>
-            Về PreOnic
+            Về Farmora
           </motion.span>
 
           <motion.h2 className="home-title" variants={fadeUp}>
@@ -78,9 +80,9 @@ function HomeIntro() {
           </motion.h2>
 
           <motion.p className="home-desc" variants={fadeUp}>
-            PreOnic được xây dựng để giải quyết bài toán kết nối đầu ra nông sản.
-            Giao diện lấy cảm hứng từ đồng lúa, sắc xanh nông nghiệp và màu vàng
-            mùa vụ để tạo cảm giác gần gũi, thân thuộc nhưng vẫn hiện đại.
+            Farmora kết nối nông dân với doanh nghiệp trong một không gian thống
+            nhất, từ cập nhật mùa vụ và tìm nguồn cung đến hợp đồng, giao nhận và
+            theo dõi giao dịch minh bạch.
           </motion.p>
 
           <motion.div className="home-intro__list" variants={fadeUp}>
@@ -90,6 +92,15 @@ function HomeIntro() {
                 {item}
               </div>
             ))}
+          </motion.div>
+
+          <motion.div className="home-intro__actions" variants={fadeUp}>
+            <Link to={ROUTES.REGISTER} className="home-btn home-btn--primary">
+              Đăng ký ngay <FaArrowRight />
+            </Link>
+            <Link to={ROUTES.CONTACT} className="home-btn home-btn--secondary">
+              Liên hệ tư vấn
+            </Link>
           </motion.div>
         </motion.div>
       </div>

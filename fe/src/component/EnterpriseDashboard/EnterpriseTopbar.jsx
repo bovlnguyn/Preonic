@@ -9,7 +9,7 @@ function EnterpriseTopbar() {
       sectionLabel="Enterprise dashboard"
       title="Quản lý thu mua và chuỗi cung ứng"
       searchPlaceholder="Tìm nông dân, nông sản, hợp đồng..."
-      defaultName="Doanh nghiệp PreOnic"
+      defaultName="Doanh nghiệp Farmora"
     />
   );
 }

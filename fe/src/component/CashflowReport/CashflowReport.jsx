@@ -228,7 +228,7 @@ function CashflowReport() {
                         <span>{contract.productName || 'Nông sản'} · {formatDate(contract.createdAt)}</span>
                       </button>
                     </td>
-                    <td>{contract.partnerName || 'Đối tác PreOnic'}</td>
+                    <td>{contract.partnerName || 'Đối tác Farmora'}</td>
                     <td><span className={`cashflow-report__status cashflow-report__status--${contract.status}`}>{STATUS_LABELS[contract.status] || contract.status}</span></td>
                     <td>{formatMoney(contract.totalValue)}</td>
                     <td className="cashflow-report__money-success">{formatMoney(contract.paidAmount)}</td>

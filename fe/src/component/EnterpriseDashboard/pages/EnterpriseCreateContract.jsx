@@ -16,7 +16,7 @@ import './EnterpriseCreateContract.css';
 const STEPS = [
   { key: 'propose',      label: 'Đề xuất' },
   { key: 'review',       label: 'Xem xét' },
-  { key: 'preon_verify', label: 'PreOnic Xác nhận' },
+  { key: 'preon_verify', label: 'Farmora Xác nhận' },
   { key: 'sign',         label: 'Tạo hợp đồng' },
   { key: 'done',         label: 'Đã tạo' },
 ];
@@ -56,24 +56,24 @@ function TermsModal({ type, onClose, onAgree }) {
     <div className="ecc-modal-overlay" onClick={onClose}>
       <div className="ecc-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ecc-modal__header">
-          <h3>{type === 'contract' ? 'Điều khoản Hợp đồng Bao tiêu' : 'Điều khoản Dịch vụ PreOnic'}</h3>
+          <h3>{type === 'contract' ? 'Điều khoản Hợp đồng Bao tiêu' : 'Điều khoản Dịch vụ Farmora'}</h3>
           <button className="ecc-modal__close" onClick={onClose}><FiX /></button>
         </div>
         <div className="ecc-modal__body">
           {type === 'contract' ? (
             <>
               <h4>1. Phạm vi hợp đồng</h4>
-              <p>Hợp đồng bao tiêu nông sản này được ký kết giữa Bên bán (Nông dân/HTX) và Bên mua (Doanh nghiệp) thông qua nền tảng trung gian PreOnic. Hợp đồng có hiệu lực kể từ thời điểm cả hai bên hoàn tất ký điện tử.</p>
+              <p>Hợp đồng bao tiêu nông sản này được ký kết giữa Bên bán (Nông dân/HTX) và Bên mua (Doanh nghiệp) thông qua nền tảng trung gian Farmora. Hợp đồng có hiệu lực kể từ thời điểm cả hai bên hoàn tất ký điện tử.</p>
               <h4>2. Cam kết của Bên bán</h4>
               <p>Bên bán cam kết cung cấp nông sản đúng chủng loại, khối lượng, chất lượng và thời gian giao hàng đã thỏa thuận. Sản phẩm phải đáp ứng tiêu chuẩn VietGAP/GlobalGAP.</p>
               <h4>3. Cam kết của Bên mua</h4>
-              <p>Bên mua cam kết chuyển đúng số tiền, đúng hạn và đúng mã thanh toán vào tài khoản ngân hàng do Bên bán đăng ký trên PreOnic.</p>
+              <p>Bên mua cam kết chuyển đúng số tiền, đúng hạn và đúng mã thanh toán vào tài khoản ngân hàng do Bên bán đăng ký trên Farmora.</p>
               <h4>4. Cơ chế thanh toán trực tiếp</h4>
-              <p>PreOnic tạo mã chuyển khoản và mã QR theo từng đợt thanh toán. Tiền hàng được chuyển trực tiếp từ Bên mua sang Bên bán; PreOnic không nhận, giữ hoặc luân chuyển tiền hàng.</p>
+              <p>Farmora tạo mã chuyển khoản và mã QR theo từng đợt thanh toán. Tiền hàng được chuyển trực tiếp từ Bên mua sang Bên bán; Farmora không nhận, giữ hoặc luân chuyển tiền hàng.</p>
               <h4>5. Vi phạm và bồi thường</h4>
               <p>Vi phạm hợp đồng có thể dẫn đến bồi thường tối đa 20% giá trị hợp đồng tùy mức độ lỗi.</p>
               <h4>6. Tranh chấp</h4>
-              <p>Tranh chấp được giải quyết qua cơ chế Dispute Resolution của PreOnic trong vòng 15 ngày làm việc.</p>
+              <p>Tranh chấp được giải quyết qua cơ chế Dispute Resolution của Farmora trong vòng 15 ngày làm việc.</p>
             </>
           ) : (
             <>
@@ -82,7 +82,7 @@ function TermsModal({ type, onClose, onAgree }) {
               <h4>2. Những gì bạn nhận được</h4>
               <ul>
                 <li>Mã thanh toán và QR riêng cho từng đợt chuyển tiền hàng.</li>
-                <li>Xác minh đối tác: PreOnic xác minh danh tính cả hai bên.</li>
+                <li>Xác minh đối tác: Farmora xác minh danh tính cả hai bên.</li>
                 <li>Hợp đồng điện tử có giá trị pháp lý theo tiêu chuẩn pháp luật Việt Nam.</li>
                 <li>Giải quyết tranh chấp miễn phí trong 15 ngày làm việc.</li>
                 <li>Hỗ trợ 24/7.</li>
@@ -326,7 +326,7 @@ export default function EnterpriseCreateContract() {
         }}
         eyebrow="Hợp đồng mới"
         title="Tạo hợp đồng bao tiêu nông sản"
-        desc="Hoàn thiện điều khoản, kiểm tra thông tin và gửi đề xuất hợp đồng cho nông dân qua PreOnic."
+        desc="Hoàn thiện điều khoản, kiểm tra thông tin và gửi đề xuất hợp đồng cho nông dân qua Farmora."
       />
 
       <div className="ecc-flow-shell">
@@ -591,11 +591,11 @@ export default function EnterpriseCreateContract() {
           </div>
         )}
 
-        {/* ── BƯỚC 2: PreOnic xác nhận ── */}
+        {/* ── BƯỚC 2: Farmora xác nhận ── */}
         {step === 2 && (
           <div className="ecc-card ecc-card--center">
             <div className="ecc-verify__icon"><FiShield size={40} /></div>
-            <h3 className="ecc-card__title">PreOnic đang xác minh</h3>
+            <h3 className="ecc-card__title">Farmora đang xác minh</h3>
             <p className="ecc-verify__desc">Hệ thống đang kiểm tra thông tin hai bên và xác nhận hợp đồng hợp lệ.</p>
             <div className="ecc-verify__list">
               {[
@@ -603,7 +603,7 @@ export default function EnterpriseCreateContract() {
                 'Xác minh danh tính người mua',
                 'Kiểm tra giá thị trường',
                 'Kiểm tra năng lực cung ứng',
-                'PreOnic phê duyệt hợp đồng',
+                'Farmora phê duyệt hợp đồng',
               ].map((item) => (
                 <div key={item} className="ecc-verify__item">
                   <FiCheck size={14} /> {item}
@@ -613,7 +613,7 @@ export default function EnterpriseCreateContract() {
             <div className="ecc-verify__badge">
               <FiShield size={16} />
               <div>
-                <strong>Hợp đồng được PreOnic bảo vệ</strong>
+                <strong>Hợp đồng được Farmora bảo vệ</strong>
                 <p>Thanh toán trực tiếp — phí tách riêng — hỗ trợ giải quyết tranh chấp</p>
               </div>
             </div>
@@ -636,7 +636,7 @@ export default function EnterpriseCreateContract() {
                 <p>Ngày giao hàng: <strong>{form.deliveryDate}</strong></p>
                 <p>Địa chỉ giao hàng: <strong>{form.deliveryAddress}</strong></p>
                 <p>Bên bán: {form.farmerName || '--'} | Bên mua: {form.enterpriseName || user?.fullName || '--'}</p>
-                <p>Trung gian: <strong>Công ty TNHH PreOnic Việt Nam</strong></p>
+                <p>Trung gian: <strong>Công ty TNHH Farmora Việt Nam</strong></p>
               </div>
             </div>
 

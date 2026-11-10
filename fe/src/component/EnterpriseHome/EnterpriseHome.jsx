@@ -178,7 +178,7 @@ function EnterpriseHome() {
               </motion.h1>
 
               <motion.p variants={fadeUp}>
-                Trang chủ doanh nghiệp giúp bạn nắm nhanh cơ hội thu mua trên PreOnic:
+                Trang chủ doanh nghiệp giúp bạn nắm nhanh cơ hội thu mua trên Farmora:
                 tìm nông sản theo mùa vụ, kiểm tra nhà cung cấp, tạo hợp đồng và quản lý
                 thanh toán trực tiếp theo tiến độ qua dashboard.
               </motion.p>
@@ -200,7 +200,7 @@ function EnterpriseHome() {
               transition={{ duration: 0.72, ease: "easeOut" }}
             >
               <div className="eh-procurement-card__header">
-                <span>PreOnic Enterprise</span>
+                <span>Farmora Enterprise</span>
                 <strong>Bảng thu mua thông minh</strong>
               </div>
 
@@ -244,7 +244,7 @@ function EnterpriseHome() {
             <motion.span className="eh-kicker" variants={fadeUp}>Nguồn cung nổi bật</motion.span>
             <motion.h2 variants={fadeUp}>Theo dõi nhanh các lô hàng có khả năng ký hợp đồng.</motion.h2>
             <motion.p variants={fadeUp}>
-              Danh sách nguồn cung có rating cao nhất trên PreOnic, cập nhật trực tiếp từ hồ sơ nông dân.
+              Danh sách nguồn cung có rating cao nhất trên Farmora, cập nhật trực tiếp từ hồ sơ nông dân.
             </motion.p>
           </motion.div>
 

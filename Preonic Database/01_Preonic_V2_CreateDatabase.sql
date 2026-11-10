@@ -1,8 +1,8 @@
 ﻿-- ============================================================
---  PREONIC DATABASE V2 - FULL BOOTSTRAP FOR SQL SERVER
+--  FARMORA DATABASE V2 - FULL BOOTSTRAP FOR SQL SERVER
 --  Canonical fresh-install schema for the direct-settlement payment model.
 --  This file is self-contained. No TypeORM migration is required afterwards.
---  Run this file first, then run 02_Preonic_V2_SeedData.sql.
+--  Run this file first, then run 02_Farmora_V2_SeedData.sql.
 -- ============================================================
 
 USE master;
@@ -836,7 +836,7 @@ INSERT INTO dbo.PlatformFeePolicies
     (FeePolicyId, Code, Name, BuyerFeeBps, SellerFeeBps, Currency,
      IsActive, EffectiveFrom, Notes)
 VALUES
-    (NEWID(), 'PREONIC_LAUNCH_08', N'Preonic launch fee 0.8%',
+    (NEWID(), 'FARMORA_LAUNCH_08', N'Farmora launch fee 0.8%',
      50, 30, 'VND', 1, SYSUTCDATETIME(),
      N'Enterprise 0.5% + Farmer 0.3%; charged after successful goods payment.');
 GO
@@ -1130,7 +1130,7 @@ CREATE TABLE dbo.PlatformFeeLedgerEntries (
     CONSTRAINT CK_PlatformFeeLedgerEntries_FeeRate
         CHECK (FeeRateBps IS NULL OR FeeRateBps BETWEEN 0 AND 10000),
     CONSTRAINT CK_PlatformFeeLedgerEntries_Type CHECK (
-        EntryType IN ('buyer_transaction_fee','seller_transaction_fee','payment',
+        EntryType IN ('buyer_transaction_fee','seller_transaction_fee','advertising_fee','payment',
                       'discount','waiver','adjustment','refund')
     ),
     CONSTRAINT CK_PlatformFeeLedgerEntries_Direction
@@ -1152,6 +1152,45 @@ CREATE INDEX IX_PlatformFeeLedgerEntries_GoodsPayment
 CREATE INDEX IX_PlatformFeeLedgerEntries_User_Status_PostedAt
     ON dbo.PlatformFeeLedgerEntries(UserId, Status, PostedAt)
     INCLUDE (Direction, Amount, EntryType, FeeStatementId);
+GO
+
+-- ------------------------------------------------------------
+-- FARMER SPONSORED BANNER CAMPAIGNS
+-- ------------------------------------------------------------
+CREATE TABLE dbo.AdvertisementCampaigns (
+    AdvertisementCampaignId UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT PK_AdvertisementCampaigns PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+    FarmerId        UNIQUEIDENTIFIER NOT NULL,
+    Title           NVARCHAR(140)    NOT NULL,
+    Content         NVARCHAR(800)    NOT NULL,
+    BannerUrl       NVARCHAR(1000)   NOT NULL,
+    TargetUrl       NVARCHAR(500)    NULL,
+    Province        NVARCHAR(100)    NULL,
+    District        NVARCHAR(100)    NULL,
+    DurationDays    SMALLINT         NOT NULL,
+    DailyRate       DECIMAL(18,2)    NOT NULL,
+    TotalAmount     DECIMAL(18,2)    NOT NULL,
+    Status          NVARCHAR(20)     NOT NULL CONSTRAINT DF_AdvertisementCampaigns_Status DEFAULT 'active',
+    StartsAt        DATETIME2        NOT NULL,
+    EndsAt          DATETIME2        NOT NULL,
+    ImpressionCount INT              NOT NULL CONSTRAINT DF_AdvertisementCampaigns_Impressions DEFAULT 0,
+    ClickCount      INT              NOT NULL CONSTRAINT DF_AdvertisementCampaigns_Clicks DEFAULT 0,
+    CreatedAt       DATETIME2        NOT NULL CONSTRAINT DF_AdvertisementCampaigns_CreatedAt DEFAULT SYSUTCDATETIME(),
+    UpdatedAt       DATETIME2        NOT NULL CONSTRAINT DF_AdvertisementCampaigns_UpdatedAt DEFAULT SYSUTCDATETIME(),
+
+    CONSTRAINT FK_AdvertisementCampaigns_Farmer FOREIGN KEY (FarmerId) REFERENCES dbo.Users(UserId),
+    CONSTRAINT CK_AdvertisementCampaigns_Status CHECK (Status IN ('active','paused','cancelled')),
+    CONSTRAINT CK_AdvertisementCampaigns_Duration CHECK (DurationDays BETWEEN 1 AND 90),
+    CONSTRAINT CK_AdvertisementCampaigns_Money CHECK (DailyRate > 0 AND TotalAmount > 0),
+    CONSTRAINT CK_AdvertisementCampaigns_Dates CHECK (EndsAt > StartsAt)
+);
+
+CREATE INDEX IX_AdvertisementCampaigns_Public
+    ON dbo.AdvertisementCampaigns(Status, StartsAt, EndsAt);
+CREATE INDEX IX_AdvertisementCampaigns_Province
+    ON dbo.AdvertisementCampaigns(Province, Status, EndsAt);
+CREATE INDEX IX_AdvertisementCampaigns_Farmer_CreatedAt
+    ON dbo.AdvertisementCampaigns(FarmerId, CreatedAt DESC);
 GO
 
 -- ------------------------------------------------------------
@@ -1317,6 +1356,7 @@ IF OBJECT_ID('dbo.PlatformFeePolicies', 'U') IS NULL
    OR OBJECT_ID('dbo.PlatformFeePaymentEvents', 'U') IS NULL
    OR OBJECT_ID('dbo.ContractFeeTerms', 'U') IS NULL
    OR OBJECT_ID('dbo.PlatformFeePaymentApplications', 'U') IS NULL
+   OR OBJECT_ID('dbo.AdvertisementCampaigns', 'U') IS NULL
 BEGIN
     THROW 50010, N'Direct-payment schema bootstrap failed: one or more required tables were not created. Review the first SQL error above.', 1;
 END;
@@ -1332,8 +1372,8 @@ GO
 -- ============================================================
 -- VALIDATION SUMMARY
 -- ============================================================
-PRINT N'PreOnic local database bootstrap completed.';
-PRINT N'Expected application tables: 27.';
+PRINT N'Farmora local database bootstrap completed.';
+PRINT N'Expected application tables: 28.';
 PRINT N'No migration command is required after this bootstrap.';
 PRINT N'Database: preonic_v2 | SQL Server local configuration should use DB_DATABASE=preonic_v2.';
 GO

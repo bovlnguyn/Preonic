@@ -18,7 +18,7 @@ import "./Header.css";
 const GUEST_NAV_ITEMS = [
   // { label: "Trang chủ", path: "/" },
   { label: "Sản phẩm", path: "/products" },
-  { label: "Tìm hiểu về Preonic", path: "/solutions" },
+  { label: "Tìm hiểu về Farmora", path: "/solutions" },
   { label: "Liên hệ", path: "/contact" },
   { label: "AI nông nghiệp", path: "/ai-agriculture", highlight: true },
 ];
@@ -26,7 +26,7 @@ const GUEST_NAV_ITEMS = [
 const FARMER_NAV_ITEMS = [
   // { label: "Trang chủ", path: "/farmer-home" },
   { label: "Sản phẩm", path: "/farmer-products" },
-  { label: "Tìm hiểu về Preonic", path: "/farmer-solutions" },
+  { label: "Tìm hiểu về Farmora", path: "/farmer-solutions" },
   { label: "Liên hệ", path: "/farmer-contact" },
   { label: "AI nông nghiệp", path: "/farmer-ai-agriculture", highlight: true },
 ];
@@ -34,7 +34,7 @@ const FARMER_NAV_ITEMS = [
 const ENTERPRISE_NAV_ITEMS = [
   // { label: "Trang chủ", path: "/enterprise-home" },
   { label: "Sản phẩm", path: "/enterprise-products" },
-  { label: "Tìm hiểu về Preonic", path: "/enterprise-solutions" },
+  { label: "Tìm hiểu về Farmora", path: "/enterprise-solutions" },
   { label: "Liên hệ", path: "/enterprise-contact" },
   { label: "AI thu mua", path: "/enterprise-ai-agriculture", highlight: true },
 ];
@@ -77,7 +77,7 @@ function getDisplayName(user) {
     joinedName ||
     user?.companyName?.trim() ||
     user?.email ||
-    "Người dùng PreOnic"
+    "Người dùng Farmora"
   );
 }
 
@@ -119,7 +119,7 @@ function Header() {
   const dashboardPath = isLoggedIn ? ROLE_DASHBOARD_PATH[role] : null;
   const roleLabel = ROLE_LABEL[role] || "Dashboard";
   const tagline = isLoggedIn ? ROLE_TAGLINE[role] || "Nông nghiệp số" : "Nông nghiệp số";
-  const roleDescription = ROLE_DESCRIPTION[role] || "Tài khoản PreOnic";
+  const roleDescription = ROLE_DESCRIPTION[role] || "Tài khoản Farmora";
   const themeRole = role === "enterprise" ? "enterprise" : role === "farmer" ? "farmer" : "guest";
   const displayName = getDisplayName(user);
   const greetingName = getGreetingName(user, displayName);
@@ -244,7 +244,7 @@ function Header() {
               {!logoError ? (
                 <img
                   src={logo}
-                  alt="PreOnic"
+                  alt="Farmora"
                   className="preonic-header__logo"
                   onError={() => setLogoError(true)}
                 />
@@ -254,7 +254,7 @@ function Header() {
             </span>
 
             <span className="preonic-header__brand-copy">
-              <span className="preonic-header__brand-name">PreOnic</span>
+              <span className="preonic-header__brand-name">Farmora</span>
               <span className="preonic-header__brand-tagline">{tagline}</span>
             </span>
           </Link>

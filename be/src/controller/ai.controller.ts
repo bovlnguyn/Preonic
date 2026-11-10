@@ -582,7 +582,7 @@ const buildWeatherLiveContext = async (
     );
 
     return [
-      'DỮ LIỆU THỜI TIẾT THỰC TẾ từ module Weather của PreOnic:',
+      'DỮ LIỆU THỜI TIẾT THỰC TẾ từ module Weather của Farmora:',
       `- Khu vực: ${current.resolvedLocation || province}${district ? `, ${district}` : ''}.`,
       `- Hiện tại: ${Math.round(current.temp)}°C; ${current.description}; độ ẩm ${Math.round(current.humidity)}%; ` +
         `gió ${Math.round(current.windSpeed)} km/h; mưa 1h ${Number(current.rain1h || 0).toFixed(1)} mm; ` +
@@ -624,7 +624,7 @@ export const publicAiChat = asyncHandler(async (req: Request, res: Response) => 
       success: true,
       data: {
         answer:
-          'Phiên dùng thử dành cho khách đã kết thúc. Hãy đăng nhập để tiếp tục với PreOnic AI đầy đủ theo đúng vai trò Farmer hoặc Enterprise.',
+          'Phiên dùng thử dành cho khách đã kết thúc. Hãy đăng nhập để tiếp tục với Farmora AI đầy đủ theo đúng vai trò Farmer hoặc Enterprise.',
         requiresLogin: true,
         loginReason: 'limit',
         category: 'advanced',
@@ -682,7 +682,7 @@ export const getFarmerAiStatus = asyncHandler(async (_req: AuthRequest, res: Res
     success: true,
     data: {
       available: true,
-      assistantName: 'PreOnic Farmer AI',
+      assistantName: 'Farmora Farmer AI',
       specialties: [
         'Kiến thức & canh tác nông nghiệp',
         'Thời tiết & lựa chọn cây trồng',
@@ -695,7 +695,7 @@ export const getFarmerAiStatus = asyncHandler(async (_req: AuthRequest, res: Res
         'Thời tiết Đà Nẵng hôm nay phù hợp với nhóm cây trồng nào?',
         'Tôi cần chuẩn bị những gì để đăng một mùa vụ mới?',
         'Đất dễ úng thì nên cải thiện thế nào trước khi xuống giống?',
-        'Luồng ký hợp đồng trên PreOnic dành cho Farmer diễn ra ra sao?',
+        'Luồng ký hợp đồng trên Farmora dành cho Farmer diễn ra ra sao?',
       ],
     },
   });
@@ -741,7 +741,7 @@ export const getEnterpriseAiStatus = asyncHandler(async (_req: AuthRequest, res:
     success: true,
     data: {
       available: Boolean(process.env.OPENAI_API_KEY),
-      assistantName: 'PreOnic Enterprise AI',
+      assistantName: 'Farmora Enterprise AI',
       specialties: [
         'Tìm & so sánh nguồn cung',
         'Phân tích nhà cung cấp',

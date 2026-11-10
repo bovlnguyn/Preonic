@@ -109,7 +109,7 @@ export const generateFeeStatementForUser = async (
     .andWhere("entry.Status = 'posted'")
     .andWhere("entry.Direction = 'debit'")
     .andWhere(
-      "entry.EntryType IN ('buyer_transaction_fee','seller_transaction_fee','adjustment')"
+      "entry.EntryType IN ('buyer_transaction_fee','seller_transaction_fee','advertising_fee','adjustment')"
     )
     .andWhere('entry.PostedAt IS NOT NULL')
     .andWhere('entry.PostedAt >= :start AND entry.PostedAt < :end', {
@@ -199,7 +199,7 @@ export const generateFeeStatementsForPeriod = async (
     .where("entry.Status = 'posted'")
     .andWhere("entry.Direction = 'debit'")
     .andWhere(
-      "entry.EntryType IN ('buyer_transaction_fee','seller_transaction_fee','adjustment')"
+      "entry.EntryType IN ('buyer_transaction_fee','seller_transaction_fee','advertising_fee','adjustment')"
     )
     .andWhere('entry.PostedAt IS NOT NULL')
     .andWhere('entry.PostedAt >= :start AND entry.PostedAt < :end', {

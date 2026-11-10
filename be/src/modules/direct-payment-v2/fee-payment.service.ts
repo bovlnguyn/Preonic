@@ -286,7 +286,7 @@ export const createPlatformFeePayment = async (
       currency: 'VND',
       transferContent: prepared.payment.transferContent,
       idempotencyKey: prepared.payment.idempotencyKey,
-      description: 'Thanh toán phí dịch vụ Preonic',
+      description: 'Thanh toán phí dịch vụ Farmora',
     });
   } catch (error: any) {
     throw makeError(
@@ -414,7 +414,7 @@ const postFeePaymentCreditWithManager = async (
     .andWhere("entry.Status = 'posted'")
     .andWhere("entry.Direction = 'debit'")
     .andWhere(
-      "entry.EntryType IN ('buyer_transaction_fee','seller_transaction_fee','adjustment')"
+      "entry.EntryType IN ('buyer_transaction_fee','seller_transaction_fee','advertising_fee','adjustment')"
     )
     .orderBy('entry.postedAt', 'ASC')
     .addOrderBy('entry.createdAt', 'ASC')
@@ -469,7 +469,7 @@ const postFeePaymentCreditWithManager = async (
     feeRateBps: null,
     status: 'posted',
     idempotencyKey: creditKey,
-    description: `Thanh toán phí Preonic - ${payment.orderCode}`,
+    description: `Thanh toán phí Farmora - ${payment.orderCode}`,
     postedAt: paidAt,
     voidedAt: null,
   }));

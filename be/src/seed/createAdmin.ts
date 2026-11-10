@@ -19,7 +19,7 @@ const AppDataSource = CliDataSource;
 const ADMIN_EMAIL = process.env.ADMIN_SEED_EMAIL?.trim().toLowerCase();
 const ADMIN_PASSWORD = process.env.ADMIN_SEED_PASSWORD;
 const ADMIN_FIRST = process.env.ADMIN_SEED_FIRST_NAME?.trim() || 'Admin';
-const ADMIN_LAST = process.env.ADMIN_SEED_LAST_NAME?.trim() || 'PreOnic';
+const ADMIN_LAST = process.env.ADMIN_SEED_LAST_NAME?.trim() || 'Farmora';
 
 const validateConfig = () => {
   if (!ADMIN_EMAIL) {

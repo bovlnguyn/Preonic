@@ -174,7 +174,7 @@ export const createDispute = async (
       await txContractRepo.save(contract);
 
       const title = 'Hop dong co tranh chap moi';
-      const directNote = ' Preonic se ghi nhan va xu ly tranh chap thuong mai; he thong khong tu dong thu hoi tien da chuyen truc tiep.';
+      const directNote = ' Farmora se ghi nhan va xu ly tranh chap thuong mai; he thong khong tu dong thu hoi tien da chuyen truc tiep.';
       const message =
         `${roleInContract === 'farmer' ? contract.farmerName || 'Nong dan' : contract.enterpriseName || 'Doanh nghiep'} ` +
         `da tao tranh chap cho hop dong ${contract.contractCode}` +

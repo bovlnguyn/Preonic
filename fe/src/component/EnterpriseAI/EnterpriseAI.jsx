@@ -68,7 +68,7 @@ function EnterpriseAI() {
   const [prompt, setPrompt] = useState('');
   const [sending, setSending] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
-  const [status, setStatus] = useState({ available: true, assistantName: 'PreOnic Enterprise AI', specialties: [], suggestedQuestions: starterPrompts });
+  const [status, setStatus] = useState({ available: true, assistantName: 'Farmora Enterprise AI', specialties: [], suggestedQuestions: starterPrompts });
 
   useEffect(() => {
     let active = true;
@@ -76,7 +76,7 @@ function EnterpriseAI() {
       if (!active || !data) return;
       setStatus({
         available: Boolean(data.available),
-        assistantName: data.assistantName || 'PreOnic Enterprise AI',
+        assistantName: data.assistantName || 'Farmora Enterprise AI',
         specialties: Array.isArray(data.specialties) ? data.specialties : [],
         suggestedQuestions: Array.isArray(data.suggestedQuestions) && data.suggestedQuestions.length ? data.suggestedQuestions : starterPrompts,
       });
@@ -102,7 +102,7 @@ function EnterpriseAI() {
     } catch (error) {
       const errorMessage = error?.response?.status === 429
         ? 'Bạn đang gửi câu hỏi quá nhanh. Vui lòng chờ ít phút rồi thử lại.'
-        : error?.response?.data?.message || 'PreOnic Enterprise AI đang tạm thời chưa phản hồi. Vui lòng thử lại.';
+        : error?.response?.data?.message || 'Farmora Enterprise AI đang tạm thời chưa phản hồi. Vui lòng thử lại.';
       setMessages((current) => [...current, buildMessage('assistant', errorMessage, { isError: true })]);
     } finally { setSending(false); window.setTimeout(() => inputRef.current?.focus(), 0); }
   };
@@ -119,7 +119,7 @@ function EnterpriseAI() {
         <section className="ea-hero"><div className="ea-container ea-hero__grid">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
             <span className="ea-eyebrow"><FiCpu /> AI dành cho doanh nghiệp</span>
-            <h1>Ra quyết định thu mua dựa trên <span>dữ liệu thật của PreOnic.</span></h1>
+            <h1>Ra quyết định thu mua dựa trên <span>dữ liệu thật của Farmora.</span></h1>
             <p>Hỏi về nguồn cung, nhà cung cấp, hợp đồng và dòng tiền. Trợ lý chỉ sử dụng dữ liệu mà doanh nghiệp của bạn được quyền truy cập.</p>
             <div className="ea-hero__badges"><span><FiCheckCircle /> Nguồn cung đang hoạt động</span><span><FiCheckCircle /> Hợp đồng của doanh nghiệp</span><span><FiCheckCircle /> Dòng tiền đã đối chiếu</span></div>
             <div className="ea-hero__actions"><button type="button" onClick={() => inputRef.current?.focus()}>Bắt đầu hỏi AI <FiArrowRight /></button><button type="button" onClick={() => navigate('/enterprise/products')}>Xem nguồn cung</button></div>
@@ -138,10 +138,10 @@ function EnterpriseAI() {
               <div className="ea-chat-status"><span className={!status.available && !statusLoading ? 'is-offline' : ''}>{statusLoading ? <FiLoader className="ea-spin" /> : <FiCpu />}{statusLoading ? 'Đang kiểm tra kết nối...' : status.available ? 'AI backend đang hoạt động' : 'AI chưa được cấu hình trên máy chủ'}</span><small>{messages.filter((item) => item.role === 'user').length} câu trong phiên</small></div>
               <div className="ea-messages" ref={chatRef}>
                 {messages.map((message) => <div key={message.id} className={`ea-message ea-message--${message.role} ${message.isError ? 'is-error' : ''}`}>
-                  <span className="ea-message__avatar">{message.role === 'assistant' ? <FiCpu /> : <FiUser />}</span><div><strong>{message.role === 'assistant' ? 'PreOnic AI' : 'Bạn'}</strong><p>{message.content}</p>
+                  <span className="ea-message__avatar">{message.role === 'assistant' ? <FiCpu /> : <FiUser />}</span><div><strong>{message.role === 'assistant' ? 'Farmora AI' : 'Bạn'}</strong><p>{message.content}</p>
                   {!!message.actions?.length && <div className="ea-message__actions">{message.actions.map((action, index) => { const Icon = ACTION_ICONS[action.target] || FiArrowRight; return <button type="button" key={`${message.id}-${index}`} onClick={() => handleAction(action)}><Icon /> {action.label} <FiArrowRight /></button>; })}</div>}</div>
                 </div>)}
-                {sending && <div className="ea-message ea-message--assistant"><span className="ea-message__avatar"><FiCpu /></span><div><strong>PreOnic AI</strong><p><FiLoader className="ea-spin" /> Đang đối chiếu dữ liệu doanh nghiệp...</p></div></div>}
+                {sending && <div className="ea-message ea-message--assistant"><span className="ea-message__avatar"><FiCpu /></span><div><strong>Farmora AI</strong><p><FiLoader className="ea-spin" /> Đang đối chiếu dữ liệu doanh nghiệp...</p></div></div>}
               </div>
               <div className="ea-suggestions">{status.suggestedQuestions.slice(0, 4).map((item) => <button type="button" key={item} onClick={() => setPrompt(item)}>{item}</button>)}</div>
               <form className="ea-input" onSubmit={(event) => { event.preventDefault(); submit(prompt); }}>

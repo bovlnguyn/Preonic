@@ -6,7 +6,10 @@ SET XACT_ABORT ON;
 GO
 
 /*
-  Optional demo data for the canonical direct-settlement schema.
+  Self-contained demo data for the canonical direct-settlement schema.
+  Run after 01_Farmora_V2_CreateDatabase.sql. A fresh setup does not need any
+  TypeORM migration command: this file includes users, products, contracts,
+  payments, ratings and three active farmer advertising campaigns.
   Accounts use password: password
   The demo catalog contains 10 products with public image URLs and 11 contracts
   between the demo farmer and two enterprises. Two completed contracts include
@@ -23,14 +26,71 @@ GO
   and save a bank account through the application after configuring be/.env.
 */
 
+-- ============================================================
+-- COMPATIBILITY REPAIR FOR DATABASES CREATED BEFORE BANNERS
+-- ============================================================
+-- File 01 already contains these objects for every clean install. This guarded
+-- block lets existing team databases run the latest seed file without needing
+-- to know or execute a separate TypeORM migration.
+IF OBJECT_ID('dbo.PlatformFeeLedgerEntries', 'U') IS NOT NULL
+BEGIN
+  IF OBJECT_ID('dbo.CK_PlatformFeeLedgerEntries_Type', 'C') IS NOT NULL
+    ALTER TABLE dbo.PlatformFeeLedgerEntries DROP CONSTRAINT CK_PlatformFeeLedgerEntries_Type;
+
+  ALTER TABLE dbo.PlatformFeeLedgerEntries ADD CONSTRAINT CK_PlatformFeeLedgerEntries_Type CHECK (
+    EntryType IN ('buyer_transaction_fee','seller_transaction_fee','advertising_fee','payment',
+                  'discount','waiver','adjustment','refund')
+  );
+END;
+
+IF OBJECT_ID('dbo.AdvertisementCampaigns', 'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.AdvertisementCampaigns (
+    AdvertisementCampaignId UNIQUEIDENTIFIER NOT NULL
+      CONSTRAINT PK_AdvertisementCampaigns PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+    FarmerId        UNIQUEIDENTIFIER NOT NULL,
+    Title           NVARCHAR(140)    NOT NULL,
+    Content         NVARCHAR(800)    NOT NULL,
+    BannerUrl       NVARCHAR(1000)   NOT NULL,
+    TargetUrl       NVARCHAR(500)    NULL,
+    Province        NVARCHAR(100)    NULL,
+    District        NVARCHAR(100)    NULL,
+    DurationDays    SMALLINT         NOT NULL,
+    DailyRate       DECIMAL(18,2)    NOT NULL,
+    TotalAmount     DECIMAL(18,2)    NOT NULL,
+    Status          NVARCHAR(20)     NOT NULL CONSTRAINT DF_AdvertisementCampaigns_Status DEFAULT 'active',
+    StartsAt        DATETIME2        NOT NULL,
+    EndsAt          DATETIME2        NOT NULL,
+    ImpressionCount INT              NOT NULL CONSTRAINT DF_AdvertisementCampaigns_Impressions DEFAULT 0,
+    ClickCount      INT              NOT NULL CONSTRAINT DF_AdvertisementCampaigns_Clicks DEFAULT 0,
+    CreatedAt       DATETIME2        NOT NULL CONSTRAINT DF_AdvertisementCampaigns_CreatedAt DEFAULT SYSUTCDATETIME(),
+    UpdatedAt       DATETIME2        NOT NULL CONSTRAINT DF_AdvertisementCampaigns_UpdatedAt DEFAULT SYSUTCDATETIME(),
+
+    CONSTRAINT FK_AdvertisementCampaigns_Farmer FOREIGN KEY (FarmerId) REFERENCES dbo.Users(UserId),
+    CONSTRAINT CK_AdvertisementCampaigns_Status CHECK (Status IN ('active','paused','cancelled')),
+    CONSTRAINT CK_AdvertisementCampaigns_Duration CHECK (DurationDays BETWEEN 1 AND 90),
+    CONSTRAINT CK_AdvertisementCampaigns_Money CHECK (DailyRate > 0 AND TotalAmount > 0),
+    CONSTRAINT CK_AdvertisementCampaigns_Dates CHECK (EndsAt > StartsAt)
+  );
+
+  CREATE INDEX IX_AdvertisementCampaigns_Public
+    ON dbo.AdvertisementCampaigns(Status, StartsAt, EndsAt);
+  CREATE INDEX IX_AdvertisementCampaigns_Province
+    ON dbo.AdvertisementCampaigns(Province, Status, EndsAt);
+  CREATE INDEX IX_AdvertisementCampaigns_Farmer_CreatedAt
+    ON dbo.AdvertisementCampaigns(FarmerId, CreatedAt DESC);
+END;
+GO
+
 IF OBJECT_ID('dbo.Users', 'U') IS NULL
    OR OBJECT_ID('dbo.Products', 'U') IS NULL
    OR OBJECT_ID('dbo.DirectGoodsPayments', 'U') IS NULL
+   OR OBJECT_ID('dbo.AdvertisementCampaigns', 'U') IS NULL
    OR COL_LENGTH('dbo.Contracts', 'PaymentFlow') IS NULL
    OR COL_LENGTH('dbo.UserSettlementBankAccounts', 'VerificationStatus') IS NULL
    OR COL_LENGTH('dbo.UserSettlementBankAccounts', 'AdminReviewedBy') IS NULL
 BEGIN
-  THROW 50020, N'PreOnic schema chưa đúng phiên bản. Hãy mở lại và chạy file 01_Preonic_V2_CreateDatabase.sql mới nhất trước.', 1;
+  THROW 50020, N'Farmora schema chưa đúng phiên bản. Hãy mở lại và chạy file 01_Farmora_V2_CreateDatabase.sql mới nhất trước.', 1;
 END;
 GO
 
@@ -45,6 +105,8 @@ BEGIN TRY
     THROW 50022, N'Thiếu cột AdminReviewedBy. Database đang được tạo từ file schema cũ.', 1;
 
   DECLARE @FarmerId UNIQUEIDENTIFIER = '11111111-1111-4111-8111-111111111111';
+  DECLARE @DragonFruitFarmerId UNIQUEIDENTIFIER = '11111111-1111-4111-8111-111111111112';
+  DECLARE @CoffeeFarmerId UNIQUEIDENTIFIER = '11111111-1111-4111-8111-111111111113';
   DECLARE @EnterpriseId UNIQUEIDENTIFIER = '22222222-2222-4222-8222-222222222222';
   DECLARE @SmallEnterpriseId UNIQUEIDENTIFIER = '22222222-2222-4222-8222-222222222223';
   DECLARE @AdminId UNIQUEIDENTIFIER = '33333333-3333-4333-8333-333333333333';
@@ -54,9 +116,17 @@ BEGIN TRY
     INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified, Province, District, Address, FarmName, FarmSize)
     VALUES (@FarmerId, N'farmer.demo@preonic.vn', @PasswordHash, N'farmer', N'local', N'Nguyễn Văn', N'An', N'0901000001', 1, 1, N'Dong Thap', N'Thành phố Cao Lãnh', N'123 Đường Nông Nghiệp', N'Vườn An', 12.50);
 
+  IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = @DragonFruitFarmerId)
+    INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified, Province, District, Address, FarmName, FarmSize, TaxCode)
+    VALUES (@DragonFruitFarmerId, N'farmer.binhthuan@preonic.vn', @PasswordHash, N'farmer', N'local', N'Nguyễn Hải', N'An', N'0901000012', 1, 1, N'Binh Thuan', N'Hàm Thuận Nam', N'18 Đường Vườn Thanh Long', N'Nông trại Hải An', 8.40, N'3401234567');
+
+  IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = @CoffeeFarmerId)
+    INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified, Province, District, Address, FarmName, FarmSize, TaxCode)
+    VALUES (@CoffeeFarmerId, N'farmer.daklak@preonic.vn', @PasswordHash, N'farmer', N'local', N'Y Thuận', N'Êban', N'0901000013', 1, 1, N'Dak Lak', N'Buôn Ma Thuột', N'27 Đường Vườn Cà Phê', N'Rẫy cà phê Thuận Phát', 15.20, N'6001234567');
+
   IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = @EnterpriseId)
     INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified, Province, District, Address, CompanyName, TaxCode)
-    VALUES (@EnterpriseId, N'enterprise.demo@preonic.vn', @PasswordHash, N'enterprise', N'local', N'Trần Minh', N'Khang', N'0901000002', 1, 1, N'Ho Chi Minh', N'Quận 1', N'45 Nguyễn Huệ', N'Công ty TNHH PreOnic Thu Mua', N'0312345678');
+    VALUES (@EnterpriseId, N'enterprise.demo@preonic.vn', @PasswordHash, N'enterprise', N'local', N'Trần Minh', N'Khang', N'0901000002', 1, 1, N'Ho Chi Minh', N'Quận 1', N'45 Nguyễn Huệ', N'Công ty TNHH Farmora Thu Mua', N'0312345678');
 
   IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = @SmallEnterpriseId)
     INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified, Province, District, Address, CompanyName, TaxCode)
@@ -64,7 +134,7 @@ BEGIN TRY
 
   IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE UserId = @AdminId)
     INSERT dbo.Users (UserId, Email, Password, Role, AuthProvider, FirstName, LastName, Phone, IsActive, IsVerified)
-    VALUES (@AdminId, N'admin.demo@preonic.vn', @PasswordHash, N'admin', N'local', N'Quản trị', N'PreOnic', N'0901000003', 1, 1);
+    VALUES (@AdminId, N'admin.demo@preonic.vn', @PasswordHash, N'admin', N'local', N'Quản trị', N'Farmora', N'0901000003', 1, 1);
 
   DECLARE @DemoProducts TABLE (
     ProductId UNIQUEIDENTIFIER NOT NULL,
@@ -172,6 +242,72 @@ BEGIN TRY
     SELECT 1 FROM dbo.Products existing WHERE existing.ProductId = src.ProductId
   );
 
+  -- Ba chiến dịch mẫu đang hoạt động để carousel trang chủ có dữ liệu ngay.
+  -- Ảnh tương ứng được lưu trong be/uploads/preonic-demo-banners và được backend
+  -- phục vụ qua /uploads; thời gian chạy được làm mới khi seed lại.
+  DECLARE @DemoCampaigns TABLE (
+    AdvertisementCampaignId UNIQUEIDENTIFIER NOT NULL,
+    FarmerId UNIQUEIDENTIFIER NOT NULL,
+    Title NVARCHAR(140) NOT NULL,
+    Content NVARCHAR(800) NOT NULL,
+    BannerUrl NVARCHAR(1000) NOT NULL,
+    TargetUrl NVARCHAR(500) NULL,
+    Province NVARCHAR(100) NULL,
+    District NVARCHAR(100) NULL
+  );
+
+  INSERT INTO @DemoCampaigns
+    (AdvertisementCampaignId, FarmerId, Title, Content, BannerUrl, TargetUrl, Province, District)
+  VALUES
+    ('60000000-0000-4000-8000-000000000001', @DragonFruitFarmerId,
+     N'Thanh long chín tại vườn, sẵn sàng cho đơn hàng lớn',
+     N'Nguồn thanh long tuyển chọn từ nông hộ Bình Thuận, minh bạch vùng trồng và lịch thu hoạch.',
+     N'/uploads/preonic-demo-banners/dragon-fruit-farmer.jpg', N'/products', N'Binh Thuan', N'Hàm Thuận Nam'),
+    ('60000000-0000-4000-8000-000000000002', @CoffeeFarmerId,
+     N'Cà phê Robusta vụ mới từ cao nguyên',
+     N'Hạt chín chọn lọc, sơ chế tại nguồn và có kế hoạch giao theo nhu cầu doanh nghiệp.',
+     N'/uploads/preonic-demo-banners/coffee-farmer.jpg', N'/products/10000000-0000-4000-8000-000000000005', N'Dak Lak', N'Buôn Ma Thuột'),
+    ('60000000-0000-4000-8000-000000000003', @FarmerId,
+     N'Gạo ST25 mới mùa, truy xuất rõ từng cánh đồng',
+     N'Kết nối trực tiếp hợp tác xã Đồng Tháp với nguồn gạo đồng đều, ổn định và đúng lịch.',
+     N'/uploads/preonic-demo-banners/rice-farmer.jpg', N'/products/10000000-0000-4000-8000-000000000002', N'Dong Thap', N'Thành phố Cao Lãnh');
+
+  INSERT dbo.AdvertisementCampaigns
+    (AdvertisementCampaignId, FarmerId, Title, Content, BannerUrl, TargetUrl,
+     Province, District, DurationDays, DailyRate, TotalAmount, [Status],
+     StartsAt, EndsAt, ImpressionCount, ClickCount, CreatedAt, UpdatedAt)
+  SELECT
+    campaign.AdvertisementCampaignId, campaign.FarmerId, campaign.Title,
+    campaign.Content, campaign.BannerUrl, campaign.TargetUrl,
+    campaign.Province, campaign.District, 30, 49000, 1470000, N'active',
+    SYSUTCDATETIME(), DATEADD(DAY, 30, SYSUTCDATETIME()), 0, 0,
+    SYSUTCDATETIME(), SYSUTCDATETIME()
+  FROM @DemoCampaigns campaign
+  WHERE NOT EXISTS (
+    SELECT 1 FROM dbo.AdvertisementCampaigns existing
+    WHERE existing.AdvertisementCampaignId = campaign.AdvertisementCampaignId
+  );
+
+  UPDATE campaign
+  SET [Status] = N'active',
+      StartsAt = SYSUTCDATETIME(),
+      EndsAt = DATEADD(DAY, 30, SYSUTCDATETIME()),
+      UpdatedAt = SYSUTCDATETIME()
+  FROM dbo.AdvertisementCampaigns campaign
+  INNER JOIN @DemoCampaigns seeded
+    ON seeded.AdvertisementCampaignId = campaign.AdvertisementCampaignId;
+
+  IF (
+    SELECT COUNT(*)
+    FROM dbo.AdvertisementCampaigns campaign
+    INNER JOIN @DemoCampaigns seeded
+      ON seeded.AdvertisementCampaignId = campaign.AdvertisementCampaignId
+    WHERE campaign.[Status] = N'active'
+      AND campaign.StartsAt <= SYSUTCDATETIME()
+      AND campaign.EndsAt > SYSUTCDATETIME()
+  ) <> 3
+    THROW 50023, N'Seed quảng cáo không tạo đủ 3 chiến dịch đang hoạt động.', 1;
+
   DECLARE @DemoContracts TABLE (
     ContractId UNIQUEIDENTIFIER NOT NULL,
     ContractCode NVARCHAR(20) NOT NULL,
@@ -230,7 +366,7 @@ BEGIN TRY
     N'direct_v2',
     src.PaymentTerms,
     DATEADD(DAY, src.DeliveryOffsetDays, CAST(SYSUTCDATETIME() AS DATE)),
-    N'Kho trung chuyển PreOnic, Quận 12, TP. Hồ Chí Minh',
+    N'Kho trung chuyển Farmora, Quận 12, TP. Hồ Chí Minh',
     CASE
       WHEN src.[Status] = N'completed' THEN N'Hợp đồng mẫu đã giao hàng, thanh toán và đánh giá hoàn tất.'
       WHEN src.DeliveryStatus = N'shipping' THEN N'Hợp đồng mẫu đang chờ doanh nghiệp xác nhận nhận hàng để tạo lệnh thanh toán.'
@@ -467,10 +603,34 @@ BEGIN TRY
       )
     );
 
+  -- Phí của các banner demo được ghi nhận giống hệt chiến dịch tạo từ giao diện.
+  INSERT dbo.PlatformFeeLedgerEntries
+    (UserId, ContractId, GoodsPaymentId, FeePolicyId, FeeStatementId,
+     EntryType, Direction, Amount, FeeRateBps, [Status], IdempotencyKey,
+     [Description], PostedAt, CreatedAt)
+  SELECT
+    campaign.FarmerId, NULL, NULL, NULL, NULL,
+    N'advertising_fee', N'debit', campaign.TotalAmount, NULL, N'posted',
+    CONCAT(N'advertising:', CONVERT(NVARCHAR(36), campaign.AdvertisementCampaignId)),
+    CONCAT(N'Quảng cáo mẫu “', campaign.Title, N'” trong ', campaign.DurationDays, N' ngày'),
+    campaign.StartsAt, campaign.CreatedAt
+  FROM dbo.AdvertisementCampaigns campaign
+  WHERE campaign.AdvertisementCampaignId IN (
+      '60000000-0000-4000-8000-000000000001',
+      '60000000-0000-4000-8000-000000000002',
+      '60000000-0000-4000-8000-000000000003'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM dbo.PlatformFeeLedgerEntries entry
+      WHERE entry.IdempotencyKey = CONCAT(
+        N'advertising:', CONVERT(NVARCHAR(36), campaign.AdvertisementCampaignId)
+      )
+    );
+
   INSERT dbo.PlatformFeeAccounts
     (UserId, OutstandingAmount, OverdueAmount, [Status], LastCalculatedAt)
   SELECT participant.UserId, 0, 0, N'good_standing', SYSUTCDATETIME()
-  FROM (VALUES (@FarmerId), (@EnterpriseId), (@SmallEnterpriseId)) participant(UserId)
+  FROM (VALUES (@FarmerId), (@DragonFruitFarmerId), (@CoffeeFarmerId), (@EnterpriseId), (@SmallEnterpriseId)) participant(UserId)
   WHERE NOT EXISTS (
     SELECT 1 FROM dbo.PlatformFeeAccounts account WHERE account.UserId = participant.UserId
   );
@@ -483,7 +643,7 @@ BEGIN TRY
       LastCalculatedAt = SYSUTCDATETIME(),
       UpdatedAt = SYSUTCDATETIME()
   FROM dbo.PlatformFeeAccounts account
-  INNER JOIN (VALUES (@FarmerId), (@EnterpriseId), (@SmallEnterpriseId)) participant(UserId)
+  INNER JOIN (VALUES (@FarmerId), (@DragonFruitFarmerId), (@CoffeeFarmerId), (@EnterpriseId), (@SmallEnterpriseId)) participant(UserId)
     ON participant.UserId = account.UserId
   CROSS APPLY (
     SELECT COALESCE(SUM(CASE
@@ -537,7 +697,7 @@ BEGIN TRY
 
   SELECT Email, Role, IsActive, IsVerified
   FROM dbo.Users
-  WHERE Email IN (N'farmer.demo@preonic.vn', N'enterprise.demo@preonic.vn', N'enterprise.small@preonic.vn', N'admin.demo@preonic.vn')
+  WHERE Email IN (N'farmer.demo@preonic.vn', N'farmer.binhthuan@preonic.vn', N'farmer.daklak@preonic.vn', N'enterprise.demo@preonic.vn', N'enterprise.small@preonic.vn', N'admin.demo@preonic.vn')
   ORDER BY Role;
 
   SELECT [Status], COUNT(*) AS ContractCount
@@ -546,7 +706,7 @@ BEGIN TRY
   GROUP BY [Status]
   ORDER BY [Status];
 
-  PRINT N'PreOnic demo seed completed: 4 users, 10 products, 11 contracts, 3 completed contracts, 5 confirmed payments, 4 two-way ratings and a 5,250 VND enterprise fee ready for SePay.';
+  PRINT N'Farmora demo seed completed: 6 users, 10 products, 11 contracts, 3 active farmer ads, 3 completed contracts, 5 confirmed payments, 4 two-way ratings and a 5,250 VND enterprise fee ready for SePay.';
   PRINT N'To test bank verification, create an active farmer bank account through the app so it is encrypted with this environment''s keys.';
 END TRY
 BEGIN CATCH

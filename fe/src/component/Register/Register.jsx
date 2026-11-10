@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import authService from '../../services/auth.service';
 import './Register.css';
+import '../Auth/AuthLandscape.css';
 import { VN_DISTRICTS, VN_WARDS } from "../../data/vn-locations.js";
-import bgImage from '../../assets/branding/background1.jpg';
-import Header from '../Common/Header';
 import { getPasswordPolicyError } from '../../utils/password';
+import { COMPANY } from '../../constants';
+import CloudReveal from '../Auth/CloudReveal';
 
 const INITIAL = {
   role: 'farmer', lastName: '', firstName: '',
+  farmName: '', companyName: '', taxCode: '',
   email: '', phone: '', province: '',
   district: '', ward: '',
   password: '', confirmPassword: '',
@@ -16,6 +18,8 @@ const INITIAL = {
 
 // Danh sách tỉnh/thành lấy từ key của VN_DISTRICTS
 const VN_PROVINCES = Object.keys(VN_DISTRICTS || {});
+const BUSINESS_NAME_PATTERN = /^(?=.*\p{L})[\p{L}\p{N}\s.,'’/&()#-]+$/u;
+const TAX_CODE_PATTERN = /^[0-9]{10}(?:-[0-9]{3})?$/;
 
 /* ───────── Icon nhỏ (inline SVG, không phụ thuộc thư viện) ───────── */
 const Icon = ({ d, children, ...props }) => (
@@ -57,6 +61,12 @@ const IconBuilding = (p) => (
     <path d="M9 22v-4h6v4M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1" />
   </svg>
 );
+const IconDocument = (p) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+    <path d="M14 2v6h6M8 13h8M8 17h6" />
+  </svg>
+);
 
 const Register = () => {
   const navigate = useNavigate();
@@ -83,7 +93,10 @@ const Register = () => {
   };
 
   // ── Chọn vai trò ──
-  const selectRole = (role) => setForm(p => ({ ...p, role }));
+  const selectRole = (role) => {
+    setForm(p => ({ ...p, role, farmName: '', companyName: '', taxCode: '' }));
+    setErrors(p => ({ ...p, farmName: '', companyName: '', taxCode: '' }));
+  };
 
   // ── Validate phía client ──
   const validate = () => {
@@ -92,6 +105,15 @@ const Register = () => {
     else if (/\d/.test(form.lastName)) e.lastName = 'Họ không được chứa số';
     if (!form.firstName.trim()) e.firstName = 'Tên là bắt buộc';
     else if (/\d/.test(form.firstName)) e.firstName = 'Tên không được chứa số';
+    const businessField = form.role === 'farmer' ? 'farmName' : 'companyName';
+    const businessLabel = form.role === 'farmer' ? 'Tên nông trại' : 'Tên công ty';
+    const businessName = form[businessField].trim();
+    if (businessName && (businessName.length < 2 || businessName.length > 255 || !BUSINESS_NAME_PATTERN.test(businessName))) {
+      e[businessField] = `${businessLabel} phải từ 2-255 ký tự và có chữ cái`;
+    }
+    if (form.taxCode.trim() && !TAX_CODE_PATTERN.test(form.taxCode.trim())) {
+      e.taxCode = 'Mã số thuế phải gồm 10 số hoặc dạng 10 số-3 số';
+    }
     if (!form.email)            e.email     = 'Email là bắt buộc';
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = 'Email không hợp lệ';
     if (!form.phone)            e.phone = 'Số điện thoại là bắt buộc';
@@ -133,6 +155,10 @@ if (!form.district)         e.district = 'Vui lòng chọn quận / huyện';
       password:        form.password,
       confirmPassword: form.confirmPassword,
       role:            form.role,
+      ...(form.role === 'farmer'
+        ? { farmName: form.farmName.trim() || undefined }
+        : { companyName: form.companyName.trim() || undefined }),
+      taxCode:         form.taxCode.trim() || undefined,
       agreeTerms:      true,  // ← thêm dòng này
     });
     navigate('/auth', {
@@ -160,7 +186,7 @@ if (!form.district)         e.district = 'Vui lòng chọn quận / huyện';
     }}>
       {/* Header */}
       <div style={{ padding:'28px 32px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <h2 style={{ margin:0, fontSize:20, fontWeight:700, color:'#111' }}>Điều khoản Sử dụng PreOnic</h2>
+        <h2 style={{ margin:0, fontSize:20, fontWeight:700, color:'#111' }}>Điều khoản Sử dụng Farmora</h2>
         <button onClick={() => setShowTerms(false)} style={{
           background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#555', lineHeight:1, padding:4
         }}>✕</button>
@@ -170,11 +196,11 @@ if (!form.district)         e.district = 'Vui lòng chọn quận / huyện';
       {/* Body */}
       <div style={{ padding:'16px 24px', overflowY:'auto', flex:1 }}>
         {[
-          { title:'Chấp nhận điều khoản', content:'Bằng việc đăng ký tài khoản trên PreOnic, bạn đồng ý tuân thủ toàn bộ các điều khoản sử dụng này.' },
+          { title:'Chấp nhận điều khoản', content:'Bằng việc đăng ký tài khoản trên Farmora, bạn đồng ý tuân thủ toàn bộ các điều khoản sử dụng này.' },
           { title:'Điều kiện sử dụng tài khoản', content:'Bạn phải từ 18 tuổi trở lên và có đủ năng lực pháp lý để sử dụng dịch vụ. Thông tin đăng ký phải trung thực và chính xác.' },
           { title:'Hành vi bị cấm', content:'Nghiêm cấm: đăng tải thông tin sai lệch; sử dụng nền tảng để lừa đảo; phá hoại hệ thống; thu thập thông tin người dùng khác trái phép.' },
           { title:'Trách nhiệm của người dùng', content:'Người dùng tự chịu trách nhiệm về tính chính xác của thông tin sản phẩm, hợp đồng và giao dịch.' },
-          { title:'Giới hạn trách nhiệm', content:'PreOnic không chịu trách nhiệm về thiệt hại gián tiếp phát sinh từ việc sử dụng dịch vụ.' },
+          { title:'Giới hạn trách nhiệm', content:'Farmora không chịu trách nhiệm về thiệt hại gián tiếp phát sinh từ việc sử dụng dịch vụ.' },
         ].map((item, i) => (
           <div key={i} style={{ marginBottom:16 }}>
             <p style={{ margin:'0 0 6px', fontWeight:700, fontSize:15, color:'#111' }}>{i+1}. {item.title}</p>
@@ -208,7 +234,7 @@ const PrivacyModal = () => (
     }}>
       {/* Header */}
       <div style={{ padding:'28px 32px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <h2 style={{ margin:0, fontSize:20, fontWeight:700, color:'#111' }}>Chính sách Bảo mật PreOnic</h2>
+        <h2 style={{ margin:0, fontSize:20, fontWeight:700, color:'#111' }}>Chính sách Bảo mật Farmora</h2>
         <button onClick={() => setShowPrivacy(false)} style={{
           background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#555', lineHeight:1, padding:4
         }}>✕</button>
@@ -220,9 +246,9 @@ const PrivacyModal = () => (
         {[
           { title:'Thông tin chúng tôi thu thập', content:'Họ tên, email, số điện thoại, địa chỉ + dữ liệu hoạt động trên nền tảng + dữ liệu kỹ thuật (IP, thiết bị).' },
           { title:'Mục đích sử dụng', content:'Xác minh tài khoản, xử lý thanh toán hợp đồng và phí dịch vụ, gửi thông báo, cải thiện trải nghiệm, tuân thủ pháp luật.' },
-          { title:'Chia sẻ thông tin', bold:'không bán', content1:'PreOnic ', content2:' thông tin của bạn. Chỉ chia sẻ với đối tác giao dịch + đơn vị thanh toán + cơ quan nhà nước khi có yêu cầu hợp pháp.' },
+          { title:'Chia sẻ thông tin', bold:'không bán', content1:'Farmora ', content2:' thông tin của bạn. Chỉ chia sẻ với đối tác giao dịch + đơn vị thanh toán + cơ quan nhà nước khi có yêu cầu hợp pháp.' },
           { title:'Bảo mật', content:'Mã hóa SSL 256-bit, mật khẩu băm bcrypt, kiểm tra bảo mật định kỳ.' },
-          { title:'Liên hệ', content:'privacy@preonic.vn', boldAll: true },
+          { title:'Liên hệ', content:COMPANY.SUPPORT_EMAIL, boldAll: true },
         ].map((item, i) => (
           <div key={i} style={{ marginBottom:16 }}>
             <p style={{ margin:'0 0 6px', fontWeight:700, fontSize:15, color:'#111' }}>{i+1}. {item.title}</p>
@@ -251,12 +277,15 @@ const PrivacyModal = () => (
 );
 
   return (
-    <div className="register-page">
+    <div className={`register-page register-page--${form.role}`}>
+      <CloudReveal />
       {showTerms   && <TermsModal />}
       {showPrivacy && <PrivacyModal />}
 
-      {/* ───────── Navbar ───────── */}
-      <Header />
+      <button type="button" className="register-home-back" onClick={() => navigate('/')}>
+        <Icon d="m12 19-7-7 7-7" aria-hidden="true" />
+        <span>Quay lại trang chủ</span>
+      </button>
 
       <div className="register-layout">
 
@@ -264,7 +293,7 @@ const PrivacyModal = () => (
         <div className="register-form-panel">
           <div className="register-form-wrap">
             <span className="register-badge">Đăng ký</span>
-            <h1 className="register-title">Tạo tài khoản PreOnic</h1>
+            <h1 className="register-title">Tạo tài khoản Farmora</h1>
             <p className="register-subtitle">
               Bắt đầu hành trình kết nối nông nghiệp bền vững cùng hàng ngàn đối tác.
             </p>
@@ -407,6 +436,50 @@ const PrivacyModal = () => (
                 </div>
               </div>
 
+              {/* Thông tin cơ sở lấy sau địa chỉ hành chính */}
+              <div className="form-row form-row--business">
+                <div className="form-group">
+                  <label>
+                    {form.role === 'farmer' ? 'Tên nông trại' : 'Tên công ty'}{' '}
+                    <span className="text-muted">(tùy chọn)</span>
+                  </label>
+                  <div className={`input-icon ${errors[form.role === 'farmer' ? 'farmName' : 'companyName'] ? 'input-icon--invalid' : ''}`}>
+                    <IconBuilding className="input-icon__icon" />
+                    <input
+                      type="text"
+                      name={form.role === 'farmer' ? 'farmName' : 'companyName'}
+                      autoComplete="organization"
+                      maxLength={255}
+                      placeholder={form.role === 'farmer' ? 'VD: Nông trại Xuân Thọ' : 'VD: Công ty TNHH Farmora'}
+                      value={form.role === 'farmer' ? form.farmName : form.companyName}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  {errors[form.role === 'farmer' ? 'farmName' : 'companyName'] && (
+                    <div className="field-error">{errors[form.role === 'farmer' ? 'farmName' : 'companyName']}</div>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>
+                    {form.role === 'farmer' ? 'MST hộ kinh doanh' : 'Mã số thuế'}{' '}
+                    <span className="text-muted">(nếu có)</span>
+                  </label>
+                  <div className={`input-icon ${errors.taxCode ? 'input-icon--invalid' : ''}`}>
+                    <IconDocument className="input-icon__icon" />
+                    <input
+                      type="text"
+                      name="taxCode"
+                      inputMode="numeric"
+                      maxLength={14}
+                      placeholder="VD: 0312345678"
+                      value={form.taxCode}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  {errors.taxCode && <div className="field-error">{errors.taxCode}</div>}
+                </div>
+              </div>
+
               {/* Mật khẩu */}
               <div className="form-row">
                 <div className="form-group">
@@ -477,7 +550,7 @@ và{' '}
   style={{background:'none',border:'none',padding:0,color:'#16a34a',textDecoration:'underline',cursor:'pointer'}}>
   Chính sách bảo mật
 </button>{' '}
-                  của PreOnic.
+                  của Farmora.
                 </label>
               </div>
               {errors.agree && <div className="field-error mb-2">{errors.agree}</div>}
@@ -504,11 +577,7 @@ và{' '}
         </div>
 
         {/* ───────── Bên phải: Banner ───────── */}
-        <aside className="register-aside" style={{
-  backgroundImage: `linear-gradient(180deg, rgba(5,46,22,.55) 0%, rgba(5,46,22,.85) 100%), url(${bgImage})`,
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
-}}>
+        <aside className="register-aside">
           <div className="register-aside__overlay">
             <span className="register-aside__badge">🌱 Nông nghiệp 4.0</span>
 

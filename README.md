@@ -1,6 +1,6 @@
-# PreOnic
+# Farmora
 
-PreOnic là nền tảng kết nối nông dân với doanh nghiệp trong chuỗi cung ứng nông sản. Hệ thống hỗ trợ đăng bán nông sản, tìm kiếm nhà cung cấp, tạo và ký hợp đồng, thanh toán tiền hàng trực tiếp vào tài khoản nông dân, thu phí nền tảng riêng, tranh chấp, đánh giá đối tác, nhắn tin, thông báo, thời tiết và quản trị hệ thống.
+Farmora là nền tảng kết nối nông dân với doanh nghiệp trong chuỗi cung ứng nông sản. Hệ thống hỗ trợ đăng bán nông sản, tìm kiếm nhà cung cấp, tạo và ký hợp đồng, thanh toán tiền hàng trực tiếp vào tài khoản nông dân, thu phí nền tảng riêng, tranh chấp, đánh giá đối tác, nhắn tin, thông báo, thời tiết và quản trị hệ thống.
 
 Tài liệu này được viết theo source và bộ SQL trong thư mục `Preonic Database`. Mục tiêu là giúp một người mới hiểu kiến trúc và dựng toàn bộ hệ thống trên máy local.
 
@@ -411,7 +411,7 @@ Response có dạng:
 ```json
 {
   "status": "success",
-  "message": "PreOnic API is running",
+  "message": "Farmora API is running",
   "timestamp": "..."
 }
 ```
@@ -496,7 +496,7 @@ Các tài khoản này chỉ dành cho local/demo. Không sử dụng mật kh�
 ADMIN_SEED_EMAIL=admin@preonic.local
 ADMIN_SEED_PASSWORD=REPLACE_WITH_AT_LEAST_12_CHARACTERS
 ADMIN_SEED_FIRST_NAME=Admin
-ADMIN_SEED_LAST_NAME=PreOnic
+ADMIN_SEED_LAST_NAME=Farmora
 ```
 
 Sau đó chạy trong thư mục `be`:
@@ -547,7 +547,7 @@ GHN_WEBHOOK_SECRET=replace-with-a-long-random-secret
 ```
 
 Cấu hình GHN hoặc integration gateway gửi callback trạng thái đến
-`POST /api/v1/orders/webhooks/ghn` kèm header `x-ghn-secret`. PreOnic lưu callback
+`POST /api/v1/orders/webhooks/ghn` kèm header `x-ghn-secret`. Farmora lưu callback
 theo mã vận đơn và mã sự kiện idempotent, vì vậy callback được GHN gửi lại không
 tạo dòng tracking trùng. GHN mặc định cung cấp trạng thái và bưu cục; tọa độ GPS
 chỉ hiển thị khi tài khoản đối tác được GHN cấp feed tọa độ riêng.
@@ -560,7 +560,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-user
 SMTP_PASS=your-password-or-app-password
-SMTP_FROM_NAME=PreOnic Platform
+SMTP_FROM_NAME=Farmora Platform
 SMTP_FROM_EMAIL=your-user@example.com
 SUPPORT_INBOX_EMAIL=nguyenbao.130304@gmail.com
 ```
@@ -626,7 +626,7 @@ SEPAY_API_TOKEN=sepay_api_v2_bearer_token
 FEE_PAYMENT_PROVIDER=bank_transfer
 FEE_PAYMENT_BANK_ACCOUNT_NUMBER=your_platform_account_number
 FEE_PAYMENT_BANK_CODE=your_bank_code
-FEE_PAYMENT_BANK_ACCOUNT_HOLDER=PREONIC
+FEE_PAYMENT_BANK_ACCOUNT_HOLDER=FARMORA
 FEE_PAYMENT_QR_BASE_URL=https://vietqr.app/img
 FEE_PAYMENT_QR_TTL_MINUTES=10
 FEE_PAYMENT_BANK_WEBHOOK_SECRET=at_least_32_random_characters

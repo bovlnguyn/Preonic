@@ -45,9 +45,27 @@ describe('Fresh database bootstrap data', () => {
     expect(seedSql).toContain('OutstandingAmount = 5250');
     expect(seedSql).toContain("COL_LENGTH('dbo.UserSettlementBankAccounts', 'VerificationStatus')");
     expect(seedSql.indexOf('COMMIT TRANSACTION')).toBeLessThan(
-      seedSql.indexOf('PreOnic demo seed completed')
+      seedSql.indexOf('Farmora demo seed completed')
     );
     expect(seedSql).not.toMatch(/INSERT\s+(?:INTO\s+)?dbo\.PlatformFeePayments/i);
+  });
+
+  test('ships the complete advertising schema and three active farmer campaigns', () => {
+    const schemaSql = readWorkspaceFile('Preonic Database/01_Preonic_V2_CreateDatabase.sql');
+    const campaignIds = new Set(
+      [...seedSql.matchAll(/'((?:60000000-0000-4000-8000-0000000000)\d{2})'/g)]
+        .map((match) => match[1])
+    );
+
+    expect(schemaSql).toContain('CREATE TABLE dbo.AdvertisementCampaigns');
+    expect(schemaSql).toContain("'advertising_fee'");
+    expect(campaignIds.size).toBe(3);
+    expect(seedSql).toContain("N'/uploads/preonic-demo-banners/dragon-fruit-farmer.jpg'");
+    expect(seedSql).toContain("N'/uploads/preonic-demo-banners/coffee-farmer.jpg'");
+    expect(seedSql).toContain("N'/uploads/preonic-demo-banners/rice-farmer.jpg'");
+    expect(seedSql).toContain("N'advertising_fee', N'debit'");
+    expect(seedSql).toContain("N'farmer.binhthuan@preonic.vn'");
+    expect(seedSql).toContain("N'farmer.daklak@preonic.vn'");
   });
 
   test('adds report and partner-rating indexes used by dashboard queries', () => {

@@ -27,7 +27,7 @@ const welcomeMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    'Xin chào! Tôi là PreOnic AI dành cho khách. Bạn có thể hỏi nhanh về PreOnic, vai trò Farmer/Enterprise, quy trình hợp đồng, thanh toán trực tiếp hoặc cách đăng ký tài khoản.',
+    'Xin chào! Tôi là Farmora AI dành cho khách. Bạn có thể hỏi nhanh về Farmora, vai trò Farmer/Enterprise, quy trình hợp đồng, thanh toán trực tiếp hoặc cách đăng ký tài khoản.',
   createdAt: Date.now(),
 };
 
@@ -67,7 +67,7 @@ const getErrorMessage = (error) => {
 
   return (
     error?.response?.data?.message ||
-    'PreOnic AI đang tạm thời chưa phản hồi. Vui lòng kiểm tra kết nối và thử lại.'
+    'Farmora AI đang tạm thời chưa phản hồi. Vui lòng kiểm tra kết nối và thử lại.'
   );
 };
 
@@ -103,7 +103,7 @@ function LoginGate({ reason, onLogin, onRegister }) {
   );
 }
 
-function PublicAIChat({ suggestedQuestions = [], roleLabel = 'PreOnic' }) {
+function PublicAIChat({ suggestedQuestions = [], roleLabel = 'Farmora' }) {
   const navigate = useNavigate();
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
@@ -239,7 +239,7 @@ function PublicAIChat({ suggestedQuestions = [], roleLabel = 'PreOnic' }) {
           <FiCpu />
         </span>
         <div>
-          <strong>PreOnic AI</strong>
+          <strong>Farmora AI</strong>
           <small>Trợ lý công khai · {roleLabel}</small>
         </div>
         <i aria-label="AI đang hoạt động" />
@@ -337,10 +337,10 @@ function PublicAIChat({ suggestedQuestions = [], roleLabel = 'PreOnic' }) {
                 handleSubmit(event);
               }
             }}
-            placeholder="Hỏi nhanh về PreOnic..."
+            placeholder="Hỏi nhanh về Farmora..."
             rows={2}
             disabled={sending}
-            aria-label="Nhập câu hỏi cho PreOnic AI"
+            aria-label="Nhập câu hỏi cho Farmora AI"
           />
           <div className="pai-chat-composer__footer">
             <span>{input.length}/{MAX_MESSAGE_LENGTH}</span>

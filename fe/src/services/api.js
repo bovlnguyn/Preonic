@@ -88,7 +88,7 @@ const writeResponseCache = (response) => {
     response: {
       ...response,
       data: response.data,
-      __fromPreonicCache: true,
+      __fromFarmoraCache: true,
     },
   });
 };
@@ -109,7 +109,7 @@ const readResponseCache = (config) => {
   return {
     ...cached.response,
     config,
-    __fromPreonicCache: true,
+    __fromFarmoraCache: true,
   };
 };
 

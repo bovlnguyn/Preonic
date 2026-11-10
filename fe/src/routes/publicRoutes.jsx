@@ -1,9 +1,9 @@
 import React, { lazy } from 'react';
 import ProtectedRoute from './ProtectedRoute';
+import Register from '../component/Register/Register';
+import Auth from '../component/Auth/Auth';
 
 const HomeEntry = lazy(() => import('./HomeEntry'));
-const Register = lazy(() => import('../component/Register/Register'));
-const Auth = lazy(() => import('../component/Auth/Auth'));
 const GoogleCallback = lazy(() => import('../component/Auth/GoogleCallBack'));
 const GoogleSelectRole = lazy(() => import('../component/Auth/GoogleSelectRole'));
 const ResetPassword = lazy(() => import('../component/ResetPassword/ResetPassword'));

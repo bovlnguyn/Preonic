@@ -144,7 +144,7 @@ describe('Direct Payment V2 Phase 3', () => {
     };
     process.env.FEE_PAYMENT_BANK_ACCOUNT_NUMBER = '96247TESTVA';
     process.env.FEE_PAYMENT_BANK_CODE = 'BIDV';
-    process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER = 'PREONIC';
+    process.env.FEE_PAYMENT_BANK_ACCOUNT_HOLDER = 'FARMORA';
     process.env.FEE_PAYMENT_QR_BASE_URL = 'https://vietqr.app/img';
     process.env.FEE_PAYMENT_BANK_WEBHOOK_SECRET = '12345678901234567890123456789012';
     process.env.FEE_PAYMENT_QR_TTL_MINUTES = '10';

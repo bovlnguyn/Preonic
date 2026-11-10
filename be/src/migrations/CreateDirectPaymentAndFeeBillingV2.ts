@@ -34,12 +34,12 @@ export class CreateDirectPaymentAndFeeBillingV21791400000000 implements Migratio
     `);
 
     await queryRunner.query(`
-      IF NOT EXISTS (SELECT 1 FROM dbo.PlatformFeePolicies WHERE Code = 'PREONIC_LAUNCH_08')
+      IF NOT EXISTS (SELECT 1 FROM dbo.PlatformFeePolicies WHERE Code = 'FARMORA_LAUNCH_08')
       BEGIN
         INSERT INTO dbo.PlatformFeePolicies
           (FeePolicyId, Code, Name, BuyerFeeBps, SellerFeeBps, Currency, IsActive, EffectiveFrom, Notes)
         VALUES
-          (NEWID(), 'PREONIC_LAUNCH_08', N'Preonic launch fee 0.8%', 50, 30, 'VND', 1,
+          (NEWID(), 'FARMORA_LAUNCH_08', N'Farmora launch fee 0.8%', 50, 30, 'VND', 1,
            SYSUTCDATETIME(), N'Enterprise 0.5% + Farmer 0.3%; pay only after successful goods payment.');
       END
     `);

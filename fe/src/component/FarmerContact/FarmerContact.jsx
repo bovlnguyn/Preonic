@@ -122,7 +122,7 @@ function FarmerContact() {
               animate={{ opacity: 1, x: 0, scale: 1 }}
               transition={{ duration: 0.65, ease: "easeOut", delay: 0.12 }}
             >
-              <span>PreOnic Farmer Care</span>
+              <span>Farmora Farmer Care</span>
               <h3>Kênh hỗ trợ chính</h3>
               {contactInfo.map((item) => {
                 const Icon = item.icon;

@@ -94,7 +94,7 @@ export const farmerAiLimiter = rateLimit({
   message: {
     success: false,
     code: 'FARMER_AI_RATE_LIMITED',
-    message: 'Bạn đã gửi quá nhiều câu hỏi cho PreOnic Farmer AI. Vui lòng thử lại sau ít phút.',
+    message: 'Bạn đã gửi quá nhiều câu hỏi cho Farmora Farmer AI. Vui lòng thử lại sau ít phút.',
   },
 });
 
@@ -106,7 +106,7 @@ export const enterpriseAiLimiter = rateLimit({
   message: {
     success: false,
     code: 'ENTERPRISE_AI_RATE_LIMITED',
-    message: 'Bạn đã gửi quá nhiều câu hỏi cho PreOnic Enterprise AI. Vui lòng thử lại sau ít phút.',
+    message: 'Bạn đã gửi quá nhiều câu hỏi cho Farmora Enterprise AI. Vui lòng thử lại sau ít phút.',
   },
 });
 

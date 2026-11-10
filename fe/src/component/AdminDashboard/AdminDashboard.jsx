@@ -61,7 +61,7 @@ export default function AdminDashboard() {
             <FiShield />
           </div>
           <div className="ad-logo-text">
-            <h1>PreOnic</h1>
+            <h1>Farmora</h1>
             <p>Bảng quản trị</p>
           </div>
         </button>

@@ -3,7 +3,7 @@ export const RATING_MAX = 5;
 export const RATING_COMMENT_MAX_LENGTH = 2000;
 
 /**
- * Rating UI cua PreOnic dung sao nguyen 1..5. Validate lai o backend de
+ * Rating UI cua Farmora dung sao nguyen 1..5. Validate lai o backend de
  * request goi truc tiep khong the chen NaN, 4.5 hoac gia tri ngoai khoang.
  */
 export const isWholeStarRating = (value: unknown): value is number =>

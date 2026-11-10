@@ -1,0 +1,83 @@
+/* Shared illustrated landscape used by Login and Register. */
+.auth-v3-page,
+.register-page {
+  background:
+    radial-gradient(circle at 74% 14%, rgba(255, 252, 222, .98) 0 3%, rgba(255, 213, 90, .58) 11%, rgba(238, 157, 27, .22) 25%, transparent 43%),
+    radial-gradient(circle at 25% 8%, rgba(255, 248, 205, .74), rgba(251, 212, 104, .24) 17%, transparent 37%),
+    radial-gradient(ellipse at 50% 44%, rgba(239, 247, 151, .63), transparent 42%),
+    linear-gradient(143deg, #fffdf0 0%, #fbf2bd 38%, #efd16f 68%, #e4ef7d 100%);
+}
+
+.auth-v3-page::before,
+.register-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url("../../assets/auth/landscape-contours.svg") center / cover no-repeat;
+}
+
+.auth-v3-page::after,
+.register-page::after {
+  content: "";
+  position: fixed;
+  top: auto;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  height: min(58vh, 560px);
+  pointer-events: none;
+  background: url("../../assets/auth/landscape-mountains.svg") center bottom / 100% 100% no-repeat;
+}
+
+.auth-v3-grid::before,
+.register-layout::before {
+  content: "";
+  position: fixed;
+  right: 0;
+  bottom: clamp(96px, 12vh, 140px);
+  left: 0;
+  z-index: 1;
+  height: clamp(120px, 18vh, 195px);
+  pointer-events: none;
+  opacity: .75;
+  background: url("../../assets/auth/landscape-clouds.svg") center bottom / 115% 100% no-repeat;
+}
+
+.auth-v3-grid::after,
+.register-layout::after {
+  content: "";
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: min(27vh, 270px);
+  pointer-events: none;
+  background: url("../../assets/auth/landscape-treeline.svg") center bottom / 100% 100% no-repeat;
+}
+
+.auth-v3-grid,
+.register-layout { isolation: isolate; }
+
+.auth-v3-form-wrap,
+.register-form-panel { z-index: 4; }
+
+.auth-v3-hero,
+.register-aside { z-index: 3; }
+
+.auth-v3-hero-mid { display: block; }
+
+@media (max-width: 1180px) {
+  .auth-v3-hero-mid { display: none; }
+}
+
+@media (max-width: 900px) {
+  .auth-v3-page::after,
+  .register-page::after { height: 48vh; }
+
+  .auth-v3-grid::after,
+  .register-layout::after { height: 22vh; }
+}

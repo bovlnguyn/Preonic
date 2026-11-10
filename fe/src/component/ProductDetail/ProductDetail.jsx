@@ -200,7 +200,7 @@ const toUiProductDetail = (product) => ({
       ],
   seller: {
     userId: normalizeIdentity(product.sellerUserId),
-    name: product.sellerName || "Nông dân PreOnic",
+    name: product.sellerName || "Nông dân Farmora",
     rating: asNumber(product.sellerRating, 0),
     totalContracts: asNumber(product.sellerTotalContracts),
     avatar: product.sellerName?.trim()?.charAt(0)?.toUpperCase() || "ND",
@@ -620,7 +620,7 @@ const ProductDetail = ({ context = "public" }) => {
             <span className="pd-loading-spinner" />
             <div>
               <strong>Đang tải thông tin sản phẩm</strong>
-              <p>PreOnic đang đồng bộ dữ liệu vùng trồng, sản lượng và nhà cung cấp.</p>
+              <p>Farmora đang đồng bộ dữ liệu vùng trồng, sản lượng và nhà cung cấp.</p>
             </div>
           </section>
         ) : (
@@ -684,7 +684,7 @@ const ProductDetail = ({ context = "public" }) => {
 
                       <span className="pd-owner-commitments-compact__badge">
                         <FiAward />
-                        PreOnic bảo đảm
+                        Farmora bảo đảm
                       </span>
                     </div>
 
@@ -700,7 +700,7 @@ const ProductDetail = ({ context = "public" }) => {
                     <div className="pd-owner-commitments-compact__footnote">
                       <FiShield />
                       <span>
-                        Hợp đồng dùng thanh toán trực tiếp: doanh nghiệp chuyển tiền cho nông dân, PreOnic theo dõi xác nhận và phí dịch vụ riêng.
+                        Hợp đồng dùng thanh toán trực tiếp: doanh nghiệp chuyển tiền cho nông dân, Farmora theo dõi xác nhận và phí dịch vụ riêng.
                       </span>
                     </div>
                   </div>
@@ -940,7 +940,7 @@ const ProductDetail = ({ context = "public" }) => {
                   <div className="pd-guarantee-card">
                     <FiAward />
                     <div>
-                      <strong>Bảo đảm bởi PreOnic</strong>
+                      <strong>Bảo đảm bởi Farmora</strong>
                       <p>
                         Hợp đồng và thanh toán được theo dõi theo Direct Payment: tiền hàng đi thẳng tới nông dân, còn phí nền tảng được quản lý riêng.
                       </p>
@@ -1068,7 +1068,7 @@ const ProductDetail = ({ context = "public" }) => {
                       <div className="pd-review-body">
                         <div className="pd-review-meta">
                           <div>
-                            <strong>{review.reviewerName || "Đối tác PreOnic"}</strong>
+                            <strong>{review.reviewerName || "Đối tác Farmora"}</strong>
                             <span>
                               {review.createdAt
                                 ? new Date(review.createdAt).toLocaleDateString("vi-VN")

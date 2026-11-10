@@ -5,17 +5,15 @@ import {
   FiArrowLeft, FiArrowRight, FiCheckCircle, FiShield,
   FiUsers, FiTrendingUp,
 } from "react-icons/fi";
-import { LuLeaf } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { ROUTES } from "../../constants";
 import authService from "../../services/auth.service";
 import { API_URL } from "../../services/api";
+import CloudReveal from "./CloudReveal";
 //import { fadeIn, fadeInUp } from '../../constants/animations';
 import "./Auth.css";
-
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1530507629858-e4977d930e95?w=1400&q=85&auto=format&fit=crop";
+import "./AuthLandscape.css";
 
 const HIGHLIGHTS = [
   {
@@ -141,12 +139,12 @@ const Auth = () => {
 
   return (
     <div className="auth-v3-page">
+      <CloudReveal />
       <div className="auth-v3-grid">
 
         {/* ── LEFT HERO ── */}
         <motion.aside
           className="auth-v3-hero"
-          style={{ backgroundImage: `url(${HERO_IMAGE})` }}
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
@@ -160,13 +158,11 @@ const Auth = () => {
             <div className="auth-v3-hero-mid">
               <div className="auth-v3-brand">
                 <span style={{ fontSize: 36 }}>🌾</span>
-                <span style={{ color: '#fff', fontWeight: 800, fontSize: 24, marginLeft: 10 }}>
-                  PreOnic
-                </span>
+                <span className="auth-v3-brand-name">Farmora</span>
               </div>
               <h1>
-                Chào mừng bạn<br />
-                <span>trở lại với PreOnic</span>
+                Từ mùa vụ đến<br />
+                <span>những kết nối bền vững.</span>
               </h1>
               <p>
                 Nền tảng nông nghiệp số kết nối nông dân và doanh nghiệp —
@@ -205,15 +201,12 @@ const Auth = () => {
 
             <div className="auth-v3-brand-mobile">
               <span style={{ fontSize: 28 }}>🌾</span>
-              <span style={{ fontWeight: 800, fontSize: 20, marginLeft: 8 }}>PreOnic</span>
+              <span style={{ fontWeight: 800, fontSize: 20, marginLeft: 8 }}>Farmora</span>
             </div>
 
             <div className="auth-v3-header">
-              <span className="auth-v3-badge">
-                <LuLeaf /> Đăng nhập
-              </span>
               <h2>Chào mừng quay lại</h2>
-              <p>Đăng nhập để tiếp tục với nền tảng PreOnic.</p>
+              <p>Đăng nhập để tiếp tục với nền tảng Farmora.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="auth-v3-form">

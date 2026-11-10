@@ -1,5 +1,6 @@
 .home-cta {
   padding-bottom: 100px;
+  background: #fffaf0;
 }
 
 .home-cta__box {
@@ -8,13 +9,18 @@
   gap: 36px;
   align-items: center;
   padding: 48px;
-  border-radius: 34px;
+  overflow: hidden;
+  border-radius: 36px;
   background:
-    radial-gradient(circle at 15% 12%, rgba(250, 204, 21, 0.24), transparent 28%),
-    linear-gradient(135deg, #ecfccb, #dcfce7);
-  box-shadow: 0 28px 80px rgba(22, 101, 52, 0.12);
-  border: 1px solid rgba(22, 101, 52, 0.08);
+    radial-gradient(circle at 8% 12%, rgba(250, 204, 21, 0.2), transparent 27%),
+    linear-gradient(135deg, #063b2a, #0b7450);
+  box-shadow: 0 30px 88px rgba(10, 76, 48, 0.2);
+  border: 1px solid rgba(255,255,255,.08);
 }
+
+.home-cta .home-title { color: #fff; }
+.home-cta .home-desc { color: rgba(255,255,255,.72); }
+.home-cta .home-section__eyebrow { color: #efffc8; border: 1px solid rgba(239,255,200,.18); background: rgba(239,255,200,.09); }
 
 .home-cta__actions {
   display: flex;
@@ -27,8 +33,9 @@
   position: relative;
   padding: 34px;
   border-radius: 28px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(22, 101, 52, 0.08);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255,255,255,.16);
+  backdrop-filter: blur(16px);
 }
 
 .home-cta__quote svg {
@@ -39,7 +46,7 @@
 
 .home-cta__quote p {
   margin: 0;
-  color: var(--home-green-950);
+  color: #ffffff;
   font-size: 18px;
   line-height: 1.75;
   font-weight: 750;

@@ -18,6 +18,7 @@ const FarmerRatings = lazy(() => import('../component/FarmerDashboard/pages/Farm
 const FarmerWeatherInsurance = lazy(() => import('../component/FarmerDashboard/pages/FarmerWeatherInsurance'));
 const FarmerCreateProduct = lazy(() => import('../component/FarmerDashboard/pages/FarmerCreateProduct'));
 const FarmerEditProduct = lazy(() => import('../component/FarmerDashboard/pages/FarmerEditProduct'));
+const FarmerAdvertisements = lazy(() => import('../component/FarmerDashboard/pages/FarmerAdvertisements'));
 const BillingCenter = lazy(() => import('../component/BillingCenter/BillingCenter'));
 const CashflowReport = lazy(() => import('../component/CashflowReport/CashflowReport'));
 
@@ -54,6 +55,7 @@ const farmerRoutes = [
       { path: 'weather-insurance', element: <FarmerWeatherInsurance /> },
       { path: 'create-product', element: <FarmerCreateProduct /> },
       { path: 'edit-product/:id', element: <FarmerEditProduct /> },
+      { path: 'advertisements', element: <FarmerAdvertisements /> },
     ],
   },
 ];

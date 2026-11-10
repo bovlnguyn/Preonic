@@ -70,7 +70,7 @@ const roadmap = [
   { step: "01", title: "Chuẩn bị hồ sơ", desc: "Cập nhật thông tin tài khoản, vùng trồng và dữ liệu mùa vụ." },
   { step: "02", title: "Đăng nông sản", desc: "Đưa sản phẩm lên sàn với hình ảnh, sản lượng và thời gian thu hoạch." },
   { step: "03", title: "Nhận đề xuất", desc: "Doanh nghiệp tìm nguồn cung, gửi hợp đồng hoặc thương lượng điều khoản." },
-  { step: "04", title: "Giao dịch an toàn", desc: "Doanh nghiệp thanh toán trực tiếp cho farmer theo tiến độ, PreOnic theo dõi xác nhận và phí." },
+  { step: "04", title: "Giao dịch an toàn", desc: "Doanh nghiệp thanh toán trực tiếp cho farmer theo tiến độ, Farmora theo dõi xác nhận và phí." },
 ];
 
 function FarmerSolutions() {
@@ -87,7 +87,7 @@ function FarmerSolutions() {
               <motion.span className="fsol-eyebrow" variants={fadeUp}>
                 <FiCheckCircle /> Giải pháp dành riêng cho farmer
               </motion.span>
-              <motion.h1 variants={fadeUp}>Từ mùa vụ ngoài đồng đến hợp đồng minh bạch trên PreOnic.</motion.h1>
+              <motion.h1 variants={fadeUp}>Từ mùa vụ ngoài đồng đến hợp đồng minh bạch trên Farmora.</motion.h1>
               <motion.p variants={fadeUp}>
                 Farmer không chỉ đăng bán nông sản, mà còn có một bộ công cụ để chuẩn hóa sản phẩm,
                 quản lý hợp đồng, thanh toán trực tiếp, phí dịch vụ, đánh giá đối tác và bảo vệ mùa vụ.
@@ -145,7 +145,7 @@ function FarmerSolutions() {
               <motion.span className="fsol-section-kicker" variants={fadeUp}>Quy trình đề xuất</motion.span>
               <motion.h2 variants={fadeUp}>Farmer nên đi theo 4 bước để giao dịch hiệu quả.</motion.h2>
               <motion.p variants={fadeUp}>
-                Cách trình bày này giúp người dùng mới hiểu ngay PreOnic hoạt động thế nào,
+                Cách trình bày này giúp người dùng mới hiểu ngay Farmora hoạt động thế nào,
                 đồng thời vẫn có nút dẫn về dashboard để thao tác thật.
               </motion.p>
             </motion.div>

@@ -67,7 +67,7 @@ function LogoutConfirmModal({
         </div>
 
         <div className="logout-confirm__copy">
-          <span>Phiên làm việc PreOnic</span>
+          <span>Phiên làm việc Farmora</span>
           <h2 id={titleId}>Bạn muốn đăng xuất?</h2>
           <p id={descriptionId}>
             {userName ? (

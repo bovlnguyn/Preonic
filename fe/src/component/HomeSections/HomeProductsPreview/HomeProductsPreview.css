@@ -1,13 +1,15 @@
 .home-products-preview {
+  overflow: hidden;
   background:
-    radial-gradient(circle at 84% 18%, rgba(250, 204, 21, 0.16), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(236, 252, 203, 0.32));
+    radial-gradient(circle at 88% 14%, rgba(250, 204, 21, 0.16), transparent 24%),
+    linear-gradient(180deg, #f7faf5, #fffaf0);
 }
 
 .home-products-preview__grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
+  grid-template-columns: 1.18fr .82fr;
+  grid-template-rows: repeat(2, 220px);
+  gap: 18px;
 }
 
 .home-product-card {
@@ -16,7 +18,18 @@
   background: #ffffff;
   border: 1px solid rgba(22, 101, 52, 0.08);
   box-shadow: 0 24px 66px rgba(22, 101, 52, 0.1);
+  transition: box-shadow .3s ease, border-color .3s ease;
 }
+
+.home-product-card:first-child { grid-row: 1 / 3; position: relative; min-height: 458px; }
+.home-product-card:first-child .home-product-card__image { height: 100%; }
+.home-product-card:first-child .home-product-card__body { position: absolute; right: 20px; bottom: 20px; left: 20px; color: #fff; border: 1px solid rgba(255,255,255,.24); border-radius: 22px; background: rgba(4,47,30,.74); backdrop-filter: blur(16px); }
+.home-product-card:first-child .home-product-card__body span,
+.home-product-card:first-child .home-product-card__body h3,
+.home-product-card:first-child .home-product-card__body p { color: #fff; }
+.home-product-card:nth-child(n+2) { display: grid; grid-template-columns: 42% 1fr; }
+.home-product-card:nth-child(n+2) .home-product-card__image { height: 100%; }
+.home-product-card:hover { border-color: rgba(21,128,61,.2); box-shadow: 0 30px 72px rgba(19,92,52,.15); }
 
 .home-product-card__image {
   height: 230px;
@@ -68,12 +81,18 @@
 
 @media (max-width: 1080px) {
   .home-products-preview__grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
   }
+  .home-product-card:first-child { grid-row: auto; min-height: 420px; }
+  .home-product-card:nth-child(n+2) { min-height: 220px; }
 }
 
 @media (max-width: 720px) {
   .home-products-preview__grid {
     grid-template-columns: 1fr;
   }
+  .home-product-card:first-child { min-height: 390px; }
+  .home-product-card:nth-child(n+2) { display: block; }
+  .home-product-card:nth-child(n+2) .home-product-card__image { height: 220px; }
 }

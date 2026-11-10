@@ -80,7 +80,7 @@ export default function TongQuanContent({ onNavigate }) {
       <div className="adm-page-header">
         <div>
           <h1 className="adm-page-title">Tổng quan hệ thống</h1>
-          <p className="adm-page-subtitle">Theo dõi hoạt động toàn bộ nền tảng PreOnic</p>
+          <p className="adm-page-subtitle">Theo dõi hoạt động toàn bộ nền tảng Farmora</p>
         </div>
         <button className="adm-btn adm-btn-outline" type="button" onClick={() => loadDashboard()} disabled={refreshing}>
           <FiRefreshCw className={refreshing ? "adm-spin" : ""} />

@@ -238,7 +238,7 @@ export default function OrderDetail() {
         <section className="order-card">
           <div className="order-card__heading"><div><span className="order-eyebrow">Dòng thời gian</span><h2>Trạng thái vận chuyển</h2></div><FiTruck /></div>
           {order.loadingPhotoUrl && <a className="order-loading-photo" href={order.loadingPhotoUrl} target="_blank" rel="noreferrer"><img src={order.loadingPhotoUrl} alt="Hàng đã được đưa lên xe" /><span>Ảnh xác nhận hàng lên xe</span></a>}
-          {!trackingEvents.length ? <p className="order-empty">Chưa có cập nhật vận chuyển.</p> : <div className="order-timeline">{trackingEvents.map((event) => <div className="order-timeline__item" key={event.id}><span className="order-timeline__dot" /><div><strong>{event.description || event.status}</strong><span>{event.location || 'PreOnic'} · {fmtDate(event.occurredAt, true)}</span></div></div>)}</div>}
+          {!trackingEvents.length ? <p className="order-empty">Chưa có cập nhật vận chuyển.</p> : <div className="order-timeline">{trackingEvents.map((event) => <div className="order-timeline__item" key={event.id}><span className="order-timeline__dot" /><div><strong>{event.description || event.status}</strong><span>{event.location || 'Farmora'} · {fmtDate(event.occurredAt, true)}</span></div></div>)}</div>}
         </section>
       </div>
     </div>
